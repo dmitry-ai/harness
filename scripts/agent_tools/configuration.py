@@ -1,25 +1,4 @@
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
-# https://github.com/dmitry-ai/harness/issues/100
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# https://github.com/dmitry-ai/harness/issues/86
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
-# https://github.com/dmitry-ai/harness/issues/71
-# 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
-# https://github.com/dmitry-ai/harness/issues/6
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
-# https://github.com/dmitry-ai/harness/issues/27
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace per-profile Harness projections with shared native connections":
-# https://github.com/dmitry-ai/harness/issues/35
+# 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from contextlib import nullcontext
 import hashlib
 import json
@@ -27,11 +6,32 @@ import os
 from pathlib import Path
 import re
 import tomllib
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
 from .runtime import PRIMARY, extract_platform_instances, profile_name, settings
 from .storage import create_bytes, data_dir_for, locked, replace_bytes
+# 2026-11-14
+# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
+# https://github.com/dmitry-ai/harness/issues/71
 DISCOVERY_KINDS = ('rules', 'skills', 'agents')
 def _digest(data):
 	return hashlib.sha256(data).hexdigest()
+# 2026-10-15
+# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
+# https://github.com/dmitry-ai/harness/issues/6
+# 2026-10-17
+# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+# https://github.com/dmitry-ai/harness/issues/7
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-02
+# "Replace per-profile Harness projections with shared native connections":
+# https://github.com/dmitry-ai/harness/issues/35
+# 2026-11-14
+# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
+# https://github.com/dmitry-ai/harness/issues/71
 def _publish(root, outputs, *, check=False, merge=None, retire=(), disown=(), preflight=False):
 	root = Path(root).resolve()
 	if not outputs and (not any((Path(path).exists() for path in retire))):
@@ -96,6 +96,9 @@ def _publish(root, outputs, *, check=False, merge=None, retire=(), disown=(), pr
 							raise ValueError('Legacy file changed during migration')
 						target.unlink()
 						previous.pop(str(target), None)
+					# 2026-11-19
+					# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+					# https://github.com/dmitry-ai/harness/issues/96
 					from .path_registry import project_paths
 					config = project_paths(root, exact_root=True).codex_config_toml
 					if config in outputs:
@@ -159,6 +162,9 @@ def _toml_statements(text):
 		index += 1
 	if start < len(text):
 		yield (start, len(text))
+# 2026-10-17
+# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+# https://github.com/dmitry-ai/harness/issues/7
 START = '<!-- upwork-init:instructions:start -->'
 END = '<!-- upwork-init:instructions:end -->'
 def _managed_block(value):
@@ -191,6 +197,9 @@ def _root_options(text, instructions=None, *, legacy_bytes=None, expected_block=
 	tomllib.loads(text)
 	return text
 def _native_config(root, instructions=None):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	config_path = project_paths(root, exact_root=True).codex_config_toml
 	actual = config_path.read_bytes() if config_path.exists() else None
@@ -201,18 +210,21 @@ def _native_config(root, instructions=None):
 	legacy_bytes = len(legacy.read_bytes()) if legacy.exists() and receipt_sha256(receipt.get(str(legacy))) == _digest(legacy.read_bytes()) else None
 	wanted = _root_options(existing, instructions, legacy_bytes=legacy_bytes, expected_block=owned.get('block_sha256') if isinstance(owned, dict) else None)
 	return (config_path, wanted, {config_path: actual})
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Refactor shared rules into compact three-layer M-2 architecture":
-# https://github.com/dmitry-ai/harness/issues/242
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-11-25
 # "Support model_decision trigger class in doctor and Codex loader":
 # https://github.com/dmitry-ai/harness/issues/241
+# 2026-11-25
+# "Refactor shared rules into compact three-layer M-2 architecture":
+# https://github.com/dmitry-ai/harness/issues/242
 def _loader(primary, local=(), *, restore_global=True, display_root=None):
 	from .rules_manifest import render_codex_loader
 	return render_codex_loader(primary, local, restore_global=restore_global, display_root=display_root)
-# 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-16
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
 def global_codex_instructions():
 	codex_cfg = settings()['platforms'].get('codex') or {}
 	all_insts = extract_platform_instances(codex_cfg, platform='codex', include_disabled=True)
@@ -240,6 +252,12 @@ def global_codex_instructions():
 	r = {'developer_instructions': values[0], 'profile': names[0] if 1 == len(names) else 'identical across configured profiles'}
 	return r
 def _project_rule_paths(root, primary):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
+	# 2026-11-20
+	# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
+	# https://github.com/dmitry-ai/harness/issues/100
 	from .path_registry import project_paths, relocated_harness_code_dirs
 	pp = project_paths(root, exact_root=True)
 	agents = pp.agents_config_dir if pp.agents_config_dir.resolve() != Path(primary).resolve() else (root / '.agents')
@@ -263,22 +281,31 @@ def _project_rule_paths(root, primary):
 			else:
 				raise ValueError(f'Configured rule source is missing or unsupported: {source}')
 	return list(dict.fromkeys((path.resolve() for path in paths if not any((path.resolve().is_relative_to(sh) for sh in shared_equivalents)))))
-# 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
-# https://github.com/dmitry-ai/harness/issues/6
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
 def _primary_settings(primary):
 	p = Path(primary).resolve()
 	rt = p / 'runtime.json'
 	if p != Path(PRIMARY).resolve() and rt.is_file():
 		return settings(rt)
 	return settings()
+# 2026-10-16
+# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
+# https://github.com/dmitry-ai/harness/issues/6
 def configure_codex_project(root, primary=PRIMARY, job_url=None, label=None, *, check=False):
+	# 2026-11-02
+	# "Replace per-profile Harness projections with shared native connections":
+	# https://github.com/dmitry-ai/harness/issues/35
 	from .native_profiles import legacy_project_projection_paths
 	root, primary = (Path(root).resolve(), Path(primary).resolve())
 	cfg = _primary_settings(primary)
 	if 'codex' not in (cfg.get('platforms') or {}) or root == Path(cfg['workspace_root']).resolve():
 		r = {'valid': True, 'issues': [], 'written': []}
 	else:
+		# 2026-11-19
+		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+		# https://github.com/dmitry-ai/harness/issues/96
 		from .path_registry import project_paths
 		pp = project_paths(root, exact_root=True)
 		agents_dir = pp.agents_config_dir if pp.agents_config_dir.resolve() != primary else (root / '.agents')
@@ -304,6 +331,9 @@ def configure_codex_project(root, primary=PRIMARY, job_url=None, label=None, *, 
 			if not check and (not r['valid']):
 				raise ValueError(r['issues'])
 	return r
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
 def _frontmatter(path):
 	text = path.read_text(encoding='utf-8-sig')
 	match = re.match('^---\\r?\\n(.*?)\\r?\\n---\\r?\\n', text, re.S)
@@ -315,12 +345,18 @@ def _frontmatter(path):
 			values[key.strip()] = json.loads(value) if value.startswith('"') else value
 	r = values
 	return r
-# 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-16
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
 def build_native(root=None, *, primary=PRIMARY, check=False):
+	# 2026-11-02
+	# "Replace per-profile Harness projections with shared native connections":
+	# https://github.com/dmitry-ai/harness/issues/35
 	from .native_profiles import build_shared_native, shared_native_outputs, legacy_project_projection_paths
 	primary = Path(primary).resolve()
+	# 2026-11-18
+	# "Externalize agent environments and per-instance system paths into runtime.json":
+	# https://github.com/dmitry-ai/harness/issues/86
 	config = _primary_settings(primary)
 	plats = config.get('platforms') or {}
 	has_codex = 'codex' in plats
@@ -342,6 +378,9 @@ def build_native(root=None, *, primary=PRIMARY, check=False):
 		except ValueError as exc:
 			r = {'valid': False, 'issues': [{'file': str(root), 'message': str(exc)}], 'written': []}
 		return r
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	pp = project_paths(root, exact_root=True)
 	native = pp.codex_config_toml
@@ -351,6 +390,12 @@ def build_native(root=None, *, primary=PRIMARY, check=False):
 	agents_dir = pp.agents_config_dir if pp.agents_config_dir.resolve() != primary else (root / '.agents')
 	local_rules = _project_rule_paths(root, primary) if (agents_dir / 'rules').is_dir() else ()
 	instructions = _loader(primary, local_rules, restore_global=restore_global)
+	# 2026-10-23
+	# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+	# https://github.com/dmitry-ai/harness/issues/16
+	# 2026-10-31
+	# "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
+	# https://github.com/dmitry-ai/harness/issues/27
 	guidance = f'# Codex: Upwork\n\n<!-- Generated from {primary.as_posix()}; run harness.py build-native to update. -->\n\n' + instructions + '\n'
 	outputs = {root / 'AGENTS.md': guidance}
 	try:
@@ -372,6 +417,9 @@ def build_native(root=None, *, primary=PRIMARY, check=False):
 	except ValueError as exc:
 		r = {'valid': False, 'issues': [{'file': str(root / '.codex/config.toml'), 'message': str(exc)}], 'written': []}
 	return r
+# 2026-11-14
+# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
+# https://github.com/dmitry-ai/harness/issues/71
 def extract_managed_block(value, start_marker=START, end_marker=END, *, error_message='Malformed managed developer instructions; configuration preserved'):
 	if start_marker not in value and end_marker not in value:
 		r = ''

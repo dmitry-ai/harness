@@ -1,21 +1,4 @@
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Initialize new Upwork projects in the V2 filesystem layout":
-# https://github.com/dmitry-ai/harness/issues/110
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
-# https://github.com/dmitry-ai/harness/issues/81
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract PdfMarkdownExtractor and DocxMarkdownExtractor classes with shared table/file pipeline in upwork_data.py":
-# https://github.com/dmitry-ai/harness/issues/65
 # 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
-# https://github.com/dmitry-ai/harness/issues/3
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 import csv
 import io
 import json
@@ -30,12 +13,18 @@ import xml.etree.ElementTree as ET
 import zipfile
 import zlib
 from .links import markdown_link, readable_reference
+# 2026-10-17
+# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+# https://github.com/dmitry-ai/harness/issues/7
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.tiff', '.tif', '.avif', '.heic'}
 LIGATURE_MAP = str.maketrans({'\ufb00': 'ff', '\ufb01': 'fi', '\ufb02': 'fl', '\ufb03': 'ffi', '\ufb04': 'ffl', '\ufb05': 'st', '\ufb06': 'st'})
 TEXT_DOC_EXTENSIONS = {'.pdf', '.docx', '.doc', '.rtf', '.odt', '.txt', '.md', '.markdown', '.rst', '.log', '.ini', '.cfg', '.conf', '.html', '.htm', '.xhtml', '.xml', '.svg', '.json', '.yaml', '.yml', '.toml', '.csv', '.tsv', '.xlsx', '.xls', '.xlsm', '.ods', '.js', '.ts', '.jsx', '.tsx', '.py', '.php', '.rb', '.java', '.cs', '.go', '.rs', '.c', '.cpp', '.h', '.css', '.scss', '.less', '.liquid', '.sql', '.sh', '.ps1', '.bat', '.har'}
 VIDEO_EXTENSIONS = {'.mp4', '.mov', '.webm', '.mkv', '.avi', '.m4v', '.wmv', '.flv', '.mpeg', '.mpg'}
 _SENTENCE_SPLIT_RE = re.compile('(?<!\\be\\.g)(?<!\\bi\\.e)(?<!\\bvs)(?<!\\betc)(?<!\\bMr)(?<!\\bDr)(?<!\\bSt)(?<!\\bNB)(?<=[.!?])\\s+(?=[A-Z\\u0410-\\u042f\\u0401"«(])')
 _VIDEO_URL_RE = re.compile('https?://(?:www\\.)?(?:loom\\.com/(?:share|embed)/[A-Za-z0-9_-]+|youtube\\.com/(?:watch\\?[^\\s)"\\\'>]+|embed/[A-Za-z0-9_-]+|shorts/[A-Za-z0-9_-]+)|youtu\\.be/[A-Za-z0-9_-]+|vimeo\\.com/\\d+|player\\.vimeo\\.com/video/\\d+|[^\\s)"\\\'>]+\\.(?:mp4|mov|webm|m4v)(?:\\?[^\\s)"\\\'>]*)?)', re.I)
+# 2026-11-14
+# "Extract PdfMarkdownExtractor and DocxMarkdownExtractor classes with shared table/file pipeline in upwork_data.py":
+# https://github.com/dmitry-ai/harness/issues/65
 class DocxMarkdownExtractor:
 	R = '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}'
 	W = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
@@ -187,6 +176,9 @@ class DocxMarkdownExtractor:
 				for sent in split_sentences_one_per_line(it['text']):
 					out_lines.append(sent)
 		return sanitize_kb_markdown('\n'.join(out_lines))
+	# 2026-10-17
+	# "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
+	# https://github.com/dmitry-ai/harness/issues/9
 	def _render_link(self, text: str, url: str) -> str:
 		t = text.strip()
 		if not t:
@@ -222,6 +214,9 @@ class DocxMarkdownExtractor:
 				self._normalize_heading_levels(raw_items)
 				r = self._render_items(raw_items)
 		return r
+# 2026-11-14
+# "Extract PdfMarkdownExtractor and DocxMarkdownExtractor classes with shared table/file pipeline in upwork_data.py":
+# https://github.com/dmitry-ai/harness/issues/65
 class PdfMarkdownExtractor:
 	def __init__(self, raw_bytes: bytes, pdf_path=None):
 		self.pdf_path = pdf_path
@@ -293,6 +288,9 @@ class PdfMarkdownExtractor:
 					else:
 						href = child.attrib['href'].strip()
 						label = self._clean_txt(ctext)
+						# 2026-10-17
+						# "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
+						# https://github.com/dmitry-ai/harness/issues/9
 						parts.append(markdown_link(label, href) if label else readable_reference(href))
 					if child.tail:
 						parts.append(child.tail)
@@ -411,6 +409,9 @@ class PdfMarkdownExtractor:
 		if None is r:
 			r = self._extract_from_raw_streams()
 		return r
+# 2026-11-14
+# "Extract PdfMarkdownExtractor and DocxMarkdownExtractor classes with shared table/file pipeline in upwork_data.py":
+# https://github.com/dmitry-ai/harness/issues/65
 def _extract_xlsx_markdown(raw_bytes: bytes) -> str:
 	with zipfile.ZipFile(io.BytesIO(raw_bytes)) as zf:
 		shared: list[str] = []
@@ -440,6 +441,9 @@ def _extract_xlsx_markdown(raw_bytes: bytes) -> str:
 					lines.append('- ' + '; '.join(vals))
 		r = sanitize_kb_markdown('\n'.join(lines))
 	return r
+# 2026-11-14
+# "Extract PdfMarkdownExtractor and DocxMarkdownExtractor classes with shared table/file pipeline in upwork_data.py":
+# https://github.com/dmitry-ai/harness/issues/65
 def _parse_pdf_streams(pdf_bytes: bytes, *, text_ops_only: bool=False) -> tuple[dict[int, str], list[str], dict[int, str]]:
 	cid_to_uni: dict[int, str] = {}
 	content_streams: list[str] = []
@@ -462,6 +466,12 @@ def _parse_pdf_streams(pdf_bytes: bytes, *, text_ops_only: bool=False) -> tuple[
 				if cid + offset not in cid_to_uni:
 					unmapped_ligatures[cid + offset] = lig_char
 	return (cid_to_uni, content_streams, unmapped_ligatures)
+# 2026-10-14
+# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
+# https://github.com/dmitry-ai/harness/issues/3
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def normalize_job_id(url_or_id: str) -> str:
 	match = re.search('(~0[12][0-9a-zA-Z]+)', url_or_id.strip())
 	if not match:
@@ -469,6 +479,9 @@ def normalize_job_id(url_or_id: str) -> str:
 	return match.group(1)
 def canonical_job_url(url_or_id: str) -> str:
 	return f'https://upwork.com/jobs/{normalize_job_id(url_or_id)}'
+# 2026-11-16
+# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+# https://github.com/dmitry-ai/harness/issues/81
 def extract_upwork_job_url_id(url: str, *, allow_query_or_fragment: bool=False) -> str | None:
 	r = None
 	if isinstance(url, str) and url.strip():
@@ -515,6 +528,9 @@ def extract_client_names(work_history: list[dict]) -> list[dict]:
 				seen_in_item.add(name)
 				found.setdefault(name, []).append({'project_index': idx, 'project_title': (item.get('jobInfo') or {}).get('title') or f'Project {idx}', 'quote': comment})
 	return [{'name': k, 'mentions': v} for k, v in sorted(found.items(), key=lambda x: -len(x[1]))]
+# 2026-10-14
+# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
+# https://github.com/dmitry-ai/harness/issues/3
 def extract_candidate_domains(texts: list[str]) -> list[str]:
 	pattern = '(?<![\\w.-])((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,63})(?![\\w.-])'
 	domains = (m[4:] if m.startswith('www.') else m for text in texts for m in re.findall(pattern, text.lower()))
@@ -592,15 +608,21 @@ def collect_unique_public_past_jobs(data: dict) -> list[dict]:
 			seen_cids.add(cid)
 			r.append({'ciphertext': cid, 'url': canonical_job_url(cid), 'title': title, 'description': desc})
 	return r
-# 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-14
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def format_kb_project_md(data: dict) -> str:
 	buyer = data.get('buyer') or {}
 	loc = buyer.get('location') or {}
 	name_str = 'unresolved; names from reviews require verification' if data.get('client_names') else 'unknown'
 	country = (loc.get('country') or 'unknown').strip()
 	city = (loc.get('city') or '').strip()
+	# 2026-11-21
+	# "Initialize new Upwork projects in the V2 filesystem layout":
+	# https://github.com/dmitry-ai/harness/issues/110
 	loc_lines = ['  \n'.join([country] + ([city] if city else []))]
 	site_str = 'unresolved; domain mentions and folder names do not prove ownership'
 	if data.get('site_hypothesis'):
@@ -609,6 +631,12 @@ def format_kb_project_md(data: dict) -> str:
 		analysis = {key: [h] if 'identity' == key else [] for key in SECTIONS}
 		analysis['notes'] = {key: 'Separate analysis stage.' for key in SECTIONS if 'identity' != key}
 		validate_analysis(analysis)
+		# 2026-10-17
+		# "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
+		# https://github.com/dmitry-ai/harness/issues/9
+		# 2026-11-21
+		# "Initialize new Upwork projects in the V2 filesystem layout":
+		# https://github.com/dmitry-ai/harness/issues/110
 		site_str = '  \n'.join([h['essence'], 'For: ' + '; '.join((f"{a['argument']} «{a['quote']}» " + markdown_link('Source', a['source']) for a in h['for'])), 'Against: ' + '; '.join((f"{a['argument']} «{a['quote']}» " + markdown_link('Source', a['source']) for a in h['against'])), f"Expert plausibility: {h['probability_percent']}%.", h['assessment_basis']])
 	job_url = canonical_job_url(data.get('job_id') or data.get('url') or '')
 	job_title = (data.get('title') or '').strip()
@@ -616,6 +644,9 @@ def format_kb_project_md(data: dict) -> str:
 	extra_sources = data.get('extra_sources') or []
 	fence = markdown_fence(structured_desc)
 	lines = ['# 1. Client', '## 1.1 Name', name_str, '', '## 1.2 Location', *loc_lines, '', '## 1.3 Website', site_str, '', '# 2. Current Client Project']
+	# 2026-10-17
+	# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+	# https://github.com/dmitry-ai/harness/issues/7
 	if not extra_sources:
 		lines.extend([job_url, fence + 'markdown', job_title, '#', structured_desc, fence])
 	else:
@@ -625,12 +656,18 @@ def format_kb_project_md(data: dict) -> str:
 			src_body = (src.get('body') or '').strip()
 			src_fence = markdown_fence(src_body)
 			lines.extend(['', f'## 2.{s_idx}. {src_heading}', src_fence + 'markdown', src_body, src_fence])
+	# 2026-11-21
+	# "Initialize new Upwork projects in the V2 filesystem layout":
+	# https://github.com/dmitry-ai/harness/issues/110
 	lines.extend(['', '# 3. Past Client Projects', '## 3.0', 'Projects were posted by the same account; their connection to the current website is not established.', '##', 'Use these projects to understand context.  ', 'Working on these projects is outside the scope of the current task.  '])
 	for idx, pjob in enumerate(collect_unique_public_past_jobs(data), start=1):
 		p_structured = structure_job_description(pjob['description'])
 		pfence = markdown_fence(p_structured)
 		lines.extend(['', f'## 3.{idx}', pjob['url'], pfence + 'markdown', pjob['title'], '#', p_structured, pfence])
 	return '\n'.join(lines) + '\n'
+# 2026-11-14
+# "Extract PdfMarkdownExtractor and DocxMarkdownExtractor classes with shared table/file pipeline in upwork_data.py":
+# https://github.com/dmitry-ai/harness/issues/65
 def format_table_bullet_rows(rows: list[list[str]], headers: list[str] | None=None) -> list[str]:
 	hdrs = [h.strip() for h in headers or ()]
 	r: list[str] = []
@@ -639,6 +676,9 @@ def format_table_bullet_rows(rows: list[list[str]], headers: list[str] | None=No
 		if pairs:
 			r.append('- ' + '; '.join(pairs))
 	return r
+# 2026-10-17
+# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+# https://github.com/dmitry-ai/harness/issues/7
 def classify_attachment(filename_or_path, raw_bytes: bytes | None=None) -> str:
 	suffix = Path(str(filename_or_path)).suffix.lower()
 	r = 'binary'
@@ -690,6 +730,9 @@ def discover_pdf_ligature_repairs(pdf_bytes: bytes) -> dict[str, str]:
 					r[b.replace('\ufffd', '\u01af').translate(LIGATURE_MAP)] = clean_w
 	return r
 def _find_poppler_tool(name: str) -> str | None:
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import tool_list
 	r = shutil.which(name)
 	if not r:
@@ -719,10 +762,25 @@ def sanitize_kb_markdown(text: str) -> str:
 	return '\n'.join(out).strip()
 def _join_wrapped_lines(prev: str, nxt: str) -> str:
 	return prev + nxt if prev.endswith('-') and nxt and nxt[0].islower() else (prev + ' ' + nxt).strip()
+# 2026-10-17
+# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+# https://github.com/dmitry-ai/harness/issues/7
+# 2026-11-14
+# "Extract PdfMarkdownExtractor and DocxMarkdownExtractor classes with shared table/file pipeline in upwork_data.py":
+# https://github.com/dmitry-ai/harness/issues/65
 def extract_pdf_markdown(raw_bytes: bytes, pdf_path=None) -> str:
 	return PdfMarkdownExtractor(raw_bytes, pdf_path=pdf_path).extract()
+# 2026-10-17
+# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+# https://github.com/dmitry-ai/harness/issues/7
+# 2026-11-14
+# "Extract PdfMarkdownExtractor and DocxMarkdownExtractor classes with shared table/file pipeline in upwork_data.py":
+# https://github.com/dmitry-ai/harness/issues/65
 def extract_docx_markdown(raw_bytes: bytes) -> str:
 	return DocxMarkdownExtractor(raw_bytes).extract()
+# 2026-10-17
+# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+# https://github.com/dmitry-ai/harness/issues/7
 def extract_attachment_markdown(path_or_name, raw_bytes: bytes | None=None) -> str:
 	path = Path(str(path_or_name))
 	if None is raw_bytes:
@@ -764,6 +822,9 @@ def canonical_video_url(url: str) -> str:
 	u = url.strip().rstrip('.,;!?')
 	m = re.match('^https?://(?:www\\.)?loom\\.com/(?:share|embed)/([A-Za-z0-9]+)', u, re.I)
 	return f'https://loom.com/share/{m.group(1)}' if m else u
+# 2026-10-17
+# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+# https://github.com/dmitry-ai/harness/issues/7
 def detect_client_videos(description: str='', document_markdowns: list[str] | tuple[str, ...]=(), saved_attachments: list[dict] | tuple[dict, ...]=()) -> list[dict]:
 	r: list[dict] = []
 	seen_keys: set[str] = set()
@@ -815,6 +876,12 @@ def parse_webvtt_phrases(vtt_text: str) -> list[dict]:
 		if txt:
 			r.append({'ts': f'[{mm:02d}:{ss:02d}]', 'seconds': mm * 60 + ss, 'text': txt})
 	return r
+# 2026-10-17
+# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+# https://github.com/dmitry-ai/harness/issues/7
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def extract_loom_video(url: str, timeout: float=15.0, opener=None) -> dict:
 	open_fn = opener or (lambda req, tm: urlopen(req, timeout=tm))
 	canon = canonical_video_url(url)

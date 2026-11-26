@@ -1,14 +1,23 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/239
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/238
 from __future__ import annotations
 from pathlib import Path
 from ..shell_audit import _GITHUB_ISSUE_URL_RE, _ISSUE_LINKED_CODE_SUFFIXES
 from .comment_diff import is_comment_only_diff, is_git_file_comment_only
+# 2026-11-25
+# "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
+# https://github.com/dmitry-ai/harness/issues/239
 from .mechanical import is_git_file_mechanical_exempt, is_mechanical_diff_exempt
+# 2026-11-25
+# "Add comment-only diff lexer exemption for top 20 repository languages":
+# https://github.com/dmitry-ai/harness/issues/238
+# 2026-11-25
+# "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
+# https://github.com/dmitry-ai/harness/issues/239
 def is_diff_exempt(path: str | Path, old_text: str | None, new_text: str | None, *, repo_root: Path | None=None, message: str | None=None, project_root: Path | None=None) -> bool:
 	return is_comment_only_diff(path, old_text, new_text) or is_mechanical_diff_exempt(old_text, new_text, repo_root=repo_root, message=message, project_root=project_root)
+# 2026-11-25
+# "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
+# https://github.com/dmitry-ai/harness/issues/239
 def is_git_path_exempt(repo_root: Path, rel_posix: str, *, disk_text: str | None=None, use_index: bool=False, message: str | None=None, project_root: Path | None=None) -> bool:
 	return is_git_file_comment_only(repo_root, rel_posix, disk_text=disk_text, use_index=use_index) or is_git_file_mechanical_exempt(repo_root, rel_posix, disk_text=disk_text, use_index=use_index, message=message, project_root=project_root)
 def is_write_event_exempt(raw_path: str | Path, scope_str: str, *, project_root: Path | None=None) -> bool:

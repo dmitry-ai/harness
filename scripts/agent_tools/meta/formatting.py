@@ -1,5 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/170
 from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
@@ -36,6 +35,9 @@ def _split_model_and_effort(raw_model: str | None, raw_effort: str | None=None) 
 def _system_display_name(platform: str | None) -> str | None:
 	raw = str(platform or '').strip().lower()
 	return _SYSTEM_DISPLAY.get(raw, raw.capitalize()) if raw else None
+# 2026-11-24
+# "Decompose metadata.py into modular metadata collection package":
+# https://github.com/dmitry-ai/harness/issues/170
 def format_duration_timecode(start: datetime | str | None, end: datetime | str | None) -> str | None:
 	start_dt = parse_timestamp(start)
 	end_dt = parse_timestamp(end)

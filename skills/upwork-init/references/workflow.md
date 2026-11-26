@@ -1,15 +1,21 @@
+<!-- 2026-10-15 "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume": https://github.com/dmitry-ai/harness/issues/4 -->  
+<!-- 2026-10-31 "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow": https://github.com/dmitry-ai/harness/issues/26 -->  
 # Internal Analysis Protocol
 
 All commands are executed by the agent from the active chat via `scripts/upwork_project.py`; they do not launch LLMs.  
+<!-- 2026-10-15 "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation": https://github.com/dmitry-ai/harness/issues/6 -->  
 Pass `--platform codex` or `--platform antigravity`; in Codex, the profile is resolved from `CODEX_HOME` or passed explicitly via `--codex-profile`.  
 `<project>` is the exact existing root of the active job post, never the shared `code`/`daily` parent folder or a neighboring project.  
+<!-- 2026-10-17 "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging": https://github.com/dmitry-ai/harness/issues/7 -->  
 Pass `candidate`/`spec`/`plan`/`answer` payloads in UTF-8 via stdin (`-`) or—on Windows PowerShell where pipes corrupt non-ASCII—write a UTF-8-no-BOM file inside `ꘖ/data/scratch` and pass `--consume-input`: a verified write deletes an unchanged scratch input while any error or conflict preserves it, and no one-off scripts are created in the project.  
 The `collect` plan is retained in full inside publication provenance.  
+<!-- 2026-10-18 "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification": https://github.com/dmitry-ai/harness/issues/10 -->  
 When a command accepts both `--spec` and `--response-file`, stdin (`-`) may be used for at most one of them; write the other exact input to `ꘖ/data/scratch` with `--consume-input`.  
 All evidence records belong in `ꘖ/KB/Evidence` and service state in `ꘖ/data`; manual `KB/` files are preserved.  
 
 ## Continuation
 
+<!-- 2026-10-16 "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation": https://github.com/dmitry-ai/harness/issues/6 -->  
 ```text
 python <tool> status <project>
 python <tool> configure <project>
@@ -20,8 +26,10 @@ python <tool> adopt-requests <project> --conversation <UUID of current parent ch
 ```
 
 `resume` verifies the saved snapshot and updates `ꘖ/KB/Progress.md`.  
+<!-- 2026-10-15 "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation": https://github.com/dmitry-ai/harness/issues/6 -->  
 `adopt-requests` reads the exact user messages for the job through the active platform adapter, records native message IDs, and never reconstructs text from collapsed summaries.  
 Codex reads the selected profile's native SQLite/session JSONL in read-only mode; Antigravity reads native `USER_INPUT` steps.  
+<!-- 2026-11-21 "Remove text-based explicit-project-root override from request binding": https://github.com/dmitry-ai/harness/issues/112 -->  
 In a new chat without `/upwork-init`, the adapter requires the exact native project `cwd` or single-folder `workspace_uri`.  
 A shared repository root or multi-folder workspace does not identify a specific project; explicitly switching to another job post closes the prior request scope.  
 Importing requests from the second platform appends to prior exact requests while preserving already prepared responses.  
@@ -30,17 +38,21 @@ Never fabricate historical requests or intermediate responses.
 New projects use these same mechanisms right after `init` to record the initial request and snapshot without asking the user to repeat the command.  
 
 `status` reports stage states and KB hashes; completion is never inferred merely from the existence of `Analysis.json`.  
+<!-- 2026-10-15 "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation": https://github.com/dmitry-ai/harness/issues/6 -->  
 Active registration is mandatory for working `daily` projects; a `pending` status or missing receipt for the active platform prevents completing `identity_init`.  
 When switching platforms, run `configure` and `register` on the existing project root without re-running `init`.  
+<!-- 2026-11-18 "Externalize agent environments and per-instance system paths into runtime.json": https://github.com/dmitry-ai/harness/issues/86 -->  
 By default, `register` services all active environments configured in `runtime.registration.targets`; `--target` repairs a single environment registration.  
 A new initial-analysis request without a recorded response clears `finalize` completion.  
 `resume` does not run `inspect`/`init`, does not spawn workers, and does not read `Context.md`.  
 When resuming a legacy project, all stages beyond a mechanically verified `capture` require verification; read what was already created rather than starting over from scratch.  
 If workspace creation itself was interrupted before `ꘖ/project.json` was written, finish `init` from the saved snapshot of the current chat and then continue the protocol.  
 
+<!-- 2026-10-16 "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation": https://github.com/dmitry-ai/harness/issues/6 -->  
 Once initial analysis is finalized, any specific instruction to draft or edit a proposal is executed semi-manually using the same KB, exact journal, `continuation.md`, and existing `result/**/draft.md` or `final.md`.  
 The stages below track initial analysis; they do not declare a proposal ready and do not require re-running all five stages when switching platforms.  
 Snapshot any existing `draft.md` per FILE-2 before editing, and record the current task and next step in `ꘖ/data/continuation.md`.  
+<!-- 2026-11-02 "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle": https://github.com/dmitry-ai/harness/issues/36 -->  
 After initial analysis is finalized, record a proposal-only request via `answer-prepare` without adding it as an unfinished initial-analysis request.  
 
 ## Stages
@@ -56,17 +68,21 @@ python <tool> stage <project> identity_init --input "ꘖ/project.json" --output 
 
 Write the actual verification artifact to the declared `--output` path; never fabricate a placeholder file just to obtain a stage receipt.  
 `research` requires closed questions or documented gaps; `analysis` requires current KB modules and evidence; subsequent stages require a current A.A substantive review.  
+<!-- 2026-10-18 "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification": https://github.com/dmitry-ai/harness/issues/10 -->  
 In a justified routine case, the primary A.A records a `schema_version: 2` report with `review_kind: self_review` covering the response and every mapped claim, passing identical `--parent` and `--reviewer` UUIDs of the current chat to `record-review`.  
+<!-- 2026-11-24 "Enforce single falsifier review default and block duplicate send_message reports": https://github.com/dmitry-ai/harness/issues/226 -->  
 Self-review is not an independent audit; `significant` work defaults to one adversarial A.A reviewer in `review_mode: "falsifier"` and escalates to two independent A.A reviewers when `disproved_claims`, `needs_changes`, or prior significant findings exist.  
 If any input or output digest changes, the stage becomes `stale` while prior files and receipts remain preserved in history.  
 An interruption between publications does not mark a stage complete; atomic writes and digest checks allow retrying only the unfinished operation.  
 
 ## Question Registry and Ownership
 
+<!-- 2026-10-18 "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification": https://github.com/dmitry-ai/harness/issues/10 -->  
 A question specification is a JSON object with `id`, `question`, `impact`, `done_when`, `inputs`, `outputs`, and `requirements` per the [experiment contract](evidence-contract.md#plan-before-result).  
 All declared `inputs` must exist, and `outputs` must be exact permitted file paths inside `ꘖ`.  
 See [question.example.json](question.example.json) and adapt the paths and question to the specific project.  
 
+<!-- 2026-10-18 "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification": https://github.com/dmitry-ai/harness/issues/10 -->  
 ```text
 python <tool> question-add <project> --spec -
 python <tool> question-claim <project> Q-SITE --owner <observed-worker-ID>
@@ -79,6 +95,7 @@ python <tool> question-finish <project> Q-SITE --owner <ID> --output "ꘖ/KB/Evi
 Ownership is verified against live native UI progress; the `owner` string is a coordination key rather than OS authentication.  
 After three empty searches, return the gap or justify `--method-change`; the search log does not hook built-in `search_web`, so the agent enforces this discipline directly.  
 Close a gap with a saved report and `--gap "what remains unverified and why"`, never with a fabricated confirmation.  
+<!-- 2026-10-18 "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification": https://github.com/dmitry-ai/harness/issues/10 -->  
 Provide one result entry per requirement: `requirement_id`, `status`, `experiment` (path to the immutable run), plus `limitation` whenever the status is `unverified` or `unavailable`.  
 Freeze the plan via `prepare-experiment` before capturing new observations; `record-experiment` binds `plan`/`plan_sha256`, the requirement, and primary artifacts, comparing the outcome against the pre-registered criteria.  
 Register any modified test via `prepare-experiment` with `--amendment-of` and `--amendment-reason`; a new verdict requires fresh observations while preserving the prior run.  
@@ -88,6 +105,7 @@ A worker writes only its assigned report file; the shared HTTP observation store
 
 ## Saved Sources
 
+<!-- 2026-10-17 "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging": https://github.com/dmitry-ai/harness/issues/7 -->  
 ```text
 python <tool> collect <project> --plan - --output "ꘖ/KB/Evidence/site-report.json"
 python <tool> extract <project> <observation-from-result> --profile tracking
@@ -98,18 +116,23 @@ python <tool> source-ref <project> "Evidence/data.json" --part related_descripti
 
 [collection.example.json](collection.example.json) defines `requests`: URL, profile (`html`, `shopify`, `tracking`, `document`), `scope`, and optional `headers`/`max_age`/`refresh_reason`.  
 A URL `#fragment` belongs to the citation locator rather than a separate HTTP request.  
+<!-- 2026-10-18 "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification": https://github.com/dmitry-ai/harness/issues/10 -->  
 Distinct URLs, headers, scopes, and contexts produce separate observations; `context` records the session/state fingerprint, selected market, and connection conditions without storing cookies or secrets.  
 Passing a `context` label does not prove Incognito mode or egress country; those require actual measurements within that same context.  
 By default, successful responses are reused for up to 24 hours and error observations for up to 5 minutes; always check `observed_at` and required freshness.  
 Specifying `refresh_reason` records a new measurement without overwriting the prior capture.  
 A saved HTTP 403/404 is an observed outcome; do not retry it blindly.  
 A JS challenge page is a prompt to choose an appropriate browser check, not proof that verified search crawlers are blocked.  
+<!-- 2026-10-19 "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks": https://github.com/dmitry-ai/harness/issues/12 -->  
 HTML and bundle captures show static source rather than runtime execution (including the extracted `links` array with all `<a href>` targets and visible anchor text); JSON extraction computes a deterministic `summary` across object arrays (`record_count`, `timestamp_ranges` with `min`, `max`, `by_date`, `earliest_record`, `latest_record`, and `field_counts`); DOCX/PDF extraction preserves hyperlinks and Markdown formatting.  
 Re-running `collect --output` into an existing `ꘖ/KB/Evidence/*.json` report merges prior `results` without losing earlier observations.  
+<!-- 2026-10-17 "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging": https://github.com/dmitry-ai/harness/issues/7 -->  
+<!-- 2026-11-21 "Initialize new Upwork projects in the V2 filesystem layout": https://github.com/dmitry-ai/harness/issues/110 -->  
 All client-attached files are saved simultaneously in the root `source/` folder and in `ꘖ/KB/Evidence/Attachments/<sha256>/`, and their full text, video transcripts (`# Video:`, `# Key Spoken Commentary Points (Additions to Document Text):`, `# Full Audio Transcript:` with `[MM:SS]`), and image descriptions (verbatim text in `«»`, UI description, confirmations and contradictions against client statements with `%` scores) are synchronized into both KBs (`🕮/Project.md` / legacy `KB/Project.md` and `ꘖ/KB/{Project,Projects,Evidence}.md`) during `init` and via `sync-attachments`.  
 
 For post-JavaScript DOM inspection, only read-only capture of an explicitly selected tab at an exact URL is permitted:  
 
+<!-- 2026-10-20 "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering": https://github.com/dmitry-ai/harness/issues/13 -->  
 ```text
 python <tool> capture-dom <project> --url <exact-URL> --tab-id <explicit-ID> --session-id <permitted-runtime-session>
 ```
@@ -120,10 +143,12 @@ When an authenticated test tab is needed, the agent opens it via the native brow
 
 ## Analysis and Validation
 
+<!-- 2026-10-18 "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification": https://github.com/dmitry-ai/harness/issues/10 -->  
 The canonical `schema_version: 3` contract is enforced by `analysis.py`, `claims.py`, and `evidence.py`; schema versions 1 and 2 remain readable for diagnostics and recovery.  
 New `save-analysis`/`render-analysis` runs require v3 and primary grounds; legacy claims are never automatically promoted to `verified`.  
 Structure, source rules, and qualified statuses are defined in the [evidence contract](evidence-contract.md), with a verifiable fixture in [analysis.example.json](analysis.example.json).  
 Each `for` entry contains `argument` plus a versioned `claim_id` or its own `evidence_id`; `against` contains counter-arguments or documented `counterevidence`.  
+<!-- 2026-10-19 "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks": https://github.com/dmitry-ai/harness/issues/12 -->  
 `counterevidence` specifies `status` (`not_found|unavailable`), `reviewed_sources`, and `limitations`; when `against` is empty on an unverified hypothesis (`verification_status != verified`), `probability_percent` cannot exceed `75`.  
 Reporting `not_found` when a source was actually unreachable is invalid; use `unavailable`.  
 Hypotheses in `causes` and `misconceptions` must include `alternative_explanations` and `discriminating_check`.  
@@ -134,6 +159,7 @@ Use `source-ref` to escape JSON pointers; the quote is verified against the exac
 Exact quote matching is the default; `quote_match: whitespace` permits normalizing whitespace runs only, never words, numbers, or punctuation.  
 Citing documentation without an `#anchor` requires `anchor_exception` (`section` + `observation`), which verifies that the section exists, lacks a suitable anchor, and contains the quote.  
 
+<!-- 2026-11-24 "Prevent context compaction with schema-help CLI and staged analysis merge": https://github.com/dmitry-ai/harness/issues/217 -->  
 ```text
 python <tool> schema-help <analysis|experiment|review> [--format text]
 python <tool> save-analysis <project> --candidate <part.json> --merge --partial
@@ -143,22 +169,27 @@ python <tool> validate-analysis <project>/ꘖ/KB/Analysis.json --format json --e
 python <tool> check-project <project>
 ```
 
+<!-- 2026-11-24 "Prevent context compaction with schema-help CLI and staged analysis merge": https://github.com/dmitry-ai/harness/issues/217 -->  
 Use `schema-help` to inspect required fields, enums, and minimal examples without reading full Python validator source files; use `save-analysis --merge --partial` to validate and stage sections incrementally in `ꘖ/data/analysis-draft.json` before final commit via `save-analysis --merge`.  
 When delegating extraction to `af-worker`, require it to query saved captures via `extract`/`evidence-query`, write structured findings to `ꘖ/KB/Evidence/<question>-extract.json`, and return only the output path and a compact summary.  
 Omit `--expected-sha256` only when creating `Analysis.json` for the first time; updating an existing file requires its current hash.  
 History of both JSON and rendered Markdown versions is preserved; external edits produce a saved candidate and conflict rather than an unconditional overwrite.  
 Keep incomplete working notes in `ꘖ/data` with an explicit status; they never substitute for a finalized analysis.  
+<!-- 2026-10-19 "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks": https://github.com/dmitry-ai/harness/issues/12 -->  
 One-off scripts (`*.py`, `*.ps1`, `*.sh`, `*.bat`, `*.cmd`) inside `ꘖ/data` or `.agents` of a project are prohibited and fail `check-project`.  
 Validation errors are returned as a single list containing `code`/`field`/`claim_id`/`message`/`hint`; fix the specific defect and re-evaluate any dependent conclusions.  
 Passing formal validation does not prove substantive truth or completion of the A.A audit.  
 
+<!-- 2026-10-17 "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator": https://github.com/dmitry-ai/harness/issues/9 -->  
 Format all authored links across intermediate and final texts per [LINK-5](../../../rules/02-link-standards.md#link-5): preserve spaces and Unicode without URL encoding.  
 `links.markdown_link(label, target)` formats Markdown links (wrapping in `<...>` when needed), and `readable_reference` decodes unnecessary percent-encoding in paths/fragments while preserving significant query parameters and delimiters.  
 `validate_links.py --readable <files>` inspects authored source links rather than percent-encoded `href` attributes produced by a HTML renderer.  
 This check also covers authored links in plain text and HTML; verbatim quotes, code blocks, and imported source copies retain their original bytes.  
+<!-- 2026-11-21 "Initialize new Upwork projects in the V2 filesystem layout": https://github.com/dmitry-ai/harness/issues/110 -->  
 `check-project` validates the agent KB, `readme.md` (legacy root `.md`), and text deliverables under `Ⰿ/≻/♕/🖂/{Letters,Articles}` (legacy `result/`); `record-answer`, `answer-prepare`, and `finalize` validate the new final response before writing or completing the stage.  
 Shared publication helpers reject new percent-encoded authored links before modifying an existing file; historical entries and raw JSON captures are not reformatted.  
 
+<!-- 2026-10-15 "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks": https://github.com/dmitry-ai/harness/issues/5 -->  
 ## Red Flags
 
 Before diving into technical debugging, evaluate whether the client is acting as an intermediary on this job and whether the target website can be identified.  
@@ -185,6 +216,8 @@ A missing `red_flags` key in a legacy file means `"not evaluated"` rather than `
 
 Replace the example claim IDs with actual IDs from `identity`; when intermediation is a hypothesis rather than a confirmed fact, use `suspected` instead of `confirmed`.  
 Each active flag is rendered independently; when both flags are present simultaneously, a separate bold warning highlights the high likelihood of declining the project.  
+<!-- 2026-10-17 "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks": https://github.com/dmitry-ai/harness/issues/5 -->  
+<!-- 2026-11-21 "Initialize new Upwork projects in the V2 filesystem layout": https://github.com/dmitry-ai/harness/issues/110 -->  
 `render-analysis` and `validate-analysis --render` output the block ahead of the five stages and, for the canonical `ꘖ/KB/Analysis.json`, also synchronize it at the end of `readme.md` (legacy root `.md`) inside a dedicated level-1 section.  
 Links in the root project card point to `identity` claims in `Analysis.json`, whereas links in the chat report point to the corresponding report headings.  
 The renderer preserves all card bytes outside the managed block and archives prior block versions in `ꘖ/data/red-flags-history`.  
@@ -195,29 +228,44 @@ An early warning block may be added manually once backed by verified data; if a 
 An explicit verified `red_flags: []` removes a prior managed block while preserving the historical grounds in the KB.  
 Before publishing the final response, reproduce the exact same set and statuses of active Red Flags at the very beginning of the response with chat-adapted links; never rewrite prior journal responses.  
 
+<!-- 2026-10-17 "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging": https://github.com/dmitry-ai/harness/issues/7 -->  
 In `websites`, explicitly list each client or target project URL (or `null`), its role (`client|target`), and its `basis_id` from `identity`.  
+<!-- 2026-11-21 "Initialize new Upwork projects in the V2 filesystem layout": https://github.com/dmitry-ai/harness/issues/110 -->  
 `readme.md` (legacy root `.md`) displays these addresses, their score, and the link to the proof; the folder name is never used as confirmation.  
 `Progress.md` is updated in place without accumulating historical copies, whereas primary evidence, analysis versions, and review packages are archived.  
 
 ## Independent Review
 
+<!-- 2026-10-18 "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification": https://github.com/dmitry-ai/harness/issues/10 -->  
 ```text
 python <tool> prepare-review <project> --parent <parent-UUID> --spec <review-JSON> --response-file <exact-candidate>
 ```
 
+<!-- 2026-11-24 "Enforce single falsifier review default and block duplicate send_message reports": https://github.com/dmitry-ai/harness/issues/226 -->  
 The specification contains `risk`, `basis`, `request_scope`, `task_flags`, `claim_ids`, `claims`, and optional `review_mode` (`falsifier` by default for `significant` packages without prior unresolved escalation; `standard` for explicit two-auditor escalation); see the `schema_version: 2` report example in [review.example.json](review.example.json).  
+<!-- 2026-10-19 "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks": https://github.com/dmitry-ai/harness/issues/12 -->  
 Each entry in `claims` specifies `claim_id`, the exact `response_excerpt`, and `novelty` (`new|restatement`); every standalone numeric figure in `response_excerpt` must appear in the verified sources of the linked claim.  
 For an analytical response, `claims` and `claim_ids` must be non-empty, and the auditor substantively verifies that the map covers all material claims in the response.  
 A purely procedural status note is recorded via `record_step` and never receives analytical clearance through an empty claim map.  
 Valid `task_flags`: `new_causal_analysis`, `architecture_change`, `pricing_change`, `admin_configuration`, `business_impact`, `material_analysis`; an empty list is permissible only for a justified routine task.  
 The minimum risk category is recomputed from new typed claims; `routine` cannot bypass material causal conclusions, hidden settings, or architectural/pricing changes.  
+<!-- 2026-11-24 "Default upwork-init review to single falsifier and block subagent schedule timers": https://github.com/dmitry-ai/harness/issues/215 -->  
 A `restatement` requires a previously approved, unchanged version of the claim and its evidence; `significant` defaults to one adversarial A.A auditor in `review_mode: "falsifier"` after deterministic Stage 1 pre-flight checks per REVIEW-3 and escalates to two independent A.A auditors when `disproved_claims`, `needs_changes`, or prior significant findings exist.  
+<!-- 2026-10-15 "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation": https://github.com/dmitry-ai/harness/issues/6 -->  
+<!-- 2026-11-23 "Delegate subagent model selection to parent agents and remove hardcoded outdated models": https://github.com/dmitry-ai/harness/issues/133 -->  
+<!-- 2026-11-24 "Enforce single falsifier review default and block duplicate send_message reports": https://github.com/dmitry-ai/harness/issues/226 -->  
 Delegate using the platform's native subagent tool: in Antigravity call `invoke_subagent` with `TypeName: self` and the parent-selected `Model` (defaulting to `inherit`); in Codex call `spawn_agent` with role A.A and the parent-selected model/effort; launch a fresh A.A subagent rather than reusing a reviewer approaching context compaction (`CHECKPOINT`) across rounds.  
 Pass the exact project root and full `package` path returned by `prepare-review`; the v2 package binds the current requests, exact response bytes, claim map, KB, primary Evidence, and manual inputs.  
+<!-- 2026-10-19 "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks": https://github.com/dmitry-ai/harness/issues/12 -->  
+<!-- 2026-11-18 "Externalize agent environments and per-instance system paths into runtime.json": https://github.com/dmitry-ai/harness/issues/86 -->  
+<!-- 2026-11-24 "Enforce single falsifier review default and block duplicate send_message reports": https://github.com/dmitry-ai/harness/issues/226 -->  
 Across configured environments, the auditor first runs `review-input <project> --package <path> --platform <platform>` to obtain the neutral `report_contract` listing all valid field values (`package`/`package_sha256`, `approved`/`needs_changes`, `falsifier` `disproved_claims` vs `standard` `claim_reviews`, `supported`/`qualified`/`unsupported`, `direct`/`proxy`/`irrelevant`, and `findings` schema); in Codex, this receipt also binds an encrypted spawn assignment to the package.  
 State a neutral goal: audit the five stages, primary evidence, alternatives, KB consistency, and the exact response candidate, including completeness of its claim map.  
 Never pass a desired verdict, a one-sided JSON template (containing only `"approved"`, `"supported"`, `"direct"`, or `"findings": []`), or another reviewer's report to the auditor; the reviewer operates strictly read-only inside the current project root without calling write tools, generating JSON via external scripts, or reading neighboring `daily` folders.  
+<!-- 2026-11-24 "Default upwork-init review to single falsifier and block subagent schedule timers": https://github.com/dmitry-ai/harness/issues/215 -->  
+<!-- 2026-11-24 "Enforce single falsifier review default and block duplicate send_message reports": https://github.com/dmitry-ai/harness/issues/226 -->  
 The independent auditor returns its `schema_version: 2` JSON report once in its final native `PLANNER_RESPONSE` message (duplicating a full JSON verdict via `send_message` is blocked by `REVIEW-4-SEND-MESSAGE-GATE`): default `review_mode: "falsifier"` includes `package`, `package_sha256`, `scope` (five stages + `kb_consistency` + `response`), `result` (`approved|needs_changes`), `disproved_claims`, and `findings`, while `standard` escalation includes `claim_reviews` instead of `disproved_claims`.  
+<!-- 2026-10-18 "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification": https://github.com/dmitry-ai/harness/issues/10 -->  
 For each claim, `claim_reviews` records `claim_id`, `observed`, `inferred`, `method`, `alternatives`, `limits`, `falsification`, `raw_vs_criteria`, and `outcome` (`supported|qualified|unsupported`); when `outcome: supported`, every standalone number in the claim and `response_excerpt` must be explicitly confirmed in `observed` or `test_alignment.tested_claim`.  
 The mandatory `test_alignment` object specifies `target_claim` (the exact `essence` of the claim), `tested_claim`, `relationship` (`direct|proxy|irrelevant`), `rationale`, and `counterexample`.  
 A `proxy` alignment permits at most `qualified` with a visible qualification in the response; `irrelevant` requires `unsupported`, which blocks `approved`.  
@@ -230,6 +278,7 @@ After updating the KB, prepare a new package and review for the revised version;
 To clear a prior `needs_changes` verdict from another auditor, a new independent `approved` report must include `addresses_reviews` (`review_id`, `basis`, and `evidence`); a parent-authored JSON file or renamed package never clears a prior rejection.  
 Switching parent chats likewise does not clear a rejection covering the same requests, response, and grounds; native provenance of every new review is verified independently.  
 
+<!-- 2026-10-18 "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification": https://github.com/dmitry-ai/harness/issues/10 -->  
 ```text
 python <tool> native-review-proof <project> --parent <UUID> --reviewer <child-AA-UUID>
 python <tool> record-review <project> --parent <UUID> --reviewer <child-AA-UUID> --report <auditor-JSON> --native-evidence <proof-from-previous-command>
@@ -238,8 +287,11 @@ python <tool> review-disposition <project> --parent <UUID> --review-id <review-I
 
 The native proof receipt is generated after the child auditor finishes and is passed as a separate argument, since the auditor's final message cannot reference a future completion receipt.  
 `record-review` verifies that the report file matches the child A.A's final native message; verdict and disposition records are immutable and never reuse an overwritable `self-review.json`.  
+<!-- 2026-10-15 "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation": https://github.com/dmitry-ai/harness/issues/6 -->  
+<!-- 2026-10-19 "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks": https://github.com/dmitry-ai/harness/issues/12 -->  
 The proof is extracted from the active platform's native store: verified parent-to-child A.A link, absence of prompt bias (`prompt_bias_issues`), read-only reviewer isolation (`reviewer_isolation_issues`), model selection, and clean completion.  
 An unfinished subagent or a run lacking a review package assignment never counts as an A.A audit.  
+<!-- 2026-11-23 "Delegate subagent model selection to parent agents and remove hardcoded outdated models": https://github.com/dmitry-ai/harness/issues/133 -->  
 Codex verifies actual `model`/`effort` against the parent's native `spawn_agent` call; Antigravity checks the parent's native `invoke_subagent` model selection against available generation/executor metadata and configuration.  
 Unknown model versions or effort levels remain `unverified`.  
 `native-executor-metadata <project> --conversation <UUID> --role primary|AA|AF [--parent <UUID>] [--save]` inspects `requested`/`observed` metadata, sources, and verification status; `--save` writes an immutable snapshot.  
@@ -247,15 +299,20 @@ A.A evaluates the substantive meaning of reviews and sources; a programmatic rec
 
 ## Journal, External Export, and Metrics
 
+<!-- 2026-11-21 "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems": https://github.com/dmitry-ai/harness/issues/109 -->  
 ```text
 python <tool> record-answer <project> --response-file -
 python <tool> stage <project> finalize --input "ꘖ/KB/Analysis.json" --output "ꙮ/≺/1–20/1.md"
 ```
 
+<!-- 2026-11-20 "Wire V2 filesystem layout across Harness runtime subsystems and shared projections": https://github.com/dmitry-ai/harness/issues/101 -->  
+<!-- 2026-11-21 "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems": https://github.com/dmitry-ai/harness/issues/109 -->  
 `record-answer` (invoked directly or via `answer-prepare`) binds all adopted, unrecorded exact requests to a single actual final response, writing complete `≻/<range>/<N>.md` and `≺/<range>/<N>.md` (`O-ꙮ` 20-entry subfolders `1–20`, `21–40`, …; legacy `req/res` is supported and upgraded automatically inside `ꙮ`) pairs and an explicit shared-response group.  
+<!-- 2026-10-18 "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification": https://github.com/dmitry-ai/harness/issues/10 -->  
 Only the exact bytes of the approved candidate may be recorded; any edit to the response requires a new review package even if the KB is unchanged.  
 UI message delivery is distinct from file recording; publish in chat the exact saved response bytes.  
 After a publication crash, recover the response from the saved group without inventing intermediate messages.  
+<!-- 2026-11-20 "Remove automatic Context.md generation from project initialization and finalize stage": https://github.com/dmitry-ai/harness/issues/104 -->  
 Build the full `Context.md` export via `generate_context.py` only when explicitly requested by the user for manual submission to an external agent.  
 Pass specific topical KB modules and primary sources to internal subagents; they do not use `Context.md`.  
 
@@ -264,7 +321,3 @@ Optional `--project <project>` attaches registered cache hits, fresh fetches, se
 For per-stage breakdowns, optional `--bindings` maps `conversation UUID -> [{stage, first_step, last_step}]`; unmapped steps are grouped under `unassigned`.  
 Duplicate exports of the same step are deduplicated; missing token fields remain `unknown`, and cache reads are tracked separately.  
 Token counts do not equal quota percentages or billing currency; quality is judged by evidence completeness, reviewer findings, and their resolution.  
-<!-- https://github.com/dmitry-ai/harness/issues/109 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/215 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/217 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/226 -->  

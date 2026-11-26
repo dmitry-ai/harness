@@ -1,19 +1,15 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add structured problem metadata builder and CLI command":
-# https://github.com/dmitry-ai/harness/issues/180
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/170
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prepend JSON metadata headers to new journal responses":
-# https://github.com/dmitry-ai/harness/issues/151
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement shared execution metadata collector and tab-indented JSON header formatter":
-# https://github.com/dmitry-ai/harness/issues/149
 from __future__ import annotations
+# 2026-11-24
+# "Decompose metadata.py into modular metadata collection package":
+# https://github.com/dmitry-ai/harness/issues/170
 from .meta import (
 	_FRAC_SECONDS_RE,
 	_HARNESS_TOP_KEYS,
 	_LEADING_JSON_FENCE_RE,
+	# 2026-11-23
+	# "Prepend JSON metadata headers to new journal responses":
+	# https://github.com/dmitry-ai/harness/issues/151
 	_PROJECTS_DIR_CACHE,
 	_SYSTEM_DISPLAY,
 	_UUID_RE,
@@ -38,6 +34,9 @@ from .meta import (
 	_system_display_name,
 	build_github_issue_metadata,
 	build_journal_metadata,
+	# 2026-11-24
+	# "Add structured problem metadata builder and CLI command":
+	# https://github.com/dmitry-ai/harness/issues/180
 	build_problem_metadata,
 	extract_leading_metadata_header,
 	format_duration_timecode,
@@ -49,6 +48,12 @@ from .meta import (
 	resolve_project_identity,
 	strip_leading_metadata_header,
 )
+# 2026-11-23
+# "Implement shared execution metadata collector and tab-indented JSON header formatter":
+# https://github.com/dmitry-ai/harness/issues/149
+# 2026-11-24
+# "Decompose metadata.py into modular metadata collection package":
+# https://github.com/dmitry-ai/harness/issues/170
 __all__ = [
 	'_FRAC_SECONDS_RE',
 	'_HARNESS_TOP_KEYS',
@@ -77,6 +82,9 @@ __all__ = [
 	'_system_display_name',
 	'build_github_issue_metadata',
 	'build_journal_metadata',
+	# 2026-11-24
+	# "Add structured problem metadata builder and CLI command":
+	# https://github.com/dmitry-ai/harness/issues/180
 	'build_problem_metadata',
 	'extract_leading_metadata_header',
 	'format_duration_timecode',

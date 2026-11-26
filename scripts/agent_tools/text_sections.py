@@ -1,6 +1,4 @@
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
-# https://github.com/dmitry-ai/harness/issues/70
 from __future__ import annotations
 import re
 from urllib.parse import unquote
@@ -11,6 +9,9 @@ KEYED_REF = re.compile('(?<![\\w§])(?P<marks>§§?)@(?P<start>[\\w.\\-]+?)(?:-@
 PART = re.compile('^([IVXLC]+)\\.\\s+\\S')
 PROPOSAL_NUMBER_KEY = re.compile('^\\d+(?:\\.\\d+)*$')
 TEXT_KINDS = ('article', 'proposal', 'letter')
+# 2026-11-14
+# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+# https://github.com/dmitry-ai/harness/issues/70
 class AddressedSection:
 	def descendants(self):
 		for child in self.children:

@@ -1,13 +1,12 @@
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/239
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Isolate per-conversation github_issues recording and turn-state filtering":
-# https://github.com/dmitry-ai/harness/issues/195
 from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import json
 import os
+# 2026-11-25
+# "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
+# https://github.com/dmitry-ai/harness/issues/239
 _SKIP_TURN_SUFFIXES = ('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json')
 def _candidate_turns_dirs(root: Path) -> list[Path]:
 	from ..path_registry import project_paths
@@ -53,6 +52,9 @@ def _sole_untagged_open_turn(open_files: list[tuple[Path, str, str]], active_pla
 		if (not t_cid) and ((not active_plat) or (not t_plat) or active_plat == t_plat):
 			r = [tfile]
 	return r
+# 2026-11-24
+# "Isolate per-conversation github_issues recording and turn-state filtering":
+# https://github.com/dmitry-ai/harness/issues/195
 def detect_active_session(conversation_id: str | None=None, env: dict[str, str] | None=None) -> tuple[str, str]:
 	from ..meta.builders import _detect_env_platform
 	environ = dict(os.environ) if None is env else dict(env)

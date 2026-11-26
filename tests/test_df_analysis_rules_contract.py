@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Create /df-analysis skill and codify mandatory analytical rules":
-# https://github.com/dmitry-ai/harness/issues/182
 from __future__ import annotations
 from pathlib import Path
 import subprocess
@@ -12,6 +10,9 @@ if str(SCRIPT_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPT_DIR))
 from agent_tools import links, native_profiles
 import check_markdown_slop
+# 2026-11-24
+# "Create /df-analysis skill and codify mandatory analytical rules":
+# https://github.com/dmitry-ai/harness/issues/182
 class DfAnalysisRulesAndSkillContractTests(unittest.TestCase):
 	def test_cli_help_exposes_problem_metadata_and_analysis_check(self) -> None:
 		harness_cli = str(SCRIPT_DIR / 'harness.py')

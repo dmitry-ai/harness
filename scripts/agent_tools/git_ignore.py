@@ -1,12 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deploy immutable Harness runtime snapshots with LKG fallback":
-# https://github.com/dmitry-ai/harness/issues/184
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Auto-exclude worktrees_dir in enclosing repo info/exclude on worktree creation":
-# https://github.com/dmitry-ai/harness/issues/201
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Manage Harness ephemeral Git exclusions in install-global and doctor":
-# https://github.com/dmitry-ai/harness/issues/198
 from __future__ import annotations
 from pathlib import Path
 import os
@@ -14,6 +6,9 @@ import subprocess
 from .path_cache import resolve_code_anchor
 from .shell_audit import normalize_host_path
 from .storage import replace_bytes
+# 2026-11-24
+# "Manage Harness ephemeral Git exclusions in install-global and doctor":
+# https://github.com/dmitry-ai/harness/issues/198
 GIT_IGNORE_END = '# <<< harness:ephemeral-ignore:end <<<'
 GIT_IGNORE_START = '# >>> harness:ephemeral-ignore:start >>>'
 HARNESS_GLOBAL_IGNORE_PATTERNS = ('\ua616/data/worktrees/', '\ua616/data/scratch/', '\ua616/data/browser-locks/', '\ua616/data/repo-leases/', '**/*.lock')
@@ -103,6 +98,9 @@ def _write_verified_ignore(target: Path, desired: str) -> str | None:
 	except OSError as exc:
 		err = str(exc)
 	return err
+# 2026-11-24
+# "Auto-exclude worktrees_dir in enclosing repo info/exclude on worktree creation":
+# https://github.com/dmitry-ai/harness/issues/201
 def ensure_worktree_dir_ignored(base_dir: Path | str) -> dict:
 	target = normalize_host_path(str(base_dir)).resolve()
 	target.mkdir(parents=True, exist_ok=True)
@@ -128,6 +126,9 @@ def finalize_install_result(result: dict, all_declared: list, names: list, prima
 	if not gi.get('valid'):
 		result['valid'] = False
 		result.setdefault('issues', []).extend(gi.get('issues') or [])
+	# 2026-11-24
+	# "Deploy immutable Harness runtime snapshots with LKG fallback":
+	# https://github.com/dmitry-ai/harness/issues/184
 	from .runtime_snapshot import finalize_native_install
 	return finalize_native_install(result, primary, check=check)
 def merge_managed_git_ignore(existing_text: str, *, patterns: tuple[str, ...]=HARNESS_GLOBAL_IGNORE_PATTERNS) -> str:

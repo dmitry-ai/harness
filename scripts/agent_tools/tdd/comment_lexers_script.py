@@ -1,9 +1,11 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/238
 from __future__ import annotations
 from .comment_lexers_c import can_start_regex, consume_shebang, scan_word_or_char
 from .comment_scanners import finalize_line_tokens, scan_block_comment, scan_heredoc, scan_js_regex, scan_line_block, scan_line_comment, scan_ps_herestring, scan_quoted
 import re
+# 2026-11-25
+# "Add comment-only diff lexer exemption for top 20 repository languages":
+# https://github.com/dmitry-ai/harness/issues/238
 _BATCH_COMMENT_RE = re.compile(r'^[ \t]*(?:@?rem(?:\s|$)|::)', re.IGNORECASE)
 _PERL_POD_RE = re.compile(r'^=(?:pod|head\d|over|item|back|begin|end|for|encoding)\b')
 _VBS_REM_RE = re.compile(r'rem(?:\s|$)', re.IGNORECASE)

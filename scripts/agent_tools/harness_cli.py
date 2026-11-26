@@ -1,6 +1,4 @@
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
-# https://github.com/dmitry-ai/harness/issues/27
 from .upwork_project import (
 	ANTIGRAVITY_FOLDERS_JSON,
 	ANTIGRAVITY_PROJECTS_DIR,
@@ -20,6 +18,9 @@ from .upwork_project import (
 	save_registration,
 	validate_label,
 )
+# 2026-10-31
+# "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
+# https://github.com/dmitry-ai/harness/issues/27
 __all__ = [
 	'ANTIGRAVITY_FOLDERS_JSON',
 	'ANTIGRAVITY_PROJECTS_DIR',

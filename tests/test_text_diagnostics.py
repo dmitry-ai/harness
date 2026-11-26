@@ -1,9 +1,4 @@
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 import hashlib
 import json
 from pathlib import Path
@@ -12,6 +7,12 @@ import tempfile
 import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from agent_tools.text_diagnostics import diagnose_sources
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class TextDiagnosticsTests(unittest.TestCase):
 	def setUp(self):
 		self.temp = tempfile.TemporaryDirectory()

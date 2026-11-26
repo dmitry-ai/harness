@@ -1,20 +1,21 @@
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
 # 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
-# https://github.com/dmitry-ai/harness/issues/7
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from contextlib import nullcontext
 import hashlib
 import json
 from pathlib import Path
 import re
 from .storage import locked, replace_bytes
+# 2026-10-17
+# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+# https://github.com/dmitry-ai/harness/issues/7
 def _digest(data):
 	return hashlib.sha256(data).hexdigest()
+# 2026-10-17
+# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+# https://github.com/dmitry-ai/harness/issues/7
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def sync_block(root, target, key, content, position='after-title', *, check=False, source=None, attributes=None):
 	root = Path(root).resolve()
 	target = (root / target).resolve()
@@ -24,10 +25,16 @@ def sync_block(root, target, key, content, position='after-title', *, check=Fals
 		raise ValueError('Known block position and a lowercase block key required')
 	if not isinstance(content, str) or '<!-- upwork-init:' in content:
 		raise ValueError('Managed block content must be text without reserved markers')
+	# 2026-10-17
+	# "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
+	# https://github.com/dmitry-ai/harness/issues/9
 	from .links import readable_link_issues
 	issues = readable_link_issues(content)
 	if issues:
 		raise ValueError('\n'.join(issues))
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	pp = project_paths(root, exact_root=True)
 	directory = pp.data_dir

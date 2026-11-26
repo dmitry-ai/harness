@@ -1,9 +1,10 @@
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate dual Tier 0 source caches into Tier0SourceIndex, extract LocalSourceGroundingAuditor, and isolate hosting domain rules in source_grounding.py":
-# https://github.com/dmitry-ai/harness/issues/54
 import json
 from pathlib import Path
 import re
+# 2026-11-14
+# "Consolidate dual Tier 0 source caches into Tier0SourceIndex, extract LocalSourceGroundingAuditor, and isolate hosting domain rules in source_grounding.py":
+# https://github.com/dmitry-ai/harness/issues/54
 ATTR_KEYS = {'vcpu', 'cpus', 'cores', 'mem_total', 'ram_gb', 'ram', 'swap_total', 'load_average', 'load_avg', 'disk_gb', 'php_memory_limit'}
 CLIENT_DELIVERABLE_METRIC_RE = re.compile('(?i)(?:/sales/order/view/order_id/\\d+|\\b(?:auth_code|trans_id)\\b|#31\\d{6,8}|`[0-9]{5}[0-9A-Z]`|\\b\\d+\\s+(?:rows|records|orders|transactions|events|occurrences|\\u0437\\u0430\\u043f\\u0438\\u0441\\w*|\\u0441\\u0442\\u0440\\u043e\\u043a\\w*|\\u0437\\u0430\\u043a\\u0430\\u0437\\w*|\\u0442\\u0440\\u0430\\u043d\\u0437\\u0430\\u043a\\u0446\\w*)\\b)')
 ID_KEYS = ('code', 'id', 'plan', 'name', 'tier', 'server', 'host')

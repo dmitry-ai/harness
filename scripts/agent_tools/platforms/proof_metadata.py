@@ -1,9 +1,10 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Verify reused reviewer package assignments and tolerate volatile executor metadata":
-# https://github.com/dmitry-ai/harness/issues/222
 from __future__ import annotations
 import json
 from pathlib import Path
+# 2026-11-24
+# "Verify reused reviewer package assignments and tolerate volatile executor metadata":
+# https://github.com/dmitry-ai/harness/issues/222
 _VOLATILE_META_KEYS = frozenset({'metadata_sources', 'observation_history', 'observed', 'requested'})
 def _dict_prefix_match(saved: object, live: object, *, same_values: bool) -> bool:
 	r = False

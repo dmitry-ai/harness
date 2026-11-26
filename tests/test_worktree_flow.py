@@ -1,9 +1,4 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix worktree scope resolution for new files in TDD classifier":
-# https://github.com/dmitry-ai/harness/issues/188
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add isolated git worktree task workflow and worktree-scoped issue gates":
-# https://github.com/dmitry-ai/harness/issues/165
 from __future__ import annotations
 import os
 from pathlib import Path
@@ -19,6 +14,9 @@ from agent_tools import links
 from agent_tools.github_issue import _dirty_issue_first_files, _find_local_code_repo
 from agent_tools.issue_lifecycle import origin_repo_slug
 import check_markdown_slop
+# 2026-11-23
+# "Add isolated git worktree task workflow and worktree-scoped issue gates":
+# https://github.com/dmitry-ai/harness/issues/165
 class WorktreeFlowTests(unittest.TestCase):
 	def _git(self, repo: Path, *args: str) -> str:
 		proc = subprocess.run(['git', '-C', str(repo), *args], capture_output=True, text=True, check=True)
@@ -127,6 +125,9 @@ class WorktreeFlowTests(unittest.TestCase):
 			finally:
 				os.chdir(prev_cwd)
 			worktree_cleanup(repo, wt)
+	# 2026-11-24
+	# "Fix worktree scope resolution for new files in TDD classifier":
+	# https://github.com/dmitry-ai/harness/issues/188
 	def test_resolve_code_scope_keeps_active_worktree_for_new_files_and_falls_back_after_cleanup(self):
 		from agent_tools.tdd.classifier import resolve_code_scope
 		from agent_tools.worktree_flow import worktree_begin, worktree_cleanup
@@ -148,6 +149,9 @@ class WorktreeFlowTests(unittest.TestCase):
 			self.assertEqual(resolve_code_scope(new_prod), wt.resolve())
 			worktree_cleanup(code_repo, wt, force=True)
 			self.assertEqual(resolve_code_scope(new_prod), code_repo.resolve())
+	# 2026-11-24
+	# "Fix worktree scope resolution for new files in TDD classifier":
+	# https://github.com/dmitry-ai/harness/issues/188
 	def test_isolated_temp_project_ignores_unrelated_host_worktree_cwd(self):
 		from agent_tools.issues.repo_locator import find_local_code_repo
 		from agent_tools.worktree_flow import worktree_begin, worktree_cleanup
@@ -169,6 +173,9 @@ class WorktreeFlowTests(unittest.TestCase):
 				self.assertEqual(find_local_code_repo('dmitry-ai/harness', project_root=proj), code_dir.resolve())
 			finally:
 				os.chdir(prev_cwd)
+	# 2026-11-24
+	# "Fix worktree scope resolution for new files in TDD classifier":
+	# https://github.com/dmitry-ai/harness/issues/188
 	def test_resolve_code_anchor_maps_linked_worktree_to_canonical_main_repo(self):
 		from agent_tools.path_cache import resolve_code_anchor
 		from agent_tools.worktree_flow import worktree_begin, worktree_cleanup

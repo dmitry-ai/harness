@@ -1,9 +1,4 @@
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Refactor shared rules into compact three-layer M-2 architecture":
-# https://github.com/dmitry-ai/harness/issues/242
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Document JSON metadata header contract in rules and references":
-# https://github.com/dmitry-ai/harness/issues/152
 from __future__ import annotations
 
 from pathlib import Path
@@ -20,6 +15,9 @@ from agent_tools import links
 import check_markdown_slop
 
 
+# 2026-11-23
+# "Document JSON metadata header contract in rules and references":
+# https://github.com/dmitry-ai/harness/issues/152
 class MetadataRulesAndDocsContractTests(unittest.TestCase):
 	def test_rules_skill_and_docs_codify_json_metadata_headers_and_pass_lint(self) -> None:
 		file_rule = HARNESS_ROOT / 'rules/01-file-boundaries.md'
@@ -36,6 +34,9 @@ class MetadataRulesAndDocsContractTests(unittest.TestCase):
 			self.assertEqual(slop_errs, [], f'DOC-4 slop errors in {doc.name}: {slop_errs}')
 
 		exec_bytes = exec_rule.read_bytes()
+		# 2026-11-25
+		# "Refactor shared rules into compact three-layer M-2 architecture":
+		# https://github.com/dmitry-ai/harness/issues/242
 		self.assertLess(len(exec_bytes), 6000, 'rules/08-execution-and-tools.md must remain under system prompt budget')
 
 		file_text = file_rule.read_text(encoding='utf-8')
@@ -43,6 +44,9 @@ class MetadataRulesAndDocsContractTests(unittest.TestCase):
 			self.assertIn(token, file_text, f'Missing metadata term {token!r} in rules/01-file-boundaries.md')
 
 		exec_text = exec_bytes.decode('utf-8')
+		# 2026-11-25
+		# "Refactor shared rules into compact three-layer M-2 architecture":
+		# https://github.com/dmitry-ai/harness/issues/242
 		for token in ('df-github-issue', 'Issue-First'):
 			self.assertIn(token, exec_text, f'Missing metadata pointer {token!r} in rules/08-execution-and-tools.md')
 

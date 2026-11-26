@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Default upwork-init review to single falsifier and block subagent schedule timers":
-# https://github.com/dmitry-ai/harness/issues/215
 from __future__ import annotations
 import json
 from pathlib import Path
@@ -20,6 +18,9 @@ def _write_transcript(base: Path, cid: str, rows: list[dict]) -> Path:
 	log.parent.mkdir(parents=True, exist_ok=True)
 	log.write_text('\n'.join((json.dumps(r) for r in rows)) + '\n', encoding='utf-8')
 	return log
+# 2026-11-24
+# "Default upwork-init review to single falsifier and block subagent schedule timers":
+# https://github.com/dmitry-ai/harness/issues/215
 class FalsifierAndScheduleSubagentGateM8Tests(unittest.TestCase):
 	def test_blocks_one_shot_schedule_while_invoke_subagent_is_active(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

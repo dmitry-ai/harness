@@ -1,9 +1,10 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce call-site policy registry and hook parity contract invariants":
-# https://github.com/dmitry-ai/harness/issues/236
 from __future__ import annotations
 from pathlib import Path
 import ast
+# 2026-11-25
+# "Enforce call-site policy registry and hook parity contract invariants":
+# https://github.com/dmitry-ai/harness/issues/236
 CHAT_REPLY_CALL_SITES = frozenset({
 	('agent_tools/completion.py', '_response_link_issues'),
 	('agent_tools/response_grounding.py', 'ResponseEvidenceAuditor.__init__'),

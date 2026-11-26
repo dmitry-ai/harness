@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
-# https://github.com/dmitry-ai/harness/issues/255
 from __future__ import annotations
 from contextlib import closing
 from pathlib import Path
@@ -74,6 +72,9 @@ def _wire(field: int, payload: bytes) -> bytes:
 		ln >>= 7
 	out.append(ln)
 	return bytes(out) + payload
+# 2026-11-25
+# "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
+# https://github.com/dmitry-ai/harness/issues/255
 class StopEmergencyCaptureAndForeignSyncTests(unittest.TestCase):
 	def test_begin_syncs_idle_open_foreign_reservation_and_skips_conflict_failed_and_running(self) -> None:
 		with tempfile.TemporaryDirectory() as td:

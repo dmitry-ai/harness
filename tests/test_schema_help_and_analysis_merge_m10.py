@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add schema-help CLI, validator hints, save-analysis --merge, and af-worker file handoff":
-# https://github.com/dmitry-ai/harness/issues/217
 from __future__ import annotations
 import hashlib
 import json
@@ -39,6 +37,9 @@ def _intake_claim(cid: str, eid: str, quote: str, ptr: str, ref: str, sha: str) 
 		'against': [],
 		'counterevidence': {'status': 'not_found', 'reviewed_sources': [ref], 'limitations': 'Intake only.'},
 	}
+# 2026-11-24
+# "Prevent context compaction with schema-help CLI and staged analysis merge":
+# https://github.com/dmitry-ai/harness/issues/217
 class SchemaHelpAndAnalysisMergeM10Tests(unittest.TestCase):
 	def test_save_analysis_merge_supports_partial_draft_final_commit_and_patch(self) -> None:
 		from agent_tools.analysis_merge import save_merged_analysis

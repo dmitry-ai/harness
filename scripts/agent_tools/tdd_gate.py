@@ -1,25 +1,8 @@
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/239
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/238
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/169
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
-# https://github.com/dmitry-ai/harness/issues/166
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce PreToolUse fail-fast normalization and block redundant schedule timers over run_command":
-# https://github.com/dmitry-ai/harness/issues/162
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add parallel fail-fast run-tests runner with module timeouts and TDD gate registration":
-# https://github.com/dmitry-ai/harness/issues/160
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement core Issue-First verification engine in agent_tools/issue_first_gate.py":
-# https://github.com/dmitry-ai/harness/issues/143
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement universal TDD verification engine in agent_tools/tdd_gate.py":
-# https://github.com/dmitry-ai/harness/issues/135
 from __future__ import annotations
+# 2026-11-24
+# "Decompose tdd_gate.py into modular TDD verification package":
+# https://github.com/dmitry-ai/harness/issues/169
 from .tdd.classifier import (
 	SOFTWARE_CODE_SUFFIXES,
 	_CODE_SUFFIX_ALT,
@@ -47,11 +30,20 @@ from .tdd.commands import (
 	_SHELL_WRITE_CMD_PATTERNS,
 	_extract_cmd_paths,
 	_single_test_file_in_args,
+	# 2026-11-23
+	# "Add parallel fail-fast run-tests runner with module timeouts and TDD gate registration":
+	# https://github.com/dmitry-ai/harness/issues/160
 	classify_test_command,
 	shell_code_write_targets,
 	shell_test_delete_targets,
+	# 2026-11-23
+	# "Implement core Issue-First verification engine in agent_tools/issue_first_gate.py":
+	# https://github.com/dmitry-ai/harness/issues/143
 	shell_write_targets,
 )
+# 2026-11-25
+# "Add comment-only diff lexer exemption for top 20 repository languages":
+# https://github.com/dmitry-ai/harness/issues/238
 from .tdd.comment_diff import (
 	COMMENT_LEXER_LANGUAGES,
 	detect_comment_language,
@@ -67,10 +59,19 @@ from .tdd.enforcement import (
 )
 from .tdd.evaluator import (
 	_command_matches_scope,
+	# 2026-11-23
+	# "Add parallel fail-fast run-tests runner with module timeouts and TDD gate registration":
+	# https://github.com/dmitry-ai/harness/issues/160
 	_git_main_repo_root,
+	# 2026-11-23
+	# "Enforce PreToolUse fail-fast normalization and block redundant schedule timers over run_command":
+	# https://github.com/dmitry-ai/harness/issues/162
 	evaluate_tdd_events,
 )
 from .tdd.events import (
+	# 2026-11-23
+	# "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
+	# https://github.com/dmitry-ai/harness/issues/166
 	_antigravity_segment_is_interrupted,
 	_is_git_commit_command,
 	_normalize_args_dict,
@@ -79,11 +80,17 @@ from .tdd.events import (
 	build_file_write_tdd_event,
 	extract_antigravity_tdd_events,
 )
+# 2026-11-25
+# "Add comment-only diff lexer exemption for top 20 repository languages":
+# https://github.com/dmitry-ai/harness/issues/238
 from .tdd.exemption import (
 	is_diff_exempt,
 	is_git_path_exempt,
 	is_write_event_exempt,
 )
+# 2026-11-25
+# "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
+# https://github.com/dmitry-ai/harness/issues/239
 from .tdd.mechanical import (
 	find_matching_mechanical_recipes,
 	matches_mechanical_recipe,
@@ -125,6 +132,12 @@ from .tdd.substantive import (
 	is_substantive_test_content,
 	source_text_assertion_issues,
 )
+# 2026-11-23
+# "Implement universal TDD verification engine in agent_tools/tdd_gate.py":
+# https://github.com/dmitry-ai/harness/issues/135
+# 2026-11-24
+# "Decompose tdd_gate.py into modular TDD verification package":
+# https://github.com/dmitry-ai/harness/issues/169
 __all__ = [
 	'COMMENT_LEXER_LANGUAGES',
 	'SOFTWARE_CODE_SUFFIXES',

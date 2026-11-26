@@ -1,12 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deploy immutable Harness runtime snapshots with LKG fallback":
-# https://github.com/dmitry-ai/harness/issues/184
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix worktree scope resolution for new files in TDD classifier":
-# https://github.com/dmitry-ai/harness/issues/188
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Accelerate project_paths and overlay link resolution with fast-path caching":
-# https://github.com/dmitry-ai/harness/issues/174
 from __future__ import annotations
 from collections import OrderedDict
 from pathlib import Path
@@ -16,6 +8,9 @@ import os
 import stat
 import tempfile
 import time
+# 2026-11-24
+# "Accelerate project_paths and overlay link resolution with fast-path caching":
+# https://github.com/dmitry-ai/harness/issues/174
 CACHE_LIMIT = 4096
 OVERLAY_REFRESH_TTL_S = 5.0
 _FAST_PROJECT_PATHS: OrderedDict[tuple, tuple[Any, tuple, int]] = OrderedDict()
@@ -63,18 +58,21 @@ def _stat_mtime_size(path: Path) -> tuple[int, int]:
 	except OSError:
 		r = (0, 0)
 	return r
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Cache runtime settings and deduplicate evidence validation in hot paths":
-# https://github.com/dmitry-ai/harness/issues/227
 def clear_path_cache() -> None:
 	_FAST_PROJECT_PATHS.clear()
 	_OVERLAY_TTL_STATE['expires_at'] = 0.0
 	_OVERLAY_TTL_STATE['reg_path'] = None
+	# 2026-11-24
+	# "Cache runtime settings and deduplicate evidence validation in hot paths":
+	# https://github.com/dmitry-ai/harness/issues/227
 	try:
 		from .runtime_cache import clear_runtime_cache
 		clear_runtime_cache()
 	except Exception:
 		pass
+# 2026-11-24
+# "Deploy immutable Harness runtime snapshots with LKG fallback":
+# https://github.com/dmitry-ai/harness/issues/184
 def default_runtime_file(primary: Path, code_anchor: Path, registry_file: Path) -> Path:
 	snap_rt = registry_file.parent / 'runtime.json'
 	if primary.resolve() == code_anchor.resolve() and (registry_file.parent / 'snapshot.json').is_file() and snap_rt.is_file():
@@ -132,6 +130,9 @@ def overlay_signature_for_roots(candidate_roots: tuple[Path, ...], overlay_candi
 			except OSError:
 				pass
 	return tuple(ov_sig)
+# 2026-11-24
+# "Fix worktree scope resolution for new files in TDD classifier":
+# https://github.com/dmitry-ai/harness/issues/188
 def _linked_worktree_main_repo(anchor_dir: Path) -> Path | None:
 	r = None
 	dot_git = anchor_dir / '.git'
@@ -148,6 +149,9 @@ def _linked_worktree_main_repo(anchor_dir: Path) -> Path | None:
 		except OSError:
 			r = None
 	return r
+# 2026-11-24
+# "Fix worktree scope resolution for new files in TDD classifier":
+# https://github.com/dmitry-ai/harness/issues/188
 def resolve_code_anchor(anchor_dir: Path) -> Path:
 	resolved = Path(anchor_dir).resolve()
 	r = resolved

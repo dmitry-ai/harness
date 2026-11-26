@@ -1,12 +1,13 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add PreToolUse worktree isolation gate for live main checkouts":
-# https://github.com/dmitry-ai/harness/issues/185
 from __future__ import annotations
 from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
 import time
+# 2026-11-24
+# "Add PreToolUse worktree isolation gate for live main checkouts":
+# https://github.com/dmitry-ai/harness/issues/185
 NAME = 'EXEC-5-WORKTREE-GATE'
 PRIORITY = 97
 TOOLS = frozenset({'write_file', 'edit_file'})

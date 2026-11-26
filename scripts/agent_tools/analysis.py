@@ -1,27 +1,22 @@
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
-# https://github.com/dmitry-ai/harness/issues/62
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
-# https://github.com/dmitry-ai/harness/issues/63
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
-# https://github.com/dmitry-ai/harness/issues/4
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from pathlib import Path
 import hashlib
 import json
 import re
 from .diagnostics import problem, require_valid
+# 2026-11-13
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
 from .storage import create_bytes, data_dir_for, locked, replace_bytes, write_immutable_bytes
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
 SECTIONS = ('identity', 'concerns', 'misconceptions', 'causes', 'methods')
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 TITLES = ('Client Identification', 'Client Concerns', 'Possible Misconceptions', 'Causes of the Problem in This Client System', 'Solution Methods')
-# 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
 def analysis_issues(value):
@@ -89,6 +84,9 @@ def analysis_issues(value):
 						if not isinstance(arg, dict):
 							add('argument.object', af, 'Each argument must be an object', ident)
 							continue
+						# 2026-10-18
+						# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+						# https://github.com/dmitry-ai/harness/issues/10
 						if 3 == value.get('schema_version') and (arg.get('claim_id') or arg.get('evidence_id')):
 							if not isinstance(arg.get('argument'), str) or not arg['argument'].strip():
 								add('argument.required', af + '/argument', 'argument is required', ident)
@@ -114,10 +112,19 @@ def analysis_issues(value):
 			allowed = ('concerns',) if 'causes' == section else ('concerns', 'causes')
 			if section in ('causes', 'methods') and addresses and (not any((claims.get(x) in allowed for x in addresses))):
 				add('claim.reference_kind', field + '/addresses', 'Reference must address a concern or applicable cause', ident)
+		# 2026-10-15
+		# "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks":
+		# https://github.com/dmitry-ai/harness/issues/5
 		from .red_flags import red_flag_issues
 		issues.extend(red_flag_issues(value, claims))
+		# 2026-10-17
+		# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+		# https://github.com/dmitry-ai/harness/issues/7
 		from .knowledge import website_issues
 		issues.extend(website_issues(value))
+		# 2026-10-18
+		# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+		# https://github.com/dmitry-ai/harness/issues/10
 		from .claims import contract_issues
 		issues.extend(contract_issues(value))
 		r = issues
@@ -134,14 +141,26 @@ def source_uri(argument, registry):
 def validate_analysis(value):
 	require_valid(analysis_issues(value))
 def save_analysis(root, candidate, expected_sha256=None):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	from .research import inside
 	pp = project_paths(root, exact_root=True)
 	root = pp.root
+	# 2026-10-17
+	# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+	# https://github.com/dmitry-ai/harness/issues/7
 	value = candidate if isinstance(candidate, dict) else json.loads(inside(root, candidate).read_text(encoding='utf-8-sig'))
 	validate_analysis(value)
+	# 2026-10-18
+	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+	# https://github.com/dmitry-ai/harness/issues/10
 	require_current_contract(value)
 	from .evidence import evidence_issues
+	# 2026-11-13
+	# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
+	# https://github.com/dmitry-ai/harness/issues/62
 	require_valid(evidence_issues(root, value, skip_structural=True))
 	payload = (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode()
 	target = pp.kb_dir / 'Analysis.json'
@@ -153,6 +172,9 @@ def save_analysis(root, candidate, expected_sha256=None):
 		if None is previous and None is not expected_sha256:
 			raise ValueError('Expected existing analysis is missing; preserve candidate and inspect state')
 		if None is not previous and previous != payload:
+			# 2026-11-13
+			# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+			# https://github.com/dmitry-ai/harness/issues/63
 			write_immutable_bytes(pp.data_dir / 'analysis-history' / (digest(previous) + '.json'), previous)
 		if (target.read_bytes() if target.exists() else None) != previous:
 			raise ValueError('Analysis changed during commit; external edit preserved')
@@ -162,6 +184,9 @@ def save_analysis(root, candidate, expected_sha256=None):
 			replace_bytes(target, payload)
 	r = {'target': str(target), 'sha256': digest(payload), 'schema_valid': True, 'evidence_checked': True, 'detail': 'Primary references checked; update dependent agent KB modules before independent semantic review'}
 	return r
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
 def require_current_contract(value):
 	require_valid([] if isinstance(value, dict) and 3 == value.get('schema_version') else [problem('analysis.current_contract', '/schema_version', 'New saved/published analyses require schema_version 3 and explicit provenance; preserve legacy files and reconcile a candidate')])
 def iter_arguments(value):
@@ -177,9 +202,18 @@ def iter_arguments(value):
 						yield (item.get('id'), f'/{section}/{index}/{side}/{number}', arg, source_uri(arg, registry))
 def render_analysis(value):
 	validate_analysis(value)
+	# 2026-10-15
+	# "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks":
+	# https://github.com/dmitry-ai/harness/issues/5
 	from .red_flags import render_red_flags
+	# 2026-10-17
+	# "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
+	# https://github.com/dmitry-ai/harness/issues/9
 	from .links import markdown_link
 	lines = [render_red_flags(value)] if value.get('red_flags') else []
+	# 2026-10-18
+	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+	# https://github.com/dmitry-ai/harness/issues/10
 	if 3 == value.get('schema_version'):
 		lines.extend(['# Primary Observations and Calculations', ''])
 		for fact in value['facts']:
@@ -218,6 +252,9 @@ def render_analysis(value):
 			lines.extend([item['assessment_basis'], ''])
 	r = '\n'.join(lines)
 	return r
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
 def _render_claim_contract(claim):
 	from .links import markdown_link
 	lines = [f"Kind: {claim['knowledge_type']}. Verification status: {claim['verification_status']}.", 'Scope: ' + claim['scope']['description'], '']
@@ -244,11 +281,20 @@ def _render_claim_contract(claim):
 		lines.extend([f"Calculation: `{calc['formula']}`; old={calc['operands']['old']['value']} {calc['operands']['old']['unit']}; new={calc['operands']['new']['value']} {calc['operands']['new']['unit']}; result {calc['result']}%; rounding {calc['rounding']} to {calc['rounding_places']} places.", ''])
 	r = lines
 	return r
+# 2026-10-15
+# "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks":
+# https://github.com/dmitry-ai/harness/issues/5
 def publish_analysis(source, target=None):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths, resolve_project_root
 	from .red_flags import sync_project_red_flags
 	source = Path(source).resolve()
 	value = json.loads(source.read_text(encoding='utf-8-sig'))
+	# 2026-10-18
+	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+	# https://github.com/dmitry-ai/harness/issues/10
 	require_current_contract(value)
 	proj_root = resolve_project_root(source)
 	pp = project_paths(proj_root, exact_root=True)
@@ -260,8 +306,14 @@ def publish_analysis(source, target=None):
 		proj_root = source.parents[2]
 	from .evidence import evidence_issues
 	validate_analysis(value)
+	# 2026-11-13
+	# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
+	# https://github.com/dmitry-ai/harness/issues/62
 	require_valid(evidence_issues(proj_root, value, skip_structural=True))
 	result = publish_owned(target or source.with_suffix('.md'), render_analysis(value), source=source)
+	# 2026-10-17
+	# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+	# https://github.com/dmitry-ai/harness/issues/7
 	if 'conflict' == result['status']:
 		r = result
 	else:
@@ -278,9 +330,15 @@ def publish_analysis(source, target=None):
 def digest(data):
 	return hashlib.sha256(data).hexdigest()
 def publish_owned(target, content, *, source=None, history=True):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	target = Path(target).resolve()
 	payload = content.encode('utf-8') if isinstance(content, str) else content
+	# 2026-10-17
+	# "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
+	# https://github.com/dmitry-ai/harness/issues/9
 	if target.suffix.lower() in ('.md', '.markdown', '.txt', '.html', '.htm'):
 		from .links import readable_link_issues
 		issues = readable_link_issues(payload.decode('utf-8'))
@@ -295,6 +353,9 @@ def publish_owned(target, content, *, source=None, history=True):
 		previous = target.read_bytes() if target.exists() else None
 		expected = receipt.get(key, {}).get('sha256')
 		if None is not previous and previous != payload and (digest(previous) != expected):
+			# 2026-11-13
+			# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+			# https://github.com/dmitry-ai/harness/issues/63
 			candidate = write_immutable_bytes(state_dir / 'render-candidates' / (digest(key.encode())[:16] + '-' + digest(payload)[:16] + target.suffix), payload)
 			r = {'status': 'conflict', 'target': str(target), 'candidate': str(candidate), 'detail': 'Existing file is untracked or changed; preserved for reconciliation'}
 		else:

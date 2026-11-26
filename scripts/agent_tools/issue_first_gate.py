@@ -1,6 +1,4 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement core Issue-First verification engine in agent_tools/issue_first_gate.py":
-# https://github.com/dmitry-ai/harness/issues/143
 from __future__ import annotations
 
 import json
@@ -242,6 +240,9 @@ def _is_established_before(est: tuple[int, int | None], step: int, sub_step: int
 	return False
 
 
+# 2026-11-23
+# "Implement core Issue-First verification engine in agent_tools/issue_first_gate.py":
+# https://github.com/dmitry-ai/harness/issues/143
 def evaluate_issue_first_events(
 	events: list[dict] | tuple[dict, ...] | None,
 	*,

@@ -1,15 +1,4 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
-# https://github.com/dmitry-ai/harness/issues/206
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
-# https://github.com/dmitry-ai/harness/issues/204
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deduplicate historical admission fixtures and guard optional temp fsync":
-# https://github.com/dmitry-ai/harness/issues/177
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add parallel fail-fast test runner and worktree-aware TDD support":
-# https://github.com/dmitry-ai/harness/issues/159
 from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
@@ -20,6 +9,9 @@ import subprocess
 import sys
 import threading
 import time
+# 2026-11-24
+# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
+# https://github.com/dmitry-ai/harness/issues/206
 from .process_tree import POPEN_TREE_KWARGS, kill_process_tree
 from .storage import replace_bytes
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
@@ -32,6 +24,9 @@ def _build_worker_cmd(module: Path, *, failfast: bool, buffer_output: bool) -> l
 		cmd.append('-b')
 	cmd.append(module.stem)
 	return cmd
+# 2026-11-24
+# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
+# https://github.com/dmitry-ai/harness/issues/206
 def _close_proc_pipes(proc: subprocess.Popen) -> None:
 	for stream in (proc.stdout, proc.stderr):
 		if None is not stream:
@@ -39,6 +34,9 @@ def _close_proc_pipes(proc: subprocess.Popen) -> None:
 				stream.close()
 			except OSError:
 				pass
+# 2026-11-24
+# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
+# https://github.com/dmitry-ai/harness/issues/206
 def _kill_proc_tree(proc: subprocess.Popen) -> None:
 	kill_process_tree(proc)
 def _load_timings(cache_path: Path | None) -> dict[str, float]:
@@ -73,6 +71,9 @@ def _read_proc_output(proc: subprocess.Popen) -> str:
 		out, err = proc.communicate(timeout=2.0)
 	except (OSError, subprocess.TimeoutExpired):
 		_kill_proc_tree(proc)
+		# 2026-11-24
+		# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
+		# https://github.com/dmitry-ai/harness/issues/206
 		_close_proc_pipes(proc)
 		out, err = ('', '')
 	parts = [p for p in (out, err) if p]
@@ -83,7 +84,16 @@ def _run_single_module(module: Path, tests_dir: Path, *, failfast: bool, buffer_
 		r = {'module': module.stem, 'ok': False, 'returncode': -1, 'timed_out': False, 'aborted': True, 'tests': 0, 'duration': 0.0, 'output': ''}
 	else:
 		cmd = _build_worker_cmd(module, failfast=failfast, buffer_output=buffer_output)
+		# 2026-11-24
+		# "Deduplicate historical admission fixtures and guard optional temp fsync":
+		# https://github.com/dmitry-ai/harness/issues/177
 		env = {'HARNESS_TEST_NO_FSYNC': '1', **os.environ, 'PYTHONUTF8': '1', 'GIT_OPTIONAL_LOCKS': '0'}
+		# 2026-11-24
+		# "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
+		# https://github.com/dmitry-ai/harness/issues/204
+		# 2026-11-24
+		# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
+		# https://github.com/dmitry-ai/harness/issues/206
 		proc = subprocess.Popen(cmd, cwd=str(tests_dir), stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='replace', env=env, **POPEN_TREE_KWARGS)
 		with active_lock:
 			active_procs.add(proc)
@@ -140,6 +150,9 @@ def discover_test_modules(tests_dir: Path | str, *, pattern: str='test_*.py', mo
 			size = 0
 		return (-float(t_map.get(path.stem, -1.0)), -size, path.stem)
 	return sorted(found, key=_sort_key)
+# 2026-11-23
+# "Add parallel fail-fast test runner and worktree-aware TDD support":
+# https://github.com/dmitry-ai/harness/issues/159
 def run_parallel_tests(tests_dir: Path | str, *, workers: int | None=None, pattern: str='test_*.py', modules: list[str] | tuple[str, ...] | None=None, failfast: bool=True, buffer_output: bool=True, module_timeout: float=180.0, timings_file: Path | None=None) -> dict:
 	root = Path(tests_dir).resolve()
 	timings = _load_timings(timings_file)

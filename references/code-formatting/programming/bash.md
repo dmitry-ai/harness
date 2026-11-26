@@ -1,3 +1,4 @@
+<!-- 2026-11-23 "Migrate general code formatting rules with Bash and ES6 guides": https://github.com/dmitry-ai/harness/issues/154 -->  
 # Bash Formatting Standard
 
 Inherits all general rules from [CODE-1](../../../rules/11-code-formatting.md#code-1) (tab indentation, zero blank lines, single quotes by default, no unrequested comments, preserving existing comments).  
@@ -98,4 +99,3 @@ These examples illustrate formatting only and are not part of any target program
 	)
 )
 ```
-<!-- https://github.com/dmitry-ai/harness/issues/154 -->  

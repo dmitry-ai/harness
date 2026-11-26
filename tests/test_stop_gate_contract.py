@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Align check_stop_gate with Antigravity 2.0 conversationId contract and continuation loop guard":
-# https://github.com/dmitry-ai/harness/issues/197
 from __future__ import annotations
 from pathlib import Path
 import json
@@ -51,6 +49,9 @@ def _setup_fixture(base: Path, cid: str, *, user_text: str='Analyze skill namesp
 	if None is not turn_state:
 		state_file.write_text(json.dumps(turn_state), encoding='utf-8')
 	return (proj, backend, log_file, state_file)
+# 2026-11-24
+# "Align check_stop_gate with Antigravity 2.0 conversationId contract and continuation loop guard":
+# https://github.com/dmitry-ai/harness/issues/197
 class StopGateContractTests(unittest.TestCase):
 	def test_ag2_conversation_id_without_session_id_enforces_stop_gate(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

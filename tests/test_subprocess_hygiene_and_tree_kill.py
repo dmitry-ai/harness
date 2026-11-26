@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
-# https://github.com/dmitry-ai/harness/issues/206
 from __future__ import annotations
 from pathlib import Path
 import json
@@ -39,6 +37,9 @@ def _kill_pid(pid: int) -> None:
 				os.kill(pid, 9)
 			except OSError:
 				pass
+# 2026-11-24
+# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
+# https://github.com/dmitry-ai/harness/issues/206
 class SubprocessHygieneAndTreeKillTests(unittest.TestCase):
 	def test_ast_hygiene_flags_unguarded_subprocess_in_tests_and_launchers_with_ratchet(self) -> None:
 		from agent_tools.subprocess_hygiene_gate import check_subprocess_hygiene_violations

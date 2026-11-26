@@ -1,20 +1,19 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
-# https://github.com/dmitry-ai/harness/issues/224
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enable parallel pytest-xdist full-suite execution and outcome parsing":
-# https://github.com/dmitry-ai/harness/issues/178
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/169
 from __future__ import annotations
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 import re
+# 2026-11-24
+# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
+# https://github.com/dmitry-ai/harness/issues/224
 _BG_HEADER_SPLIT_RE = re.compile(r'(?m)^(?:Command output|Output|Log output):\s*$')
 _BG_TASK_FINISHED_RE = re.compile(r'Task\s+id\s+"([^"]+)"\s+finished\s+with\s+result:\s*([\s\S]*)', re.IGNORECASE)
 _BG_TASK_ID_RE = re.compile(r'task\s+id:\s*([A-Za-z0-9_./:-]+)', re.IGNORECASE)
 _BG_TASK_LOG_RE = re.compile(r'(?:Task\s+logs\s+are\s+available\s+at|Log):\s*(file:///[^\s\'"<>]+)', re.IGNORECASE)
 _EXIT_CODE_RE = re.compile(r'(?im)^(?:(?:Command|Process)\s+exited\s+with\s+code\s+(-?\d+)\.?|Exit\s+code:\s*(-?\d+))\s*$')
+# 2026-11-24
+# "Enable parallel pytest-xdist full-suite execution and outcome parsing":
+# https://github.com/dmitry-ai/harness/issues/178
 _FAIL_LOG_RE = re.compile(r'(?m:^FAILED(?:\s*\(|\s+\S)|^FAIL\b)|(?i:\btest result:\s*FAILED\b|\bFAILURES!\b|\bERRORS!\b|\bFailed!\s*-\s*Failed:\s*[1-9]|=+\s+[^=\n]*\b[1-9]\d*\s+(?:failed|errors?)\b[^=\n]*=+)')
 _INVOCATION_ERROR_RE = re.compile(
 	r'(?i)(?:is not recognized as an internal or external command'
@@ -87,6 +86,9 @@ def _is_pass_log_text(text: str) -> bool:
 	return bool(
 		(re.search(r'(?m)^Ran\s+\d+\s+tests?\s+in\s+\d', text) and re.search(r'(?m)^OK(?:\s|\(|$)', text))
 		or re.search(r'(?i)\btest result:\s*ok\.\s*[1-9]\d*\s+passed;\s*0\s+failed\b|\bPassed!\s*-\s*Failed:\s*0,\s*Passed:\s*[1-9]|\bOK\s*\(\d+\s+tests?', text)
+		# 2026-11-24
+		# "Enable parallel pytest-xdist full-suite execution and outcome parsing":
+		# https://github.com/dmitry-ai/harness/issues/178
 		or (re.search(r'(?m)^(?:=+\s+[^=\n]*\b)?[1-9]\d*\s+passed\b', text) and (not re.search(r'(?i)\b[1-9]\d*\s+(?:failed|errors?)\b', text)))
 		or (re.search(r'[\u2139i]\s+fail\s+0\b', text) and re.search(r'[\u2139i]\s+tests\s+[1-9]\d*\b', text))
 	)
@@ -105,6 +107,9 @@ def _uri_to_local_path(uri: str) -> Path | None:
 			p_str = p_str[1:]
 		r = Path(p_str)
 	return r
+# 2026-11-24
+# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
+# https://github.com/dmitry-ai/harness/issues/224
 def extract_bg_task_ids(text: str) -> list[str]:
 	r: list[str] = []
 	header = _BG_HEADER_SPLIT_RE.split(text or '', maxsplit=1)[0]
@@ -114,6 +119,9 @@ def extract_bg_task_ids(text: str) -> list[str]:
 			if tid and tid not in r:
 				r.append(tid)
 	return r
+# 2026-11-24
+# "Decompose tdd_gate.py into modular TDD verification package":
+# https://github.com/dmitry-ai/harness/issues/169
 def parse_command_outcome(outputs: list[str] | tuple[str, ...] | str, *, task_log_paths: list[Path] | None=None) -> dict:
 	parts = [outputs] if isinstance(outputs, str) else [str(o) for o in (outputs or ()) if o]
 	combined = '\n'.join(parts)
@@ -126,6 +134,9 @@ def parse_command_outcome(outputs: list[str] | tuple[str, ...] | str, *, task_lo
 		exit_code = _infer_exit_code_from_log_text(combined)
 	full_text = combined + extra_log_text
 	is_inv_err = bool(_INVOCATION_ERROR_RE.search(full_text))
+	# 2026-11-24
+	# "Enable parallel pytest-xdist full-suite execution and outcome parsing":
+	# https://github.com/dmitry-ai/harness/issues/178
 	has_fail_log = bool(_FAIL_LOG_RE.search(full_text) or _NODE_FAIL_LOG_RE.search(full_text))
 	ran_zero = bool(_ZERO_TESTS_RE.search(full_text)) and (not has_fail_log)
 	is_fail = (None is not exit_code) and (0 != exit_code) and (not is_inv_err) and (not ran_zero)

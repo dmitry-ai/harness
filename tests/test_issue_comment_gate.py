@@ -1,6 +1,4 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add PreToolUse and pre-commit gate for issue-comment placement":
-# https://github.com/dmitry-ai/harness/issues/273
 from __future__ import annotations
 from pathlib import Path
 import json
@@ -34,6 +32,9 @@ def _write_red_transcript(repo: Path, test_rel: str) -> Path:
 	)
 	tr.write_text('\n'.join((json.dumps(r) for r in rows)) + '\n', encoding='utf-8')
 	return tr
+# 2026-11-26
+# "Add PreToolUse and pre-commit gate for issue-comment placement":
+# https://github.com/dmitry-ai/harness/issues/273
 class IssueCommentGateTests(unittest.TestCase):
 	def test_allows_block_adjacent_function_header_trailing_and_new_file_comments(self) -> None:
 		from agent_tools.issue_comment_gate import check_issue_comment_violations

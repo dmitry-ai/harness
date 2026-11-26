@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add harness perf-timesheet CLI for deterministic turn chronometry":
-# https://github.com/dmitry-ai/harness/issues/191
 from __future__ import annotations
 from collections import Counter
 from typing import Any
@@ -147,6 +145,9 @@ def _sync_generic_dur(call_ts: float | None, nxt: dict[str, Any] | None, nxt_txt
 	t0 = parse_iso_ts(c_starts[0]) if c_starts else call_ts
 	t1 = parse_iso_ts(c_ends[-1]) if c_ends else (parse_iso_ts(nxt.get('created_at')) if nxt else None)
 	return round(max(0.0, t1 - t0), 3) if None is not t0 and None is not t1 else 0.0
+# 2026-11-24
+# "Add harness perf-timesheet CLI for deterministic turn chronometry":
+# https://github.com/dmitry-ai/harness/issues/191
 def analyze_antigravity_rows(rows: list[dict[str, Any]], *, last_user_ts: str | None=None, last_mod_ts: str | None=None, top_gaps_limit: int=10) -> dict[str, Any]:
 	st = _init_ag_state()
 	done_map = _bg_match_records(rows)

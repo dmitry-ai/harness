@@ -1,35 +1,42 @@
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Harden follow-up launcher handoff and journal reservation integrity":
-# https://github.com/dmitry-ai/harness/issues/269
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
-# https://github.com/dmitry-ai/harness/issues/105
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
-# https://github.com/dmitry-ai/harness/issues/69
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
-# https://github.com/dmitry-ai/harness/issues/2
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
-# https://github.com/dmitry-ai/harness/issues/31
-# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
-# https://github.com/dmitry-ai/harness/issues/42
 import argparse
 import json
 from pathlib import Path
 import sys
+# 2026-11-14
+# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
+# https://github.com/dmitry-ai/harness/issues/69
 from .cli_common import add_arg_specs, dump_json, read_input_text
+# 2026-10-17
+# "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
+# https://github.com/dmitry-ai/harness/issues/9
+# 2026-11-14
+# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
+# https://github.com/dmitry-ai/harness/issues/69
 _LINK_SPECS = (('targets', {'nargs': '+', 'type': Path}), ('--local-anchors', {'action': 'store_true'}), ('--unique-urls', {'action': 'store_true'}), ('--include-code', {'action': 'store_true'}), ('--readable', {'action': 'store_true', 'help': 'Enforce LINK-5 on authored document references, before renderer URL normalization'}), (('--network', '--check-http'), {'action': 'store_true'}), ('--timeout', {'type': float, 'default': 15}))
+# 2026-10-11
+# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+# https://github.com/dmitry-ai/harness/issues/2
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-14
+# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
+# https://github.com/dmitry-ai/harness/issues/69
 def main(command: str, argv=None, *, context_default: Path | None=None, root_default: Path | None=None) -> int:
 	parser = argparse.ArgumentParser(prog=command + '.py')
+	# 2026-11-03
+	# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
+	# https://github.com/dmitry-ai/harness/issues/42
+	# 2026-11-14
+	# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
+	# https://github.com/dmitry-ai/harness/issues/69
 	ctx_specs = (('root_pos', {'nargs': '?', 'type': Path, 'default': None, 'help': 'Project root directory'}), ('--root', {'type': Path, 'default': root_default, 'help': 'Project root directory'}), ('--config', {'type': Path, 'default': context_default, 'help': 'Context configuration file'}), (('--output', '-o'), {'type': Path, 'help': 'Output path (defaults to \ua66e/0/Context.md)'}), ('--dry-run', {'action': 'store_true', 'help': 'Check inputs without writing output'}))
 	specs_map = {
 		'generate_context': ctx_specs,
+		# 2026-10-31
+		# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+		# https://github.com/dmitry-ai/harness/issues/31
 		'safe_commit': (('--repo', {'type': Path, 'required': True}), ('--file', {'action': 'append', 'required': True}), (('--message', '-m'), {'required': True}), ('--execute', {'action': 'store_true'}), ('--worktree', {'action': 'store_true', 'help': 'Commit explicit files in an isolated temporary linked git worktree'})),
 		'snapshot_draft': (('target', {'type': Path}), ('--turn', {'required': True})),
 		'validate_anchors': _LINK_SPECS,
@@ -42,6 +49,7 @@ def main(command: str, argv=None, *, context_default: Path | None=None, root_def
 			group = parser.add_mutually_exclusive_group()
 			add_arg_specs(group, (('--' + name, {}), ('--' + name + '-file', {'type': Path})))
 	elif 'validate_step' == command:
+		# 2026-11-26 "Harden follow-up launcher handoff and journal reservation integrity": https://github.com/dmitry-ai/harness/issues/269
 		add_arg_specs(parser, (('--dir', {'type': Path, 'required': True}), ('--file', {'type': Path, 'action': 'append', 'default': []}), ('--strict-sequence', {'action': 'store_true', 'help': 'Fail on missing contiguous steps 1..max(ids) (unless documented in sequence-recovery.json) or orphaned reservations'})))
 		group = parser.add_mutually_exclusive_group(required=True)
 		add_arg_specs(group, (('--step', {'type': int}), ('--all', {'action': 'store_true'})))
@@ -57,6 +65,9 @@ def main(command: str, argv=None, *, context_default: Path | None=None, root_def
 			print(snapshot_draft(args.target, args.turn))
 		elif 'safe_commit' == command:
 			from .git_gate import commit
+			# 2026-10-31
+			# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+			# https://github.com/dmitry-ai/harness/issues/31
 			paths = commit(args.repo, args.file, args.message, args.execute, worktree=args.worktree)
 			print(f"{('Committed' if args.execute else 'Checked; commit requires --execute')}: {json.dumps(paths, ensure_ascii=False)}")
 		elif 'validate_statements' == command:
@@ -65,12 +76,19 @@ def main(command: str, argv=None, *, context_default: Path | None=None, root_def
 			if errors:
 				raise ValueError('\n'.join(errors))
 			print('Statement and Test.md files exist and are nonempty UTF-8; evidence truth was not checked')
+		# 2026-11-20
+		# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
+		# https://github.com/dmitry-ai/harness/issues/105
 		elif 'generate_context' == command:
 			from .context import generate
+			# 2026-11-03
+			# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
+			# https://github.com/dmitry-ai/harness/issues/42
 			root = args.root or args.root_pos or root_default or Path('.')
 			target, content, sources = generate(root, args.config, args.output, args.dry_run)
 			print(f"{len(sources)} sources; {len(content.encode('utf-8'))} bytes; {('dry run' if args.dry_run else 'saved')}: {target}")
 		elif 'validate_step' == command:
+			# 2026-11-26 "Harden follow-up launcher handoff and journal reservation integrity": https://github.com/dmitry-ai/harness/issues/269
 			from .journal_integrity import validate_step_cli
 			print(validate_step_cli(args))
 		elif 'record_step' != command:
@@ -78,6 +96,9 @@ def main(command: str, argv=None, *, context_default: Path | None=None, root_def
 			errors = []
 			urls = []
 			for path in args.targets:
+				# 2026-10-17
+				# "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
+				# https://github.com/dmitry-ai/harness/issues/9
 				errors.extend(validate_file(path, local_anchors=args.local_anchors, unique_urls=args.unique_urls, include_code=args.include_code, readable_links=args.readable))
 				urls.extend(references(path.read_text(encoding='utf-8'), args.include_code)[0])
 			if errors:
@@ -106,6 +127,9 @@ def main(command: str, argv=None, *, context_default: Path | None=None, root_def
 				payload = []
 				for name in ('req', 'res'):
 					path = getattr(args, name + '_file')
+					# 2026-11-14
+					# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
+					# https://github.com/dmitry-ai/harness/issues/69
 					text = read_input_text(path, encoding='utf-8') if path else getattr(args, name)
 					if None is text:
 						parser.error(f'Provide --{name} or --{name}-file')

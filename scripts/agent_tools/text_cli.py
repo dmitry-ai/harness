@@ -1,23 +1,21 @@
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
-# https://github.com/dmitry-ai/harness/issues/70
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
-# https://github.com/dmitry-ai/harness/issues/69
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 import argparse
 from dataclasses import asdict
 import difflib
 from pathlib import Path
 import re
 import sys
+# 2026-11-14
+# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
+# https://github.com/dmitry-ai/harness/issues/69
 from .cli_common import add_arg_specs, dump_json, read_input_json, read_input_text
+# 2026-11-14
+# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+# https://github.com/dmitry-ai/harness/issues/70
 from .text_sections import keyed_engine, lint_document
+# 2026-11-14
+# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
+# https://github.com/dmitry-ai/harness/issues/69
 data = read_input_json
 read = read_input_text
 _DOC_SPECS = {
@@ -44,14 +42,26 @@ _FLOW_OPTIONS = {
 	'source-check': (('candidate', True), ('spec', True)),
 	'sources': (('registry', False),),
 }
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
 def findings_output(findings, path, as_json=False):
 	if as_json:
+		# 2026-11-14
+		# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
+		# https://github.com/dmitry-ai/harness/issues/69
 		dump_json([asdict(f) for f in findings])
 	else:
 		for finding in findings:
 			print(finding.format(str(path)))
 		print(f'{path}: ' + ', '.join((f'{sum((f.severity == level for f in findings))} {level}(s)' for level in ('error', 'warning', 'note'))))
 	return int(any(('error' == f.severity for f in findings)))
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def main(argv=None, *, default_kind='article'):
 	from . import text_core as core, text_workflow as flow
 	if hasattr(sys.stdout, 'reconfigure'):
@@ -60,6 +70,9 @@ def main(argv=None, *, default_kind='article'):
 	sub = parser.add_subparsers(dest='command', required=True)
 	for command in ('lint', 'source', 'render', 'replay', 'response'):
 		p = sub.add_parser(command)
+		# 2026-11-14
+		# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
+		# https://github.com/dmitry-ai/harness/issues/69
 		specs = [('targets' if 'lint' == command else 'target', {'nargs': '+' if 'lint' == command else None, 'type': Path})]
 		if command in ('lint', 'source', 'render'):
 			specs.append(('--kind', {'choices': ('article', 'proposal', 'letter', 'response'), 'default': default_kind or 'article'}))
@@ -89,7 +102,13 @@ def main(argv=None, *, default_kind='article'):
 				text = read(target)
 				bans = data(args.bans)
 				bans = bans.get('bans', []) if isinstance(bans, dict) else bans
+				# 2026-11-14
+				# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+				# https://github.com/dmitry-ai/harness/issues/70
 				findings = lint_document(text, args.kind, path=target, lang=args.lang, bans=bans, profile=data(args.profile))
+				# 2026-10-23
+				# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+				# https://github.com/dmitry-ai/harness/issues/16
 				if args.network:
 					from .text_sources import probe_links
 					if None is args.project or not target.resolve().is_relative_to(args.project.resolve()):
@@ -97,6 +116,9 @@ def main(argv=None, *, default_kind='article'):
 					findings.extend(probe_links(args.project, text)['findings'])
 				r |= findings_output([f for f in findings if not args.errors_only or 'error' == f.severity], target, args.json)
 		elif command in ('source', 'render'):
+			# 2026-11-14
+			# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+			# https://github.com/dmitry-ai/harness/issues/70
 			engine = keyed_engine(args.kind)
 			original = read(args.target)
 			previous = read(args.previous) if 'render' == command and args.previous else None
@@ -120,6 +142,9 @@ def main(argv=None, *, default_kind='article'):
 					dump_json({**flow.write_candidate_output(args.output, value.encode(), expected_sha256=args.expected_sha256), 'changes': report})
 				r = 0
 		else:
+			# 2026-11-14
+			# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+			# https://github.com/dmitry-ai/harness/issues/70
 			from . import review, text_browser, text_claims, text_diagnostics, text_review, text_sources
 			handlers = {
 				'apply': lambda: flow.apply(args.project, args.check),

@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add deterministic reactive wait primitive for transient repository and journal contention":
-# https://github.com/dmitry-ai/harness/issues/199
 from __future__ import annotations
 from pathlib import Path
 from typing import Any, Callable
@@ -95,6 +93,9 @@ def run_with_transient_wait(root: Path, fn: Callable[[], dict[str, Any]], *, wai
 	if 1 < attempts or 0.0 < budget:
 		res['waited_seconds'] = round(time.monotonic() - started, 3)
 	return res
+# 2026-11-24
+# "Add deterministic reactive wait primitive for transient repository and journal contention":
+# https://github.com/dmitry-ai/harness/issues/199
 def wait_for_repo(repo: Path | str, *, clean: bool=False, lease_free: bool=False, timeout: float=DEFAULT_WAIT_TIMEOUT_SECONDS, poll_interval: float=DEFAULT_WAIT_POLL_SECONDS, leases_dir: Path | None=None) -> dict[str, Any]:
 	resolved = Path(repo).resolve()
 	main_repo = GitRepoGate(resolved).main_repo() if (resolved / '.git').exists() else resolved

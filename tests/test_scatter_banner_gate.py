@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add FILE-6 warning banner rule for out-of-workspace file-scattering recommendations":
-# https://github.com/dmitry-ai/harness/issues/200
 from __future__ import annotations
 from pathlib import Path
 import json
@@ -50,6 +48,9 @@ def _make_two_method_doc(m1_prefix: str='', *, transcript_uri: str | None=None) 
 	mid = f'{m1_prefix}\n\n' if m1_prefix else ''
 	m2_body = _make_m2_safe_body(transcript_uri) if None is not transcript_uri else _M2_SAFE_BODY
 	return head + mid + _M1_SCATTER_BODY + '\n' + m2_body
+# 2026-11-24
+# "Add FILE-6 warning banner rule for out-of-workspace file-scattering recommendations":
+# https://github.com/dmitry-ai/harness/issues/200
 class ScatterBannerGateTests(unittest.TestCase):
 	def test_analysis_check_and_answer_check_enforce_file6_banner(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

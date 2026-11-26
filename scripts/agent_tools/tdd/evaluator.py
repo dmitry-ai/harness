@@ -1,11 +1,4 @@
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/250
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/238
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/173
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/169
 from __future__ import annotations
 from pathlib import Path
 from ..shell_audit import _split_shell_segments, normalize_host_path
@@ -43,6 +36,9 @@ def _apply_file_write_event(ev: dict, step: int, order: tuple[int, int, int], sc
 		_apply_test_write(st, st_ord, fpath, step, order)
 	elif 'production' == cls and scope_str:
 		_apply_prod_file_event(fpath, scope_str, step, order, scopes, orders, violations, project_root, {} if None is exempt_cache else exempt_cache)
+# 2026-11-25
+# "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
+# https://github.com/dmitry-ai/harness/issues/250
 def _apply_prod_file_event(fpath: str, scope_str: str, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], violations: list[str], project_root: Path | None, exempt_cache: dict[tuple[str, str], bool]) -> None:
 	existing = scopes.get(scope_str)
 	if None is not existing and existing['state'] in ('RED_VERIFIED', 'GREEN_IMPLEMENTING'):
@@ -131,6 +127,9 @@ def _ensure_scope(scopes: dict[str, dict], orders: dict[str, dict], scope_str: s
 		'written_test_step': None,
 		'written_tests': [],
 	})
+	# 2026-11-24
+	# "Fix EXEC-2 TDD trace scoping for deleted worktrees and subagent steps":
+	# https://github.com/dmitry-ai/harness/issues/173
 	st_ord = orders.setdefault(scope_str, {'last_code_edit': None, 'last_full_green': None, 'last_non_exempt_prod': None, 'last_test_edit': None, 'unverified_prod_writes': [], 'written_test': None})
 	return (st, st_ord)
 def _git_main_repo_root(repo: Path) -> Path:
@@ -148,6 +147,9 @@ def _git_main_repo_root(repo: Path) -> Path:
 		except OSError:
 			pass
 	return r
+# 2026-11-25
+# "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
+# https://github.com/dmitry-ai/harness/issues/250
 def _has_non_exempt_prod(sk: str, st_ord: dict, project_root: Path | None, exempt_cache: dict[tuple[str, str], bool], *, min_order: tuple[int, int, int] | None=None) -> bool:
 	known = st_ord['last_non_exempt_prod']
 	if None is not known and (None is min_order or known >= min_order):
@@ -155,11 +157,20 @@ def _has_non_exempt_prod(sk: str, st_ord: dict, project_root: Path | None, exemp
 	else:
 		r = any((not _is_exempt_cached(fp, sk, project_root, exempt_cache) for fp, ord_ in st_ord['unverified_prod_writes'] if None is min_order or ord_ >= min_order))
 	return r
+# 2026-11-25
+# "Add comment-only diff lexer exemption for top 20 repository languages":
+# https://github.com/dmitry-ai/harness/issues/238
+# 2026-11-25
+# "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
+# https://github.com/dmitry-ai/harness/issues/250
 def _is_exempt_cached(fpath: str, scope_str: str, project_root: Path | None, cache: dict[tuple[str, str], bool]) -> bool:
 	key = (scope_str, fpath)
 	if key not in cache:
 		cache[key] = is_write_event_exempt(fpath, scope_str, project_root=project_root)
 	return cache[key]
+# 2026-11-24
+# "Fix EXEC-2 TDD trace scoping for deleted worktrees and subagent steps":
+# https://github.com/dmitry-ai/harness/issues/173
 def _order_tdd_events(events: list[dict] | tuple[dict, ...] | None) -> list[tuple[tuple[int, int, int], int, dict]]:
 	sub_ids: dict[str, int] = {}
 	tagged: list[tuple[tuple[int, int, int], int, dict]] = []
@@ -185,6 +196,9 @@ def _resolve_event_target_scopes(targets: list[str], cwd_p: Path | None) -> list
 		except OSError:
 			continue
 	return r
+# 2026-11-25
+# "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
+# https://github.com/dmitry-ai/harness/issues/250
 def _scope_needs_final_full_green(sk: str, st: dict, st_ord: dict, project_root: Path | None, exempt_cache: dict[tuple[str, str], bool]) -> bool:
 	last_edit_ord, full_green_ord = (st_ord['last_code_edit'], st_ord['last_full_green'])
 	if (not st['any_prod_edit']) or (None is not full_green_ord and (None is last_edit_ord or full_green_ord > last_edit_ord)):
@@ -208,6 +222,9 @@ def _update_scope_from_test_cmd(sk: str, st: dict, st_ord: dict, ev: dict, step:
 		if scope_full:
 			st['last_full_green_step'] = step
 			st_ord['last_full_green'] = order
+# 2026-11-24
+# "Decompose tdd_gate.py into modular TDD verification package":
+# https://github.com/dmitry-ai/harness/issues/169
 def evaluate_tdd_events(events: list[dict], *, require_final_full_green: bool=True, project_root: Path | None=None) -> dict:
 	scopes: dict[str, dict] = {}
 	orders: dict[str, dict] = {}

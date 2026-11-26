@@ -1,15 +1,11 @@
 # 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
-# https://github.com/dmitry-ai/harness/issues/16
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/76
 from pathlib import Path
 import re
 from urllib.parse import unquote, urldefrag, urlsplit
 from .links import readable_reference
+# 2026-11-23
+# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+# https://github.com/dmitry-ai/harness/issues/76
 def _consume_link(tokens, start: int, label_types: tuple[str, ...]) -> tuple[str, str, int]:
 	href = tokens[start].attrGet('href') or ''
 	parts, depth, pos = ([], 1, start + 1)
@@ -24,6 +20,9 @@ def _consume_link(tokens, start: int, label_types: tuple[str, ...]) -> tuple[str
 		pos += 1
 	r = (href, ''.join(parts), pos)
 	return r
+# 2026-11-23
+# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+# https://github.com/dmitry-ai/harness/issues/76
 def decode_file_uri(reference: str, *, reject_remote: bool=False) -> str:
 	raw = urldefrag((reference or '').strip())[0]
 	parsed = urlsplit(raw)
@@ -39,6 +38,12 @@ def decode_file_uri(reference: str, *, reject_remote: bool=False) -> str:
 			path = path[1:]
 		r = path
 	return r
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def display_address(href):
 	value = urlsplit(readable_reference(href))
 	host = (value.hostname or '').removeprefix('www.')
@@ -46,10 +51,19 @@ def display_address(href):
 		host += ':' + str(value.port)
 	r = host + value.path + ('?' + value.query if value.query else '') + ('#' + value.fragment if value.fragment else '')
 	return r
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-11-23
+# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+# https://github.com/dmitry-ai/harness/issues/76
 def inline_links(tokens, *, include_images: bool=True):
 	for item in iter_inline_segments(tokens, include_images=include_images):
 		if 'link' == item[0]:
 			yield (item[1], item[2])
+# 2026-11-23
+# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+# https://github.com/dmitry-ai/harness/issues/76
 def iter_inline_segments(tokens, *, include_images: bool=True):
 	label_types = ('text', 'code_inline', 'image') if include_images else ('text', 'code_inline')
 	pos = 0
@@ -61,6 +75,12 @@ def iter_inline_segments(tokens, *, include_images: bool=True):
 		else:
 			href, label, pos = _consume_link(tokens, pos, label_types)
 			yield ('link', href, label)
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def numeric_text(text):
 	engine = parser()
 	environment = {}
@@ -69,6 +89,9 @@ def numeric_text(text):
 	for line in text.splitlines():
 		tokens = engine.parseInline(line, environment)[0].children or []
 		pieces = []
+		# 2026-11-23
+		# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+		# https://github.com/dmitry-ai/harness/issues/76
 		for item in iter_inline_segments(tokens):
 			if 'link' == item[0]:
 				if not technical_label(item[2], item[1]):
@@ -78,6 +101,12 @@ def numeric_text(text):
 		result.append(''.join(pieces))
 	r = '\n'.join(result)
 	return r
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-11-23
+# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+# https://github.com/dmitry-ai/harness/issues/76
 def parser(*, preserve_links: bool=False, allow_file_links: bool=False, html: bool=True):
 	try:
 		from markdown_it import MarkdownIt
@@ -92,6 +121,12 @@ def parser(*, preserve_links: bool=False, allow_file_links: bool=False, html: bo
 		validate_uri = r.validateLink
 		r.validateLink = lambda value: value.lower().startswith('file:') or validate_uri(value)
 	return r
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def technical_label(label, href):
 	if not label or any((c.isspace() for c in label)):
 		r = False

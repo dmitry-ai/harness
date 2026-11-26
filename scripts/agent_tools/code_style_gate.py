@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add CODE-1 Python style ratchet linter gate in PreToolUse and pre-commit":
-# https://github.com/dmitry-ai/harness/issues/243
 from __future__ import annotations
 from pathlib import Path
 import ast
@@ -8,6 +6,9 @@ import io
 import tokenize
 from .code_size_gate import _iter_functions, _resolve_python_target
 from .tdd_gate import _compute_edited_content, _git_head_text, _git_index_text
+# 2026-11-25
+# "Add CODE-1 Python style ratchet linter gate in PreToolUse and pre-commit":
+# https://github.com/dmitry-ai/harness/issues/243
 _SCALAR_YODA_TYPES = (type(None), bool, int, float, str)
 _YODA_OPS = (ast.Eq, ast.NotEq, ast.Is, ast.IsNot)
 _COUNT_RULES = (

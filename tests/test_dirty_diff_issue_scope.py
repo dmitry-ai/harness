@@ -2,8 +2,6 @@
 # "Enforce pushed Git tags on issue-closing commits in lifecycle gates":
 # https://github.com/dmitry-ai/harness/issues/263
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
-# https://github.com/dmitry-ai/harness/issues/196
 from __future__ import annotations
 from collections import Counter
 from pathlib import Path
@@ -51,6 +49,9 @@ def _init_repo(base: Path) -> Path:
 	subprocess.run(['git', '-C', str(code), 'push', '-u', 'origin', 'main'], check=True, capture_output=True)
 	ensure_commit_tag(code, push=True)
 	return code
+# 2026-11-24
+# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
+# https://github.com/dmitry-ai/harness/issues/196
 class DirtyDiffIssueScopeTests(unittest.TestCase):
 	def test_diff_cache_runs_once_for_dirty_repo_and_zero_times_for_clean_repo(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

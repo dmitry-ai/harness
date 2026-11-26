@@ -1,3 +1,4 @@
+<!-- 2026-11-23 "Migrate general code formatting rules with Bash and ES6 guides": https://github.com/dmitry-ai/harness/issues/154 -->  
 # JavaScript (ES6) Formatting Standard
 
 Inherits all general rules from [CODE-1](../../../rules/11-code-formatting.md#code-1) (tab indentation, zero blank lines, single return point, variable `r`, Yoda comparisons, shorter `if` branch above longer `else` branch, single quotes by default, alphabetical function ordering, no unrequested comments).  
@@ -102,4 +103,3 @@ document.addEventListener('click', e => {
 	const i = setInterval(() => p() ? clearInterval(i) : null, 50);
 })();
 ```
-<!-- https://github.com/dmitry-ai/harness/issues/154 -->  

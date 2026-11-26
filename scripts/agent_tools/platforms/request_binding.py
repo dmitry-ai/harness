@@ -1,37 +1,29 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Use canonical native inputs and strip USER_REQUEST in native_review_proof":
-# https://github.com/dmitry-ai/harness/issues/210
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Use native workspace priority and AST command parsing in request binding":
-# https://github.com/dmitry-ai/harness/issues/129
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
-# https://github.com/dmitry-ai/harness/issues/113
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove text-based explicit-project-root override from request binding":
-# https://github.com/dmitry-ai/harness/issues/112
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Restrict explicit project root binding to full root labels":
-# https://github.com/dmitry-ai/harness/issues/111
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
-# https://github.com/dmitry-ai/harness/issues/6
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 import hashlib
 import json
 from pathlib import Path
 import re
+# 2026-11-19
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 from ..path_registry import canonicalize_root_dir, project_paths, relocated_roots
+# 2026-11-22
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
 def _raw_text_project_id(path_val):
 	return 'text-' + hashlib.sha256(str(Path(path_val).resolve()).encode('utf-8')).hexdigest()
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
 def text_project_id(root):
 	return _raw_text_project_id(canonical_path(root))
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
 def native_project_id(root):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	pp = project_paths(root, exact_root=True)
 	root = pp.root
 	job = pp.project_json
@@ -46,48 +38,78 @@ def native_project_id(root):
 		if not marker.is_file():
 			raise ValueError('No native project identity; initialize an explicit text workspace first')
 		value = json.loads(marker.read_text(encoding='utf-8-sig'))
+		# 2026-11-22
+		# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+		# https://github.com/dmitry-ai/harness/issues/113
 		saved_root = value.get('project_root') if isinstance(value, dict) else None
 		valid_ids = {text_project_id(root)} | ({_raw_text_project_id(saved_root)} if isinstance(saved_root, str) and saved_root.strip() and Path(saved_root).is_absolute() else set())
 		if not isinstance(value, dict) or type(value.get('schema_version')) is not int or 1 != value['schema_version'] or ('client_text_workspace' != value.get('kind')) or (not _same_root(saved_root, root)) or (value.get('id') not in valid_ids):
 			raise ValueError('Text workspace marker has the wrong root, kind, schema or internal ID')
 		r = value['id']
 	return r
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
 def native_project_fields(root):
 	identifier = native_project_id(root)
 	is_text = identifier.startswith('text-')
 	r = {'project_id': identifier, 'project_kind': 'client_text_workspace' if is_text else 'upwork_job', 'job_id': None if is_text else identifier}
 	return r
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
 def completion_project_id(root):
 	root_p = Path(root).resolve()
 	if not root_p.is_dir():
 		raise ValueError('Completion needs an exact existing project directory')
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	pp = project_paths(root_p, exact_root=True)
 	if pp.project_json.exists() or pp.text_project_json.exists():
 		r = native_project_id(pp.root)
 	else:
 		r = text_project_id(pp.root)
 	return r
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-31
 # "Canonicalize relocated Codex, Antigravity, and Harness project roots and support v2Migrated gitFolder project resources":
 # https://github.com/dmitry-ai/harness/issues/29
+# 2026-11-19
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 _RELOCATED_ROOTS = relocated_roots()
 def canonical_path(value):
 	return canonicalize_root_dir(value)
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def _canonical_root(value):
 	r = str(canonical_path(value)).replace('\\', '/').rstrip('/').lower()
 	return r
+# 2026-10-16
+# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
+# https://github.com/dmitry-ai/harness/issues/6
 def _same_root(value, root):
 	if not isinstance(value, str) or not value.strip() or (not Path(value).is_absolute()):
 		r = False
 	else:
 		r = _canonical_root(value) == _canonical_root(root)
 	return r
+# 2026-11-23
+# "Use native workspace priority and AST command parsing in request binding":
+# https://github.com/dmitry-ai/harness/issues/129
 _CLAUDE_CMD_RE = re.compile('^\\s*(?:<command-message>[^<]*</command-message>\\s*)?<command-name>\\s*/?upwork-init\\s*</command-name>\\s*<command-args>([^<]*)</command-args>', re.I | re.S)
 _UPWORK_JOB_URL_RE = re.compile('https?://[^\\s<>)"\\\'`]+?~(\\d+)(?=\\s|$|[.,;)\\]])')
 _LEADING_CMD_RE = re.compile('^\\s*(?:/|\\$)upwork-init\\s+(https?://[^\\s<>)"\\\'`]+?~(\\d+)(?=\\s|$|[.,;)\\]]))', re.I)
 _LEADING_NATIVE_CMD_RE = re.compile('^\\s*(?:(?:/|\\$)?upwork-init\\s+)?(https?://[^\\s<>)"\\\'`]+?~(\\d+)(?=\\s|$|[.,;)\\]]))', re.I)
 _SLASH_LINK_HREF_RE = re.compile('^slashcommand;/?upwork-init$', re.I)
+# 2026-11-24
+# "Use canonical native inputs and strip USER_REQUEST in native_review_proof":
+# https://github.com/dmitry-ai/harness/issues/210
 _USER_REQUEST_WRAPPER_RE = re.compile('^\\s*<USER_REQUEST>\\r?\\n([\\s\\S]*?)\\r?\\n</USER_REQUEST>(?:\\s*(?:<(?:ADDITIONAL_METADATA|USER_SETTINGS_CHANGE|SYSTEM_MESSAGE)>[\\s\\S]*)?)?\\s*$')
+# 2026-11-24
+# "Use canonical native inputs and strip USER_REQUEST in native_review_proof":
+# https://github.com/dmitry-ai/harness/issues/210
 def _slash_link_upwork_ids(line_children, idx):
 	depth = 1
 	idx += 1
@@ -105,12 +127,21 @@ def _slash_link_upwork_ids(line_children, idx):
 			rest_parts.append(child.content or '')
 	m_rest = re.match('^\\s+(https?://[^\\s<>)"\\\'`]+?~(\\d+)(?=\\s|$|[.,;)\\]]))', ''.join(rest_parts))
 	return ['~' + m_rest.group(2)] if m_rest else []
+# 2026-11-24
+# "Use canonical native inputs and strip USER_REQUEST in native_review_proof":
+# https://github.com/dmitry-ai/harness/issues/210
 def _strip_user_request_wrapper(text):
 	r = ''
 	if isinstance(text, str) and text.strip():
 		m_wrap = _USER_REQUEST_WRAPPER_RE.match(text)
 		r = m_wrap.group(1) if m_wrap else text
 	return r
+# 2026-11-23
+# "Use native workspace priority and AST command parsing in request binding":
+# https://github.com/dmitry-ai/harness/issues/129
+# 2026-11-24
+# "Use canonical native inputs and strip USER_REQUEST in native_review_proof":
+# https://github.com/dmitry-ai/harness/issues/210
 def _extract_leading_upwork_init_ids(text, *, meta=None):
 	text = _strip_user_request_wrapper(text)
 	if not text.strip():
@@ -154,14 +185,26 @@ def _extract_leading_upwork_init_ids(text, *, meta=None):
 	line_text = ''.join(parts)
 	m_cmd = (_LEADING_NATIVE_CMD_RE if native_leading_upwork else _LEADING_CMD_RE).match(line_text)
 	return ['~' + m_cmd.group(2)] if m_cmd else []
+# 2026-11-23
+# "Use native workspace priority and AST command parsing in request binding":
+# https://github.com/dmitry-ai/harness/issues/129
 def _explicit_with_ids(text, job_id, *, meta=None):
 	commands = _extract_leading_upwork_init_ids(text, meta=meta)
 	if not commands:
 		return (None, None, [])
 	return (all((ident == job_id for ident in commands)), 'explicit-upwork-init', commands)
+# 2026-11-21
+# "Remove text-based explicit-project-root override from request binding":
+# https://github.com/dmitry-ai/harness/issues/112
+# 2026-11-23
+# "Use native workspace priority and AST command parsing in request binding":
+# https://github.com/dmitry-ai/harness/issues/129
 def _explicit(text, job_id, *, meta=None):
 	choice, source, _ = _explicit_with_ids(text, job_id, meta=meta)
 	return (choice, source)
+# 2026-11-23
+# "Use native workspace priority and AST command parsing in request binding":
+# https://github.com/dmitry-ai/harness/issues/129
 def format_binding_diagnostic(expected_root, binding, *, expected_job_id=None):
 	parts = []
 	b = binding if isinstance(binding, dict) else None
@@ -182,6 +225,9 @@ def format_binding_diagnostic(expected_root, binding, *, expected_job_id=None):
 			parts.append(f'expected_job_id={exp_jid}')
 		parts.append(f"observed_job_ids={','.join(b['observed_job_ids'])}")
 	return ', '.join(parts)
+# 2026-10-16
+# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
+# https://github.com/dmitry-ai/harness/issues/6
 def scoped_inputs(root, job_id, inputs, contexts=(), *, until=None):
 	events = []
 	for item in inputs:
@@ -202,6 +248,9 @@ def scoped_inputs(root, job_id, inputs, contexts=(), *, until=None):
 				active = native_exact_match
 				binding = {'kind': source, 'native_step': step, 'root': normalized}
 			continue
+		# 2026-11-23
+		# "Use native workspace priority and AST command parsing in request binding":
+		# https://github.com/dmitry-ai/harness/issues/129
 		if job_id.startswith('text-') and native_exact_match:
 			choice, cmd_source, cmd_ids = (None, None, [])
 		else:

@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Isolate per-conversation github_issues recording and turn-state filtering":
-# https://github.com/dmitry-ai/harness/issues/195
 from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
@@ -36,6 +34,9 @@ def _write_open_turn(turns_dir: Path, name: str, cid: str, platform: str='antigr
 	tfile = turns_dir / f'{name}.json'
 	tfile.write_text(json.dumps({'status': 'open', 'platform': platform, 'conversation_id': cid, 'github_issues': {}}), encoding='utf-8')
 	return tfile
+# 2026-11-24
+# "Isolate per-conversation github_issues recording and turn-state filtering":
+# https://github.com/dmitry-ai/harness/issues/195
 class IssueConversationIsolationTests(unittest.TestCase):
 	def test_analytical_turn_ignores_foreign_and_legacy_broadcast_issues_with_dirty_repo(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

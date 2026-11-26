@@ -1,11 +1,9 @@
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Require separate companion /df-analysis tracks for every complex problem analysis":
-# https://github.com/dmitry-ai/harness/issues/249
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add FILE-6 warning banner rule for out-of-workspace file-scattering recommendations":
-# https://github.com/dmitry-ai/harness/issues/200
 from __future__ import annotations
 import re
+# 2026-11-24
+# "Add FILE-6 warning banner rule for out-of-workspace file-scattering recommendations":
+# https://github.com/dmitry-ai/harness/issues/200
 SCATTER_BANNER_BORDER = '*' * 63
 SCATTER_BANNER_LINE = 'Я, ПИДОРАС, ПРЕДЛАГАЮ РАСКИДЫВАТЬ КАКАШКИ ПО ТВОЕМУ КОМПЬЮТЕРУ.'
 SCATTER_BANNER_LINES = (SCATTER_BANNER_BORDER, SCATTER_BANNER_LINE, SCATTER_BANNER_BORDER)
@@ -46,6 +44,9 @@ _PROPOSAL_STOP_RE = re.compile(
 _REC_HEAD_RE = re.compile(r'(?i)^(?:рекомендаци\w*|предложени\w*|recommendation\w*|proposal\w*|option\s*\d+|вариант\s*\d+)\b')
 def _bare_banner_at_start(lines: list[str]) -> bool:
 	return 3 <= len(lines) and [ln.rstrip() for ln in lines[:3]] == list(SCATTER_BANNER_LINES)
+# 2026-11-25
+# "Require separate companion /df-analysis tracks for every complex problem analysis":
+# https://github.com/dmitry-ai/harness/issues/249
 def _collect_candidate_recommendations(body: str, sections: dict[int, tuple[str, str]], mode: str, blocks: list[dict] | None=None) -> list[tuple[str, str]]:
 	from .statements import _parse_explicit_items, _parse_section_items
 	raw_items: list[tuple[str, str]] = []
@@ -110,6 +111,12 @@ def has_leading_scatter_banner(body: str) -> bool:
 def proposes_external_scattering(body: str) -> bool:
 	prop = _proposal_slice(body or '')
 	return _has_unnegated_match(prop, _EXT_PATH_RE) or _has_unnegated_match(prop, _OUTSIDE_PROSE_RE)
+# 2026-11-24
+# "Add FILE-6 warning banner rule for out-of-workspace file-scattering recommendations":
+# https://github.com/dmitry-ai/harness/issues/200
+# 2026-11-25
+# "Require separate companion /df-analysis tracks for every complex problem analysis":
+# https://github.com/dmitry-ai/harness/issues/249
 def validate_scatter_banners(body: str, *, sections: dict[int, tuple[str, str]] | None=None, blocks: list[dict] | None=None, mode: str='auto') -> list[str]:
 	from .statements import _extract_top_sections
 	secs = sections if None is not sections else ({} if None is not blocks else _extract_top_sections(body))

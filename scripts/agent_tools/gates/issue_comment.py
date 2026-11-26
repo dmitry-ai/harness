@@ -1,7 +1,8 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+from __future__ import annotations
+# 2026-11-26
 # "Add PreToolUse and pre-commit gate for issue-comment placement":
 # https://github.com/dmitry-ai/harness/issues/273
-from __future__ import annotations
 NAME = 'ISSUE-COMMENT-GATE'
 PRIORITY = 126
 TOOLS = frozenset({'write_file', 'edit_file'})

@@ -1,3 +1,4 @@
+<!-- 2026-11-23 "Add Python and INI formatting standards derived from reference pipelines": https://github.com/dmitry-ai/harness/issues/156 -->  
 # Python Formatting Standard
 
 Inherits all general rules from [CODE-1](../../../rules/11-code-formatting.md#code-1) (tab indentation, zero blank lines, single return point, variable `r`, Yoda comparisons, shorter `if` branch above longer `else` branch, single quotes by default, alphabetical ordering, no unrequested comments).  
@@ -69,4 +70,3 @@ def save_report(data, error_content):
 if '__main__' == __name__:
 	save_report({'items': normalize_items([])}, None)
 ```
-<!-- https://github.com/dmitry-ai/harness/issues/156 -->  

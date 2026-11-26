@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add /df--harness--improvement--performance skill and update platform adapters":
-# https://github.com/dmitry-ai/harness/issues/193
 from __future__ import annotations
 from pathlib import Path
 import subprocess
@@ -13,6 +11,9 @@ if str(SCRIPT_DIR) not in sys.path:
 from agent_tools import links, native_profiles
 import check_markdown_slop
 SKILL_NAME = 'df--harness--improvement--performance'
+# 2026-11-24
+# "Add /df--harness--improvement--performance skill and update platform adapters":
+# https://github.com/dmitry-ai/harness/issues/193
 class PerfImprovementSkillContractTests(unittest.TestCase):
 	def test_adapters_and_readme_document_skill_and_perf_cli_and_pass_lint(self) -> None:
 		ag_doc = WT_ROOT / 'platforms/antigravity.md'

@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce call-site policy registry and hook parity contract invariants":
-# https://github.com/dmitry-ai/harness/issues/236
 from __future__ import annotations
 from contextlib import closing
 from pathlib import Path
@@ -152,6 +150,9 @@ def _run_routing_parity_case(case: unittest.TestCase, scenario: str) -> None:
 			picked = check_stop_gate._find_turn_state(daily / '\ua616/data/turns', CID, 434, rows=rows)
 			case.assertEqual('6f7be571e32c539377281da738e4fb213fb504c8', picked['key'])
 			case.assertEqual('allow', check_stop_gate.evaluate_stop_payload(_stop_payload(launcher, tx), backend_override=backend)['decision'])
+# 2026-11-25
+# "Enforce call-site policy registry and hook parity contract invariants":
+# https://github.com/dmitry-ai/harness/issues/236
 class ContractInvariantsM2Tests(unittest.TestCase):
 	def test_answer_check_and_prepare_parity_matrix_zero_journal_writes_on_failure(self) -> None:
 		for mode in ('misaligned_pending', 'blocked_report_missing_continuation', 'doc4_markdown_table', 'link5_percent_encoded', 'evicted_citations'):

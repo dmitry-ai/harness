@@ -1,9 +1,4 @@
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks":
-# https://github.com/dmitry-ai/harness/issues/5
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from copy import deepcopy
 import hashlib
 import json
@@ -14,6 +9,12 @@ from test_onboarding import analysis, claim
 from test_evidence_contract import v3_analysis
 from agent_tools.analysis import analysis_issues, publish_analysis, render_analysis
 from agent_tools.red_flags import START, END, sync_project_red_flags
+# 2026-10-15
+# "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks":
+# https://github.com/dmitry-ai/harness/issues/5
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class RedFlagTests(TemporaryCase):
 	def setUp(self):
 		super().setUp()
@@ -25,6 +26,9 @@ class RedFlagTests(TemporaryCase):
 		self.value['identity'][0]['essence'] = 'The client runs an agency for outside clients.'
 		self.value['identity'][1]['essence'] = 'The target site remains unidentified after the available research.'
 		self.value['red_flags'] = [{'id': 'RF-CLIENT-INTERMEDIARY', 'status': 'confirmed', 'summary': 'The agency hires for an end client.', 'basis_ids': ['H-IDENTITY-CLIENT']}, {'id': 'RF-WEBSITE-UNIDENTIFIED', 'status': 'unresolved', 'summary': 'Research did not establish the target checkout; the client must supply its URL.', 'basis_ids': ['H-SITE-1']}]
+		# 2026-10-18
+		# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+		# https://github.com/dmitry-ai/harness/issues/10
 		self.value = v3_analysis(self.root, self.value)
 		self.source = self.put('ꘖ/KB/Analysis.json', json.dumps(self.value, ensure_ascii=False))
 	def test_both_risks_precede_technical_analysis_and_are_duplicated_in_card(self):
@@ -149,6 +153,9 @@ class RedFlagTests(TemporaryCase):
 				self.assertEqual(self.card.read_bytes(), self.original)
 	def test_standalone_input_never_updates_project_card(self):
 		standalone = self.put('standalone.json', json.dumps(self.value))
+		# 2026-10-18
+		# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+		# https://github.com/dmitry-ai/harness/issues/10
 		with self.assertRaisesRegex(ValueError, 'project ꘖ/KB/Analysis.json'):
 			publish_analysis(standalone)
 		self.assertFalse(standalone.with_suffix('.md').exists())

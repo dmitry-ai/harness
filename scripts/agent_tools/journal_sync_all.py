@@ -1,17 +1,18 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Exempt service finalization calls from EXEC-2-TDD-GATE and add journal-sync --all-open":
-# https://github.com/dmitry-ai/harness/issues/256
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
-# https://github.com/dmitry-ai/harness/issues/255
 from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import sqlite3
 from . import journal
+# 2026-11-26
+# "Exempt service finalization calls from PreToolUse TDD gate and add journal-sync --all-open":
+# https://github.com/dmitry-ai/harness/issues/256
 from .path_registry import canonicalize_root_dir
 from .platforms.trace_common import open_readonly_sqlite
 from .runtime import platform_adapter_name, resolve_antigravity_paths
+# 2026-11-26
+# "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
+# https://github.com/dmitry-ai/harness/issues/255
 def _antigravity_summary_is_idle(st: dict[str, Any], cid: str) -> bool:
 	r = False
 	db_path = _resolve_ag_summary_db(st, cid)
@@ -23,6 +24,9 @@ def _antigravity_summary_is_idle(st: dict[str, Any], cid: str) -> bool:
 		except (OSError, sqlite3.Error):
 			r = False
 	return r
+# 2026-11-26
+# "Exempt service finalization calls from PreToolUse TDD gate and add journal-sync --all-open":
+# https://github.com/dmitry-ai/harness/issues/256
 def _collect_all_open_candidates(root: Path, jdir: Path, *, folder_fn, read_fn) -> list[tuple[str, dict[str, Any]]]:
 	entries: dict[str, dict[str, Any]] = dict(journal.iter_turn_reservations(jdir))
 	turns_dir = folder_fn(root)
@@ -147,6 +151,9 @@ def resolve_sync_provenance(value: dict[str, Any], *, adopt_conflict: bool) -> s
 	else:
 		r = 'existing_journal'
 	return r
+# 2026-11-26
+# "Exempt service finalization calls from PreToolUse TDD gate and add journal-sync --all-open":
+# https://github.com/dmitry-ai/harness/issues/256
 def sync_all_open(root: Path, *, journal_directory: Any=None, adopt_conflict: bool=False, from_step: int=0, folder_fn, dir_fn, read_fn, sync_fn) -> dict[str, Any]:
 	root_p = canonicalize_root_dir(root)
 	jdir = dir_fn(root_p, journal_directory)

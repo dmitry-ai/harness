@@ -1,5 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/170
 from __future__ import annotations
 from pathlib import Path
 from typing import Any
@@ -118,6 +117,9 @@ def _resolve_codex_paths_safe(backend=None, *, instance=None, conversation_id=No
 	except Exception:
 		r = None
 	return r
+# 2026-11-24
+# "Decompose metadata.py into modular metadata collection package":
+# https://github.com/dmitry-ai/harness/issues/170
 def resolve_project_identity(root: str | Path, *, ag_paths: dict[str, Any] | None=None, project_id: str | None=None) -> dict[str, str]:
 	from ..path_registry import canonicalize_root_dir
 	canon = canonicalize_root_dir(root)

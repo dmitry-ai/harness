@@ -2,8 +2,6 @@
 # "Enforce pushed Git tags on issue-closing commits in lifecycle gates":
 # https://github.com/dmitry-ai/harness/issues/263
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
-# https://github.com/dmitry-ai/harness/issues/175
 from __future__ import annotations
 from collections import Counter
 from pathlib import Path
@@ -58,6 +56,9 @@ def _write_ev(ev_dir: Path, num: int, *, state: str='closed', parent: int | None
 	if None is not parent:
 		payload['parent_number'] = parent
 	(ev_dir / f'issue-{num}.json').write_text(json.dumps(payload), encoding='utf-8')
+# 2026-11-24
+# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/175
 class GitLifecycleMemoizationTests(unittest.TestCase):
 	def test_audit_memoizes_readonly_git_commands_across_multiple_issues(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

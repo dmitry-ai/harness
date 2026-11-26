@@ -1,21 +1,4 @@
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
-# https://github.com/dmitry-ai/harness/issues/81
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
-# https://github.com/dmitry-ai/harness/issues/63
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Separate publication admission from historical integrity verification":
-# https://github.com/dmitry-ai/harness/issues/41
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,10 +8,16 @@ from .links import check_network, references, readable_reference
 from .storage import locked, read_addressed_json, replace_bytes, write_immutable_bytes
 from .text_claims import registry_path, subset, evidence_inputs
 from .text_core import Finding, scan
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
 SOURCE_MAX_AGE = 86400
 def _attempt(root, candidate, url, observation, reference, *, read_only=False):
 	from .research import load_observation, json_data
 	from .text_claims import digest
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .text_workflow import _folder
 	url = readable_reference(url)
 	folder = _folder(root) / 'sources'
@@ -56,6 +45,12 @@ def source_urls(text):
 	prose = '\n'.join((line.raw for line in scan(text) if line.kind in ('prose', 'heading')))
 	r = list(dict.fromkeys((readable_reference(url) for url in references(prose)[0] if url.startswith(('http://', 'https://')))))
 	return r
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def _evaluate(root, candidate, spec):
 	from .claims import _manifest_primary, _verify_quote
 	from .evidence import local_file
@@ -69,6 +64,9 @@ def _evaluate(root, candidate, spec):
 	if 'historical' == spec['currency'] and (not isinstance(spec.get('edition'), str) or not spec['edition'].strip()):
 		raise ValueError('A historical source requires its explicit edition; it is not a current-source fallback')
 	ref = spec.get('evidence')
+	# 2026-11-16
+	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+	# https://github.com/dmitry-ai/harness/issues/81
 	if isinstance(ref, dict) and 'intake' == ref.get('kind'):
 		url_base, url_frag = urldefrag(spec['url'].strip())
 		if url_frag or urlsplit(url_base).query:
@@ -76,6 +74,9 @@ def _evaluate(root, candidate, spec):
 		cited_job_id = extract_upwork_job_url_id(spec['url'])
 		if not cited_job_id:
 			raise ValueError('Intake source-check provenance applies only to the registered Upwork job URL of this project')
+		# 2026-11-19
+		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+		# https://github.com/dmitry-ai/harness/issues/96
 		from .path_registry import project_paths
 		pp = project_paths(root, exact_root=True)
 		state_file = pp.project_json
@@ -145,12 +146,21 @@ def _evaluate(root, candidate, spec):
 	_verify_quote(root, ref, observation=ref['observation'])
 	inputs = evidence_inputs(root, {'facts': [{'evidence': [ref]}]})
 	if 'dom' == meta.get('kind'):
+		# 2026-11-19
+		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+		# https://github.com/dmitry-ai/harness/issues/96
 		from .path_registry import project_paths
 		identity = spec.get('cdp_identity')
 		if not isinstance(identity, str) or not identity.strip():
 			raise ValueError('DOM fallback requires its captured CDP identity receipt')
 		path = inside(project_paths(root, exact_root=True).kb_dir, identity)
+		# 2026-11-13
+		# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+		# https://github.com/dmitry-ai/harness/issues/63
 		raw, data = read_addressed_json(path, stem_match=True, error_msg='DOM identity does not bind this exact observation')
+		# 2026-11-16
+		# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+		# https://github.com/dmitry-ai/harness/issues/81
 		prof = data.get('profile')
 		if 1 != data.get('schema_version') or any((not isinstance(data.get(key), str) or not data[key] for key in ('target_id', 'browser_websocket', 'observed_at'))) or ('read-only-dom' != meta.get('collector')) or ('READ_DOM' != meta.get('method')) or (not isinstance(prof, dict)) or ('verified' != prof.get('status')):
 			raise ValueError('DOM identity does not bind this exact observation')
@@ -175,14 +185,24 @@ def save_source_check(root, candidate, spec):
 	except (OSError, ValueError, KeyError, TypeError) as exc:
 		result.update(valid=False, issues=[str(exc)], inputs={})
 	raw = json_data(result)
+	# 2026-11-13
+	# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+	# https://github.com/dmitry-ai/harness/issues/63
 	path = write_immutable_bytes(_folder(root) / 'sources' / (digest(raw) + '-source.json'), raw, diff_error='Immutable source receipt differs')
 	try:
+		# 2026-11-16
+		# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+		# https://github.com/dmitry-ai/harness/issues/81
 		if isinstance(spec, dict) and isinstance(spec.get('url'), str) and isinstance(spec.get('evidence'), dict) and ('intake' != spec['evidence'].get('kind')) and spec['evidence'].get('observation') and (readable_reference(spec['url']) in source_urls(candidate)):
 			_attempt(root, candidate, spec['url'], spec['evidence']['observation'], path.relative_to(Path(root).resolve()).as_posix())
 	except (OSError, ValueError, KeyError, TypeError):
 		pass
 	return {**result, 'source_check': path.relative_to(Path(root).resolve()).as_posix()}
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-11-23
+# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 # https://github.com/dmitry-ai/harness/issues/76
 def probe_links(root, candidate, *, fetcher=None):
 	from .evidence_loader import probe_observation_status
@@ -198,6 +218,9 @@ def probe_links(root, candidate, *, fetcher=None):
 		status = probe_observation_status(root, meta, base, fragment)
 		result = {'url': url, 'status': status, 'observation': meta['observation'], 'final_url': meta['final_url'], 'http_status': meta['status']}
 		raw = json_data({'schema_version': 1, 'candidate_sha256': digest(candidate.encode()), **result})
+		# 2026-11-13
+		# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+		# https://github.com/dmitry-ai/harness/issues/63
 		path = write_immutable_bytes(_folder(root) / 'sources' / (digest(raw) + '-probe.json'), raw, diff_error='Immutable source probe differs')
 		reference = path.relative_to(Path(root).resolve()).as_posix()
 		_attempt(root, candidate, url, meta['observation'], reference)
@@ -209,6 +232,9 @@ def read_source_check(root, candidate, reference):
 	from .research import inside
 	from .text_claims import digest
 	path = inside(root, reference)
+	# 2026-11-13
+	# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+	# https://github.com/dmitry-ai/harness/issues/63
 	raw, value = read_addressed_json(path, suffix='-source.json', error_msg='Invalid or changed immutable source receipt')
 	if 1 != value.get('schema_version'):
 		raise ValueError('Invalid or changed immutable source receipt')
@@ -218,11 +244,17 @@ def read_source_check(root, candidate, reference):
 	if any((value.get(key) != actual[key] for key in actual)):
 		raise ValueError('Source bytes or provenance changed since the source receipt')
 	return {**value, 'source_check': reference, 'inputs': {**actual['inputs'], path.relative_to(Path(root).resolve()).as_posix(): digest(raw)}}
+# 2026-11-03
+# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+# https://github.com/dmitry-ai/harness/issues/41
 def source_integrity(root, candidate, reference):
 	from .research import inside
 	from .text_claims import digest
 	root_p = Path(root).resolve()
 	path = inside(root_p, reference)
+	# 2026-11-13
+	# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+	# https://github.com/dmitry-ai/harness/issues/63
 	raw, value = read_addressed_json(path, suffix='-source.json', error_msg='Historical source receipt is failed, changed or belongs to another candidate')
 	if 1 != value.get('schema_version') or True is not value.get('valid') or value.get('candidate_sha256') != digest(candidate.encode('utf-8')):
 		raise ValueError('Historical source receipt is failed, changed or belongs to another candidate')
@@ -233,7 +265,7 @@ def source_integrity(root, candidate, reference):
 		if digest(inside(root_p, name).read_bytes()) != expected:
 			raise ValueError('Historical source evidence changed: ' + name)
 	return {**value, 'source_check': reference, 'inputs': {**inputs, path.relative_to(root_p).as_posix(): digest(raw)}}
-# 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-23
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
 # https://github.com/dmitry-ai/harness/issues/16
 def validate_source_checks(root, candidate, records):
@@ -258,6 +290,15 @@ def validate_source_checks(root, candidate, records):
 			issues.append({'code': 'text.source_missing', 'message': 'External source needs a candidate-bound quote/anchor receipt: ' + url})
 		r = {'issues': issues, 'inputs': inputs, 'checks': checks}
 	return r
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-19
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 def check_claim_sources(root, identifiers, *, reference=None):
 	path = registry_path(root, reference)
 	selected = subset(json.loads(path.read_text(encoding='utf-8-sig')), identifiers)
@@ -266,6 +307,9 @@ def check_claim_sources(root, identifiers, *, reference=None):
 		issues.extend(evidence_contract_issues(root, selected))
 	r = {'valid': not issues, 'issues': issues, 'inputs': evidence_inputs(root, selected) if not issues else {}, 'coverage': 'Saved primary bytes, quotes, locators and declared method contracts; source applicability and entailment require authored review.'}
 	return r
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
 def check_links(text, *, fetcher=None):
 	prose = '\n'.join((line.raw for line in scan(text) if 'prose' == line.kind))
 	urls = references(prose)[0]

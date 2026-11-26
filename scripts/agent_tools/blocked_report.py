@@ -1,19 +1,14 @@
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
-# https://github.com/dmitry-ai/harness/issues/251
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Ensure atomic answer-prepare workflow alignment and safe open-turn reconciliation":
-# https://github.com/dmitry-ai/harness/issues/232
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
-# https://github.com/dmitry-ai/harness/issues/225
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
-# https://github.com/dmitry-ai/harness/issues/213
 from __future__ import annotations
 from pathlib import Path
 import re
+# 2026-11-24
+# "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
+# https://github.com/dmitry-ai/harness/issues/213
 _BLOCKER_HINT_RE = re.compile(r'(?i)(?:block(?:er|ed|ing)?|error|fail(?:ed|ure)?|pause[d]?|interrupt(?:ed)?|unavailab\w*|timeout|expired|mismatch|\u0431\u043b\u043e\u043a\u0435\u0440\w*|\u0437\u0430\u0431\u043b\u043e\u043a\u0438\u0440\w*|\u043e\u0448\u0438\u0431\u043a\w*|\u0441\u0431\u043e[\u0439\u0435\u0432\u044f]\w*|\u043f\u0440\u0435\u0440\u0432\u0430\u043d\w*|\u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\w*)')
+# 2026-11-24
+# "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
+# https://github.com/dmitry-ai/harness/issues/225
 _CLIENT_HM_CLAIM_RE = re.compile(r'\b(?:H|M)-(?:SITE|IDENTITY|CONCERN|MISC|CAUSE|METHOD|CLIENT|RF)-[A-Za-z0-9-]*\b', re.I)
 _DOC5_HEADER_RE = re.compile(r'(?m)^#\s+0\b')
 _DOC5_SECTIONS_RE = re.compile(r'(?m)^#\s+([1-4])\b')
@@ -32,6 +27,9 @@ def _authorize_workflow_errors(root_p: Path, pp, wf_state: dict, wf_ids: set, wf
 			authorize(root_p, wf_state, response=response, request_ids=wf_ids)
 		except (OSError, ValueError) as exc:
 			errs.append(str(exc))
+		# 2026-11-25
+		# "Ensure atomic answer-prepare workflow alignment and safe open-turn reconciliation":
+		# https://github.com/dmitry-ai/harness/issues/232
 		errs.extend(pending_workflow_alignment_issues(wf_state, conversation_id, wf_ids))
 	return errs
 def _continuation_blocker_issue(cont_path: Path) -> str | None:
@@ -46,6 +44,9 @@ def _continuation_blocker_issue(cont_path: Path) -> str | None:
 		if 20 > len(text) or (not _BLOCKER_HINT_RE.search(text)):
 			r = 'FILE-3 / REVIEW-3 blocked-report: \ua616/data/continuation.md must explicitly document the active blocker before calling answer-prepare --blocked-report'
 	return r
+# 2026-11-24
+# "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
+# https://github.com/dmitry-ai/harness/issues/225
 def _is_doc5_blocker_analysis(response: str) -> bool:
 	txt = response or ''
 	has_meta = bool(_DOC5_HEADER_RE.search(txt)) and ('"Issue"' in txt or '"Source Project"' in txt)
@@ -63,6 +64,9 @@ def _standard_workflow_errors(root_p: Path, pp, response: str, requests_list: li
 	touches_deliv = any((is_deliv_fn(tf, root_p) for tf in (turn_obj.get('touched_files') or ())))
 	has_hm = bool(_HM_CLAIM_RE.search(response))
 	substantive_hm = (kb_scan['has_analysis'] or (has_hm and 0 == del_chk.get('aa_subagent_step_count', 0))) if is_fin else (has_hm or has_kb_mut or touches_deliv)
+	# 2026-11-25
+	# "Ensure atomic answer-prepare workflow alignment and safe open-turn reconciliation":
+	# https://github.com/dmitry-ai/harness/issues/232
 	wf_errs.extend(_authorize_workflow_errors(root_p, pp, wf_state, wf_ids, wf_cov, is_fin, substantive_hm, requests_list, response, conversation_id=value_obj.get('conversation_id')))
 	return wf_errs
 def audit_runner_workflow_scope(runner, *, factual_kb_fn, is_deliv_fn) -> None:
@@ -90,6 +94,9 @@ def blocked_report_issues(pp, response: str, *, workflow_exists: bool, is_finali
 	if None is not cont_err:
 		issues.append(cont_err)
 	prose = _FENCED_RE.sub('', response or '')
+	# 2026-11-24
+	# "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
+	# https://github.com/dmitry-ai/harness/issues/225
 	has_client_hm = bool(_CLIENT_HM_CLAIM_RE.search(prose))
 	has_generic_hm = bool(_HM_CLAIM_RE.search(prose)) and (not _is_doc5_blocker_analysis(response or ''))
 	if has_client_hm or has_generic_hm:
@@ -115,7 +122,13 @@ def evaluate_check_workflow_errors(root_p: Path, pp, role: str, response: str, r
 		except (OSError, ValueError) as exc:
 			wf_errs.append(str(exc))
 	return wf_errs
+# 2026-11-24
+# "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
+# https://github.com/dmitry-ai/harness/issues/225
 def evaluate_runner_code_hygiene(runner, *, issue_first_fn, lifecycle_fn, tdd_fn) -> None:
+	# 2026-11-25
+	# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
+	# https://github.com/dmitry-ai/harness/issues/251
 	from .hook_crash_audit import check_runner_hook_crashes
 	check_runner_hook_crashes(runner)
 	if_chk = issue_first_fn(runner.root, runner.turn)
@@ -134,6 +147,9 @@ def evaluate_runner_code_hygiene(runner, *, issue_first_fn, lifecycle_fn, tdd_fn
 			runner._fail_gate('code_lifecycle', 'EXEC-5 violation in active turn (code/issue lifecycle incomplete): ' + '; '.join(lc_chk['violations']))
 		if not tdd_chk['verified']:
 			runner._fail_gate('tdd', '; '.join(tdd_chk['violations']))
+# 2026-11-25
+# "Ensure atomic answer-prepare workflow alignment and safe open-turn reconciliation":
+# https://github.com/dmitry-ai/harness/issues/232
 def pending_workflow_alignment_issues(wf_state: dict, conversation_id: str | None, wf_identifiers: set, *, response_sha: str | None=None, allow_reprepare: bool=False) -> list[str]:
 	errs: list[str] = []
 	reqs = wf_state.get('requests') or []
@@ -143,6 +159,9 @@ def pending_workflow_alignment_issues(wf_state: dict, conversation_id: str | Non
 	elif not pending and None is not response_sha and (not allow_reprepare) and any(((req.get('response_prepared') or {}).get('sha256') != response_sha for req in reqs if req['id'] in wf_identifiers)):
 		errs.append('Tracked analysis requests already have different prepared response bytes')
 	return errs
+# 2026-11-25
+# "Ensure atomic answer-prepare workflow alignment and safe open-turn reconciliation":
+# https://github.com/dmitry-ai/harness/issues/232
 def prepare_and_sync_authorized_workflow(runner, approval: dict, now_fn) -> None:
 	align_errs = pending_workflow_alignment_issues(runner.wf_state, runner.native['conversation_id'], runner.wf_identifiers, response_sha=runner.sha, allow_reprepare=runner.allow_reprepare)
 	if align_errs:

@@ -1,13 +1,11 @@
 # 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+import re
+# 2026-10-23
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
 # https://github.com/dmitry-ai/harness/issues/16
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
-import re
-# 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
-# https://github.com/dmitry-ai/harness/issues/16
 def unsupported_probability_claims(text):
 	from .text_core import scan
 	lines = [line for line in scan(text) if 'prose' == line.kind]

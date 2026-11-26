@@ -1,3 +1,4 @@
+<!-- 2026-11-24 "Add /df--harness--improvement--performance skill and update platform adapters": https://github.com/dmitry-ai/harness/issues/193 -->  
 # Performance Audit and Optimization Methodology
 
 This reference details the dual-track measurement, root-cause attribution, microbenchmarking, and scoring methodology behind [SKILL.md](../SKILL.md) (distilled from Harness journal audits `206` and `224`).  
@@ -53,4 +54,3 @@ Before claiming a projected speedup multiplier (`Nx`) for a proposed optimizatio
 1. **Unified Suitability Scoring Criterion (`DOC-3`):** State one explicit scoring criterion at the top of the solutions section: reduction in wall-clock latency, CPU budget, and/or uncached tokens across realistic Harness turns and test runs, with zero weakening of verification invariants (`EXEC-2` Test Ratchet, `EXEC-5` Issue-First, `COMPACT-1`, `VERIFY-1`), bounded maintenance complexity under [CODE-4](../../../rules/11-code-formatting.md#code-4) (`<= 20` function SLOC, `<= 8` McCabe, `<= 300` file SLOC), and low regression/invalidation risk.  
 1. **Required Elements per Method (`M-*`):** Every candidate method must state its concrete mechanism (linked to cause IDs `C-*` / `H-*`), applicability conditions, observable quantitative verification criterion, arguments for (backed by telemetry, microbenchmarks, and doc quotes), arguments against (trade-offs, cache invalidation or concurrency risks, and invariant safeguards), and analyst suitability score in `%` with its basis.  
 1. **Post-Implementation Verification (Implementation Mode Only):** After implementing selected recommendations under parent/child GitHub issues (`EXEC-5`) and full parallel tests (`EXEC-2`), re-run `perf-profile-tests` and/or `perf-timesheet` and record measured before/after numbers in both the closing issue comment and `ꘖ/KB/<Audit-Slug>.md`.  
-<!-- https://github.com/dmitry-ai/harness/issues/193 -->  

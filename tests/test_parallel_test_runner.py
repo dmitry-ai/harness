@@ -1,6 +1,4 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add parallel fail-fast run-tests runner with module timeouts and TDD gate registration":
-# https://github.com/dmitry-ai/harness/issues/160
 from __future__ import annotations
 import json
 import os
@@ -28,6 +26,9 @@ def _is_pid_alive(pid: int) -> bool:
 			except OSError:
 				r = False
 	return r
+# 2026-11-23
+# "Add parallel fail-fast run-tests runner with module timeouts and TDD gate registration":
+# https://github.com/dmitry-ai/harness/issues/160
 class ParallelTestRunnerTests(unittest.TestCase):
 	def test_classify_test_command_recognizes_harness_run_tests_full_and_filtered(self) -> None:
 		full_cmd = f'python "{HARNESS_SCRIPT}" run-tests "C:/demo/tests" --workers 4 --module-timeout 120'

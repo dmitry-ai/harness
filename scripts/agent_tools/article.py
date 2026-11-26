@@ -1,30 +1,28 @@
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
-# https://github.com/dmitry-ai/harness/issues/109
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
-# https://github.com/dmitry-ai/harness/issues/101
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
-# https://github.com/dmitry-ai/harness/issues/70
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from __future__ import annotations
 from dataclasses import dataclass, field
 import json
 from pathlib import Path
 import re
 from .text_core import ABBREVIATIONS, ANCHOR, ARROW_CONNECTIVE, BANS, BOLD_LEADIN, FENCE, Finding, HEADING, INLINE_LITERAL, KEPT, LEXICON, LIST_MARK, Line, REMOVAL, REPLACED, THRESHOLDS, _excerpt, _plain, author_text, bold_spans, changed_command_lines, check_code, check_markdown_lists, check_prose, check_response, clean, command_blocks, default_shell, detect_language, external_section_ref, find_bans, load_lexicon, normalize_external_refs, normalized, replay, scan, sentences, transform_prose
+# 2026-11-14
+# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+# https://github.com/dmitry-ai/harness/issues/70
 from .text_sections import ANCHOR_LINK, ARTICLE_NUMBER_KEY, AddressedSection, KEYED_REF as SOURCE_REF, PART, assign_tree_numbers, build_render_report, close_spans as _close, lint_document, part_at, rewrite_keyed_prose, section_at, validate_ref_range
 NUMBERED = re.compile('^(\\d+(?:\\.\\d+)*)\\.?(?:\\s+(.*))?$')
 KEYED = re.compile('^@([\\w.\\-]+)(?:\\s+(.*))?$')
 SECTION_LABEL = re.compile('^§{1,2}\\s*(?:([IVXLC]+)\\.)?(\\d+(?:\\.\\d+)*)(?:\\s*[-–]\\s*(?:([IVXLC]+)\\.)?(\\d+(?:\\.\\d+)*))?$')
 BARE_REF = re.compile('(?<![\\w@])(§{1,2})\\s*(?:([IVXLC]+)\\.)?(\\d+(?:\\.\\d+)*)(?:\\s*[-–]\\s*(?:([IVXLC]+)\\.)?(\\d+(?:\\.\\d+)*))?(?!\\w)')
 SOURCE_META = re.compile('^\\s*<!-- df-article: (\\{.*\\}) -->\\s*$')
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-14
+# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+# https://github.com/dmitry-ai/harness/issues/70
 @dataclass
 class Section(AddressedSection):
 	part: str
@@ -37,6 +35,9 @@ class Section(AddressedSection):
 	end: int = 0
 	anchor: str | None = None
 	name: str = ''
+# 2026-11-14
+# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+# https://github.com/dmitry-ai/harness/issues/70
 def _iter_headings(lines: list[Line]):
 	part = ''
 	for index, line in enumerate(lines):
@@ -49,6 +50,12 @@ def _iter_headings(lines: list[Line]):
 			match = PART.match(text)
 			part = match.group(1) if match else part
 def detect_kind(path: Path | None, text: str) -> str:
+	# 2026-11-20
+	# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+	# https://github.com/dmitry-ai/harness/issues/101
+	# 2026-11-21
+	# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+	# https://github.com/dmitry-ai/harness/issues/109
 	if None is not path:
 		from .journal import is_bucket_dir_name
 		if path.parent.name in ('res', '\u227a') or (is_bucket_dir_name(path.parent.name) and path.parent.parent.name in ('res', '\u227a')):
@@ -246,6 +253,9 @@ def check_graph(lines, sections, findings):
 		elif 'II' == section.part:
 			if not section.children and (not grounded.get(section.key)):
 				findings.append(Finding('warning', 'GRAPH-BASELESS', section.line, f'recommendation §{section.key} has no premise in part I and no documentation link'))
+			# 2026-10-22
+			# "Ban conditional conjunctions in limited claim qualifications and isolate closed admin access from proven public storefront facts":
+			# https://github.com/dmitry-ai/harness/issues/15
 			for line in (l for l in lines if section.line < l.no <= section.end and 'prose' == l.kind):
 				visible = author_text(line.raw).strip()
 				if re.match('^(?:If|\\u0415\\u0441\\u043b\\u0438|\\u0412 \\u0441\\u043b\\u0443\\u0447\\u0430\\u0435 \\u0435\\u0441\\u043b\\u0438)\\b', visible, re.I):
@@ -296,6 +306,9 @@ def check_proposal(lines, findings):
 def check_link_style(lines, findings, link_style):
 	if 'formatted' != link_style:
 		return
+	# 2026-10-23
+	# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+	# https://github.com/dmitry-ai/harness/issues/16
 	from .markdown_links import parser, inline_links, display_address
 	engine, environment = (parser(), {})
 	engine.parse('\n'.join((line.raw for line in lines)), environment)
@@ -407,6 +420,9 @@ def render(source: str, previous: str | None=None):
 			except (ValueError, TypeError, AttributeError) as exc:
 				findings.append(Finding('error', 'KEY-METADATA', line.no, str(exc)))
 	sections, roots = parse_keyed(lines, findings)
+	# 2026-11-14
+	# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+	# https://github.com/dmitry-ai/harness/issues/70
 	numbers, mapping = assign_tree_numbers(roots, findings)
 	if not sections:
 		findings.append(Finding('error', 'KEY-EMPTY', 1, 'keyed source has no addressed sections'))

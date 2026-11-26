@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
-# https://github.com/dmitry-ai/harness/issues/230
 from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
@@ -19,6 +17,9 @@ from agent_tools.analysis import publish_owned, render_analysis
 from agent_tools.metrics import native_review_proof
 from agent_tools.response_grounding import ResponseEvidenceAuditor
 from test_analysis_workflow import NativeReviewTests, ProjectCase
+# 2026-11-25
+# "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
+# https://github.com/dmitry-ai/harness/issues/230
 class ChatReplyLinkIssuesM5Tests(ProjectCase):
 	def test_chat_reply_link_issues_allows_unencoded_file_uri_and_rejects_encoded(self) -> None:
 		ev = self.put_project('\ua616/KB/Evidence/HTTP/abc/response.bin', b'ok')

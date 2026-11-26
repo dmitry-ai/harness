@@ -1,37 +1,35 @@
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement core Issue-First verification engine in agent_tools/issue_first_gate.py":
-# https://github.com/dmitry-ai/harness/issues/143
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Integrate declarative Antigravity addons health and sanctioning into Harness":
-# https://github.com/dmitry-ai/harness/issues/92
-# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Ignore source-code search and file-viewer lines in ShellCommandInspector.extract_issue_actions":
-# https://github.com/dmitry-ai/harness/issues/88
-# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
-# https://github.com/dmitry-ai/harness/issues/84
-# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
-# https://github.com/dmitry-ai/harness/issues/80
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
-# https://github.com/dmitry-ai/harness/issues/67
 import json
 from pathlib import Path
 import re
 from urllib.parse import urlsplit
+# 2026-11-14
+# "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
+# https://github.com/dmitry-ai/harness/issues/67
 READ_SUBCOMMANDS = ('status', 'diff', 'log', 'rev-parse', 'show', 'ls-files')
 _ADHOC_HTTP_CLIENT_RE = re.compile('(?:\\burllib\\.request\\b|\\burlopen\\s*\\(|\\brequests\\.(?:get|post|head|request|Session)\\b|\\bhttpx\\.(?:get|post|Client)\\b|\\bInvoke-(?:WebRequest|RestMethod)\\b|\\b(?:iwr|irm|curl(?:\\.exe)?|wget(?:\\.exe)?)\\s+)', re.I)
+# 2026-11-16
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 _CDP_PROTOCOL_RE = re.compile('(?:(?:https?|wss?)://(?:127\\.0\\.0\\.1|localhost|\\[::1\\])(?::\\d+)?(?:/json(?:/|$|["\'\\s?])|/devtools/(?:page|browser)(?:/|$|["\'\\s?]))|(?:/json/(?:list|version|new|activate|close|protocol)\\b|/devtools/(?:page|browser)/[A-Za-z0-9_-]*)|\\bDevToolsActivePort\\b|\\bchrome-remote-interface\\b|\\bchrome-devtools-mcp\\b[^\\r\\n]*(?:--browser-url|--browserUrl|--autoConnect)\\b)', re.I)
 _COMMIT_MESSAGE_ISSUE_URL_RE = re.compile('^https://github\\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/issues/(\\d+)$')
 _CYGDRIVE_RE = re.compile('^/(?:cygdrive|mnt)/([a-zA-Z])(?:/(.*))?$')
 _EXTERNAL_URL_RE = re.compile('https?://(?!(?:localhost|127\\.0\\.0\\.1|\\[::1\\])\\b)[A-Za-z0-9.-]+', re.I)
 _GITHUB_ISSUE_URL_RE = re.compile('https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/issues/\\d+\\b')
+# 2026-11-16
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 _INLINE_EXEC_RE = re.compile('\\b(?:python(?:3)?(?:\\.exe)?\\s+(?:-[A-Za-z]+\\s+)*-c|node(?:\\.exe)?\\s+(?:--[A-Za-z-]+(?:=\\S+)?\\s+)*-e)\\b', re.I)
 _ISSUE_LINKED_CODE_SUFFIXES = ('.py', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.cs', '.ps1', '.sh', '.bash', '.cmd', '.bat', '.vbs')
+# 2026-11-16
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 _SANCTIONED_CDP_RUNNER_RE = re.compile('(?:harness\\.py|upwork_project\\.py|df_text\\.py|df_article\\.py|df_proposal\\.py|df_github_issue\\.py|validate_links\\.py|safe_commit\\.py|\\bunittest\\b|\\bpytest\\b)', re.I)
 _SANCTIONED_HTTP_RUNNER_RE = re.compile('(?:harness\\.py|upwork_project\\.py|validate_links\\.py|df_github_issue\\.py|\\bunittest\\b|\\bpytest\\b)', re.I)
 _VALUE_GLOBAL_OPTS = ('-C', '--git-dir', '--work-tree', '-c', '--exec-path', '--namespace', '--super-prefix', '--config-env')
+# 2026-11-19
+# "Integrate declarative Antigravity addons health and sanctioning into Harness":
+# https://github.com/dmitry-ai/harness/issues/92
 def _is_sanctioned_addon_command(seg_norm: str, *, config=None) -> bool:
 	try:
 		from .runtime import sanctioned_addon_code_roots
@@ -43,14 +41,23 @@ def _is_sanctioned_addon_command(seg_norm: str, *, config=None) -> bool:
 		if r_norm and (r_norm + '/' in seg_norm or seg_norm.endswith(r_norm)):
 			return True
 	return False
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-11-24
 # "Cache runtime settings and deduplicate evidence validation in hot paths":
 # https://github.com/dmitry-ai/harness/issues/227
 from .runtime_cache import run_shell_violation_scan
+# 2026-11-16
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
+# 2026-11-24
+# "Cache runtime settings and deduplicate evidence validation in hot paths":
+# https://github.com/dmitry-ai/harness/issues/227
 def protected_browser_perimeter(config=None) -> dict:
 	from . import runtime as _rt
 	from .runtime_cache import cached_browser_perimeter
 	return cached_browser_perimeter(config, _rt)
+# 2026-11-14
+# "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
+# https://github.com/dmitry-ai/harness/issues/67
 class ShellCommandInspector:
 	def _iter_git_segments(self, candidate: str) -> list[tuple[str, list[str]]]:
 		cleaned = re.sub('@\'[\\s\\S]*?\'@|@"[\\s\\S]*?"@', '""', candidate)
@@ -107,6 +114,9 @@ class ShellCommandInspector:
 		return (tokens[sub_idx] if None is not sub_idx else None, has_flag)
 	def extract_issue_actions(self, outputs: list[str] | tuple[str, ...]) -> list[dict]:
 		r: list[dict] = []
+		# 2026-11-18
+		# "Ignore source-code search and file-viewer lines in ShellCommandInspector.extract_issue_actions":
+		# https://github.com/dmitry-ai/harness/issues/88
 		decoder = json.JSONDecoder()
 		for text in outputs or ():
 			if isinstance(text, str) and '"action"' in text and ('"repo"' in text) and (not re.search('(?m)^Ran \\d+ tests? in \\d', text)) and (not re.search('(?m)^Showing lines \\d+-\\d+ of \\d+\\b', text)) and (not re.search('(?i)"consumed_files"\\s*:\\s*\\[\\s*"[^"]*(?:[/\\\\\\\\]temp[/\\\\\\\\]|[/\\\\\\\\]tmp[/\\\\\\\\])', text)):
@@ -129,6 +139,9 @@ class ShellCommandInspector:
 					consumed = obj.get('consumed_files')
 					act = obj.get('action')
 					repo = obj.get('repo')
+					# 2026-11-23
+					# "Implement core Issue-First verification engine in agent_tools/issue_first_gate.py":
+					# https://github.com/dmitry-ai/harness/issues/143
 					if obj.get('ok', True) and (not (isinstance(consumed, list) and any((re.search('(?i)(?:[/\\\\]temp[/\\\\]|[/\\\\]tmp[/\\\\])', str(cf)) for cf in consumed)))) and (act in ('create', 'fetch', 'edit', 'comment', 'close')) and isinstance(repo, str) and ('/' in repo):
 						num = obj.get('number')
 						if None is num:
@@ -136,6 +149,9 @@ class ShellCommandInspector:
 							if m:
 								num = int(m.group(1))
 						if isinstance(num, int):
+							# 2026-11-18
+							# "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
+							# https://github.com/dmitry-ai/harness/issues/84
 							entry = {'action': act, 'repo': repo, 'number': num, 'url': f'https://github.com/{repo}/issues/{num}', 'ok': bool(obj.get('ok', True)), 'state': obj.get('state')}
 							if isinstance(obj.get('parent_number'), int) and (not isinstance(obj.get('parent_number'), bool)):
 								entry['parent_number'] = obj['parent_number']
@@ -264,6 +280,9 @@ class ShellCommandInspector:
 							if normalized not in r:
 								r.append(normalized)
 		return r
+	# 2026-11-16
+	# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+	# https://github.com/dmitry-ai/harness/issues/80
 	def prohibited_cdp_bypass_commands(self, text: str, *, config=None) -> list[str]:
 		if not isinstance(text, str) or not text.strip():
 			return []
@@ -272,6 +291,9 @@ class ShellCommandInspector:
 		port_re = re.compile(f'(?:(?:https?|wss?)://)?(?:127\\.0\\.0\\.1|localhost|\\[::1\\]):(?:{port_alt})\\b', re.I) if port_alt else None
 		r: list[str] = []
 		for seg in self._split_segments(text):
+			# 2026-11-19
+			# "Integrate declarative Antigravity addons health and sanctioning into Harness":
+			# https://github.com/dmitry-ai/harness/issues/92
 			seg_norm = seg.replace('\\\\', '/').replace('\\', '/').casefold()
 			is_inline = bool(_INLINE_EXEC_RE.search(seg))
 			is_sanctioned = (not is_inline) and (bool(_SANCTIONED_CDP_RUNNER_RE.search(seg)) or _is_sanctioned_addon_command(seg_norm, config=config))
@@ -297,6 +319,9 @@ class ShellCommandInspector:
 					r.append(snippet)
 		return r
 	def unpersisted_http_fetch_commands(self, text: str) -> list[str]:
+		# 2026-11-16
+		# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+		# https://github.com/dmitry-ai/harness/issues/80
 		r = list(self.prohibited_cdp_bypass_commands(text))
 		if isinstance(text, str) and text.strip() and (not _SANCTIONED_HTTP_RUNNER_RE.search(text)) and _EXTERNAL_URL_RE.search(text) and _ADHOC_HTTP_CLIENT_RE.search(text):
 			snippet = ' '.join(text.strip().split())[:240]
@@ -343,6 +368,9 @@ def normalize_host_path(value: str | Path) -> Path:
 def parse_issue_url(url: str) -> tuple[str, int] | None:
 	m = _COMMIT_MESSAGE_ISSUE_URL_RE.fullmatch((url or '').strip())
 	return (m.group(1), int(m.group(2))) if m else None
+# 2026-11-16
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 def prohibited_cdp_bypass_commands(text: str, *, config=None) -> list[str]:
 	return _INSPECTOR.prohibited_cdp_bypass_commands(text, config=config)
 def prohibited_git_write_commands(text: str) -> list[str]:

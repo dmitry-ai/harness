@@ -1,9 +1,4 @@
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
-# https://github.com/dmitry-ai/harness/issues/101
 # 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Bind publication admission to immutable historical integrity proofs":
-# https://github.com/dmitry-ai/harness/issues/41
 from copy import deepcopy
 import hashlib
 import json
@@ -16,6 +11,9 @@ def _digest(value):
 	return hashlib.sha256(value).hexdigest()
 def binding(directory, requests, response, turn, request_ids):
 	return {'journal': str(Path(directory).resolve()), 'turn': turn, 'request_ids': request_ids, 'requests_sha256': _digest(_bytes(requests)), 'response_sha256': _digest(response.encode('utf-8'))}
+# 2026-11-03
+# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+# https://github.com/dmitry-ai/harness/issues/41
 class PublicationAdmission:
 	def __init__(self, reference, identity, *, seal=None):
 		if seal is not _SEAL:
@@ -41,6 +39,9 @@ def capture(paths, requests, response, identity):
 				raise ValueError('Concurrent publication admission proof differs')
 	reference = {'schema_version': 1, 'file': str(path), 'sha256': _digest(raw)}
 	return PublicationAdmission(reference, identity, seal=_SEAL)
+# 2026-11-20
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 def _same_binding(saved: dict | None, current: dict) -> bool:
 	if not isinstance(saved, dict) or set(saved) != set(current):
 		return False
@@ -48,6 +49,9 @@ def _same_binding(saved: dict | None, current: dict) -> bool:
 		return True
 	from .journal import same_journal_identity
 	return same_journal_identity(saved.get('journal'), current.get('journal')) and all((saved.get(k) == current.get(k) for k in current if 'journal' != k))
+# 2026-11-20
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 def _resolve_proof_file(raw_file: str, journal_dir: str) -> Path:
 	path = Path(raw_file)
 	if path.is_file():
@@ -65,11 +69,17 @@ def verify(reference, identity):
 	from .text_workflow import verify_integrity
 	if not isinstance(reference, dict) or reference.get('schema_version') != 1 or not isinstance(reference.get('file'), str) or not Path(reference['file']).is_absolute():
 		raise ValueError('A historical publication admission proof is required')
+	# 2026-11-20
+	# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+	# https://github.com/dmitry-ai/harness/issues/101
 	path = _resolve_proof_file(reference['file'], identity['journal'])
 	raw = path.read_bytes()
 	if _digest(raw) != reference.get('sha256') or path.name != reference['sha256'] + '.json':
 		raise ValueError('Publication admission proof changed')
 	proof = json.loads(raw)
+	# 2026-11-20
+	# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+	# https://github.com/dmitry-ai/harness/issues/101
 	if proof.get('schema_version') != 1 or proof.get('kind') != 'publication_admission' or (not _same_binding(proof.get('binding'), identity)) or not isinstance(proof.get('integrity'), list):
 		raise ValueError('Publication admission proof belongs to another journal/request/response identity')
 	for graph in proof['integrity']:

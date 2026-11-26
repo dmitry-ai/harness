@@ -1,30 +1,4 @@
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
-# https://github.com/dmitry-ai/harness/issues/237
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify handed-off turn routing and deterministic state selection across hooks":
-# https://github.com/dmitry-ai/harness/issues/231
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
-# https://github.com/dmitry-ai/harness/issues/138
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
-# https://github.com/dmitry-ai/harness/issues/132
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
-# https://github.com/dmitry-ai/harness/issues/131
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Use native workspace priority and AST command parsing in request binding":
-# https://github.com/dmitry-ai/harness/issues/129
-# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce similar_projects parity gate, hooks, and documented CLI contract across turn completion and issue lifecycle":
-# https://github.com/dmitry-ai/harness/issues/123
-# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Auto-name Antigravity conversations from project journal step numbers":
-# https://github.com/dmitry-ai/harness/issues/120
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
-# https://github.com/dmitry-ai/harness/issues/116
 from contextlib import contextmanager
 import hashlib
 import json
@@ -49,6 +23,9 @@ def _resolve_root(payload: dict) -> Path | None:
 		cand = local_uri_to_path(raw) if raw.lower().startswith('file://') else Path(raw)
 		return Path(cand).resolve()
 	return None
+# 2026-11-23
+# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+# https://github.com/dmitry-ai/harness/issues/132
 def _is_tracked_and_non_umbrella(root: Path, *, projects_dirs=None) -> tuple[bool, Path]:
 	_ensure_scripts_on_path()
 	try:
@@ -63,6 +40,9 @@ def _turns_dir(canon_root: Path) -> Path:
 	try:
 		from agent_tools.path_registry import project_paths
 		pp = project_paths(canon_root, exact_root=True)
+		# 2026-11-25
+		# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
+		# https://github.com/dmitry-ai/harness/issues/237
 		return pp.turns_dir if pp.has_explicit_path('turns_dir') else (pp.data_dir / 'turns')
 	except Exception:
 		return (canon_root / '_/\ua616/data/turns') if (canon_root / '_/\ua616').is_dir() else (canon_root / '\ua616/data/turns')
@@ -145,6 +125,9 @@ def _has_planner_steps(conversations_dir: Path, conversation_id: str) -> bool:
 		return False
 	finally:
 		conn.close()
+# 2026-11-21
+# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
+# https://github.com/dmitry-ai/harness/issues/116
 @contextmanager
 def _pre_flush_begin_context(brain_dir: Path, conversations_dir: Path, conversation_id: str):
 	logs_dir = brain_dir / conversation_id / '.system_generated/logs'
@@ -172,6 +155,9 @@ def _expected_turn_key(backend: Path, conversation_id: str, start_step: int) -> 
 	identity = ['antigravity', str(backend.resolve()), conversation_id, f'ag-{conversation_id}-{start_step}']
 	raw = (json.dumps(identity, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
 	return hashlib.sha256(raw).hexdigest()[:40]
+# 2026-11-25
+# "Unify handed-off turn routing and deterministic state selection across hooks":
+# https://github.com/dmitry-ai/harness/issues/231
 def _resolve_pre_invocation_target(canon_root: Path, backend: Path, conversation_id: str, max_user_step: int, brain_dir: Path, conversations_dir: Path, t_path: Path | None) -> Path | None:
 	_ensure_scripts_on_path()
 	from agent_tools.turn_routing import resolve_active_turn_state
@@ -182,11 +168,17 @@ def _resolve_pre_invocation_target(canon_root: Path, backend: Path, conversation
 		routed = _routed_pre_invocation_root(canon_root, conversation_id, max_user_step, brain_dir, conversations_dir, t_path)
 		r = None if _turn_step_already_covered(_turns_dir(routed), backend, conversation_id, max_user_step) else routed
 	return r
+# 2026-11-25
+# "Unify handed-off turn routing and deterministic state selection across hooks":
+# https://github.com/dmitry-ai/harness/issues/231
 def _routed_pre_invocation_root(canon_root: Path, conversation_id: str, max_user_step: int, brain_dir: Path, conversations_dir: Path, t_path: Path | None) -> Path:
 	_ensure_scripts_on_path()
 	from agent_tools.turn_routing import resolve_handoff_target_root
 	routed = resolve_handoff_target_root(_turns_dir(canon_root), conversation_id, max_user_step, brain_dir=brain_dir, conversations_dir=conversations_dir, t_path=t_path)
 	return routed if None is not routed else canon_root
+# 2026-11-25
+# "Unify handed-off turn routing and deterministic state selection across hooks":
+# https://github.com/dmitry-ai/harness/issues/231
 def _turn_step_already_covered(t_dir: Path, backend: Path, conversation_id: str, max_user_step: int) -> bool:
 	_ensure_scripts_on_path()
 	from agent_tools.turn_routing import resolve_active_turn_state
@@ -194,6 +186,9 @@ def _turn_step_already_covered(t_dir: Path, backend: Path, conversation_id: str,
 	return isinstance(st, dict) and st.get('status') in ('open', 'prepared', 'delivered', 'conflict', 'handed_off')
 def _terminate_error(message: str) -> dict:
 	return {'injectSteps': [{'errorMessage': {'userMessage': f'Harness PreInvocation turn-begin blocked: {message}'}}], 'terminationBehavior': 'terminate'}
+# 2026-11-23
+# "Use native workspace priority and AST command parsing in request binding":
+# https://github.com/dmitry-ai/harness/issues/129
 def _binding_violation_message(exc: ValueError, canon_root: Path, conversation_id: str, backend: Path) -> str | None:
 	msg = str(exc)
 	if any((tok in msg for tok in ('partial record', 'primary/child identity is unavailable', 'Exact current native conversation UUID required', 'Exact native Antigravity conversation UUID required'))):
@@ -218,6 +213,9 @@ def _binding_violation_message(exc: ValueError, canon_root: Path, conversation_i
 	return None
 def _is_binding_violation(exc: ValueError, canon_root: Path, conversation_id: str, backend: Path) -> bool:
 	return None is not _binding_violation_message(exc, canon_root, conversation_id, backend)
+# 2026-11-21
+# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
+# https://github.com/dmitry-ai/harness/issues/116
 def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | None = None) -> dict:
 	if not isinstance(payload, dict):
 		return {}
@@ -238,6 +236,9 @@ def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | N
 		return {}
 	except Exception:
 		return {}
+	# 2026-11-23
+	# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+	# https://github.com/dmitry-ai/harness/issues/132
 	if not fast_tracked:
 		tracked, canon_root = _is_tracked_and_non_umbrella(root, projects_dirs=(projects_dir,))
 		if not tracked:
@@ -248,6 +249,9 @@ def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | N
 	max_user_step = _latest_completed_user_step(conversations_dir, conversation_id)
 	if None is max_user_step:
 		return {}
+	# 2026-11-25
+	# "Unify handed-off turn routing and deterministic state selection across hooks":
+	# https://github.com/dmitry-ai/harness/issues/231
 	canon_root = _resolve_pre_invocation_target(canon_root, backend, conversation_id, max_user_step, brain_dir, conversations_dir, t_path)
 	if None is canon_root:
 		return {}
@@ -262,13 +266,25 @@ def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | N
 			return {}
 		except Exception:
 			return {}
+	# 2026-11-23
+	# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+	# https://github.com/dmitry-ai/harness/issues/132
 	if 'primary' == res.get('role') and res.get('turn_key') and 'handed_off' != res.get('status'):
 		turn_key = str(res['turn_key'])
 		scratch_ans = _scratch_answer_path(canon_root, turn_key)
+		# 2026-11-22
+		# "Auto-name Antigravity conversations from project journal step numbers":
+		# https://github.com/dmitry-ai/harness/issues/120
 		title_info = res.get('conversation_title_sync') if isinstance(res.get('conversation_title_sync'), dict) else {}
 		title_part = f", journal_title={title_info['title']}" if title_info.get('title') else ''
+		# 2026-11-22
+		# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
+		# https://github.com/dmitry-ai/harness/issues/123
 		sim_peers = [str(p) for p in (res.get('similar_project_repos') or res.get('similar_projects') or ()) if str(p).strip()]
 		peer_part = f", similar_peers={','.join(sim_peers)}" if sim_peers else ''
+		# 2026-11-23
+		# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
+		# https://github.com/dmitry-ai/harness/issues/131
 		from agent_tools.runtime import default_user_locale
 		def_loc = default_user_locale()
 		loc_part = f', user_default_locale={def_loc}' if def_loc else ''

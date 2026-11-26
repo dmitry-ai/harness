@@ -1,6 +1,4 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prepend JSON metadata headers to new journal responses":
-# https://github.com/dmitry-ai/harness/issues/151
 import hashlib
 import json
 from pathlib import Path
@@ -29,6 +27,9 @@ def _wire(field: int, payload: bytes) -> bytes:
 	return _varint((field << 3) | 2) + _varint(len(payload)) + payload
 
 
+# 2026-11-23
+# "Prepend JSON metadata headers to new journal responses":
+# https://github.com/dmitry-ai/harness/issues/151
 class JournalMetadataIntegrationTests(unittest.TestCase):
 	def test_antigravity_prepare_prepends_metadata_and_stop_gate_and_sync_accept_clean_chat_reply(self):
 		with tempfile.TemporaryDirectory() as tmp:

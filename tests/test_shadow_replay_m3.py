@@ -1,9 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Refactor shared rules into compact three-layer M-2 architecture":
-# https://github.com/dmitry-ai/harness/issues/242
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
-# https://github.com/dmitry-ai/harness/issues/237
 from __future__ import annotations
 from pathlib import Path
 import hashlib
@@ -41,12 +36,18 @@ def _plant_shadowing_and_orphan_states(launcher: Path, proj: Path, cid: str) -> 
 	stale_daily.write_text(json.dumps({'key': '0000000000000000000000000000000000000001', 'conversation_id': cid, 'native_turn_id': f'ag-{cid}-legacy', 'native_start_step': 0, 'status': 'open', 'project_root': str(proj), 'journal': str(proj / '\ua66e'), 'requests': [{'native_step': 0, 'text': 'stale'}, {'native_step': 2, 'text': 'stale2'}]}), encoding='utf-8')
 	orphan_launcher = launcher / '\ua616/data/turns/ffffffffffffffffffffffffffffffffffffffff.json'
 	orphan_launcher.write_text(json.dumps({'key': 'ffffffffffffffffffffffffffffffffffffffff', 'conversation_id': cid, 'native_turn_id': f'ag-{cid}-0', 'native_start_step': 0, 'status': 'open', 'project_root': str(launcher), 'journal': str(launcher / '\ua66e'), 'requests': [{'native_step': 0, 'text': 'orphan'}]}), encoding='utf-8')
+# 2026-11-25
+# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
+# https://github.com/dmitry-ai/harness/issues/237
 class ShadowReplayM3Tests(unittest.TestCase):
 	def test_exec2_rules_and_readme_document_shadow_replay_gate(self) -> None:
 		from agent_tools import links
 		from agent_tools.cli_registry import registered_commands
 		import check_markdown_slop
 		self.assertIn('shadow-replay', registered_commands())
+		# 2026-11-25
+		# "Refactor shared rules into compact three-layer M-2 architecture":
+		# https://github.com/dmitry-ai/harness/issues/242
 		skill_doc = WT_ROOT / 'skills/upwork-init/SKILL.md'
 		readme_doc = WT_ROOT / 'scripts/README-agent-tools.md'
 		for doc in (skill_doc, readme_doc):

@@ -1,9 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
-# https://github.com/dmitry-ai/harness/issues/206
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
-# https://github.com/dmitry-ai/harness/issues/205
 from __future__ import annotations
 from pathlib import Path
 import os
@@ -13,6 +8,9 @@ import time
 from .process_tree import kill_process_tree
 DEFAULT_WATCHDOG_TIMEOUT = 300.0
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+# 2026-11-24
+# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
+# https://github.com/dmitry-ai/harness/issues/206
 def _kill_watchdog_tree(proc: subprocess.Popen) -> None:
 	kill_process_tree(proc)
 def _poll_until_exit(proc: subprocess.Popen, deadline: float) -> tuple[bool, int]:
@@ -28,6 +26,9 @@ def _poll_until_exit(proc: subprocess.Popen, deadline: float) -> tuple[bool, int
 	except (OSError, subprocess.TimeoutExpired):
 		rc = 124 if timed_out else -1
 	return (timed_out, 124 if timed_out else int(rc))
+# 2026-11-24
+# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+# https://github.com/dmitry-ai/harness/issues/205
 def run_test_watchdog(argv: list[str] | tuple[str, ...], *, timeout: float=DEFAULT_WATCHDOG_TIMEOUT, cwd: Path | str | None=None, env: dict[str, str] | None=None) -> dict:
 	cmd = [str(tok) for tok in argv if None is not tok]
 	if cmd and '--' == cmd[0]:
@@ -41,6 +42,9 @@ def run_test_watchdog(argv: list[str] | tuple[str, ...], *, timeout: float=DEFAU
 		kwargs['creationflags'] = _NO_WINDOW
 	else:
 		kwargs['start_new_session'] = True
+	# 2026-11-24
+	# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
+	# https://github.com/dmitry-ai/harness/issues/206
 	proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, **kwargs)
 	timed_out, rc = _poll_until_exit(proc, started + eff_timeout)
 	elapsed = round(time.monotonic() - started, 3)

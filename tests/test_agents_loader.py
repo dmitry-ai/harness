@@ -1,29 +1,15 @@
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce TDD test coverage and ratchet in Git pre-commit gate":
-# https://github.com/dmitry-ai/harness/issues/137
-# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Ignore source-code search and file-viewer lines in ShellCommandInspector.extract_issue_actions":
-# https://github.com/dmitry-ai/harness/issues/88
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
-# https://github.com/dmitry-ai/harness/issues/67
 # 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
-# https://github.com/dmitry-ai/harness/issues/16
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
-# https://github.com/dmitry-ai/harness/issues/31
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
-# https://github.com/dmitry-ai/harness/issues/39
 import json
 import shutil
 import tomllib
 from test_agent_tools import TemporaryCase
 from agent_tools import configuration, runtime
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class AgentsLoaderTests(TemporaryCase):
 	def setUp(self):
 		super().setUp()
@@ -52,6 +38,9 @@ class AgentsLoaderTests(TemporaryCase):
 		self.assertIn('.agents/rules.json', text)
 		self.assertIn('turn-begin', text)
 		self.assertIn('answer-prepare', text)
+		# 2026-10-24
+		# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+		# https://github.com/dmitry-ai/harness/issues/17
 		self.assertIn('--no-optional-locks', text)
 		self.assertIn('git-read', text)
 		self.assertNotIn('CANONICAL BODY MUST STAY IN ITS SOURCE', text)
@@ -59,6 +48,9 @@ class AgentsLoaderTests(TemporaryCase):
 		loader = native['developer_instructions'].split(configuration.START, 1)[1]
 		loader = loader.split(configuration.END, 1)[0].strip()
 		self.assertIn(loader, text)
+		# 2026-10-24
+		# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+		# https://github.com/dmitry-ai/harness/issues/17
 		self.assertIn('--no-optional-locks', loader)
 		receipt = json.loads((self.output / 'ꘖ/data/native-config.json').read_text(encoding='utf-8'))
 		self.assertEqual(receipt[str(guidance.resolve())], configuration._digest(guidance.read_bytes()))
@@ -107,6 +99,9 @@ class AgentsLoaderTests(TemporaryCase):
 		native = tomllib.loads((self.output / '.codex/config.toml').read_text(encoding='utf-8'))
 		self.assertIn(rule.as_posix(), native['developer_instructions'])
 		self.assertTrue(self.build(check=True)['valid'])
+	# 2026-10-24
+	# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+	# https://github.com/dmitry-ai/harness/issues/17
 	def test_read_git_and_git_shim_and_unflagged_detector(self):
 		from agent_tools import git_gate
 		import git_shim
@@ -128,6 +123,9 @@ class AgentsLoaderTests(TemporaryCase):
 		self.assertEqual(len(violations), 2)
 		self.assertIn('git status --short', violations[0])
 		self.assertIn('git -C "C:/repo" log -1', violations[1])
+	# 2026-10-31
+	# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+	# https://github.com/dmitry-ai/harness/issues/26
 	def test_issue_tracked_code_repo_requires_github_issue_url_in_code_and_commit_message(self):
 		from agent_tools import git_gate
 		import git_shim
@@ -148,6 +146,9 @@ class AgentsLoaderTests(TemporaryCase):
 			git_gate.check_commit(code_repo, ['mod.py'])
 		script.write_text('# https://github.com/dmitry-ai/harness/issues/26\nx = 1\n', encoding='utf-8')
 		subprocess.run(['git', 'add', 'mod.py'], cwd=code_repo, check=True, capture_output=True)
+		# 2026-11-23
+		# "Enforce TDD test coverage and ratchet in Git pre-commit gate":
+		# https://github.com/dmitry-ai/harness/issues/137
 		with self.assertRaisesRegex(ValueError, 'TDD-COMMIT-GATE'):
 			git_gate.check_commit(code_repo, ['mod.py'])
 		test_mod = code_repo / 'tests/test_mod.py'
@@ -155,6 +156,12 @@ class AgentsLoaderTests(TemporaryCase):
 		test_mod.write_text('# https://github.com/dmitry-ai/harness/issues/26\nimport unittest\nclass T(unittest.TestCase):\n\tdef test_x(self):\n\t\tself.assertEqual(1, 1)\n', encoding='utf-8')
 		subprocess.run(['git', 'add', 'tests/test_mod.py'], cwd=code_repo, check=True, capture_output=True)
 		self.assertEqual(git_gate.check_commit(code_repo, ['mod.py', 'tests/test_mod.py']), ['mod.py', 'tests/test_mod.py'])
+		# 2026-10-31
+		# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+		# https://github.com/dmitry-ai/harness/issues/31
+		# 2026-11-02
+		# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
+		# https://github.com/dmitry-ai/harness/issues/39
 		with self.assertRaisesRegex(ValueError, 'Commit message for an agent commit must contain only the GitHub Issue URL'):
 			git_gate.commit(code_repo, ['mod.py', 'tests/test_mod.py'], 'Missing issue URL', execute=False)
 		with self.assertRaisesRegex(ValueError, 'Commit message for an agent commit must contain only the GitHub Issue URL'):
@@ -178,6 +185,9 @@ class AgentsLoaderTests(TemporaryCase):
 		log_msg = subprocess.run(['git', '--no-optional-locks', 'log', '-1', '--format=%B'], cwd=code_repo, check=True, capture_output=True, text=True).stdout.strip()
 		self.assertEqual(log_msg, 'https://github.com/dmitry-ai/harness/issues/26')
 		self.assertTrue(dirty_other.exists())
+	# 2026-11-14
+	# "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
+	# https://github.com/dmitry-ai/harness/issues/67
 	def test_shell_audit_inspector_and_single_pass_repo_gate_commit(self):
 		import subprocess
 		from unittest.mock import patch
@@ -190,6 +200,9 @@ class AgentsLoaderTests(TemporaryCase):
 		actions = inspector.extract_issue_actions(['{"ok": true, "action": "edit", "repo": "dmitry-ai/harness", "number": 67, "state": "open"}'])
 		self.assertEqual(1, len(actions))
 		self.assertEqual(67, actions[0]['number'])
+		# 2026-11-18
+		# "Ignore source-code search and file-viewer lines in ShellCommandInspector.extract_issue_actions":
+		# https://github.com/dmitry-ai/harness/issues/88
 		grep_out = 'code\\tests\\test_agents_loader.py:177:\t\tactions = inspector.extract_issue_actions([\'{"ok": true, "action": "edit", "repo": "dmitry-ai/harness", "number": 67, "state": "open"}\'])'
 		self.assertEqual([], inspector.extract_issue_actions([grep_out]))
 		viewer_out = 'Showing lines 165-190 of 201\n177: \t\tactions = inspector.extract_issue_actions([\'{"ok": true, "action": "edit", "repo": "dmitry-ai/harness", "number": 67, "state": "open"}\'])'
@@ -207,6 +220,9 @@ class AgentsLoaderTests(TemporaryCase):
 		subprocess.run(['git', 'config', 'user.name', 'Test'], cwd=code_repo, check=True, capture_output=True)
 		mod = code_repo / 'mod.py'
 		mod.write_text('# https://github.com/dmitry-ai/harness/issues/67\nx = 1\n', encoding='utf-8')
+		# 2026-11-23
+		# "Enforce TDD test coverage and ratchet in Git pre-commit gate":
+		# https://github.com/dmitry-ai/harness/issues/137
 		sp_test = code_repo / 'tests/test_mod.py'
 		sp_test.parent.mkdir(parents=True, exist_ok=True)
 		sp_test.write_text('# https://github.com/dmitry-ai/harness/issues/67\nimport unittest\nclass T(unittest.TestCase):\n\tdef test_ok(self):\n\t\tself.assertEqual(1, 1)\n', encoding='utf-8')

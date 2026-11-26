@@ -2,6 +2,7 @@
 name: df-analysis
 description: "Mandatory multi-hypothesis and multi-method analytical framework for all analytical tasks (§1) and autonomous four-track complex problem analysis (§2: separate five-section analyses for the primary problem, culprit attribution, test/verification escape, and Journal/reporting integrity); applies automatically without reminders and via /df-analysis."
 ---
+<!-- 2026-11-24 "Create /df-analysis skill and codify mandatory analytical rules": https://github.com/dmitry-ai/harness/issues/182 -->  
 # Analytical Framework and Complex Problem Analysis
 
 This skill codifies the mandatory Harness analytical contract ([DOC-2](../../rules/04-statement-structure.md#doc-2), [DOC-3](../../rules/04-statement-structure.md#doc-3), [DOC-4](../../rules/04-statement-structure.md#doc-4), [DOC-5](../../rules/04-statement-structure.md#doc-5)).  
@@ -31,6 +32,7 @@ For every candidate solution method (`M-*`), always specify all four elements pe
 - Arguments for, grounded in architecture and observed evidence.  
 - Arguments against, stating trade-offs, risks, and applicability limitations.  
 - Analyst score in `%` with an explicit evaluation criterion, basis, and observable verification condition.  
+<!-- 2026-11-24 "Add FILE-6 warning banner rule for out-of-workspace file-scattering recommendations": https://github.com/dmitry-ai/harness/issues/200 -->  
 - Mandatory warning banner per [FILE-6](../../rules/01-file-boundaries.md#file-6): whenever a candidate method proposes creating, moving, or storing project or tool files outside the project root across the user's computer (such as `%LOCALAPPDATA%`, `%APPDATA%`, `%TEMP%`, `/tmp`, `%ProgramData%`, `%USERPROFILE%`, `$HOME`, `~/`, or `../`), begin the method immediately after its heading with the verbatim uppercase `FILE-6` banner.  
 
 ### 1.3 General Response Requirements
@@ -42,6 +44,7 @@ For every candidate solution method (`M-*`), always specify all four elements pe
 
 ## 2. Complex Problem Analysis
 
+<!-- 2026-11-25 "Require separate companion /df-analysis tracks for every complex problem analysis": https://github.com/dmitry-ai/harness/issues/249 -->  
 Apply this four-track structure autonomously, without reminders, whenever you encounter or investigate any failure, defect, hook denial, unexpected tool error, regression, stalled turn, or architectural problem.  
 
 ### 2.1 Mandatory Four Separate Analyses
@@ -92,6 +95,7 @@ Apply the §1.2 Solution Method Template strictly: evaluate at least two candida
 
 ## 3. Deterministic Validation
 
+<!-- 2026-11-25 "Require separate companion /df-analysis tracks for every complex problem analysis": https://github.com/dmitry-ai/harness/issues/249 -->  
 Validate candidate analytical or four-track problem-analysis responses before `answer-prepare` using:  
 
 ```text
@@ -99,6 +103,3 @@ python <scripts>/harness.py analysis-check <project> --response-file <candidate.
 ```
 
 `answer-check` and `answer-prepare` run the same Markdown table, documentation `#anchor`, `FILE-6` banner, and `/df-analysis` structural gates automatically, validating every `# 0`..`# 4` analysis block independently and enforcing all three separate companion tracks alongside the primary problem.  
-<!-- https://github.com/dmitry-ai/harness/issues/182 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/200 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/249 -->  

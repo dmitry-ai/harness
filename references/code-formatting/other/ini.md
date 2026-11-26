@@ -1,3 +1,4 @@
+<!-- 2026-11-23 "Add Python and INI formatting standards derived from reference pipelines": https://github.com/dmitry-ai/harness/issues/156 -->  
 # INI Formatting Standard
 
 Inherits all general rules from [CODE-1](../../../rules/11-code-formatting.md#code-1) (zero blank lines, alphabetical ordering, single quotes only when quoting is required, no unrequested comments).  
@@ -21,4 +22,3 @@ root = true
 indent_size = 4
 indent_style = tab
 ```
-<!-- https://github.com/dmitry-ai/harness/issues/156 -->  

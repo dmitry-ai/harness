@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add PreToolUse worktree isolation gate for live main checkouts":
-# https://github.com/dmitry-ai/harness/issues/185
 from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 import json
@@ -33,6 +31,9 @@ def _write_turn(turns_dir: Path, name: str, *, status: str, conv_id: str, age_ho
 	ts = (datetime.now(timezone.utc) - timedelta(hours=age_hours)).isoformat()
 	payload = {'status': status, 'conversation_id': conv_id, 'updated_at': ts, 'created_at': ts}
 	(turns_dir / f'{name}.json').write_text(json.dumps(payload), encoding='utf-8')
+# 2026-11-24
+# "Add PreToolUse worktree isolation gate for live main checkouts":
+# https://github.com/dmitry-ai/harness/issues/185
 class WorktreeIsolationGateTests(unittest.TestCase):
 	def test_agent_metadata_and_read_only_tools_are_allowed(self) -> None:
 		from agent_tools.gates.worktree_isolation import check

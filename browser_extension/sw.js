@@ -1,4 +1,5 @@
 // 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+// 2026-11-16
 // "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 // https://github.com/dmitry-ai/harness/issues/80
 const OFFSCREEN_PATH = 'offscreen.html';

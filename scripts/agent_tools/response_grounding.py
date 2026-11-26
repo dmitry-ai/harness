@@ -1,50 +1,45 @@
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs":
-# https://github.com/dmitry-ai/harness/issues/264
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
-# https://github.com/dmitry-ai/harness/issues/230
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce Markdown table ban and /df-analysis structural validation across response gates":
-# https://github.com/dmitry-ai/harness/issues/181
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/76
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add compact evidence-query command and unify collect-http CLI flags":
-# https://github.com/dmitry-ai/harness/issues/118
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
-# https://github.com/dmitry-ai/harness/issues/101
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
-# https://github.com/dmitry-ai/harness/issues/81
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
-# https://github.com/dmitry-ai/harness/issues/59
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract ResponseEvidenceAuditor class into response_grounding.py from response_source_and_kb_issues and helpers in completion.py":
-# https://github.com/dmitry-ai/harness/issues/56
 import json
 from pathlib import Path
 import re
 from urllib.parse import unquote, urldefrag, urlsplit
+# 2026-11-23
+# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+# https://github.com/dmitry-ai/harness/issues/76
 from .evidence_loader import load_observation_bundle
+# 2026-11-25
+# "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
+# https://github.com/dmitry-ai/harness/issues/230
 from .links import _bare_urls, chat_reply_link_issues
 from .markdown_links import iter_inline_segments
+# 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
 from .repo_link_gate import hydrate_local_repo_urls
 from .research import MAX_BYTES
+# 2026-11-13
+# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
+# https://github.com/dmitry-ai/harness/issues/59
 from .source_grounding import extract_blockquote_quotes, is_normative_harness_doc, local_source_grounding_issues, markdown_parser, norm_quote_text, quote_segments_present
+# 2026-11-24
+# "Enforce Markdown table ban and /df-analysis structural validation across response gates":
+# https://github.com/dmitry-ai/harness/issues/181
 from .statements import analysis_gate_issues, external_anchor_issues
+# 2026-11-16
+# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+# https://github.com/dmitry-ai/harness/issues/81
 from .upwork_data import extract_upwork_job_url_id
+# 2026-11-13
+# "Extract ResponseEvidenceAuditor class into response_grounding.py from response_source_and_kb_issues and helpers in completion.py":
+# https://github.com/dmitry-ai/harness/issues/56
 class ResponseEvidenceAuditor:
 	def __init__(self, root: Path, response: str, requests: list[dict], *, touched_files=None):
 		self.root = Path(root).resolve()
 		self.response = response
 		self.requests = requests
 		self.touched_files = touched_files
+		# 2026-11-25
+		# "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
+		# https://github.com/dmitry-ai/harness/issues/230
+		# 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
 		self.errors = list(chat_reply_link_issues(response, root=self.root))
 		self.local_repo_urls: set[str] = set()
 		self.authored_links: list[tuple[str, str]] = []
@@ -78,18 +73,28 @@ class ResponseEvidenceAuditor:
 						else:
 							self.errors.append(f'VERIFY-1 / KB-3: External article link [{label}]({href}) has no saved observation in \ua616/KB/Evidence/HTTP or \ua616/KB/Evidence')
 					else:
+						# 2026-11-24
+						# "Enforce Markdown table ban and /df-analysis structural validation across response gates":
+						# https://github.com/dmitry-ai/harness/issues/181
 						self.errors.extend(external_anchor_issues(label, href, nu, self.observed_anchors, self.response))
 		for href, q_raw in self.attributed_quotes:
 			nu = _norm_url(href)
 			if nu not in self.client_urls and nu in self.observed_texts and self.observed_texts[nu]:
+				# 2026-11-13
+				# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
+				# https://github.com/dmitry-ai/harness/issues/59
 				obs_blob = ' '.join((norm_quote_text(t) for t in self.observed_texts[nu]))
 				if not quote_segments_present(q_raw, obs_blob, 15):
 					preview = ' '.join(q_raw.split())[:80]
 					self.errors.append(f'VERIFY-1 / LINK-1: Verbatim quote \u00ab{preview}\u00bb attributed to {href} is absent from the saved observation in \ua616/KB/Evidence')
 	def _check_kb_membership(self) -> None:
+		# 2026-11-19
+		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+		# https://github.com/dmitry-ai/harness/issues/96
 		from .path_registry import project_paths
 		pp = project_paths(self.root, exact_root=True)
 		if pp.project_json.is_file() and pp.kb_dir.is_dir():
+			# 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
 			kb_urls = set(self.client_urls) | self.local_repo_urls
 			kb_topics: set[tuple[str, str]] = set()
 			kb_files = list(pp.kb_dir.rglob('*.md')) + (list(pp.manual_kb_dir.rglob('*.md')) if pp.manual_kb_dir.is_dir() else [])
@@ -120,6 +125,9 @@ class ResponseEvidenceAuditor:
 		for tf in self.touched_files or []:
 			tf_str = str(tf).strip()
 			tf_norm = '/' + tf_str.replace('\\', '/').lower().lstrip('/')
+			# 2026-11-20
+			# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+			# https://github.com/dmitry-ai/harness/issues/101
 			if tf_str and tf_norm.endswith('.md') and ('/req/' not in tf_norm) and ('/res/' not in tf_norm) and (not re.search('/\\ua66e/(?:[^/]+/)?[\\u227a\\u227b]/', tf_norm)) and ('/source/' not in tf_norm) and (not tf_norm.endswith('/source.md')) and (not is_normative_harness_doc(Path(tf_norm))):
 				try:
 					tf_path = Path(tf_str)
@@ -133,6 +141,9 @@ class ResponseEvidenceAuditor:
 				except OSError:
 					pass
 	def _collect_client_urls(self) -> None:
+		# 2026-11-16
+		# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+		# https://github.com/dmitry-ai/harness/issues/81
 		job_ids: set[str] = set()
 		for req in self.requests or []:
 			for u in _bare_urls(req.get('text', '') if isinstance(req, dict) else str(req)):
@@ -140,6 +151,9 @@ class ResponseEvidenceAuditor:
 				jid = extract_upwork_job_url_id(u, allow_query_or_fragment=True)
 				if jid:
 					job_ids.add(jid)
+		# 2026-11-19
+		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+		# https://github.com/dmitry-ai/harness/issues/96
 		from .path_registry import project_paths
 		pp = project_paths(self.root, exact_root=True)
 		pjson = pp.project_json
@@ -150,6 +164,9 @@ class ResponseEvidenceAuditor:
 					job_ids.add(pdata['job_id'].strip())
 			except (OSError, ValueError):
 				pass
+		# 2026-11-20
+		# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+		# https://github.com/dmitry-ai/harness/issues/101
 		for pfile in (pjson, pp.manual_kb_dir / 'Project.md', pp.manual_kb_dir / '.md', pp.kb_dir / 'Project.md'):
 			if pfile.is_file():
 				try:
@@ -187,6 +204,9 @@ class ResponseEvidenceAuditor:
 			elif block.children:
 				ext_in_block: list[str] = []
 				has_local_link = False
+				# 2026-11-23
+				# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+				# https://github.com/dmitry-ai/harness/issues/76
 				for seg in iter_inline_segments(block.children, include_images=False):
 					if 'link' != seg[0]:
 						if 'text' == seg[1].type:
@@ -216,6 +236,9 @@ class ResponseEvidenceAuditor:
 		needs_ev_scan = any((_is_descriptive_title_label(label, href) or ((urlsplit(href).hostname or '').lower() not in ('localhost', '127.0.0.1', '::1') and _norm_url(href) not in self.client_urls) for label, href in self.authored_links)) or any((_norm_url(href) not in self.client_urls for href, _ in self.attributed_quotes))
 		ev_dirs: list[Path] = []
 		if needs_ev_scan:
+			# 2026-11-19
+			# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+			# https://github.com/dmitry-ai/harness/issues/96
 			from .path_registry import project_paths
 			pp_ev = project_paths(self.root, exact_root=True).evidence_dir
 			if pp_ev.is_dir():
@@ -283,6 +306,12 @@ class ResponseEvidenceAuditor:
 							slug_u = f'https://{host.lower()}/t/{slug}/{tid}'
 							self.observed_urls.add(slug_u)
 							self.observed_titles.setdefault(slug_u, t)
+	# 2026-11-21
+	# "Add compact evidence-query command and unify collect-http CLI flags":
+	# https://github.com/dmitry-ai/harness/issues/118
+	# 2026-11-23
+	# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+	# https://github.com/dmitry-ai/harness/issues/76
 	def _ingest_observation_bundle(self, jfile: Path, data: dict) -> None:
 		bundle = load_observation_bundle(jfile, data, max_bytes=MAX_BYTES)
 		if None is not bundle['json_payload']:
@@ -310,10 +339,14 @@ class ResponseEvidenceAuditor:
 		if self.authored_urls:
 			self._collect_client_urls()
 			self._ingest_evidence_files()
+			# 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
 			self.local_repo_urls = hydrate_local_repo_urls(self)
 			self._check_kb_membership()
 			self._check_external_refs()
 		self._check_local_grounding()
+		# 2026-11-24
+		# "Enforce Markdown table ban and /df-analysis structural validation across response gates":
+		# https://github.com/dmitry-ai/harness/issues/181
 		self.errors.extend(analysis_gate_issues(self.response, requests=self.requests))
 		return self.errors
 def _discourse_topic_key(url: str):

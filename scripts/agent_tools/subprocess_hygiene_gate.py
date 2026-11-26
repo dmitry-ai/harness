@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
-# https://github.com/dmitry-ai/harness/issues/206
 from __future__ import annotations
 from collections import Counter
 from pathlib import Path
@@ -77,6 +75,9 @@ def _scan_source_findings(rel_label: str, source: str) -> list[tuple[tuple[str, 
 						found.extend(_call_violations(node, fn_name, rel_label))
 		r = found
 	return r
+# 2026-11-24
+# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
+# https://github.com/dmitry-ai/harness/issues/206
 def check_subprocess_hygiene_violations(path: str | Path, source: str, *, baseline_source: str | None=None) -> list[str]:
 	r: list[str] = []
 	if is_subprocess_hygiene_target(path):

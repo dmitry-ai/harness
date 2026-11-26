@@ -1,6 +1,4 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract SourceDiagnosticsScanner class from diagnose_sources in text_diagnostics.py":
-# https://github.com/dmitry-ai/harness/issues/68
 from __future__ import annotations
 import json
 from pathlib import Path
@@ -11,6 +9,9 @@ HARNESS_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = HARNESS_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
+# 2026-11-23
+# "Extract SourceDiagnosticsScanner class from diagnose_sources in text_diagnostics.py":
+# https://github.com/dmitry-ai/harness/issues/68
 class SourceDiagnosticsScannerTests(unittest.TestCase):
 	def _make_primary(self, root: Path) -> Path:
 		prim = root / 'primary'

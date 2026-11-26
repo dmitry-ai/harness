@@ -1,18 +1,19 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
-# https://github.com/dmitry-ai/harness/issues/196
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
-# https://github.com/dmitry-ai/harness/issues/175
 from __future__ import annotations
 from pathlib import Path
 import os
 import subprocess
 _LOG_MAX_COUNT = 100
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+# 2026-11-24
+# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
+# https://github.com/dmitry-ai/harness/issues/196
 def _extract_diff_header_path(line: str) -> str:
 	raw = line[4:].split('\t', 1)[0].strip().replace('\\', '/')
 	return '' if '/dev/null' == raw else raw
+# 2026-11-24
+# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
+# https://github.com/dmitry-ai/harness/issues/196
 def _file_urls(fpath: Path, extract_urls_fn) -> set[str]:
 	try:
 		r = set(extract_urls_fn(fpath.read_text(encoding='utf-8', errors='replace')))
@@ -22,6 +23,9 @@ def _file_urls(fpath: Path, extract_urls_fn) -> set[str]:
 def _git_read(repo: Path, args: list[str]) -> subprocess.CompletedProcess:
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
 	return subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], capture_output=True, env=env, check=False, creationflags=_NO_WINDOW)
+# 2026-11-24
+# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
+# https://github.com/dmitry-ai/harness/issues/196
 def _iter_untracked_files(resolved: Path, rel_path: str, suffixes: frozenset[str]) -> list[tuple[str, Path]]:
 	fpath = resolved / rel_path
 	if fpath.is_file():
@@ -31,6 +35,9 @@ def _iter_untracked_files(resolved: Path, rel_path: str, suffixes: frozenset[str
 	else:
 		r = []
 	return r
+# 2026-11-24
+# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
+# https://github.com/dmitry-ai/harness/issues/196
 def _parse_diff_changed_urls(diff_text: str, extract_urls_fn) -> dict[str, set[str]]:
 	changed: dict[str, set[str]] = {}
 	cur_path, prev_minus = ('', '')
@@ -62,6 +69,9 @@ def _parse_log_index(raw_out: str, extract_urls_fn) -> tuple[dict[str, str], dic
 				if rel:
 					file_to_urls.setdefault(rel, urls)
 	return (issue_to_sha, file_to_urls, rec_count)
+# 2026-11-24
+# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
+# https://github.com/dmitry-ai/harness/issues/196
 def _parse_porcelain_z_entries(status_out: str) -> list[tuple[str, str]]:
 	entries = [e for e in (status_out or '').split('\x00') if e]
 	parsed: list[tuple[str, str]] = []
@@ -135,12 +145,21 @@ def _resolve_git_dir(repo: Path) -> Path | None:
 		except OSError:
 			r = None
 	return r
+# 2026-11-24
+# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/175
 class RepoReadCache:
 	def __init__(self) -> None:
+		# 2026-11-24
+		# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
+		# https://github.com/dmitry-ai/harness/issues/196
 		self._diff_cache: dict[tuple[Path, str, tuple[str, ...]], dict[str, set[str]]] = {}
 		self._log_cache: dict[tuple[Path, str], tuple[dict[str, str], dict[str, list[str]], bool]] = {}
 		self._status_cache: dict[tuple[Path, str], list[tuple[str, str]]] = {}
 		self._upstream_cache: dict[tuple[Path, str], tuple[bool, int]] = {}
+	# 2026-11-24
+	# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
+	# https://github.com/dmitry-ai/harness/issues/196
 	def _dirty_entries(self, repo: Path) -> list[tuple[str, str]]:
 		key = self._key(repo)
 		cached = self._status_cache.get(key)
@@ -163,6 +182,9 @@ class RepoReadCache:
 			cached = (issue_to_sha, file_to_urls, _LOG_MAX_COUNT > count)
 			self._log_cache[key] = cached
 		return cached
+	# 2026-11-24
+	# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
+	# https://github.com/dmitry-ai/harness/issues/196
 	def _tracked_diff_urls(self, resolved: Path, tracked_rels: list[str], extract_urls_fn) -> dict[str, set[str]]:
 		if not tracked_rels:
 			r: dict[str, set[str]] = {}
@@ -179,8 +201,14 @@ class RepoReadCache:
 				self._diff_cache[dkey] = cached
 			r = cached
 		return r
+	# 2026-11-24
+	# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
+	# https://github.com/dmitry-ai/harness/issues/196
 	def dirty_paths(self, repo: Path) -> list[str]:
 		return [rel_path for _, rel_path in self._dirty_entries(repo)]
+	# 2026-11-24
+	# "Scope dirty_referencing_issue to uncommitted diff lines instead of full file text":
+	# https://github.com/dmitry-ai/harness/issues/196
 	def dirty_referencing_issue(self, repo: Path, issue_url: str, suffixes: frozenset[str], extract_urls_fn) -> list[str]:
 		resolved = Path(repo).resolve()
 		entries = self._dirty_entries(resolved)

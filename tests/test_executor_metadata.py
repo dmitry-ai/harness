@@ -1,15 +1,4 @@
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
-# https://github.com/dmitry-ai/harness/issues/133
-# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
-# https://github.com/dmitry-ai/harness/issues/51
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
-# https://github.com/dmitry-ai/harness/issues/10
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from copy import deepcopy
 import hashlib
 import json
@@ -38,6 +27,12 @@ def wire(path, value):
 		value = varint(field << 3 | 2) + varint(len(value)) + value
 	r = value
 	return r
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class ExecutorMetadataTests(unittest.TestCase):
 	def setUp(self):
 		self.temp = tempfile.TemporaryDirectory()
@@ -208,6 +203,12 @@ class ExecutorMetadataTests(unittest.TestCase):
 		self.codex_trace(self.aa, model=None, effort=None, parent=self.parent)
 		with self.assertRaisesRegex(ValueError, 'model/effort'):
 			codex._model(codex._trace(self.home, self.aa)[3])
+	# 2026-11-10
+	# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
+	# https://github.com/dmitry-ai/harness/issues/51
+	# 2026-11-23
+	# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
+	# https://github.com/dmitry-ai/harness/issues/133
 	def test_variant_suffixed_generation_model_matches_executor_configuration_and_inherit(self):
 		self.ag_database(self.parent, 'native-model-b', 'native-model-high')
 		self.ag_database(self.aa, 'native-model-b', 'native-model-high')
@@ -220,6 +221,9 @@ class ExecutorMetadataTests(unittest.TestCase):
 		self.assertEqual(aa['requested']['generation_model'], 'native-model-b')
 		self.assertEqual(aa['requested']['executor_model'], 'native-model')
 		self.assertEqual(aa['verification']['status'], 'verified')
+	# 2026-11-23
+	# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
+	# https://github.com/dmitry-ai/harness/issues/133
 	def test_antigravity_omitted_model_inherits_and_abstract_tier_avoids_false_mismatch(self):
 		self.ag_database(self.parent, 'native-parent', 'native-parent-high')
 		self.ag_database(self.aa, 'native-parent', 'native-parent-high')

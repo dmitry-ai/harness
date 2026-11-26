@@ -1,30 +1,4 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deduplicate historical admission fixtures and guard optional temp fsync":
-# https://github.com/dmitry-ai/harness/issues/177
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Accelerate project_paths and overlay link resolution with fast-path caching":
-# https://github.com/dmitry-ai/harness/issues/174
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate wall-clock race in context.generate and pre-lock flush race in storage.locked":
-# https://github.com/dmitry-ai/harness/issues/158
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
-# https://github.com/dmitry-ai/harness/issues/72
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
-# https://github.com/dmitry-ai/harness/issues/63
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
-# https://github.com/dmitry-ai/harness/issues/2
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
-# https://github.com/dmitry-ai/harness/issues/41
 from contextlib import contextmanager
 import hashlib
 import json
@@ -32,6 +6,12 @@ import os
 from pathlib import Path
 import tempfile
 import time
+# 2026-10-30
+# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+# https://github.com/dmitry-ai/harness/issues/21
+# 2026-11-13
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
 def _replace_with_retry(temp: Path, path: Path):
 	for attempt in range(10):
 		try:
@@ -41,6 +21,9 @@ def _replace_with_retry(temp: Path, path: Path):
 			if 9 == attempt:
 				raise
 			time.sleep(0.025)
+# 2026-11-24
+# "Deduplicate historical admission fixtures and guard optional temp fsync":
+# https://github.com/dmitry-ai/harness/issues/177
 def _should_skip_fsync(path: Path) -> bool:
 	r = False
 	if '1' == os.environ.get('HARNESS_TEST_NO_FSYNC'):
@@ -61,14 +44,26 @@ def _stage_atomic_write(path: Path, data: bytes, commit):
 		commit(temp, path)
 	finally:
 		temp.unlink(missing_ok=True)
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
 def create_bytes(path: Path, data: bytes):
 	_stage_atomic_write(Path(path), data, os.rename if 'nt' == os.name else os.link)
+# 2026-11-19
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 def data_dir_for(path: Path, *, exact_root: bool=False) -> Path:
 	from .path_registry import project_paths
 	return project_paths(Path(path), exact_root=exact_root).data_dir
+# 2026-11-24
+# "Accelerate project_paths and overlay link resolution with fast-path caching":
+# https://github.com/dmitry-ai/harness/issues/174
 def journal_data_dir_for(eff: Path) -> Path:
 	from .path_cache import resolve_journal_data_dir
 	return resolve_journal_data_dir(Path(eff))
+# 2026-11-14
+# "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
+# https://github.com/dmitry-ai/harness/issues/72
 def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=True):
 	if isinstance(value, dict):
 		yield value
@@ -99,6 +94,18 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 				else:
 					yield from iter_embedded_json_objects(item, parse_root=parse_root, recursive=recursive)
 					start += size
+# 2026-10-11
+# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+# https://github.com/dmitry-ai/harness/issues/2
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-03
+# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+# https://github.com/dmitry-ai/harness/issues/41
+# 2026-11-23
+# "Eliminate wall-clock race in context.generate and pre-lock flush race in storage.locked":
+# https://github.com/dmitry-ai/harness/issues/158
 @contextmanager
 def locked(path: Path, timeout: float=15, *, create=True):
 	if create:
@@ -127,6 +134,9 @@ def locked(path: Path, timeout: float=15, *, create=True):
 				msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
 			else:
 				fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+# 2026-11-13
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
 def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, error_msg: str='Invalid immutable artifact') -> tuple[bytes, dict]:
 	target = Path(path)
 	raw = target.read_bytes()

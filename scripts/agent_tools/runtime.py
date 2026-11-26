@@ -1,47 +1,33 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deploy immutable Harness runtime snapshots with LKG fallback":
-# https://github.com/dmitry-ai/harness/issues/184
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
-# https://github.com/dmitry-ai/harness/issues/131
-# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Auto-name Antigravity conversations from project journal step numbers":
-# https://github.com/dmitry-ai/harness/issues/120
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Separate OS user home from instance USERPROFILE and auto-detect active Antigravity instance":
-# https://github.com/dmitry-ai/harness/issues/115
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
-# https://github.com/dmitry-ai/harness/issues/95
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Integrate declarative Antigravity addons health and sanctioning into Harness":
-# https://github.com/dmitry-ai/harness/issues/92
-# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix runtime instance path derivation and store validation":
-# https://github.com/dmitry-ai/harness/issues/89
-# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Externalize agent environments and per-instance system paths into runtime.json":
-# https://github.com/dmitry-ai/harness/issues/86
-# 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
-# https://github.com/dmitry-ai/harness/issues/6
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
+# 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from contextlib import contextmanager
 from contextvars import ContextVar
 from copy import deepcopy
+# 2026-11-18
+# "Fix runtime instance path derivation and store validation":
+# https://github.com/dmitry-ai/harness/issues/89
 import glob
 import json
 import os
 from pathlib import Path
 import re
 import sqlite3
+# 2026-11-19
+# "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
+# https://github.com/dmitry-ai/harness/issues/95
+# 2026-11-24
+# "Deploy immutable Harness runtime snapshots with LKG fallback":
+# https://github.com/dmitry-ai/harness/issues/184
 from .path_registry import DEFAULT_REGISTRY_FILE, _CODE_ANCHOR, default_platform_paths, default_runtime_file, derive_platform_system_paths, load_registry, normalize_path_str, store_path, tool_path, var_value
+# 2026-11-19
+# "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
+# https://github.com/dmitry-ai/harness/issues/95
 PRIMARY = Path(var_value('HARNESS_CODE')).resolve()
 HARNESS_ROOT = Path(var_value('HARNESS_ROOT')).resolve()
 HARNESS_META = Path(var_value('HARNESS_META')).resolve()
 LEGACY_PRIMARY = store_path('legacy_primary')
+# 2026-10-24
+# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+# https://github.com/dmitry-ai/harness/issues/17
 os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0')
 _SHIM_DIR = str(tool_path('git_shim_dir').resolve())
 if _SHIM_DIR not in os.environ.get('PATH', '').split(os.pathsep):
@@ -49,14 +35,26 @@ if _SHIM_DIR not in os.environ.get('PATH', '').split(os.pathsep):
 _platform = ContextVar('upwork_platform', default=None)
 _profile = ContextVar('upwork_profile', default=None)
 _instance = ContextVar('upwork_instance', default=None)
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
+# 2026-11-19
+# "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
+# https://github.com/dmitry-ai/harness/issues/95
 def _expand_path(value):
 	text = str(value)
 	if '${' in text or re.search('%[A-Za-z_][A-Za-z0-9_]*%', text):
 		return load_registry().expand(text)
 	return normalize_path_str(os.path.expanduser(text))
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
 def _validate_runtime(value):
 	if 2 != value.get('version') or not value.get('workspace_root') or (not isinstance(value.get('platforms'), dict)) or (not value['platforms']):
 		raise ValueError('runtime.json needs version 2, workspace_root and platforms')
+	# 2026-11-23
+	# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
+	# https://github.com/dmitry-ai/harness/issues/131
 	if 'user_default_locale' in value and (None is not value['user_default_locale']) and (not isinstance(value['user_default_locale'], str) or not value['user_default_locale'].strip()):
 		raise ValueError('runtime.json user_default_locale must be a non-empty locale string')
 	for plat_id, plat_cfg in value['platforms'].items():
@@ -87,7 +85,16 @@ def _validate_runtime(value):
 			raise ValueError(f'runtime.json platforms.{plat_id}.homes must map profile names to home directories')
 		if 'homes' in plat_cfg and 'instances' in plat_cfg:
 			raise ValueError(f'runtime.json platforms.{plat_id} cannot define both instances and legacy homes')
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-15
+# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
+# https://github.com/dmitry-ai/harness/issues/6
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-24
+# "Deploy immutable Harness runtime snapshots with LKG fallback":
+# https://github.com/dmitry-ai/harness/issues/184
+# 2026-11-24
 # "Cache runtime settings and deduplicate evidence validation in hot paths":
 # https://github.com/dmitry-ai/harness/issues/227
 def settings(path=None):
@@ -100,9 +107,15 @@ def platform_adapter_name(platform, plat_cfg=None, *, config=None):
 	if None is plat_cfg:
 		plat_cfg = (config or settings()).get('platforms', {}).get(platform) or {}
 	return plat_cfg.get('adapter') or platform
+# 2026-11-18
+# "Fix runtime instance path derivation and store validation":
+# https://github.com/dmitry-ai/harness/issues/89
 def _has_glob_wildcard(value):
 	text = str(value or '')
 	return '*' in text or '?' in text
+# 2026-11-18
+# "Fix runtime instance path derivation and store validation":
+# https://github.com/dmitry-ai/harness/issues/89
 def _resolve_glob_paths(raw_glob, base_dir=None):
 	text = _expand_path(raw_glob) if isinstance(raw_glob, str) and raw_glob.strip() else ''
 	if not text:
@@ -113,6 +126,9 @@ def _resolve_glob_paths(raw_glob, base_dir=None):
 			return []
 		text = (Path(base_dir) / p).as_posix()
 	return sorted((Path(match) for match in glob.glob(text, recursive=True)))
+# 2026-11-18
+# "Fix runtime instance path derivation and store validation":
+# https://github.com/dmitry-ai/harness/issues/89
 def platform_key_for_adapter(adapter_name, config=None):
 	cfg_all = config or settings()
 	plats = cfg_all.get('platforms') or {}
@@ -421,6 +437,9 @@ def resolve_antigravity_paths(backend=None, *, instance=None, conversation_id=No
 					matched_entry = matches[0]
 		sp = dict((matched_entry or {}).get('system_paths') or {})
 	else:
+		# 2026-11-21
+		# "Separate OS user home from instance USERPROFILE and auto-detect active Antigravity instance":
+		# https://github.com/dmitry-ai/harness/issues/115
 		try:
 			active_home = Path.home().resolve()
 		except RuntimeError:
@@ -463,6 +482,9 @@ def resolve_antigravity_paths(backend=None, *, instance=None, conversation_id=No
 		'instance': matched_entry.get('id') if matched_entry else None,
 		'backend_dir': backend_p,
 		'brain_dir': Path(sp['brain_dir']) if sp.get('brain_dir') else backend_p / 'brain',
+		# 2026-11-22
+		# "Auto-name Antigravity conversations from project journal step numbers":
+		# https://github.com/dmitry-ai/harness/issues/120
 		'annotations_dir': Path(sp['annotations_dir']) if sp.get('annotations_dir') else backend_p / 'annotations',
 		'daemon_dir': Path(sp['daemon_dir']) if sp.get('daemon_dir') else backend_p / 'daemon',
 		'conversations_dir': Path(sp['conversations_dir']) if sp.get('conversations_dir') else backend_p / 'conversations',
@@ -671,6 +693,9 @@ def request_day(value=None):
 	from zoneinfo import ZoneInfo
 	r = date.fromisoformat(value) if value else datetime.now(ZoneInfo(settings()['timezone'])).date()
 	return r
+# 2026-11-23
+# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
+# https://github.com/dmitry-ai/harness/issues/131
 def default_user_locale(config=None) -> str | None:
 	cfg_all = config
 	if None is cfg_all:
@@ -680,6 +705,12 @@ def default_user_locale(config=None) -> str | None:
 			return None
 	val = (cfg_all or {}).get('user_default_locale')
 	return val.strip() if isinstance(val, str) and val.strip() else None
+# 2026-11-19
+# "Integrate declarative Antigravity addons health and sanctioning into Harness":
+# https://github.com/dmitry-ai/harness/issues/92
+# 2026-11-24
+# "Cache runtime settings and deduplicate evidence validation in hot paths":
+# https://github.com/dmitry-ai/harness/issues/227
 def sanctioned_addon_code_roots(config=None):
 	import sys
 	from .runtime_cache import cached_addon_roots

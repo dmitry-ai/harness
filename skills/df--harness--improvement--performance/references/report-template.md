@@ -1,3 +1,4 @@
+<!-- 2026-11-24 "Add /df--harness--improvement--performance skill and update platform adapters": https://github.com/dmitry-ai/harness/issues/193 -->  
 # Performance Audit Report Template and Checklist
 
 Every performance audit produced under [SKILL.md](../SKILL.md) conforms strictly to [df-analysis](../../df-analysis/SKILL.md) ([DOC-2](../../../rules/04-statement-structure.md#doc-2), [DOC-3](../../../rules/04-statement-structure.md#doc-3), [DOC-4](../../../rules/04-statement-structure.md#doc-4), [DOC-5](../../../rules/04-statement-structure.md#doc-5)) and [LINK-5](../../../rules/02-link-standards.md#link-5).  
@@ -12,6 +13,7 @@ Every performance audit produced under [SKILL.md](../SKILL.md) conforms strictly
 
 ## 2. Five-Section Report Structure (`DOC-5`)
 
+<!-- 2026-11-25 "Require separate companion /df-analysis tracks for every complex problem analysis": https://github.com/dmitry-ai/harness/issues/249 -->  
 Use this exact top-level `# 0`..`# 4` structure for the primary performance problem analysis (optionally preceded by a brief executive summary pointing to verified telemetry totals), followed by the three mandatory separate `# 0`..`# 4` companion analyses required by [df-analysis](../../df-analysis/SKILL.md#21-mandatory-four-separate-analyses) (`§2` Culprit and Provenance Attribution, `§3` Test and Verification Escape, and `§4` Journal, Reporting, and Observability Integrity):  
 
 ### `# 0` Problem Metadata
@@ -67,5 +69,3 @@ Before running `harness.py answer-prepare`, confirm every gate passes:
 1. `harness.py analysis-check <project> --response-file <candidate.md> --mode problem` exits `0` (`valid: true`).  
 1. `harness.py answer-check <project> --response-file <candidate.md> --conversation <uuid>` exits `0` (`valid: true`).  
 1. `harness.py answer-prepare <project> --response-file <candidate.md> --consume-input --conversation <uuid>` exits `0` (`ready: true`), and the clean body (matching `body_sha256`) is published verbatim.  
-<!-- https://github.com/dmitry-ai/harness/issues/193 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/249 -->  

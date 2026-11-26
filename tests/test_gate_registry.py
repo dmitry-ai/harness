@@ -1,6 +1,4 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract PreToolUse and completion gates into priority plugin registry":
-# https://github.com/dmitry-ai/harness/issues/167
 from __future__ import annotations
 from pathlib import Path
 import sys
@@ -10,6 +8,9 @@ HARNESS_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = HARNESS_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
+# 2026-11-23
+# "Extract PreToolUse and completion gates into priority plugin registry":
+# https://github.com/dmitry-ai/harness/issues/167
 class GateRegistryTests(unittest.TestCase):
 	def test_answer_gates_collect_issues_and_checks_map(self):
 		from agent_tools.gates import run_answer_gates

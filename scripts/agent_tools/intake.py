@@ -1,22 +1,23 @@
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
 # 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
-# https://github.com/dmitry-ai/harness/issues/7
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from contextlib import nullcontext
 import hashlib
 import json
 import os
 from pathlib import Path
 import re
+# 2026-11-19
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 from .path_registry import store_path
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 from .runtime import HARNESS_META, PRIMARY, settings
 from .storage import create_bytes, locked, replace_bytes
 from .upwork_data import normalize_job_id
+# 2026-11-19
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 INCOMING = store_path('incoming_dir')
 DAILY = Path(settings()['workspace_root']) / settings()['daily_root']
 CAPTURE_NAME = re.compile('^(0[12][A-Za-z0-9]+)-([A-Za-z0-9-]{8,})$')
@@ -68,6 +69,9 @@ def _inventory(capture):
 	r = (result, dirs)
 	return r
 def _project(capture, daily):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	match = CAPTURE_NAME.fullmatch(capture.name)
 	if not match:
@@ -85,6 +89,9 @@ def _project(capture, daily):
 	r = (project, state)
 	return r
 def _snapshot(project, state, source):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	pp = project_paths(project, exact_root=True)
 	if not isinstance(source, dict) or source.get('job_id') != state['job_id']:
@@ -131,6 +138,9 @@ def _validate_new(capture, source, files, dirs):
 	if dirs - {'attachments'}:
 		raise ValueError('Unknown/manual staging directories are preserved')
 def _receipt(project, capture, state, files, dirs):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	pp = project_paths(project, exact_root=True)
 	ev_rel = pp.rel_to_root(pp.evidence_dir)
@@ -157,6 +167,9 @@ def _receipt(project, capture, state, files, dirs):
 	r = {'version': 1, 'capture_id': capture.name, 'job_id': source['job_id'], 'status': 'prepared', 'original_directory_provenance': str(capture), 'original_paths_are_provenance_only': True, 'snapshot': snapshot, 'entries': entries}
 	return r
 def _validate_receipt(receipt, capture, project, state):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	ev_rel = project_paths(project, exact_root=True).rel_to_root(project_paths(project, exact_root=True).evidence_dir)
 	if not isinstance(receipt, dict) or 1 != receipt.get('version') or receipt.get('capture_id') != capture.name or (receipt.get('job_id') != state['job_id']) or (receipt.get('original_directory_provenance') != str(capture)) or (receipt.get('status') not in ('prepared', 'drained')):
@@ -205,6 +218,9 @@ def _restore(receipt, capture):
 		if retired.exists() and (not original.exists()):
 			os.rename(retired, original)
 def _index(project):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	pp = project_paths(project, exact_root=True)
 	kb_rel = pp.rel_to_root(pp.kb_dir)
@@ -230,10 +246,13 @@ def _index(project):
 	navigation = sync_block(project, _within(project, f'{kb_rel}/.md'), 'intake-navigation', '## Source Materials\n\n[Saved sources and import receipts](Intake.md).\n', position='append', source=target)
 	if 'conflict' == navigation['status']:
 		raise ValueError('Intake navigation was manually changed; staging is preserved for reconciliation')
-# 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
 def commit_capture(capture, *, incoming_root=INCOMING, daily_root=DAILY, apply=False):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	capture, incoming, daily = (Path(capture), Path(incoming_root), Path(daily_root))
 	report = {'capture': str(capture), 'status': 'retained', 'drained': False}
@@ -310,7 +329,7 @@ def commit_capture(capture, *, incoming_root=INCOMING, daily_root=DAILY, apply=F
 				pass
 		r = {**report, 'reason': str(exc)}
 	return r
-# 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
 def drain_incoming(capture=None, *, incoming_root=INCOMING, daily_root=DAILY, apply=False):

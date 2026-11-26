@@ -1,5 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/170
 from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
@@ -7,6 +6,9 @@ from typing import Any
 from .formatting import _format_step_value, _system_display_name, format_duration_timecode, format_local_timestamp, posix_path
 import re
 import sys
+# 2026-11-24
+# "Decompose metadata.py into modular metadata collection package":
+# https://github.com/dmitry-ai/harness/issues/170
 def _build_agent_block(platform: str | None, instance_id: str | None, model: str | None, effort: str | None) -> dict[str, Any]:
 	r: dict[str, Any] = {}
 	sys_name = _system_display_name(platform)

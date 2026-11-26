@@ -1,6 +1,4 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add deterministic FIFO repository landing lease with reactive wait":
-# https://github.com/dmitry-ai/harness/issues/163
 from __future__ import annotations
 from pathlib import Path
 import sys
@@ -14,6 +12,9 @@ if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 from agent_tools import links
 import check_markdown_slop
+# 2026-11-23
+# "Add deterministic FIFO repository landing lease with reactive wait":
+# https://github.com/dmitry-ai/harness/issues/163
 class LandingLeaseTests(unittest.TestCase):
 	def test_acquire_and_release_lifecycle(self):
 		from agent_tools.landing_lease import acquire_lease, lease_status, release_lease

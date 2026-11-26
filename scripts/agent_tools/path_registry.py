@@ -1,42 +1,4 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deploy immutable Harness runtime snapshots with LKG fallback":
-# https://github.com/dmitry-ai/harness/issues/184
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix worktree scope resolution for new files in TDD classifier":
-# https://github.com/dmitry-ai/harness/issues/188
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Accelerate project_paths and overlay link resolution with fast-path caching":
-# https://github.com/dmitry-ai/harness/issues/174
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
-# https://github.com/dmitry-ai/harness/issues/172
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
-# https://github.com/dmitry-ai/harness/issues/132
-# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce similar_projects parity gate, hooks, and documented CLI contract across turn completion and issue lifecycle":
-# https://github.com/dmitry-ai/harness/issues/123
-# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add declarative similar_projects registry groups and project overlay resolution":
-# https://github.com/dmitry-ai/harness/issues/122
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Separate OS user home from instance USERPROFILE and auto-detect active Antigravity instance":
-# https://github.com/dmitry-ai/harness/issues/115
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
-# https://github.com/dmitry-ai/harness/issues/113
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
-# https://github.com/dmitry-ai/harness/issues/108
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
-# https://github.com/dmitry-ai/harness/issues/103
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
-# https://github.com/dmitry-ai/harness/issues/100
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
-# https://github.com/dmitry-ai/harness/issues/95
 from collections import OrderedDict
 from copy import deepcopy
 import glob
@@ -46,7 +8,19 @@ from pathlib import Path
 import re
 import stat
 from typing import Any
+# 2026-11-24
+# "Accelerate project_paths and overlay link resolution with fast-path caching":
+# https://github.com/dmitry-ai/harness/issues/174
+# 2026-11-24
+# "Deploy immutable Harness runtime snapshots with LKG fallback":
+# https://github.com/dmitry-ai/harness/issues/184
+# 2026-11-24
+# "Fix worktree scope resolution for new files in TDD classifier":
+# https://github.com/dmitry-ai/harness/issues/188
 from .path_cache import clear_path_cache, default_runtime_file, get_ttl_overlay_links, lookup_fast_project_paths, lru_get, lru_put, mark_overlay_links_refreshed, overlay_signature_for_roots, resolve_code_anchor, resolve_reverse_map, store_fast_project_paths
+# 2026-11-24
+# "Fix worktree scope resolution for new files in TDD classifier":
+# https://github.com/dmitry-ai/harness/issues/188
 _CODE_ANCHOR = resolve_code_anchor(Path(__file__).resolve().parents[2])
 DEFAULT_REGISTRY_FILE = Path(__file__).resolve().parents[2] / 'paths.json'
 _VAR_NAME_RE = re.compile('^[A-Za-z_][A-Za-z0-9_]*$')
@@ -56,17 +30,29 @@ _ESC_DOLLAR = '\x00HARNESS_DOLLAR_LBRACE\x00'
 _ESC_PERCENT = '\x00HARNESS_PERCENT\x00'
 _INITIAL_HOME = Path.home().as_posix().rstrip('/')
 _REGISTRY_CACHE: dict[tuple, 'PathRegistry'] = {}
+# 2026-11-24
+# "Accelerate project_paths and overlay link resolution with fast-path caching":
+# https://github.com/dmitry-ai/harness/issues/174
 _PROJECT_PATHS_CACHE: OrderedDict[tuple, 'ProjectPaths'] = OrderedDict()
 _OVERLAY_REVERSE_MAP: dict[str, Path] = {}
+# 2026-11-22
+# "Add declarative similar_projects registry groups and project overlay resolution":
+# https://github.com/dmitry-ai/harness/issues/122
 _SIMILAR_REVERSE_MAP: dict[tuple[str, str], list[Path]] = {}
 _DISCOVERY_STATE: dict[str, Any] = {'roots_key': None, 'candidate_roots': (), 'fingerprint': None, 'links': {}, 'similar_links': {}}
 def clear_registry_cache() -> None:
+	# 2026-11-24
+	# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
+	# https://github.com/dmitry-ai/harness/issues/172
 	from .issues.repo_locator import clear_repo_locator_cache
 	_REGISTRY_CACHE.clear()
 	_PROJECT_PATHS_CACHE.clear()
 	_OVERLAY_REVERSE_MAP.clear()
 	_SIMILAR_REVERSE_MAP.clear()
 	_DISCOVERY_STATE.update({'roots_key': None, 'candidate_roots': (), 'fingerprint': None, 'links': {}, 'similar_links': {}})
+	# 2026-11-24
+	# "Accelerate project_paths and overlay link resolution with fast-path caching":
+	# https://github.com/dmitry-ai/harness/issues/174
 	clear_path_cache()
 	clear_repo_locator_cache()
 def escape_template_literal(value: str) -> str:
@@ -88,6 +74,9 @@ def _is_linked(path: Path, stop_at: Path | None=None) -> bool:
 	return False
 def _path_key(value: str | Path) -> str:
 	return str(value).replace('\\', '/').rstrip('/').casefold()
+# 2026-11-21
+# "Separate OS user home from instance USERPROFILE and auto-detect active Antigravity instance":
+# https://github.com/dmitry-ai/harness/issues/115
 def _resolve_process_home(environ) -> str:
 	home = None
 	for hk in ('USERPROFILE', 'HOME'):
@@ -276,6 +265,9 @@ def _validate_string_list(raw: Any, label: str) -> list[str]:
 	if not isinstance(raw, list) or any((not isinstance(x, str) or not x.strip() for x in raw)):
 		raise ValueError(f'{label} must be a list of non-empty path strings')
 	return list(raw)
+# 2026-11-22
+# "Add declarative similar_projects registry groups and project overlay resolution":
+# https://github.com/dmitry-ai/harness/issues/122
 _SIMILAR_GROUP_ID_RE = re.compile('^[A-Za-z0-9_.-]+$')
 def _validate_similar_project_groups(raw: Any, variables: dict[str, str], *, env: dict[str, str] | None=None) -> tuple[dict[str, Any], ...]:
 	if None is raw:
@@ -341,6 +333,12 @@ def _validate_similar_project_groups(raw: Any, variables: dict[str, str], *, env
 			members_out.append({'project': proj_abs, 'affiliated_paths': tuple(aff_resolved_list)})
 		groups.append({'id': gid, 'members': tuple(members_out)})
 	return tuple(groups)
+# 2026-11-20
+# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
+# https://github.com/dmitry-ai/harness/issues/100
+# 2026-11-20
+# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+# https://github.com/dmitry-ai/harness/issues/103
 def _infer_harness_anchor(anchor_code: Path) -> tuple[Path, Path, int]:
 	if '\u26ef' == anchor_code.name and 4 <= len(anchor_code.parents) and (anchor_code.parent.name, anchor_code.parents[1].name, anchor_code.parents[2].name) in (('\u2655', '\u227b', '\u2c0f'), ('Deliverables', '\u227b', 'Artifacts')):
 		root = anchor_code.parents[3].resolve()
@@ -348,6 +346,9 @@ def _infer_harness_anchor(anchor_code: Path) -> tuple[Path, Path, int]:
 	root = anchor_code.parent.resolve()
 	meta = (root / '_').resolve() if (root / '_').is_dir() else root
 	return (root, meta, 1)
+# 2026-11-19
+# "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
+# https://github.com/dmitry-ai/harness/issues/95
 class PathRegistry:
 	def __init__(self, source_path: Path, raw: dict[str, Any], *, primary: Path | None=None, env: dict[str, str] | None=None):
 		self.source_path = Path(source_path).resolve()
@@ -357,9 +358,18 @@ class PathRegistry:
 		variables = _validate_variables_map(raw.get('variables'), 'paths.json variables')
 		if not variables:
 			raise ValueError('paths.json requires non-empty variables')
+		# 2026-11-24
+		# "Fix worktree scope resolution for new files in TDD classifier":
+		# https://github.com/dmitry-ai/harness/issues/188
 		anchor_code = Path(primary).resolve() if None is not primary else resolve_code_anchor(self.source_path.parent.resolve())
+		# 2026-11-22
+		# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
+		# https://github.com/dmitry-ai/harness/issues/123
 		self.anchor_code = anchor_code
 		self.has_synthetic_primary = None is not primary and _path_key(anchor_code) != _path_key(self.source_path.parent.resolve())
+		# 2026-11-20
+		# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
+		# https://github.com/dmitry-ai/harness/issues/100
 		configured_code = expand_template(variables['HARNESS_CODE'], variables, env=self.env, normalize=True) if 'HARNESS_CODE' in variables else ''
 		if _path_key(anchor_code) != _path_key(configured_code) or _path_key(anchor_code) != _path_key(_CODE_ANCHOR):
 			anchor_root, anchor_meta, anchor_ver = _infer_harness_anchor(anchor_code)
@@ -385,6 +395,9 @@ class PathRegistry:
 				raise ValueError('paths.json workspace_overrides values must be objects')
 			ws_resolved = expand_template(ws_tpl, variables, env=self.env, normalize=True)
 			self.workspace_overrides[_path_key(ws_resolved)] = {'root': ws_resolved, **expand_structure(ws_cfg, variables, env=self.env)}
+		# 2026-11-23
+		# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+		# https://github.com/dmitry-ai/harness/issues/132
 		raw_untracked = _validate_string_list(raw.get('untracked_workspaces'), 'paths.json untracked_workspaces')
 		self.untracked_workspaces: frozenset[str] = frozenset((_path_key(Path(os.path.abspath(expand_template(item, variables, env=self.env, normalize=True)))) for item in raw_untracked))
 		raw_reloc = _validate_string_map(raw.get('relocations') or {}, 'paths.json relocations')
@@ -399,6 +412,9 @@ class PathRegistry:
 		self.overlay_candidates = [expand_template(c, variables, env=self.env, normalize=True) for c in _validate_string_list(raw_overlays.get('candidates') or ['.agents/paths.json'], 'project_overlays.candidates')]
 		self.overlay_discovery_roots = [expand_template(r, variables, env=self.env, normalize=True) for r in _validate_string_list(raw_overlays.get('discovery_roots') or [], 'project_overlays.discovery_roots')]
 		self.overlay_discovery_globs = [expand_template(g, variables, env=self.env, normalize=True) for g in _validate_string_list(raw_overlays.get('discovery_globs') or [], 'project_overlays.discovery_globs')]
+		# 2026-11-22
+		# "Add declarative similar_projects registry groups and project overlay resolution":
+		# https://github.com/dmitry-ai/harness/issues/122
 		self.similar_project_groups = _validate_similar_project_groups(raw.get('similar_projects'), variables, env=self.env)
 		raw_profiles = raw.get('project_profiles') or {}
 		if not isinstance(raw_profiles, dict) or 'default' not in raw_profiles:
@@ -421,9 +437,15 @@ class PathRegistry:
 			base = self._resolve_profile_chain(parent_name, (*seen, name))
 		else:
 			base = {'fs_version': 1, 'journal_version': 1, 'variables': {}, 'paths': {}, 'tools': {}, 'code_repos': [], 'auxiliary_repos': {}, 'linked_roots': [], 'similar_projects': [], 'journal_legacy_fallbacks': []}
+		# 2026-11-20
+		# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
+		# https://github.com/dmitry-ai/harness/issues/100
 		raw_fs_ver = cfg.get('fs_version', base['fs_version'])
 		if int is not type(raw_fs_ver) or raw_fs_ver not in (1, 2):
 			raise ValueError(f'project_profiles.{name}.fs_version must be 1 or 2')
+		# 2026-11-21
+		# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+		# https://github.com/dmitry-ai/harness/issues/108
 		raw_j_ver = cfg.get('journal_version', base['journal_version'])
 		if int is not type(raw_j_ver) or raw_j_ver not in (1, 2, 3):
 			raise ValueError(f'project_profiles.{name}.journal_version must be 1, 2, or 3')
@@ -435,6 +457,9 @@ class PathRegistry:
 		prof_code = _validate_string_list(cfg.get('code_repos'), f'project_profiles.{name}.code_repos')
 		prof_aux = _validate_string_map(cfg.get('auxiliary_repos'), f'project_profiles.{name}.auxiliary_repos')
 		prof_links = _validate_string_list(cfg.get('linked_roots'), f'project_profiles.{name}.linked_roots')
+		# 2026-11-22
+		# "Add declarative similar_projects registry groups and project overlay resolution":
+		# https://github.com/dmitry-ai/harness/issues/122
 		prof_sim = _validate_string_list(cfg.get('similar_projects'), f'project_profiles.{name}.similar_projects')
 		prof_jfb = _validate_string_list(cfg.get('journal_legacy_fallbacks'), f'project_profiles.{name}.journal_legacy_fallbacks')
 		return {
@@ -457,6 +482,9 @@ class PathRegistry:
 		return expand_structure(data, merged, env=self.env)
 def _env_fingerprint(env: dict[str, str] | None) -> tuple:
 	if None is env:
+		# 2026-11-21
+		# "Separate OS user home from instance USERPROFILE and auto-detect active Antigravity instance":
+		# https://github.com/dmitry-ai/harness/issues/115
 		keys = ('OS_USER_HOME', 'USERPROFILE', 'HOME', 'APPDATA', 'LOCALAPPDATA', 'PROGRAMFILES', 'SYSTEMROOT', 'HARNESS_PATHS_FILE')
 		return tuple(((k, os.environ.get(k)) for k in keys))
 	return tuple(sorted(((str(k), str(v)) for k, v in env.items())))
@@ -538,6 +566,12 @@ def workspace_override(path: str | Path, key: str | None=None, *, registry: Path
 def relocated_roots(*, registry: PathRegistry | None=None) -> dict[str, str]:
 	reg = registry or load_registry()
 	return dict(reg.relocations)
+# 2026-11-20
+# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
+# https://github.com/dmitry-ai/harness/issues/100
+# 2026-11-20
+# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+# https://github.com/dmitry-ai/harness/issues/103
 def relocated_harness_code_dirs(*, primary: str | Path | None=None, registry: PathRegistry | None=None) -> tuple[Path, ...]:
 	reg = registry or load_registry()
 	cur_code = Path(os.path.abspath(primary)) if None is not primary else (Path(reg.resolved_variables.get('HARNESS_CODE', '')).resolve() if reg.resolved_variables.get('HARNESS_CODE') else None)
@@ -644,6 +678,9 @@ def default_platform_paths(adapter_kind: str, *, home: str | Path | None=None, u
 	reg = registry or load_registry()
 	layout = reg.platform_layouts.get(adapter_kind) or {}
 	extra_vars = None
+	# 2026-11-21
+	# "Separate OS user home from instance USERPROFILE and auto-detect active Antigravity instance":
+	# https://github.com/dmitry-ai/harness/issues/115
 	if None is home:
 		if None is reg.env:
 			try:
@@ -687,12 +724,21 @@ def _validate_overlay(raw: Any, overlay_path: Path, reg: PathRegistry) -> dict[s
 	unknown = set(raw) - allowed_keys
 	if unknown:
 		raise ValueError(f"Unknown keys in project overlay {overlay_path}: {', '.join(sorted(unknown))}")
+	# 2026-11-20
+	# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
+	# https://github.com/dmitry-ai/harness/issues/100
 	fs_ver = raw.get('fs_version')
 	if None is not fs_ver and (int is not type(fs_ver) or fs_ver not in (1, 2)):
 		raise ValueError(f'Project overlay {overlay_path} fs_version must be 1 or 2')
+	# 2026-11-21
+	# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+	# https://github.com/dmitry-ai/harness/issues/108
 	j_ver = raw.get('journal_version')
 	if None is not j_ver and (int is not type(j_ver) or j_ver not in (1, 2, 3)):
 		raise ValueError(f'Project overlay {overlay_path} journal_version must be 1, 2, or 3')
+	# 2026-11-23
+	# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+	# https://github.com/dmitry-ai/harness/issues/132
 	tracked = raw.get('tracked')
 	if None is not tracked and (bool is not type(tracked)):
 		raise ValueError(f'Project overlay {overlay_path} tracked must be a boolean')
@@ -716,6 +762,9 @@ def _validate_overlay(raw: Any, overlay_path: Path, reg: PathRegistry) -> dict[s
 		'deliverable_segments': _validate_string_list(raw.get('deliverable_segments'), f'{overlay_path} deliverable_segments'),
 		'source_dirs': _validate_string_list(raw.get('source_dirs'), f'{overlay_path} source_dirs'),
 	}
+# 2026-11-21
+# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+# https://github.com/dmitry-ai/harness/issues/108
 _JOURNAL_BUCKET_DIR_RE = re.compile('^(\\d+)[-\\u2013](\\d+)$')
 def _canonical_journal_bucket(step: int, bucket_size: int=20) -> str:
 	start = ((step - 1) // bucket_size) * bucket_size + 1
@@ -765,12 +814,24 @@ def _journal_cache_sig(root: Path, reg: PathRegistry) -> tuple:
 			except OSError:
 				sig.append((rel, False, 0))
 	return tuple(sig)
+# 2026-11-20
+# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
+# https://github.com/dmitry-ai/harness/issues/100
+# 2026-11-20
+# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+# https://github.com/dmitry-ai/harness/issues/103
 def _has_v2_markers(root: Path, reg: PathRegistry) -> bool:
 	book_name = reg.resolved_variables.get('BOOK_DIR_NAME', '\U0001f56e')
 	art_name = reg.resolved_variables.get('ARTIFACTS_DIR_NAME', '\u2c0f')
 	art_out = reg.resolved_variables.get('ARTIFACTS_OUT_DIR_NAME', '\u227b')
 	art_in = reg.resolved_variables.get('ARTIFACTS_IN_DIR_NAME', '\u227a')
 	return (root / book_name).is_dir() or (root / art_name / art_out).is_dir() or (root / art_name / art_in).is_dir() or (root / 'Artifacts' / art_out).is_dir() or (root / 'Artifacts' / art_in).is_dir()
+# 2026-11-20
+# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
+# https://github.com/dmitry-ai/harness/issues/100
+# 2026-11-20
+# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+# https://github.com/dmitry-ai/harness/issues/103
 def _v2_software_deliverable_dir(root: Path, reg: PathRegistry) -> Path:
 	art_name = reg.resolved_variables.get('ARTIFACTS_DIR_NAME', '\u2c0f')
 	art_out = reg.resolved_variables.get('ARTIFACTS_OUT_DIR_NAME', '\u227b')
@@ -798,6 +859,9 @@ def canonicalize_root_dir(value: str | Path, *, registry: PathRegistry | None=No
 		if (cand_root / agent_name).is_dir() or (cand_root / '.agents').is_dir() or _has_v2_markers(cand_root, reg):
 			path = cand_root
 	elif path.name in (sw_name, srv_name) or (path / '.git').exists():
+		# 2026-11-21
+		# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+		# https://github.com/dmitry-ai/harness/issues/113
 		chain = (path, *path.parents)
 		for idx, node in enumerate(chain):
 			if node.name in (srv_name, web_name) and idx + 5 < len(chain):
@@ -815,6 +879,9 @@ def canonicalize_root_dir(value: str | Path, *, registry: PathRegistry | None=No
 			break
 		path = next_p
 	return path
+# 2026-11-21
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
 def same_project_root(first: str | Path | None, second: str | Path | None, *, registry: PathRegistry | None=None) -> bool:
 	if None is first or None is second:
 		return False
@@ -882,6 +949,9 @@ def _candidate_discovery_roots(reg: PathRegistry) -> tuple[tuple, tuple[Path, ..
 							if cand.is_dir():
 								_push(cand)
 							else:
+								# 2026-11-21
+								# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+								# https://github.com/dmitry-ai/harness/issues/113
 								ck = _path_key(cand)
 								if ck in reg.relocations:
 									reloc = Path(reg.relocations[ck]).resolve()
@@ -894,6 +964,9 @@ def _candidate_discovery_roots(reg: PathRegistry) -> tuple[tuple, tuple[Path, ..
 	_DISCOVERY_STATE['candidate_roots'] = frozen
 	return (roots_key, frozen)
 def _refresh_known_overlay_links(reg: PathRegistry) -> dict[str, Path]:
+	# 2026-11-24
+	# "Accelerate project_paths and overlay link resolution with fast-path caching":
+	# https://github.com/dmitry-ai/harness/issues/174
 	ttl_links = get_ttl_overlay_links(reg, DEFAULT_REGISTRY_FILE, _DISCOVERY_STATE)
 	if None is not ttl_links:
 		return ttl_links
@@ -905,6 +978,9 @@ def _refresh_known_overlay_links(reg: PathRegistry) -> dict[str, Path]:
 		mark_overlay_links_refreshed(reg, DEFAULT_REGISTRY_FILE)
 		return dict(_DISCOVERY_STATE['links'])
 	links: dict[str, Path] = {}
+	# 2026-11-22
+	# "Add declarative similar_projects registry groups and project overlay resolution":
+	# https://github.com/dmitry-ai/harness/issues/122
 	similar_links: dict[str, list[Path]] = {}
 	for root_p in candidate_roots:
 		rk = _path_key(root_p)
@@ -984,6 +1060,9 @@ def resolve_project_root(target: str | Path, *, registry: PathRegistry | None=No
 		if discover_overlay_file(anc, registry=reg, _resolved_root=True):
 			return canonicalize_root_dir(anc, registry=reg)
 	local_idx, local_root = _find_local_marker_root(start, reg)
+	# 2026-11-24
+	# "Accelerate project_paths and overlay link resolution with fast-path caching":
+	# https://github.com/dmitry-ai/harness/issues/174
 	reverse_map = resolve_reverse_map(start, local_idx, local_root, reg, DEFAULT_REGISTRY_FILE, _DISCOVERY_STATE, _OVERLAY_REVERSE_MAP, _refresh_known_overlay_links)
 	if reverse_map:
 		ancestors = (start, *start.parents)
@@ -995,6 +1074,9 @@ def resolve_project_root(target: str | Path, *, registry: PathRegistry | None=No
 	if None is not local_root:
 		return local_root
 	return start
+# 2026-11-20
+# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
+# https://github.com/dmitry-ai/harness/issues/100
 def _infer_default_profile(root: Path, overlay_file: Path | None, reg: PathRegistry, *, explicit_fs_version: int | None=None) -> str:
 	meta_name = reg.resolved_variables.get('META_DIR_NAME', '_')
 	agent_name = reg.resolved_variables.get('AGENT_DIR_NAME', '\ua616')
@@ -1021,6 +1103,9 @@ def _infer_default_profile(root: Path, overlay_file: Path | None, reg: PathRegis
 				pass
 		return 'upwork'
 	return 'default'
+# 2026-11-19
+# "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
+# https://github.com/dmitry-ai/harness/issues/95
 class ProjectPaths:
 	def __init__(self, root: str | Path, *, registry: PathRegistry | None=None, env: dict[str, str] | None=None, _register_links: bool=True):
 		self.registry = registry or load_registry(env=env)
@@ -1028,6 +1113,9 @@ class ProjectPaths:
 		self.overlay_file = discover_overlay_file(self.root, registry=self.registry)
 		self.overlay = _validate_overlay(json.loads(self.overlay_file.read_text(encoding='utf-8-sig')), self.overlay_file, self.registry) if None is not self.overlay_file else None
 		self.has_overlay = None is not self.overlay
+		# 2026-11-23
+		# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+		# https://github.com/dmitry-ai/harness/issues/132
 		self.tracked: bool | None = self.overlay.get('tracked') if self.overlay else None
 		ov_fs_ver = self.overlay.get('fs_version') if self.overlay else None
 		self.profile = (self.overlay.get('profile') if self.overlay else None) or _infer_default_profile(self.root, self.overlay_file, self.registry, explicit_fs_version=ov_fs_ver)
@@ -1047,6 +1135,9 @@ class ProjectPaths:
 		merged_vars.update(prof_spec['variables'])
 		if self.overlay:
 			merged_vars.update(self.overlay['variables'])
+		# 2026-11-20
+		# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+		# https://github.com/dmitry-ai/harness/issues/103
 		ov_vars = self.overlay['variables'] if self.overlay else {}
 		if 2 == self.fs_version and 'ARTIFACTS_DIR_NAME' not in ov_vars and 'ARTIFACTS_DIR' not in ov_vars:
 			cur_art = self.registry.resolved_variables.get('ARTIFACTS_DIR_NAME', '\u2c0f')
@@ -1109,6 +1200,9 @@ class ProjectPaths:
 		self.auxiliary_repos = {k: Path(self._resolve_rel_to_root(v)).resolve() for k, v in raw_aux.items()}
 		raw_links = self.overlay['linked_roots'] if self.overlay and self.overlay['linked_roots'] else prof_spec['linked_roots']
 		self.linked_roots = tuple((Path(self._resolve_rel_to_root(item)).resolve() for item in raw_links))
+		# 2026-11-22
+		# "Add declarative similar_projects registry groups and project overlay resolution":
+		# https://github.com/dmitry-ai/harness/issues/122
 		raw_sim = self.overlay['similar_projects'] if self.overlay and self.overlay['similar_projects'] else prof_spec['similar_projects']
 		direct_sim: list[Path] = []
 		seen_sim: set[str] = {_path_key(self.root)}
@@ -1128,6 +1222,9 @@ class ProjectPaths:
 		self._direct_similar_projects = tuple(direct_sim)
 		self._include_reverse_similar = _register_links
 		self.journal_legacy_fallbacks = tuple((Path(self._resolve_rel_to_root(item)) for item in prof_spec['journal_legacy_fallbacks']))
+		# 2026-11-21
+		# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+		# https://github.com/dmitry-ai/harness/issues/108
 		ov_j_ver = self.overlay.get('journal_version') if self.overlay else None
 		cfg_j_ver = ov_j_ver if None is not ov_j_ver else prof_spec['journal_version']
 		j_root = Path(self.paths_str['journal_root_dir'])
@@ -1279,6 +1376,9 @@ class ProjectPaths:
 	@property
 	def http_index_json(self) -> Path:
 		return Path(self.paths_str['http_index_json'])
+	# 2026-11-22
+	# "Add declarative similar_projects registry groups and project overlay resolution":
+	# https://github.com/dmitry-ai/harness/issues/122
 	@property
 	def similar_projects(self) -> tuple[Path, ...]:
 		out: list[Path] = list(self._direct_similar_projects)
@@ -1322,8 +1422,14 @@ class ProjectPaths:
 			out['linked_roots_exist'] = {p.as_posix(): p.exists() for p in self.linked_roots}
 			out['similar_projects_exist'] = {p.as_posix(): p.is_dir() for p in sim_projects}
 		return out
+# 2026-11-19
+# "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
+# https://github.com/dmitry-ai/harness/issues/95
 def project_paths(path_or_root: str | Path, *, registry: PathRegistry | None=None, env: dict[str, str] | None=None, exact_root: bool=False) -> ProjectPaths:
 	reg = registry or load_registry(env=env)
+	# 2026-11-24
+	# "Accelerate project_paths and overlay link resolution with fast-path caching":
+	# https://github.com/dmitry-ai/harness/issues/174
 	fast_key = (id(reg), str(path_or_root), bool(exact_root))
 	fast_hit = lookup_fast_project_paths(fast_key, reg, len(_OVERLAY_REVERSE_MAP))
 	if None is not fast_hit:
@@ -1342,6 +1448,9 @@ def project_paths(path_or_root: str | Path, *, registry: PathRegistry | None=Non
 		pp._register_reverse_links()
 	store_fast_project_paths(fast_key, pp, reg, len(_OVERLAY_REVERSE_MAP))
 	return pp
+# 2026-11-23
+# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+# https://github.com/dmitry-ai/harness/issues/132
 _EXCLUDED_PROJECT_IDS = frozenset(('outside-of-project', 'default-cli-project'))
 def _is_registered_single_project(canon: Path, *, registry: PathRegistry, projects_dirs=None) -> bool:
 	dirs: list[Path] = []
@@ -1406,6 +1515,9 @@ def _is_registered_single_project(canon: Path, *, registry: PathRegistry, projec
 			if _path_key(res_path) == target_key:
 				return True
 	return False
+# 2026-11-23
+# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+# https://github.com/dmitry-ai/harness/issues/132
 def is_tracked_workspace(root: str | Path, *, registry: PathRegistry | None=None, projects_dirs=None) -> tuple[bool, Path]:
 	reg = registry or load_registry()
 	raw_canon = canonicalize_root_dir(root, registry=reg)
@@ -1430,6 +1542,9 @@ def is_tracked_workspace(root: str | Path, *, registry: PathRegistry | None=None
 	if _is_registered_single_project(raw_canon, registry=reg, projects_dirs=projects_dirs):
 		return (True, raw_canon)
 	return (False, raw_canon)
+# 2026-11-22
+# "Add declarative similar_projects registry groups and project overlay resolution":
+# https://github.com/dmitry-ai/harness/issues/122
 def evaluate_similar_project_touches(touched_repo_files: list[Path] | tuple[Path, ...] | set[Path], *, registry: PathRegistry | None=None) -> list[dict[str, Any]]:
 	reg = registry or load_registry()
 	resolved_files: list[Path] = []
@@ -1513,10 +1628,16 @@ def evaluate_similar_project_touches(touched_repo_files: list[Path] | tuple[Path
 			peer_hit = pk in touched_root_keys or any((f2 == pr or f2.is_relative_to(pr) for f2 in resolved_files for pr in peer_roots))
 			_record_peer(peer_root, group_id=None, source_projects=[src_root], source_label=f'{src_root.as_posix()} ({fp.name})', peer_touched=peer_hit)
 	return [emitted[k] for k in sorted(emitted, key=lambda key: str(emitted[key]['peer_root']))]
+# 2026-11-19
+# "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
+# https://github.com/dmitry-ai/harness/issues/95
 def paths_report(project: str | Path | None=None, *, expand: str | None=None, check: bool=False, registry: PathRegistry | None=None) -> dict[str, Any]:
 	reg = registry or load_registry()
 	issues: list[dict[str, str]] = []
 	discovered_overlays: list[dict[str, Any]] = []
+	# 2026-11-22
+	# "Add declarative similar_projects registry groups and project overlay resolution":
+	# https://github.com/dmitry-ai/harness/issues/122
 	if check:
 		for grp in reg.similar_project_groups:
 			for mem in grp['members']:
@@ -1524,6 +1645,9 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 				if not m_proj.is_dir():
 					issues.append({'file': reg.source_path.as_posix(), 'message': f"Missing similar_projects member directory in group '{grp['id']}': {m_proj.as_posix()}"})
 				for aff in mem['affiliated_paths']:
+					# 2026-11-22
+					# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
+					# https://github.com/dmitry-ai/harness/issues/123
 					aff_p = Path(os.path.abspath(aff))
 					aff_ok = aff_p.exists() or (reg.has_synthetic_primary and aff_p.is_relative_to(Path(os.path.abspath(reg.anchor_code))) and (reg.source_path.parent / aff_p.relative_to(Path(os.path.abspath(reg.anchor_code)))).exists())
 					if not aff_ok:

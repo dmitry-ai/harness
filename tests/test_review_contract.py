@@ -1,21 +1,4 @@
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Initialize new Upwork projects in the V2 filesystem layout":
-# https://github.com/dmitry-ai/harness/issues/110
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
-# https://github.com/dmitry-ai/harness/issues/109
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
-# https://github.com/dmitry-ai/harness/issues/73
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
-# https://github.com/dmitry-ai/harness/issues/63
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
-# https://github.com/dmitry-ai/harness/issues/10
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from copy import deepcopy
 from contextlib import redirect_stdout
 from io import BytesIO, StringIO
@@ -28,6 +11,12 @@ import uuid
 from test_analysis_workflow import ProjectCase
 from agent_tools import workflow as flow, review
 from agent_tools.research import json_data
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class ReviewContractTests(ProjectCase):
 	def setUp(self):
 		super().setUp()
@@ -66,6 +55,9 @@ class ReviewContractTests(ProjectCase):
 		self.self_record(package)
 		result = flow.record_current_answer(self.project, self.answer)
 		self.assertFalse(result['delivery_verified'])
+		# 2026-11-21
+		# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+		# https://github.com/dmitry-ai/harness/issues/109
 		self.assertEqual((self.project / 'ꙮ/≺/1–20/1.md').read_bytes(), self.answer.encode())
 		self.assertEqual(flow.load(self.project)['requests'][-1]['response_prepared']['review_approval']['package'], package['package'])
 	def test_answer_change_and_new_request_need_new_review_even_without_kb_change(self):
@@ -183,6 +175,9 @@ class ReviewContractTests(ProjectCase):
 		flow.complete_stage(self.project, 'review', ['ꘖ/KB/Analysis.json'], [package['package']])
 		flow.complete_stage(self.project, 'kb_review', flow.kb_paths(self.project), ['ꘖ/KB/Analysis.json'], note='Checked consistency.')
 		flow.record_current_answer(self.project, self.answer)
+		# 2026-11-21
+		# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+		# https://github.com/dmitry-ai/harness/issues/109
 		reply = self.project / 'ꙮ/≺/1–20/1.md'
 		reply.write_bytes((self.answer + 'Unreviewed addition.').encode())
 		with self.assertRaises(ValueError):
@@ -265,6 +260,9 @@ class ReviewContractTests(ProjectCase):
 		with patch('agent_tools.platforms.adapter'):
 			self.cli(['record-review', str(self.project), '--parent', self.parent, '--reviewer', self.parent, '--report', '-'], json_data(report))
 		self.cli(['record-answer', str(self.project), '--response-file', '-'], exact)
+		# 2026-11-21
+		# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+		# https://github.com/dmitry-ai/harness/issues/109
 		self.assertEqual((self.project / 'ꙮ/≺/1–20/1.md').read_bytes(), exact)
 	def test_cli_preregistered_unavailable_experiment_finishes_question_with_explicit_gap(self):
 		requirement = self.experiment_requirement()
@@ -336,6 +334,9 @@ class ReviewContractTests(ProjectCase):
 		self.assertEqual(report['claim_reviews'], [])
 		with patch('agent_tools.platforms.adapter'), self.assertRaisesRegex(ValueError, 'nonempty claim_ids'):
 			flow.record_review(self.project, json_data(report), parent_id=self.parent, reviewer_id=self.parent)
+	# 2026-10-19
+	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+	# https://github.com/dmitry-ai/harness/issues/12
 	def test_review_package_rejects_ungrounded_numbers_in_response_excerpt_and_reviewer_report(self):
 		self.answer = 'Client task with 13 items.\n'
 		self.manifest = [{'claim_id': 'F-TITLE', 'response_excerpt': 'Client task with 13 items.'}]
@@ -354,6 +355,9 @@ class ReviewContractTests(ProjectCase):
 		self.assertTrue(any(('numeric figure' in issue for issue in review.report_issues(report, package))))
 		report['claim_reviews'][0]['observed'] = 'Exact registered title inspected: 13 items.'
 		self.assertEqual(review.report_issues(report, package), [])
+	# 2026-10-19
+	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+	# https://github.com/dmitry-ai/harness/issues/12
 	def test_review_input_returns_neutral_report_contract_with_all_options(self):
 		package = self.package()
 		receipt = review.input_receipt(self.project, package['package'])
@@ -361,6 +365,9 @@ class ReviewContractTests(ProjectCase):
 		self.assertEqual(receipt['report_contract']['result_options'], ['approved', 'needs_changes'])
 		self.assertEqual(receipt['report_contract']['claim_review_required']['outcome_options'], ['supported', 'qualified', 'unsupported'])
 		self.assertEqual(receipt['report_contract']['claim_review_required']['test_alignment_required']['relationship_options'], ['direct', 'proxy', 'irrelevant'])
+	# 2026-10-19
+	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+	# https://github.com/dmitry-ai/harness/issues/12
 	def test_e8_causes_misconceptions_and_methods_cannot_be_downgraded_or_omitted_in_routine_review(self):
 		from agent_tools.claims import claim_digest
 		fact = self.value['identity'][0]
@@ -379,6 +386,9 @@ class ReviewContractTests(ProjectCase):
 		self.manifest = [{'claim_id': 'F-TITLE', 'response_excerpt': 'Client task'}, {'claim_id': 'H-CAUSE-1', 'response_excerpt': 'Root cause explanation'}]
 		with self.assertRaisesRegex(ValueError, 'routine risk downgrade'):
 			self.review_package(self.parent, self.answer, 'routine', self.manifest)
+	# 2026-10-19
+	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+	# https://github.com/dmitry-ai/harness/issues/12
 	def test_e9_e10_e11_prepare_review_rejects_empty_red_flags_finalize_notes_and_doc4_multi_sentence_lines(self):
 		self.value['red_flags'] = []
 		self.put_project('ꘖ/KB/Analysis.json', json.dumps(self.value))
@@ -389,16 +399,25 @@ class ReviewContractTests(ProjectCase):
 		bad_doc4 = 'Client task\n- **Essence:** First sentence of the claim. Second sentence on the same line.\n'
 		with self.assertRaisesRegex(ValueError, 'DOC-4 violation'):
 			self.review_package(self.parent, bad_doc4, 'routine', self.manifest)
+	# 2026-10-19
+	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+	# https://github.com/dmitry-ai/harness/issues/12
 	def test_e12_check_project_flags_unsynced_client_identity_in_kb_project_md(self):
 		claim = self.value['identity'][0]
 		claim['essence'] = 'The client and website owner is Jean Pierre.'
 		claim['verification_status'] = 'verified'
 		self.put_project('ꘖ/KB/Analysis.json', json.dumps(self.value))
+		# 2026-11-21
+		# "Initialize new Upwork projects in the V2 filesystem layout":
+		# https://github.com/dmitry-ai/harness/issues/110
 		self.put_project('\U0001f56e/Project.md', '# 1. Client\n## 1.1 Name\nunknown\n')
 		self.put_project('ꘖ/KB/Project.md', '# 1. Client\n## 1.1 Name\nunknown\n')
 		res = flow.check_project(self.project)
 		codes = {issue['code'] for issue in res['issues']}
 		self.assertIn('kb.identity_mismatch', codes)
+	# 2026-11-13
+	# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+	# https://github.com/dmitry-ai/harness/issues/63
 	def test_merkle_cached_single_reviewer_quorum_recognizes_approved_digests_and_storage_receipts(self):
 		from agent_tools.storage import read_addressed_json, write_immutable_bytes
 		claim = self.value['identity'][0]
@@ -424,6 +443,9 @@ class ReviewContractTests(ProjectCase):
 		bad_name = self.put_project('ꘖ/data/receipts/0000-check.json', payload.decode('utf-8'))
 		with self.assertRaisesRegex(ValueError, 'bad receipt'):
 			read_addressed_json(bad_name, suffix='-check.json', error_msg='bad receipt')
+# 2026-11-14
+# "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
+# https://github.com/dmitry-ai/harness/issues/73
 class ReviewDecompositionTests(ProjectCase):
 	def setUp(self):
 		super().setUp()

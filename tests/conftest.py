@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enable parallel pytest-xdist full-suite execution and outcome parsing":
-# https://github.com/dmitry-ai/harness/issues/178
 from __future__ import annotations
 from collections.abc import MutableMapping
 from pathlib import Path
@@ -8,6 +6,9 @@ import os
 import sys
 TESTS_DIR = Path(__file__).resolve().parent
 SCRIPTS_DIR = TESTS_DIR.parent / 'scripts'
+# 2026-11-24
+# "Enable parallel pytest-xdist full-suite execution and outcome parsing":
+# https://github.com/dmitry-ai/harness/issues/178
 def configure_test_environment(*, sys_path: list[str] | None=None, env: MutableMapping[str, str] | None=None) -> None:
 	target_path = sys.path if None is sys_path else sys_path
 	for entry in (str(TESTS_DIR), str(SCRIPTS_DIR)):

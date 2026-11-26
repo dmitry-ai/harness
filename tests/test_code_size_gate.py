@@ -1,6 +1,4 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce AST function and file SLOC ratchet gate in PreToolUse and Git pre-commit":
-# https://github.com/dmitry-ai/harness/issues/161
 from __future__ import annotations
 from pathlib import Path
 import subprocess
@@ -14,6 +12,9 @@ if str(SCRIPTS) not in sys.path:
 from agent_tools import links
 from agent_tools.git_gate import GitRepoGate
 import check_markdown_slop
+# 2026-11-23
+# "Enforce AST function and file SLOC ratchet gate in PreToolUse and Git pre-commit":
+# https://github.com/dmitry-ai/harness/issues/161
 class CodeSizeGateTests(unittest.TestCase):
 	def _make_func(self, name: str, body_lines: int) -> str:
 		lines = [f'def {name}(x):']

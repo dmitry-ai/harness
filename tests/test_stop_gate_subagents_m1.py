@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Detect active Antigravity 2.0 subagents in check_stop_gate via summary DB":
-# https://github.com/dmitry-ai/harness/issues/211
 from __future__ import annotations
 import json
 from pathlib import Path
@@ -38,6 +36,9 @@ def _spawn_row(step: int, child_id: str) -> list[dict]:
 	]
 def _sys_msg_row(step: int, sender_id: str) -> dict:
 	return {'step_index': step, 'type': 'SYSTEM_MESSAGE', 'content': f'<SYSTEM_MESSAGE>\n[Message] timestamp=2026-11-22T23:18:00Z sender={sender_id} priority=MESSAGE_PRIORITY_HIGH content=Done\n</SYSTEM_MESSAGE>'}
+# 2026-11-24
+# "Detect active Antigravity 2.0 subagents in check_stop_gate via summary DB":
+# https://github.com/dmitry-ai/harness/issues/211
 class StopGateSubagentsM1Tests(unittest.TestCase):
 	def _base_state(self) -> dict:
 		return {'key': 'turn001', 'conversation_id': PARENT_CID, 'native_turn_id': f'ag-{PARENT_CID}-0', 'native_start_step': 0, 'status': 'open', 'prepared': None}

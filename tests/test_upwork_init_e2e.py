@@ -1,9 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Require separate companion /df-analysis tracks for every complex problem analysis":
-# https://github.com/dmitry-ai/harness/issues/249
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add full offline CLI and hook end-to-end lifecycle test for /upwork-init":
-# https://github.com/dmitry-ai/harness/issues/235
 from __future__ import annotations
 from contextlib import closing
 from pathlib import Path
@@ -159,6 +154,9 @@ def _doc5_blocked_report(src_link: str) -> str:
 		'- Arguments against: Requires follow-up turn.  \n'
 		'- Score: 90% for safe recovery.  \n'
 	) + _doc5_companion_blocks(src_link)
+# 2026-11-25
+# "Require separate companion /df-analysis tracks for every complex problem analysis":
+# https://github.com/dmitry-ai/harness/issues/249
 def _doc5_companion_block(header: str, tag: str, desc: str, src_link: str) -> str:
 	return (
 		f'\n---\n\n# {header}\n\n# 0. Metadata ({tag})\n\n'
@@ -170,6 +168,9 @@ def _doc5_companion_block(header: str, tag: str, desc: str, src_link: str) -> st
 		f'## M-{tag}-1: Systemic check\n- Essence: Add automated check.  \n- Arguments for: Prevents recurrence.  \n- Arguments against: Small cost.  \n- Score: 90%.  \n\n'
 		f'## M-{tag}-2: Manual check\n- Essence: Verify manually.  \n- Arguments for: Fast setup.  \n- Arguments against: Unreliable.  \n- Score: 20%.  \n'
 	)
+# 2026-11-25
+# "Require separate companion /df-analysis tracks for every complex problem analysis":
+# https://github.com/dmitry-ai/harness/issues/249
 def _doc5_companion_blocks(src_link: str) -> str:
 	return (
 		_doc5_companion_block('Analysis 2: Culprit attribution', '2', 'Who introduced the upstream blocker: external endpoint returned `HTTP 503`.', src_link)
@@ -230,6 +231,9 @@ def _run_turn2_continuation(case: unittest.TestCase, launcher: Path, daily: Path
 	parent_rows.append({'step_index': 25, 'type': 'PLANNER_RESPONSE', 'content': reply2, 'tool_calls': []})
 	_write_transcript(backend, PARENT_CID, parent_rows)
 	case.assertEqual('allow', _run_hook(STOP_HOOK_PY, _stop_payload(launcher, PARENT_CID, tx), env, cwd=launcher)['decision'])
+# 2026-11-25
+# "Add full offline CLI and hook end-to-end lifecycle test for /upwork-init":
+# https://github.com/dmitry-ai/harness/issues/235
 class UpworkInitFullE2ETests(unittest.TestCase):
 	def test_e2e_blocked_report_doc5_and_shadowing_stop_gate_cli(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

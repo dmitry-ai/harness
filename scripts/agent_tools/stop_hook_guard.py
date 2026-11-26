@@ -1,32 +1,33 @@
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
-# https://github.com/dmitry-ai/harness/issues/255
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify handed-off turn routing and deterministic state selection across hooks":
-# https://github.com/dmitry-ai/harness/issues/231
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
-# https://github.com/dmitry-ai/harness/issues/224
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Align check_stop_gate with Antigravity 2.0 conversationId contract and continuation loop guard":
-# https://github.com/dmitry-ai/harness/issues/197
 from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import hashlib
 import json
 import re
+# 2026-11-26
+# "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
+# https://github.com/dmitry-ai/harness/issues/255
 from .stop_emergency_capture import maybe_emergency_capture_journal
 from .storage import replace_bytes
+# 2026-11-24
+# "Align check_stop_gate with Antigravity 2.0 conversationId contract and continuation loop guard":
+# https://github.com/dmitry-ai/harness/issues/197
 MAX_TOTAL_CONTINUATIONS = 3
 _OPT_OUT_RE = re.compile(r'(?i)(?:\b(?:skip\s+journaling|do\s+not\s+journal|don\'t\s+journal|no\s+journal(?:ing)?|without\s+journaling|opt[\s-]+out\s+of\s+journaling)\b|\b(?:\u0431\u0435\u0437\s+\u0436\u0443\u0440\u043d\u0430\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u0438\w*|\u043d\u0435\s+\u0436\u0443\u0440\u043d\u0430\u043b\u0438\u0440\u0443\w*|\u043d\u0435\s+\u0437\u0430\u043f\u0438\u0441\u044b\u0432\u0430\w*\s+\u0432\s+\u0436\u0443\u0440\u043d\u0430\u043b|\u043e\u0442\u043c\u0435\u043d\u0438\w*\s+\u0436\u0443\u0440\u043d\u0430\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u0438\w*)\b)')
 _TRANSCRIPT_UUID_RE = re.compile(r'(?:^|[/\\])brain[/\\]([a-f0-9-]{36})(?:[/\\]|$)', re.IGNORECASE)
 _UUID_RE = re.compile(r'[a-f0-9-]{36}')
+# 2026-11-24
+# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
+# https://github.com/dmitry-ai/harness/issues/224
 def _evaluate_continuation_reentry(gfile: Path, fp: str, last_user_step: int, last_step: int | None, prev: dict[str, Any], decision: dict, payload: dict, *, session_id: str='', matched_state: dict | None=None, emergency_ctx: dict[str, Any] | None=None) -> dict:
 	exec_raw = payload.get('executionNum')
 	exec_num = exec_raw if isinstance(exec_raw, int) and (not isinstance(exec_raw, bool)) else 0
 	prev_fp, prev_total = (str(prev.get('fingerprint') or ''), int(prev.get('total_count') or 0))
 	if (prev_fp and prev_fp == fp) or MAX_TOTAL_CONTINUATIONS <= prev_total or MAX_TOTAL_CONTINUATIONS <= exec_num:
+		# 2026-11-26
+		# "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
+		# https://github.com/dmitry-ai/harness/issues/255
 		maybe_emergency_capture_journal(gfile.parents[1], session_id, last_user_step, matched_state, decision, emergency_ctx)
 		r = {'decision': 'allow'}
 	else:
@@ -49,6 +50,9 @@ def _guard_file_path(t_dir: Path, session_id: str, last_user_step: int, matched_
 	raw_key = str((matched_state or {}).get('key') or f'{session_id}-{last_user_step}')
 	safe_key = re.sub(r'[^A-Za-z0-9_.-]+', '_', raw_key).strip('_') or 'stop'
 	return t_dir / 'stop-guards' / f'{safe_key}.json'
+# 2026-11-24
+# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
+# https://github.com/dmitry-ai/harness/issues/224
 def _is_continuation_reentry(payload: dict, prev: dict[str, Any], last_user_step: int, last_step: int | None) -> bool:
 	same_turn = bool(prev) and (prev.get('last_user_step') in (None, last_user_step))
 	step_advanced = same_turn and isinstance(last_step, int) and isinstance(prev.get('last_step'), int) and (last_step > prev['last_step'])
@@ -63,6 +67,9 @@ def _load_guard(path: Path) -> dict[str, Any]:
 		except (OSError, ValueError):
 			r = {}
 	return r
+# 2026-11-24
+# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
+# https://github.com/dmitry-ai/harness/issues/224
 def _max_segment_step(segment: list[dict] | None, last_user_step: int) -> int | None:
 	r = None
 	if None is not segment:
@@ -80,6 +87,9 @@ def _unlink_guard(path: Path) -> None:
 		path.unlink(missing_ok=True)
 	except OSError:
 		pass
+# 2026-11-24
+# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
+# https://github.com/dmitry-ai/harness/issues/224
 def apply_continuation_guard(t_dir: Path, session_id: str, last_user_step: int, matched_state: dict | None, decision: dict, payload: dict, *, segment: list[dict] | None=None, emergency_ctx: dict[str, Any] | None=None) -> dict:
 	gfile = _guard_file_path(t_dir, session_id, last_user_step, matched_state)
 	if 'continue' != decision.get('decision'):
@@ -93,6 +103,9 @@ def apply_continuation_guard(t_dir: Path, session_id: str, last_user_step: int, 
 			_save_guard(gfile, {'fingerprint': fp, 'last_user_step': last_user_step, 'last_step': last_step, 'unchanged_count': 1, 'total_count': 1})
 			r = decision
 		else:
+			# 2026-11-26
+			# "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
+			# https://github.com/dmitry-ai/harness/issues/255
 			r = _evaluate_continuation_reentry(gfile, fp, last_user_step, last_step, prev, decision, payload, session_id=session_id, matched_state=matched_state, emergency_ctx=emergency_ctx)
 	return r
 def extract_stop_context(payload: dict) -> tuple[str, str, str]:
@@ -108,6 +121,12 @@ def extract_stop_context(payload: dict) -> tuple[str, str, str]:
 		cand_id = m.group(1).lower() if m else ''
 	session_id = cand_id if _UUID_RE.fullmatch(cand_id) else ''
 	return (cwd_raw, session_id, t_path_raw)
+# 2026-11-24
+# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
+# https://github.com/dmitry-ai/harness/issues/224
+# 2026-11-25
+# "Unify handed-off turn routing and deterministic state selection across hooks":
+# https://github.com/dmitry-ai/harness/issues/231
 def handoff_matches_user_step(st: dict, rows: list[dict], last_user_step: int, *, user_text: str | None=None) -> bool:
 	from .platforms.request_binding import _extract_leading_upwork_init_ids
 	r = True

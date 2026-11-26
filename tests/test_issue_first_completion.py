@@ -1,12 +1,4 @@
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce pushed Git tags on issue-closing commits in lifecycle gates":
-# https://github.com/dmitry-ai/harness/issues/263
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
-# https://github.com/dmitry-ai/harness/issues/175
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
-# https://github.com/dmitry-ai/harness/issues/146
 from __future__ import annotations
 
 from contextlib import closing
@@ -26,6 +18,7 @@ if str(SCRIPT_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPT_DIR))
 
 from agent_tools import completion, git_gate
+# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 from agent_tools.repo_tags import ensure_commit_tag
 import check_stop_gate
 
@@ -69,6 +62,9 @@ def _write_issue_ev(proj: Path, slug: str, num: int, *, state: str = 'closed', p
 	return p
 
 
+# 2026-11-24
+# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/175
 _EMPTY_TEMPLATE: list[tuple[tempfile.TemporaryDirectory, Path, Path]] = []
 
 
@@ -89,6 +85,9 @@ def _get_empty_git_template() -> tuple[Path, Path]:
 
 
 def _init_github_project(base: Path, *, slug: str = 'acme/demo', commit_issue: int = 51) -> tuple[Path, Path, Path]:
+	# 2026-11-24
+	# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+	# https://github.com/dmitry-ai/harness/issues/175
 	t_bare, t_code = _get_empty_git_template()
 	proj = base / 'proj'
 	code = proj / 'code'
@@ -113,6 +112,7 @@ def _init_github_project(base: Path, *, slug: str = 'acme/demo', commit_issue: i
 	subprocess.run(['git', '-C', str(code), 'add', 'app.py', 'tests/test_existing.py', 'tests/test_app.py'], check=True, capture_output=True)
 	subprocess.run(['git', '-C', str(code), 'commit', '-m', f'https://github.com/{slug}/issues/{commit_issue}'], check=True, capture_output=True)
 	subprocess.run(['git', '-C', str(code), 'push', '-u', 'origin', 'main'], check=True, capture_output=True)
+	# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 	ensure_commit_tag(code, push=True)
 	return (proj, code, bare)
 
@@ -168,6 +168,9 @@ def _setup_codex_conv(base: Path, proj: Path, prompt_text: str, extra_rows: list
 	return (codex_home, tid, rollout)
 
 
+# 2026-11-23
+# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+# https://github.com/dmitry-ai/harness/issues/146
 class IssueFirstTurnCompletionAndGitTests(unittest.TestCase):
 	def test_antigravity_issue_first_gate_blocks_retroactive_and_passes_parent_then_tdd(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

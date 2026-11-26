@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Manage Harness ephemeral Git exclusions in install-global and doctor":
-# https://github.com/dmitry-ai/harness/issues/198
 from __future__ import annotations
 from copy import deepcopy
 from pathlib import Path
@@ -16,6 +14,9 @@ SCRIPTS = WORKTREE_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 from agent_tools import native_profiles as native, runtime, upwork_project as up
+# 2026-11-24
+# "Manage Harness ephemeral Git exclusions in install-global and doctor":
+# https://github.com/dmitry-ai/harness/issues/198
 class GlobalGitIgnoreTests(unittest.TestCase):
 	def _git(self, cwd: Path, *args: str, env: dict[str, str] | None=None, check: bool=True) -> subprocess.CompletedProcess:
 		return subprocess.run(['git', '-C', str(cwd), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, check=check)

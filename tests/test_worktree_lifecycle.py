@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove landed worktrees by default and flag stale worktrees in worktree-status":
-# https://github.com/dmitry-ai/harness/issues/203
 from __future__ import annotations
 from pathlib import Path
 import subprocess
@@ -13,6 +11,9 @@ if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 from agent_tools.upwork_project import main as cli_main
 from agent_tools.worktree_flow import worktree_begin, worktree_cleanup, worktree_land, worktree_status
+# 2026-11-24
+# "Remove landed worktrees by default and flag stale worktrees in worktree-status":
+# https://github.com/dmitry-ai/harness/issues/203
 class WorktreeLifecycleTests(unittest.TestCase):
 	def _git(self, repo: Path, *args: str) -> str:
 		proc = subprocess.run(['git', '-C', str(repo), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', check=True)

@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
-# https://github.com/dmitry-ai/harness/issues/204
 from __future__ import annotations
 from pathlib import Path
 import json
@@ -48,6 +46,9 @@ def _write_stdin_probe_module(tests_dir: Path) -> Path:
 	mod = tests_dir / 'test_probe_stdin.py'
 	mod.write_text('import sys\nimport unittest\nclass ProbeTests(unittest.TestCase):\n\tdef test_reads_stdin_eof(self):\n\t\tself.assertEqual("", sys.stdin.read())\n', encoding='utf-8')
 	return mod
+# 2026-11-24
+# "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
+# https://github.com/dmitry-ai/harness/issues/204
 class StdinDetachmentTests(unittest.TestCase):
 	def test_git_shim_pre_commit_completes_under_open_stdin_pipe(self) -> None:
 		with tempfile.TemporaryDirectory() as td:

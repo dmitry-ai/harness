@@ -1,82 +1,4 @@
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce pushed Git tags on issue-closing commits in lifecycle gates":
-# https://github.com/dmitry-ai/harness/issues/263
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add CODE-1 Python style ratchet linter gate in PreToolUse and pre-commit":
-# https://github.com/dmitry-ai/harness/issues/243
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/238
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deploy immutable Harness runtime snapshots with LKG fallback":
-# https://github.com/dmitry-ai/harness/issues/184
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
-# https://github.com/dmitry-ai/harness/issues/206
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
-# https://github.com/dmitry-ai/harness/issues/204
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
-# https://github.com/dmitry-ai/harness/issues/175
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce AST function and file SLOC ratchet gate in PreToolUse and Git pre-commit":
-# https://github.com/dmitry-ai/harness/issues/161
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/146
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce TDD test coverage and ratchet in Git pre-commit gate":
-# https://github.com/dmitry-ai/harness/issues/137
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
-# https://github.com/dmitry-ai/harness/issues/113
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
-# https://github.com/dmitry-ai/harness/issues/103
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
-# https://github.com/dmitry-ai/harness/issues/101
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
-# https://github.com/dmitry-ai/harness/issues/84
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
-# https://github.com/dmitry-ai/harness/issues/67
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
-# https://github.com/dmitry-ai/harness/issues/72
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract issue_lifecycle.py from completion.py, fix open backlog-issue lifecycle gating, and consolidate Git/issue helpers in git_gate.py":
-# https://github.com/dmitry-ai/harness/issues/53
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
-# https://github.com/dmitry-ai/harness/issues/2
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
-# https://github.com/dmitry-ai/harness/issues/27
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prevent rogue ꘖ directory outside harness meta repo, remove mirror logic, and recognize GIT_OPTIONAL_LOCKS in git gate":
-# https://github.com/dmitry-ai/harness/issues/28
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
-# https://github.com/dmitry-ai/harness/issues/31
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
-# https://github.com/dmitry-ai/harness/issues/38
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
-# https://github.com/dmitry-ai/harness/issues/39
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate flashing Git console windows on Windows via CREATE_NO_WINDOW and journal-watch lifecycle skip":
-# https://github.com/dmitry-ai/harness/issues/40
-# 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
-# https://github.com/dmitry-ai/harness/issues/48
 import os
 from pathlib import Path
 import re
@@ -89,16 +11,37 @@ from .links import validate_file
 from .path_registry import project_paths, tool_list, tool_path
 from .shell_audit import READ_SUBCOMMANDS, ShellCommandInspector, _COMMIT_MESSAGE_ISSUE_URL_RE, _CYGDRIVE_RE, _GITHUB_ISSUE_URL_RE, _ISSUE_LINKED_CODE_SUFFIXES, _VALUE_GLOBAL_OPTS, _iter_shell_git_segments, _parse_commit_subcommand_args, _scan_git_global_opts, _split_shell_segments, _unquote, classify_git_argv, extract_comment_issue_urls, extract_issue_actions_from_outputs, extract_issue_urls, is_code_file, normalize_commit_message, normalize_host_path, parse_issue_url, prohibited_git_write_commands, unflagged_git_read_commands, unpersisted_http_fetch_commands
 from .subprocess_hygiene_gate import run_staged_gate
+# 2026-11-02
+# "Eliminate flashing Git console windows on Windows by enforcing CREATE_NO_WINDOW and skipping redundant Git subprocesses in journal-watch":
+# https://github.com/dmitry-ai/harness/issues/40
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+# 2026-10-31
+# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+# https://github.com/dmitry-ai/harness/issues/31
+# 2026-11-19
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 HOOKS_DIR = tool_path('git_hooks_dir')
+# 2026-11-02
+# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+# https://github.com/dmitry-ai/harness/issues/38
 GITHUB_MAX_BLOB_BYTES = 100 * 1024 * 1024
 EXTRACTED_MAX_BYTES = 16 * 1024 * 1024
 _EXTRACTED_DERIVED_RE = re.compile('(?:^|/)(?:Evidence/HTTP/[^/]+/[^/]+/extracted-[^/]+\\.json|Evidence/Extracted/[0-9a-f]{64}/[^/]+\\.json|extracted-(?:html|text|json)(?:-[0-9a-f]{16})?\\.json)$')
+# 2026-11-02
+# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
+# https://github.com/dmitry-ai/harness/issues/39
 AGENT_ENV_KEYS = ('ANTIGRAVITY_AGENT', 'ANTIGRAVITY_CONVERSATION_ID', 'ANTIGRAVITY_TRAJECTORY_ID', 'ANTIGRAVITY_AGENTAPI_EXE', 'ANTIGRAVITY_SOURCE_METADATA', 'CODEX_HOME', 'CODEX_CLI_PATH', 'CODEX_SANDBOX', 'CODEX_THREAD_ID', 'CODEX_CI', 'CODEX_WINDOWS_REGISTERED_CORE', 'NODE_REPL_NODE_PATH', 'SKY_CUA_NATIVE_PIPE', 'HARNESS_AGENT_GIT', 'UPWORK_AGENT_GIT')
 AGENT_PROCESS_NAMES = ('antigravity.exe', 'language_server.exe', 'codex.exe', 'codex-command-runner.exe', 'codex-code-mode-host.exe', 'codex-windows-sandbox-service.exe', 'codex-windows-sandbox-setup.exe', 'node_repl.exe', 'codex-computer-use.exe', 'codex-computer-use-swift.exe')
+# 2026-11-14
+# "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
+# https://github.com/dmitry-ai/harness/issues/67
 class GitRepoGate:
 	def __init__(self, root: Path, *, strict: bool=False):
 		self.root = normalize_host_path(root).resolve(strict=strict)
+	# 2026-11-02
+	# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+	# https://github.com/dmitry-ai/harness/issues/38
 	def _check_blob_size_limits(self, rel_posix: str, size: int, *, kind: str, sha: str='') -> None:
 		if rel_posix and _EXTRACTED_DERIVED_RE.search(rel_posix) and (EXTRACTED_MAX_BYTES < size):
 			label = f'{rel_posix} ({sha[:12]})' if sha else rel_posix
@@ -107,6 +50,9 @@ class GitRepoGate:
 		if GITHUB_MAX_BLOB_BYTES < size:
 			label = (f'{rel_posix} ({sha[:12]})' if rel_posix else sha[:12]) if sha else rel_posix
 			raise ValueError(f'{kind} Git blob {label} is {size} bytes, exceeding GitHub GH001 hard limit ({GITHUB_MAX_BLOB_BYTES} bytes)')
+	# 2026-10-31
+	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+	# https://github.com/dmitry-ai/harness/issues/31
 	def _extract_added_diff_urls(self, rel_name: str) -> tuple[set[str], set[str]]:
 		added_urls: set[str] = set()
 		head_urls: set[str] = set()
@@ -114,6 +60,9 @@ class GitRepoGate:
 			diff_proc = self.run_read(['diff', '--cached', '-U0', '--', f':(literal){rel_name}'], check=False)
 			if 0 == diff_proc.returncode and diff_proc.stdout:
 				added_lines = [line[1:] for line in diff_proc.stdout.decode('utf-8', errors='replace').splitlines() if line.startswith('+') and (not line.startswith('+++'))]
+				# 2026-11-13
+				# "Extract issue_lifecycle.py from completion.py, fix open backlog-issue lifecycle gating, and consolidate Git/issue helpers in git_gate.py":
+				# https://github.com/dmitry-ai/harness/issues/53
 				added_urls.update(extract_comment_issue_urls('\n'.join(added_lines)))
 			if added_urls:
 				show_proc = self.run_read(['show', f'HEAD:{rel_name}'], check=False)
@@ -127,6 +76,9 @@ class GitRepoGate:
 		if actual != self.root:
 			raise ValueError(f'Expected repository root {self.root}, found {actual}')
 		return self.root
+	# 2026-10-11
+	# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+	# https://github.com/dmitry-ai/harness/issues/2
 	def check_commit(self, paths: list[str], *, message: str | None=None) -> list[str]:
 		self.assert_toplevel()
 		self.ensure_hooks()
@@ -142,17 +94,29 @@ class GitRepoGate:
 		for name in r:
 			path = self.root / name
 			if path.is_file() and '.md' == path.suffix.lower():
+				# 2026-10-17
+				# "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
+				# https://github.com/dmitry-ai/harness/issues/9
 				errors = validate_file(path, readable_links=True)
 				if errors:
 					raise ValueError('\n'.join(errors))
 		self.git('diff', '--cached', '--check')
+		# 2026-10-20
+		# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+		# https://github.com/dmitry-ai/harness/issues/13
 		from .text_workflow import gate_paths
 		gate_paths([self.root / name for name in r])
 		self.verify_staged_blob_sizes(r)
 		if None is not message and (not message.strip()):
 			raise ValueError('Empty commit message')
+		# 2026-11-23
+		# "Enforce AST function and file SLOC ratchet gate in PreToolUse and Git pre-commit":
+		# https://github.com/dmitry-ai/harness/issues/161
 		self._verify_agent_staged(r, message=message, use_index=True)
 		return r
+	# 2026-10-11
+	# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+	# https://github.com/dmitry-ai/harness/issues/2
 	def commit(self, paths: list[str], message: str, execute: bool=False, *, worktree: bool=False) -> list[str]:
 		if worktree and execute:
 			r = WorktreeCommitTransaction(self).commit(paths, message)
@@ -161,21 +125,45 @@ class GitRepoGate:
 			if execute:
 				self.git('commit', '--only', '-m', message, '--', *[f':(literal){p}' for p in r])
 		return r
+	# 2026-10-31
+	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+	# https://github.com/dmitry-ai/harness/issues/31
+	# 2026-11-24
+	# "Deploy immutable Harness runtime snapshots with LKG fallback":
+	# https://github.com/dmitry-ai/harness/issues/184
 	def ensure_hooks(self) -> Path | None:
 		from .runtime_snapshot import ensure_repo_git_hooks
 		return ensure_repo_git_hooks(self.root, self.main_repo(), HOOKS_DIR)
+	# 2026-10-11
+	# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+	# https://github.com/dmitry-ai/harness/issues/2
+	# 2026-11-13
+	# "Extract issue_lifecycle.py from completion.py, fix open backlog-issue lifecycle gating, and consolidate Git/issue helpers in git_gate.py":
+	# https://github.com/dmitry-ai/harness/issues/53
 	def git(self, *args) -> bytes:
 		result = self.run_read(list(args), check=False)
 		if 0 != result.returncode:
 			raise RuntimeError(result.stderr.decode('utf-8', errors='replace').strip())
 		return result.stdout
+	# 2026-10-31
+	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+	# https://github.com/dmitry-ai/harness/issues/31
 	def is_issue_tracked(self) -> bool:
 		resolved = self.main_repo()
 		if not (resolved / '.git').exists():
 			return False
+		# 2026-11-19
+		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+		# https://github.com/dmitry-ai/harness/issues/96
 		try:
+			# 2026-11-21
+			# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+			# https://github.com/dmitry-ai/harness/issues/113
 			from .path_registry import canonicalize_root_dir
 			pp = project_paths(resolved)
+			# 2026-11-20
+			# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+			# https://github.com/dmitry-ai/harness/issues/101
 			if any((resolved == cr for cr in pp.code_repos)):
 				return True
 			canon = canonicalize_root_dir(resolved)
@@ -183,9 +171,18 @@ class GitRepoGate:
 				return True
 		except (OSError, ValueError):
 			pass
+		# 2026-11-20
+		# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+		# https://github.com/dmitry-ai/harness/issues/101
+		# 2026-11-20
+		# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+		# https://github.com/dmitry-ai/harness/issues/103
 		if resolved.parts[-4:] in (('\u2c0f', '\u227b', '\u2655', '\u26ef'), ('Artifacts', '\u227b', 'Deliverables', '\u26ef')) and ((resolved.parents[3] / '\ua616').is_dir() or (resolved.parents[3] / '\U0001f56e').is_dir() or (resolved.parents[3] / '.agents').is_dir()):
 			return True
 		return 'code' == resolved.name and ((resolved.parent / '_').is_dir() or (resolved.parent / '.agents').is_dir())
+	# 2026-10-31
+	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+	# https://github.com/dmitry-ai/harness/issues/31
 	def main_repo(self) -> Path:
 		r = self.root
 		dot_git = self.root / '.git'
@@ -213,12 +210,21 @@ class GitRepoGate:
 		if len(r) != len(set(r)):
 			raise ValueError('Duplicate file paths')
 		return r
+	# 2026-10-24
+	# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+	# https://github.com/dmitry-ai/harness/issues/17
 	def read_git(self, subcommand: str='status', args: tuple[str, ...] | list[str]=()) -> dict:
 		if subcommand not in READ_SUBCOMMANDS:
 			raise ValueError(f'Unsupported read-only Git subcommand: {subcommand}')
 		extra = [str(a) for a in args]
 		output = self.git(subcommand, *extra)
 		return {'valid': True, 'repo': str(self.root), 'subcommand': subcommand, 'args': extra, 'command': ['git', '--no-optional-locks', '-C', str(self.root), subcommand, *extra], 'git_optional_locks': '0', 'stdout': output.decode('utf-8', errors='replace')}
+	# 2026-10-31
+	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+	# https://github.com/dmitry-ai/harness/issues/31
+	# 2026-11-02
+	# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
+	# https://github.com/dmitry-ai/harness/issues/39
 	def run_hook(self, hook_name: str, argv: list[str] | tuple[str, ...]=(), *, stdin_text: str | None=None, agent_context: bool | None=None) -> int:
 		is_agent = is_agent_git_context() if None is agent_context else bool(agent_context)
 		r = 0
@@ -238,6 +244,9 @@ class GitRepoGate:
 						msg_path = (self.root / msg_path).resolve()
 					raw_msg = msg_path.read_text(encoding='utf-8', errors='replace')
 					self.verify_issue_workflow(self._staged_paths(), message=raw_msg, agent_context=True)
+			# 2026-11-02
+			# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+			# https://github.com/dmitry-ai/harness/issues/38
 			elif 'pre-push' == hook_name:
 				lines = stdin_text.splitlines() if None is not stdin_text else (sys.stdin.read().splitlines() if not sys.stdin.isatty() else None)
 				self.verify_push_blob_sizes(stdin_lines=lines)
@@ -246,10 +255,28 @@ class GitRepoGate:
 			r = 2
 		return r
 	def run_read(self, args: list[str] | tuple[str, ...], *, check: bool=True, input_bytes: bytes | None=None):
+		# 2026-10-24
+		# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+		# https://github.com/dmitry-ai/harness/issues/17
 		env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
+		# 2026-10-14
+		# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
+		# https://github.com/dmitry-ai/harness/issues/3
+		# 2026-11-02
+		# "Eliminate flashing Git console windows on Windows by enforcing CREATE_NO_WINDOW and skipping redundant Git subprocesses in journal-watch":
+		# https://github.com/dmitry-ai/harness/issues/40
+		# 2026-11-24
+		# "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
+		# https://github.com/dmitry-ai/harness/issues/204
 		return subprocess.run(['git', '--no-optional-locks', '-C', str(self.root), *args], **({'input': input_bytes} if None is not input_bytes else {'stdin': subprocess.DEVNULL}), capture_output=True, env=env, check=check, creationflags=_NO_WINDOW)
+	# 2026-10-31
+	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+	# https://github.com/dmitry-ai/harness/issues/31
 	def verify_issue_ready_for_close(self, repo: str, number: int, *, project_root: str | Path | None=None, _visiting: set[int] | None=None, git_cache=None) -> dict:
 		from .github_issue import find_tracked_child_issues
+		# 2026-11-24
+		# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+		# https://github.com/dmitry-ai/harness/issues/175
 		from .issues.git_read_cache import RepoReadCache
 		cache = git_cache if None is not git_cache else RepoReadCache()
 		issue_url = f'https://github.com/{repo}/issues/{number}'
@@ -257,6 +284,9 @@ class GitRepoGate:
 		if dirty_referencing:
 			raise ValueError(f'EXEC-5 violation: uncommitted file(s) in {self.root} still reference {issue_url}: {", ".join(dirty_referencing)}; commit and push before closing the issue')
 		commit_sha = cache.find_commit_for_issue(self.root, issue_url, extract_issue_urls)
+		# 2026-11-18
+		# "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
+		# https://github.com/dmitry-ai/harness/issues/84
 		children = find_tracked_child_issues(repo, number, project_root=project_root, code_repo=self.root)
 		visiting = set(_visiting or ())
 		if children and int(number) not in visiting:
@@ -277,8 +307,12 @@ class GitRepoGate:
 			return {'verified': True, 'repo': str(self.root), 'issue_url': issue_url, 'commit_sha': child_shas[0] if child_shas else '', 'child_issues': [c['number'] for c in completed_children], 'pushed': True}
 		if not commit_sha:
 			raise ValueError(f'EXEC-5 violation: no commit in {self.root} references {issue_url}; commit and push changes before closing the issue as completed')
+		# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 		from .repo_tag_gate import finalize_commit_close_check
 		return finalize_commit_close_check(self.root, commit_sha, issue_url, cache)
+	# 2026-11-23
+	# "Enforce TDD test coverage and ratchet in Git pre-commit gate":
+	# https://github.com/dmitry-ai/harness/issues/137
 	def _tdd_project_root(self) -> Path:
 		main_r = self.main_repo()
 		try:
@@ -291,20 +325,47 @@ class GitRepoGate:
 			if (anc / '\ua616').is_dir():
 				return anc
 		return main_r
+	# 2026-11-23
+	# "Enforce AST function and file SLOC ratchet gate in PreToolUse and Git pre-commit":
+	# https://github.com/dmitry-ai/harness/issues/161
 	def _verify_agent_staged(self, relative: list[str], *, message: str | None=None, use_index: bool=True) -> None:
 		self.verify_issue_workflow(relative, message=message, agent_context=True)
 		self.verify_tdd_commit(relative, message=message, agent_context=True, use_index=use_index)
 		self.verify_code_size_ratchet(relative, agent_context=True, use_index=use_index)
+		# 2026-11-25
+		# "Add CODE-1 Python style ratchet linter gate in PreToolUse and pre-commit":
+		# https://github.com/dmitry-ai/harness/issues/243
 		run_staged_gate('staged_gates', 'verify_staged_extra_gates', self.root, relative, use_index=use_index)
+	# 2026-11-23
+	# "Enforce AST function and file SLOC ratchet gate in PreToolUse and Git pre-commit":
+	# https://github.com/dmitry-ai/harness/issues/161
+	# 2026-11-24
+	# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
+	# https://github.com/dmitry-ai/harness/issues/206
 	def verify_code_size_ratchet(self, relative: list[str], *, agent_context: bool=True, use_index: bool=True) -> None:
 		if agent_context and relative:
 			run_staged_gate('code_size_gate', 'verify_staged_code_size_ratchet', self.root, relative, use_index=use_index)
+	# 2026-11-24
+	# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
+	# https://github.com/dmitry-ai/harness/issues/206
 	def verify_subprocess_hygiene(self, relative: list[str], *, agent_context: bool=True, use_index: bool=True) -> None:
 		if agent_context and relative:
 			run_staged_gate('subprocess_hygiene_gate', 'verify_staged_subprocess_hygiene', self.root, relative, use_index=use_index)
+	# 2026-11-23
+	# "Enforce TDD test coverage and ratchet in Git pre-commit gate":
+	# https://github.com/dmitry-ai/harness/issues/137
+	# 2026-11-24
+	# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
+	# https://github.com/dmitry-ai/harness/issues/206
 	def verify_tdd_commit(self, relative: list[str], message: str | None=None, *, agent_context: bool=True, use_index: bool=True) -> None:
 		if agent_context and relative:
 			run_staged_gate('tdd_gate', 'verify_staged_tdd_diff', self.root, relative, message=message, project_root=self._tdd_project_root(), use_index=use_index)
+	# 2026-10-31
+	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+	# https://github.com/dmitry-ai/harness/issues/31
+	# 2026-11-02
+	# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
+	# https://github.com/dmitry-ai/harness/issues/39
 	def verify_issue_workflow(self, relative: list[str], message: str | None=None, *, agent_context: bool=True) -> None:
 		if agent_context:
 			stripped_msg = None
@@ -312,8 +373,14 @@ class GitRepoGate:
 				stripped_msg = normalize_commit_message(message)
 				if None is parse_issue_url(stripped_msg):
 					raise ValueError('Commit message for an agent commit must contain only the GitHub Issue URL (https://github.com/<owner>/<repo>/issues/<N>)')
+			# 2026-11-25
+			# "Add comment-only diff lexer exemption for top 20 repository languages":
+			# https://github.com/dmitry-ai/harness/issues/238
 			from .tdd.exemption import verify_staged_issue_urls
 			all_new_diff_urls = verify_staged_issue_urls(self, relative, stripped_msg, project_root=self._tdd_project_root())
+			# 2026-11-23
+			# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+			# https://github.com/dmitry-ai/harness/issues/146
 			if self.is_issue_tracked():
 				from .github_issue import extract_parent_issue_number
 				from .issue_lifecycle import evidence_issue_files, origin_repo_slug
@@ -351,6 +418,9 @@ class GitRepoGate:
 							if isinstance(raw_p, int) and (not isinstance(raw_p, bool)) and raw_p != u_num:
 								if not evidence_issue_files(proj_root, u_slug, f'issue-{raw_p}.json', candidate_repos=[self.root]):
 									raise ValueError(f'EXEC-5 ISSUE-FIRST-GATE: Child issue {u} references parent #{raw_p}, which has no saved API read-back Evidence JSON (issue-{raw_p}.json)')
+	# 2026-11-02
+	# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+	# https://github.com/dmitry-ai/harness/issues/38
 	def verify_push_blob_sizes(self, stdin_lines: list[str] | None=None) -> None:
 		if (self.root / '.git').exists():
 			rev_args: list[str] = []
@@ -376,6 +446,9 @@ class GitRepoGate:
 							if 3 <= len(parts) and 'blob' == parts[1] and parts[2].isdigit():
 								rel_posix = (parts[3] if 3 < len(parts) else '').replace('\\', '/')
 								self._check_blob_size_limits(rel_posix, int(parts[2]), kind='Unpushed', sha=parts[0])
+	# 2026-11-02
+	# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+	# https://github.com/dmitry-ai/harness/issues/38
 	def verify_staged_blob_sizes(self, staged_paths: list[str] | None=None) -> None:
 		if (self.root / '.git').exists():
 			paths = list(staged_paths) if None is not staged_paths else self._staged_paths()
@@ -388,6 +461,12 @@ class GitRepoGate:
 						parts = line.strip().split()
 						if 2 <= len(parts) and 'blob' == parts[0] and parts[1].isdigit():
 							self._check_blob_size_limits(rel_raw.replace('\\', '/'), int(parts[1]), kind='Staged')
+	# 2026-10-31
+	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+	# https://github.com/dmitry-ai/harness/issues/31
+	# 2026-11-02
+	# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
+	# https://github.com/dmitry-ai/harness/issues/39
 	def verify_write_invocation(self, argv: list[str] | tuple[str, ...], *, subcommand: str | None=None, cwd: Path | None=None, agent_context: bool | None=None) -> None:
 		cmd_name = subcommand if None is not subcommand else classify_git_argv(argv)[0]
 		if cmd_name in ('commit', 'push', 'filter-branch', 'merge', 'rebase', 'cherry-pick'):
@@ -431,6 +510,12 @@ class GitRepoGate:
 						self.verify_staged_blob_sizes(clean_specs)
 						if is_agent:
 							self._verify_agent_staged(clean_specs, message=msg, use_index=not bool(pathspecs))
+# 2026-10-31
+# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+# https://github.com/dmitry-ai/harness/issues/31
+# 2026-11-14
+# "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
+# https://github.com/dmitry-ai/harness/issues/67
 class WorktreeCommitTransaction:
 	def __init__(self, gate: GitRepoGate, *, label: str='commit'):
 		self.gate = gate
@@ -468,7 +553,7 @@ class WorktreeCommitTransaction:
 		finally:
 			self.remove(wt_dir)
 		return r
-	# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+	# 2026-11-24
 	# "Auto-exclude worktrees_dir in enclosing repo info/exclude on worktree creation":
 	# https://github.com/dmitry-ai/harness/issues/201
 	def create(self) -> Path:
@@ -484,7 +569,16 @@ class WorktreeCommitTransaction:
 		finally:
 			if resolved_wt.exists():
 				shutil.rmtree(resolved_wt, ignore_errors=True)
+			# 2026-11-02
+			# "Eliminate flashing Git console windows on Windows by enforcing CREATE_NO_WINDOW and skipping redundant Git subprocesses in journal-watch":
+			# https://github.com/dmitry-ai/harness/issues/40
+			# 2026-11-24
+			# "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
+			# https://github.com/dmitry-ai/harness/issues/204
 			subprocess.run(['git', '-C', str(self.gate.root), 'worktree', 'prune'], stdin=subprocess.DEVNULL, capture_output=True, check=False, creationflags=_NO_WINDOW)
+# 2026-11-02
+# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
+# https://github.com/dmitry-ai/harness/issues/39
 def _ancestor_process_names(pid: int | None=None) -> list[str]:
 	r: list[str] = []
 	if 'nt' == os.name:
@@ -514,6 +608,9 @@ def _ancestor_process_names(pid: int | None=None) -> list[str]:
 				r.append(name)
 				curr = ppid
 	return r
+# 2026-11-02
+# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
+# https://github.com/dmitry-ai/harness/issues/39
 def is_agent_git_context(env: dict[str, str] | None=None, *, ancestor_names: list[str] | tuple[str, ...] | None=None) -> bool:
 	environ = os.environ if None is env else env
 	has_env = any((isinstance(val, str) and bool(val.strip()) and (val.strip().lower() not in ('0', 'false', 'no')) for key in AGENT_ENV_KEYS for val in (environ.get(key),)))
@@ -524,10 +621,16 @@ def is_agent_git_context(env: dict[str, str] | None=None, *, ancestor_names: lis
 		agent_procs = {p.lower() for p in AGENT_PROCESS_NAMES}
 		r = any((name in agent_procs for name in ancestors))
 	return r
+# 2026-11-02
+# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+# https://github.com/dmitry-ai/harness/issues/38
 def cleanup_stale_credential_locks(max_age_seconds: float=10.0, *, candidates: list[Path] | tuple[Path, ...] | None=None, check_running: bool=True) -> list[str]:
 	if None is not candidates:
 		lock_paths = [normalize_host_path(p) for p in candidates]
 	else:
+		# 2026-11-19
+		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+		# https://github.com/dmitry-ai/harness/issues/96
 		roots = [Path(h) for h in tool_list('git_credential_lock_homes')]
 		try:
 			roots.insert(0, Path.home())
@@ -560,6 +663,12 @@ def cleanup_stale_credential_locks(max_age_seconds: float=10.0, *, candidates: l
 		if expired:
 			running = False
 			if check_running and 'nt' == os.name:
+				# 2026-11-02
+				# "Eliminate flashing Git console windows on Windows by enforcing CREATE_NO_WINDOW and skipping redundant Git subprocesses in journal-watch":
+				# https://github.com/dmitry-ai/harness/issues/40
+				# 2026-11-24
+				# "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
+				# https://github.com/dmitry-ai/harness/issues/204
 				proc = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq git-credential-store.exe', '/NH'], stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False, creationflags=_NO_WINDOW)
 				running = 'git-credential-store' in (proc.stdout or '').lower()
 			if not running:
@@ -570,12 +679,33 @@ def cleanup_stale_credential_locks(max_age_seconds: float=10.0, *, candidates: l
 					except OSError:
 						continue
 	return r
+# 2026-10-11
+# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+# https://github.com/dmitry-ai/harness/issues/2
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def git(root: Path, *args) -> bytes:
 	return GitRepoGate(root).git(*args)
+# 2026-10-24
+# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+# https://github.com/dmitry-ai/harness/issues/17
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def read_git(root: Path, subcommand: str='status', args: tuple[str, ...] | list[str]=()) -> dict:
 	if subcommand not in READ_SUBCOMMANDS:
 		raise ValueError(f'Unsupported read-only Git subcommand: {subcommand}')
 	return GitRepoGate(root, strict=True).read_git(subcommand, args)
+# 2026-10-31
+# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+# https://github.com/dmitry-ai/harness/issues/31
+# 2026-11-02
+# "Eliminate flashing Git console windows on Windows by enforcing CREATE_NO_WINDOW and skipping redundant Git subprocesses in journal-watch":
+# https://github.com/dmitry-ai/harness/issues/40
+# 2026-11-24
+# "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
+# https://github.com/dmitry-ai/harness/issues/204
 def run_git_read(root: Path, args: list[str] | tuple[str, ...], *, check: bool=True, input_bytes: bytes | None=None):
 	return subprocess.run(['git', '--no-optional-locks', '-C', str(normalize_host_path(root)), *args], **({'input': input_bytes} if None is not input_bytes else {'stdin': subprocess.DEVNULL}), capture_output=True, env={**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}, check=check, creationflags=_NO_WINDOW)
 def _main_repo_for_worktree(root: Path) -> Path:
@@ -594,6 +724,12 @@ def _extract_added_diff_urls(root: Path, rel_name: str) -> tuple[set[str], set[s
 	return GitRepoGate(root)._extract_added_diff_urls(rel_name)
 def verify_issue_workflow(root: Path, relative: list[str], message: str | None=None, *, agent_context: bool=True) -> None:
 	GitRepoGate(root).verify_issue_workflow(relative, message=message, agent_context=agent_context)
+# 2026-10-31
+# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+# https://github.com/dmitry-ai/harness/issues/31
+# 2026-11-13
+# "Extract issue_lifecycle.py from completion.py, fix open backlog-issue lifecycle gating, and consolidate Git/issue helpers in git_gate.py":
+# https://github.com/dmitry-ai/harness/issues/53
 def resolve_git_repo_from_argv(argv: list[str] | tuple[str, ...], cwd: Path | None=None) -> Path | None:
 	base_dir = normalize_host_path(cwd).resolve() if None is not cwd else Path.cwd().resolve()
 	_, _, target_dir = _scan_git_global_opts(argv, base_dir=base_dir)
@@ -603,6 +739,12 @@ def resolve_git_repo_from_argv(argv: list[str] | tuple[str, ...], cwd: Path | No
 			r = anc
 			break
 	return r
+# 2026-10-31
+# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+# https://github.com/dmitry-ai/harness/issues/31
+# 2026-11-02
+# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
+# https://github.com/dmitry-ai/harness/issues/39
 def verify_git_write_invocation(argv: list[str] | tuple[str, ...], cwd: Path | None=None, *, agent_context: bool | None=None) -> None:
 	cleanup_stale_credential_locks()
 	subcommand, _ = classify_git_argv(argv)
@@ -610,15 +752,24 @@ def verify_git_write_invocation(argv: list[str] | tuple[str, ...], cwd: Path | N
 		repo_root = resolve_git_repo_from_argv(argv, cwd=cwd)
 		if None is not repo_root:
 			GitRepoGate(repo_root).verify_write_invocation(argv, subcommand=subcommand, cwd=cwd, agent_context=agent_context)
+# 2026-10-31
+# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+# https://github.com/dmitry-ai/harness/issues/31
+# 2026-11-02
+# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
+# https://github.com/dmitry-ai/harness/issues/39
 def run_git_hook(hook_name: str, argv: list[str] | tuple[str, ...]=(), cwd: Path | None=None, *, stdin_text: str | None=None, agent_context: bool | None=None) -> int:
 	cleanup_stale_credential_locks()
 	repo_root = resolve_git_repo_from_argv((), cwd=cwd)
 	return GitRepoGate(repo_root).run_hook(hook_name, argv, stdin_text=stdin_text, agent_context=agent_context) if None is not repo_root else 0
 def _normalize_repo_paths(root: Path, paths: list[str]) -> list[str]:
 	return GitRepoGate(root).normalize_paths(paths)
-# 2026-10-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
-# https://github.com/dmitry-ai/harness/issues/17
+# 2026-10-11
+# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+# https://github.com/dmitry-ai/harness/issues/2
+# 2026-11-25
+# "Add comment-only diff lexer exemption for top 20 repository languages":
+# https://github.com/dmitry-ai/harness/issues/238
 def check_commit(root: Path, paths: list[str], *, message: str | None=None) -> list[str]:
 	return GitRepoGate(root, strict=True).check_commit(paths, message=message)
 def create_isolated_worktree(root: Path, label: str='isolated') -> Path:
@@ -627,10 +778,13 @@ def remove_isolated_worktree(root: Path, wt_dir: Path) -> None:
 	WorktreeCommitTransaction(GitRepoGate(root, strict=True)).remove(wt_dir)
 def commit_in_worktree(root: Path, paths: list[str], message: str) -> list[str]:
 	return WorktreeCommitTransaction(GitRepoGate(root, strict=True)).commit(paths, message)
-# 2026-10-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
-# https://github.com/dmitry-ai/harness/issues/17
+# 2026-10-11
+# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+# https://github.com/dmitry-ai/harness/issues/2
 def commit(root: Path, paths: list[str], message: str, execute=False, *, worktree: bool=False):
 	return GitRepoGate(root, strict=True).commit(paths, message, execute=execute, worktree=worktree)
+# 2026-11-24
+# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/175
 def verify_repo_issue_ready_for_close(code_repo: Path, repo: str, number: int, *, project_root: str | Path | None=None, git_cache=None) -> dict:
 	return GitRepoGate(code_repo, strict=True).verify_issue_ready_for_close(repo, number, project_root=project_root, git_cache=git_cache)

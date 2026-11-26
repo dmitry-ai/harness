@@ -1,18 +1,4 @@
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add transactional rename-project command with automatic domain promotion":
-# https://github.com/dmitry-ai/harness/issues/267
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
-# https://github.com/dmitry-ai/harness/issues/223
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add schema-help CLI, validator hints, save-analysis --merge, and af-worker file handoff":
-# https://github.com/dmitry-ai/harness/issues/217
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
-# https://github.com/dmitry-ai/harness/issues/212
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace monolithic CLI router with declarative registry and modular docs":
-# https://github.com/dmitry-ai/harness/issues/168
 from __future__ import annotations
 from pathlib import Path
 import json
@@ -81,6 +67,9 @@ def _op_native_executor_metadata(args):
 	return callback(args.project, args.conversation, role=args.role, parent_id=args.parent, instance=getattr(args, 'instance', None))
 def _op_native_review_proof(args):
 	from .metrics import native_review_proof
+	# 2026-11-24
+	# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
+	# https://github.com/dmitry-ai/harness/issues/212
 	return native_review_proof(args.project, args.parent, args.reviewer, instance=getattr(args, 'instance', None), wait_timeout=float(getattr(args, 'wait_timeout', 0.0)))
 def _op_prepare_experiment(args):
 	from .experiments import prepare_experiment
@@ -117,12 +106,16 @@ def _op_record_experiment(args):
 	return _load_consumed(args, args.spec, lambda spec: record_experiment(args.project, spec))
 def _op_record_review(args):
 	from . import workflow as flow
+	# 2026-11-24
+	# "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
+	# https://github.com/dmitry-ai/harness/issues/223
 	report_path = _resolve_project_input(args.project, args.report)
 	payload = load_operation_input(args, report_path)
 	return consume_scratch_input(args, report_path, payload, flow.record_review(args.project, payload, parent_id=args.parent, reviewer_id=args.reviewer, native_evidence=args.native_evidence))
 def _op_render_analysis(args):
 	from .analysis import publish_analysis
 	r = publish_analysis(args.input, args.output)
+	# 2026-11-26 "Add transactional rename-project command with automatic domain promotion": https://github.com/dmitry-ai/harness/issues/267
 	if getattr(args, 'promote_domain', False) and 'conflict' != r.get('status'):
 		from .operations import analysis_root
 		from .project_rename import apply_domain_promotion
@@ -140,12 +133,16 @@ def _op_review_input(args):
 def _op_save_analysis(args):
 	from .research import inside
 	cand = args.candidate if '-' == str(args.candidate) else inside(args.project, args.candidate)
+	# 2026-11-24
+	# "Prevent context compaction with schema-help CLI and staged analysis merge":
+	# https://github.com/dmitry-ai/harness/issues/217
 	if getattr(args, 'merge', False) or getattr(args, 'partial', False):
 		from .analysis_merge import save_merged_analysis
 		r = _load_consumed(args, cand, lambda data: save_merged_analysis(args.project, data, args.expected_sha256, partial=bool(getattr(args, 'partial', False))))
 	else:
 		from .analysis import save_analysis
 		r = _load_consumed(args, cand, lambda data: save_analysis(args.project, data, args.expected_sha256))
+	# 2026-11-26 "Add transactional rename-project command with automatic domain promotion": https://github.com/dmitry-ai/harness/issues/267
 	if getattr(args, 'promote_domain', False) and (not getattr(args, 'partial', False)):
 		from .project_rename import apply_domain_promotion
 		r = apply_domain_promotion(args.project, json.loads(Path(r['target']).read_text(encoding='utf-8-sig')), r)
@@ -159,6 +156,9 @@ def _op_stage(args):
 def _op_status(args):
 	from . import workflow as flow
 	return flow.status(args.project)
+# 2026-11-24
+# "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
+# https://github.com/dmitry-ai/harness/issues/223
 def _resolve_project_input(project, raw_path):
 	r = raw_path
 	if isinstance(raw_path, str) and '-' != raw_path and (not Path(raw_path).is_absolute()):
@@ -177,6 +177,9 @@ def _op_sync_attachments(args):
 def _op_unadopt_requests(args):
 	from . import workflow as flow
 	return flow.unadopt_requests(args.project, args.conversation, request_ids=args.request_id)
+# 2026-11-23
+# "Replace monolithic CLI router with declarative registry and modular docs":
+# https://github.com/dmitry-ai/harness/issues/168
 OPERATION_HANDLERS = {
 	'adopt-requests': _op_adopt_requests,
 	'capture-dom': _op_capture_dom,

@@ -1,3 +1,4 @@
+<!-- 2026-11-23 "Add PHP and markup formatting standards derived from mage2pro/core": https://github.com/dmitry-ai/harness/issues/155 -->  
 # JSON Formatting Standard
 
 Inherits [CODE-1](../../../rules/11-code-formatting.md#code-1) (tab indentation, zero blank lines, alphabetical key ordering where semantics allow) subject to strict RFC 8259 JSON syntax: all keys and strings MUST use double quotes (`"..."`) and comments are forbidden.  
@@ -33,4 +34,3 @@ This example illustrates formatting only and is not part of any target program; 
 	,"autoload": {"files": ["registration.php"], "psr-4": {"Df\\": ""}}
 }
 ```
-<!-- https://github.com/dmitry-ai/harness/issues/155 -->  

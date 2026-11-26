@@ -1,18 +1,4 @@
-# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
-# https://github.com/dmitry-ai/harness/issues/81
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
-# https://github.com/dmitry-ai/harness/issues/62
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
-# https://github.com/dmitry-ai/harness/issues/10
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
-# https://github.com/dmitry-ai/harness/issues/37
 from copy import deepcopy
 from pathlib import Path
 import hashlib
@@ -53,6 +39,9 @@ def v3_analysis(project, legacy=None):
 				claim.update(applicability=['Confirm the cause in the authorized admin first.'], validation='Repeat the same scenario after the change; compare output and regressions.')
 	r = value
 	return r
+# 2026-11-13
+# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
+# https://github.com/dmitry-ai/harness/issues/62
 class ClaimGraphValidatorTests(TemporaryCase):
 	def setUp(self):
 		super().setUp()
@@ -93,6 +82,12 @@ class ClaimGraphValidatorTests(TemporaryCase):
 		parsed = json.loads(str(ctx.exception))
 		req_issues = [i for i in parsed if 'claim.required' == i['code']]
 		self.assertEqual(1, len(req_issues))
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class EvidenceContractTests(TemporaryCase):
 	def setUp(self):
 		super().setUp()
@@ -474,6 +469,9 @@ class EvidenceContractTests(TemporaryCase):
 		self.assertIn('Documentation section: Policy', render_analysis(value))
 		ref['anchor_exception']['section'] = 'Other'
 		self.assertIn('primary.unconfirmed', self.codes(evidence_issues(self.project, value)))
+	# 2026-10-19
+	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+	# https://github.com/dmitry-ai/harness/issues/12
 	def test_verified_observation_rejects_ungrounded_numbers_in_essence(self):
 		value = v3_analysis(self.project)
 		fact = value['facts'][0]
@@ -482,6 +480,9 @@ class EvidenceContractTests(TemporaryCase):
 		self.assertIn('claim.ungrounded_number', self.codes(issues))
 		fact['evidence'][0]['quote'] = 'The concern\nAlternative\n13 items created on 2026-10-08'
 		self.assertNotIn('claim.ungrounded_number', self.codes(analysis_issues(value)))
+	# 2026-10-19
+	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+	# https://github.com/dmitry-ai/harness/issues/12
 	def test_misconception_hypothesis_requires_alternatives_and_discriminating_check(self):
 		value = v3_analysis(self.project)
 		fact = value['facts'][0]
@@ -493,6 +494,9 @@ class EvidenceContractTests(TemporaryCase):
 		misconception['alternative_explanations'] = ['Items were created recently and never indexed.']
 		misconception['discriminating_check'] = 'Compare item creation timestamps against index snapshots.'
 		self.assertNotIn('claim.causal', self.codes(analysis_issues(value)))
+	# 2026-10-19
+	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+	# https://github.com/dmitry-ai/harness/issues/12
 	def test_unverified_hypothesis_with_empty_against_caps_probability_at_75(self):
 		from test_onboarding import analysis
 		value = v3_analysis(self.project, analysis())
@@ -503,6 +507,9 @@ class EvidenceContractTests(TemporaryCase):
 		self.assertIn('claim.counterevidence', self.codes(analysis_issues(value)))
 		cause['probability_percent'] = 75
 		self.assertNotIn('claim.counterevidence', self.codes(analysis_issues(value)))
+	# 2026-10-19
+	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+	# https://github.com/dmitry-ai/harness/issues/12
 	def test_e1_and_e2_sitemap_alone_and_unobserved_sample_urls_are_rejected(self):
 		value = v3_analysis(self.project)
 		sitemap_xml = b'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://example.org/blog/post-one</loc></url></urlset>'
@@ -514,6 +521,9 @@ class EvidenceContractTests(TemporaryCase):
 		codes = self.codes(evidence_issues(self.project, value))
 		self.assertIn('claim.sitemap_insufficient', codes)
 		self.assertIn('claim.unobserved_sample', codes)
+	# 2026-10-19
+	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+	# https://github.com/dmitry-ai/harness/issues/12
 	def test_e3_network_error_classification_and_unverified_dns_claim_rejection(self):
 		import socket
 		from agent_tools.research import classify_network_error
@@ -532,6 +542,9 @@ class EvidenceContractTests(TemporaryCase):
 		fact['evidence'][0]['observation'] = obs['observation']
 		self.assertIn('claim.unverified_dns', self.codes(evidence_issues(self.project, value)))
 		self.assertEqual(raw_obs['error_kind'], 'tcp_timeout')
+	# 2026-10-19
+	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+	# https://github.com/dmitry-ai/harness/issues/12
 	def test_e4_site_wide_schema_absence_requires_multi_page_or_product_template_sample(self):
 		value = v3_analysis(self.project)
 		fact = value['facts'][0]
@@ -542,6 +555,9 @@ class EvidenceContractTests(TemporaryCase):
 		fact['scope']['sample'] = ['https://example.org/source', obs2['url']]
 		fact['evidence'].append({'id': 'E-PROD-ONE', 'kind': 'observation', 'source': obs2['url'], 'observation': obs2['observation'], 'source_sha256': obs2['body_sha256'], 'quote': 'Product One', 'locator': {'type': 'text', 'value': 'Product One'}})
 		self.assertNotIn('claim.scope_extrapolation', self.codes(evidence_issues(self.project, value)))
+	# 2026-10-19
+	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+	# https://github.com/dmitry-ai/harness/issues/12
 	def test_e5_and_e6_html_sitemap_and_site_summary_diagnostics(self):
 		from agent_tools.research import compute_site_summary, extract_observation
 		html_bytes = b'<html><head><title>' + b'Very Long Page Title ' * 4 + b'</title><script type="application/ld+json">{"@type":"WebSite","name":"S P I R I T  S E A","description":"","image":"http://example.org/logo.jpg"}</script></head><body><h1>First H1</h1><h1>Second H1</h1><img src="/a.jpg" alt=""><iframe src="https://www.youtube.com/embed/xyz"></iframe></body></html>'
@@ -566,6 +582,9 @@ class EvidenceContractTests(TemporaryCase):
 		summary = compute_site_summary(self.project, [r1, r2, r3])
 		self.assertEqual(len(summary['duplicate_titles']), 1)
 		self.assertEqual(summary['multiple_h1_urls'], ['https://example.org/page-a', 'https://example.org/page-b'])
+	# 2026-10-19
+	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+	# https://github.com/dmitry-ai/harness/issues/12
 	def test_e7_contradictory_evidence_reuse_in_against_and_intake_only_counterevidence_cap(self):
 		from test_onboarding import analysis
 		value = v3_analysis(self.project, analysis())
@@ -576,6 +595,9 @@ class EvidenceContractTests(TemporaryCase):
 		cause['for'] = [{'argument': 'Supports the cause.', 'evidence_id': 'E-CAUSE-OWN'}]
 		cause['against'] = [{'argument': 'Same evidence reused in against.', 'evidence_id': 'E-CAUSE-OWN'}]
 		self.assertIn('argument.contradictory_reuse', self.codes(analysis_issues(value)))
+	# 2026-11-02
+	# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+	# https://github.com/dmitry-ai/harness/issues/37
 	def test_e8_relational_comparison_and_modification_require_two_distinct_operands_with_verified_hashes(self):
 		from test_onboarding import analysis
 		value = v3_analysis(self.project, analysis())
@@ -596,6 +618,9 @@ class EvidenceContractTests(TemporaryCase):
 		mod_fact['comparison'] = {'relation': 'modified_from', 'operand_a_evidence_id': 'E-MOD-A', 'operand_b_evidence_id': 'E-BASELINE-CLEAN'}
 		self.assertNotIn('claim.relational_arity', self.codes(evidence_issues(self.project, value)))
 		self.assertNotIn('comparison.unconfirmed', self.codes(evidence_issues(self.project, value)))
+	# 2026-11-16
+	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+	# https://github.com/dmitry-ai/harness/issues/81
 	def test_m1_and_m2_html_wrapper_anchors_and_markdown_explicit_heading_ids_in_evidence_contract(self):
 		value = v3_analysis(self.project)
 		html_obs = collect(self.project, 'https://example.org/meta-capi', fetcher=lambda *a: Response(a[0], 200, 'text/html', b'<div id="testEvents"><h2>Test Events Tool</h2></div><p>Verify server payloads with test_event_code.</p>'))

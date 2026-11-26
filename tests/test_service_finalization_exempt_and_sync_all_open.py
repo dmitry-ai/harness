@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Exempt service finalization calls from EXEC-2-TDD-GATE and add journal-sync --all-open":
-# https://github.com/dmitry-ai/harness/issues/256
 from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
@@ -31,6 +29,9 @@ def _init_repo(repo: Path) -> None:
 	_git(repo, 'commit', '-m', 'init')
 def _tool_payload(cwd: Path, name: str, args: dict) -> dict:
 	return {'cwd': str(cwd), 'toolCall': {'name': name, 'args': args}}
+# 2026-11-25
+# "Exempt service finalization calls from PreToolUse TDD gate and add journal-sync --all-open":
+# https://github.com/dmitry-ai/harness/issues/256
 class ServiceFinalizationAndSyncAllOpenTests(unittest.TestCase):
 	def test_journal_sync_all_open_reconciles_idle_turns_and_honors_adopt_conflict(self) -> None:
 		with tempfile.TemporaryDirectory() as td:

@@ -1,123 +1,4 @@
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce pushed Git tags on issue-closing commits in lifecycle gates":
-# https://github.com/dmitry-ai/harness/issues/263
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
-# https://github.com/dmitry-ai/harness/issues/175
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prepend JSON metadata headers to new journal responses":
-# https://github.com/dmitry-ai/harness/issues/151
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
-# https://github.com/dmitry-ai/harness/issues/146
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
-# https://github.com/dmitry-ai/harness/issues/138
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
-# https://github.com/dmitry-ai/harness/issues/132
-# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce similar_projects parity gate, hooks, and documented CLI contract across turn completion and issue lifecycle":
-# https://github.com/dmitry-ai/harness/issues/123
-# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Auto-name Antigravity conversations from project journal step numbers":
-# https://github.com/dmitry-ai/harness/issues/120
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
-# https://github.com/dmitry-ai/harness/issues/119
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add read-only answer-check pre-flight validation command to harness CLI":
-# https://github.com/dmitry-ai/harness/issues/117
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
-# https://github.com/dmitry-ai/harness/issues/116
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
-# https://github.com/dmitry-ai/harness/issues/109
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
-# https://github.com/dmitry-ai/harness/issues/105
-# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix post-audit edge cases in parent-child issue validation and turn-scoped lifecycle checks":
-# https://github.com/dmitry-ai/harness/issues/87
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
-# https://github.com/dmitry-ai/harness/issues/105
-# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
-# https://github.com/dmitry-ai/harness/issues/84
-# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
-# https://github.com/dmitry-ai/harness/issues/81
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
-# https://github.com/dmitry-ai/harness/issues/60
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
-# https://github.com/dmitry-ai/harness/issues/64
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract CodexTurnScanner class from native_answers in platforms/codex.py with completion_service_steps parity and cached subagent indexing":
-# https://github.com/dmitry-ai/harness/issues/61
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
-# https://github.com/dmitry-ai/harness/issues/57
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
-# https://github.com/dmitry-ai/harness/issues/59
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract ResponseEvidenceAuditor class into response_grounding.py from response_source_and_kb_issues and helpers in completion.py":
-# https://github.com/dmitry-ai/harness/issues/56
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract issue_lifecycle.py from completion.py, fix open backlog-issue lifecycle gating, and consolidate Git/issue helpers in git_gate.py":
-# https://github.com/dmitry-ai/harness/issues/53
-# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
-# https://github.com/dmitry-ai/harness/issues/51
-# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce local_source_grounding_issues across touched client deliverables, require post-compaction re-read of evicted tool outputs, and close A.A review bypass":
-# https://github.com/dmitry-ai/harness/issues/50
-# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Isolate turn scratch answer files, decouple turn/journal locks, allow pre-delivery re-preparation, and add preemptive step/compaction budget gate":
-# https://github.com/dmitry-ai/harness/issues/49
 # 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
-# https://github.com/dmitry-ai/harness/issues/16
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce browser CDP DOM collection for JS/anti-bot pages, block search-snippet citation substitution, and extract universal harness.py CLI":
-# https://github.com/dmitry-ai/harness/issues/27
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prevent rogue ꘖ directory outside harness meta repo, remove mirror logic, and recognize GIT_OPTIONAL_LOCKS in git gate":
-# https://github.com/dmitry-ai/harness/issues/28
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prevent intermediate subagent status replies from polluting the journal, enforce TEXT-1 language gate in completion, and codify background task timeouts":
-# https://github.com/dmitry-ai/harness/issues/30
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
-# https://github.com/dmitry-ai/harness/issues/31
-# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
-# https://github.com/dmitry-ai/harness/issues/34
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
-# https://github.com/dmitry-ai/harness/issues/36
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
-# https://github.com/dmitry-ai/harness/issues/37
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
-# https://github.com/dmitry-ai/harness/issues/38
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
-# https://github.com/dmitry-ai/harness/issues/39
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate flashing Git console windows on Windows via CREATE_NO_WINDOW and journal-watch lifecycle skip":
-# https://github.com/dmitry-ai/harness/issues/40
-# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
-# https://github.com/dmitry-ai/harness/issues/41
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import json
@@ -131,9 +12,13 @@ from unittest.mock import patch
 import uuid
 SCRIPTS = Path(__file__).resolve().parents[1] / 'scripts'
 sys.path.insert(0, str(SCRIPTS))
+# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 from agent_tools import completion, journal, metadata, repo_tags, storage, workflow, text_workflow
 from agent_tools.causal_checks import unsupported_probability_claims
 from agent_tools.platforms import codex, antigravity
+# 2026-11-23
+# "Prepend JSON metadata headers to new journal responses":
+# https://github.com/dmitry-ai/harness/issues/151
 def assert_journal_response_body(case, raw, expected):
 	text = raw.decode('utf-8') if isinstance(raw, (bytes, bytearray)) else raw
 	expected_text = expected.decode('utf-8') if isinstance(expected, (bytes, bytearray)) else expected
@@ -152,6 +37,9 @@ def wire(field, payload):
 		r = bytes(out)
 		return r
 	return varint(field << 3 | 2) + varint(len(payload)) + payload
+# 2026-11-03
+# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+# https://github.com/dmitry-ai/harness/issues/41
 def completed_tail_is_immutable(case, *, platform, backend, prepared):
 	kwargs = {'conversation': case.cid, 'platform': platform, 'backend': backend, 'watch': True}
 	response = 'Immutable completed tail'
@@ -182,6 +70,12 @@ def completed_tail_is_immutable(case, *, platform, backend, prepared):
 	state = json.loads(state_file.read_text(encoding='utf-8'))
 	case.assertEqual(state['status'], 'delivered')
 	case.assertEqual(state['prepared'] is not None, prepared)
+# 2026-11-03
+# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+# https://github.com/dmitry-ai/harness/issues/41
+# 2026-11-20
+# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
+# https://github.com/dmitry-ai/harness/issues/105
 def foreground_sync_preserves_admitted_delivery(case, *, platform, backend):
 	case.finish('Foreground admission result')
 	first = completion.sync(case.project, case.cid, platform=platform, backend=backend)
@@ -192,6 +86,9 @@ def foreground_sync_preserves_admitted_delivery(case, *, platform, backend):
 		case.assertEqual(completion.sync(case.project, case.cid, platform=platform, backend=backend), first)
 	after = {path.relative_to(case.root).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns) for path in case.root.rglob('*') if path.is_file()}
 	case.assertEqual(after, before)
+# 2026-11-13
+# "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
+# https://github.com/dmitry-ai/harness/issues/57
 class AnswerPreparationRunnerTests(unittest.TestCase):
 	def test_gate_id_auto_clearing_and_resolve_journal_dir(self):
 		with tempfile.TemporaryDirectory() as temp:
@@ -250,6 +147,9 @@ class AnswerPreparationRunnerTests(unittest.TestCase):
 				reread_turn = {**ev_turn, 'compaction': {**ev_turn['compaction'], 'evicted_unreread_files': []}}
 				_, cleared_ev = completion._state(proj, {**native, 'turns': [reread_turn]}, reread_turn)
 				self.assertNotIn('readiness_check', cleared_ev)
+	# 2026-11-21
+	# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+	# https://github.com/dmitry-ai/harness/issues/109
 	def test_automatic_journal_only_upgrade_and_cli_subcommand(self):
 		from contextlib import redirect_stdout
 		from io import StringIO
@@ -298,6 +198,9 @@ class AnswerPreparationRunnerTests(unittest.TestCase):
 			self.assertFalse(idemp['upgraded'])
 			self.assertEqual(3, idemp['to_version'])
 			self.assertEqual(2, idemp['verified_steps'])
+# 2026-11-13
+# "Extract CodexTurnScanner class from native_answers in platforms/codex.py with completion_service_steps parity and cached subagent indexing":
+# https://github.com/dmitry-ai/harness/issues/61
 class CodexTurnScannerTests(unittest.TestCase):
 	def test_service_steps_parity_subagent_cache_and_bfs_depth_cap(self):
 		with tempfile.TemporaryDirectory() as temp:
@@ -344,6 +247,12 @@ class CodexTurnScannerTests(unittest.TestCase):
 				res2 = codex.native_answers(proj, parent_id, backend=home)
 			self.assertEqual([], opened_headers)
 			self.assertEqual(res1['turns'][0]['touched_files'], res2['turns'][0]['touched_files'])
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class CompletionCase(unittest.TestCase):
 	def setUp(self):
 		self.temp = tempfile.TemporaryDirectory()
@@ -382,6 +291,9 @@ class CompletionCase(unittest.TestCase):
 	def saved(self, sub, step=1):
 		side = '≻' if sub in ('req', '≻') else '≺'
 		return journal.step_file(self.project / 'ꙮ' / side, step).read_bytes()
+	# 2026-11-03
+	# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+	# https://github.com/dmitry-ai/harness/issues/41
 	def project_snapshot(self):
 		return {path.relative_to(self.project).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns) for path in self.project.rglob('*') if path.is_file()}
 	def assert_repeated_delivery_is_read_only(self, *, prepared):
@@ -482,6 +394,9 @@ class CompletionCase(unittest.TestCase):
 		self.assertFalse(state['rule_comprehension_verified'])
 		self.assertFalse((self.project / 'ꘖ/project.json').exists())
 		self.assertFalse((self.project / 'ꘖ/data/text-project.json').exists())
+	# 2026-10-24
+	# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+	# https://github.com/dmitry-ai/harness/issues/17
 	def test_unflagged_git_read_in_active_turn_blocks_answer_prepare(self):
 		self.rows.append({'type': 'response_item', 'payload': {'type': 'custom_tool_call', 'call_id': 'bad-git', 'name': 'exec', 'input': "await Promise.allSettled([exec_command({ cmd: 'git status --short' })]);"}})
 		self.write()
@@ -495,12 +410,18 @@ class CompletionCase(unittest.TestCase):
 		result = self.prepare('Allowed response')
 		self.assertTrue(result['ready'])
 		self.assertTrue(result['exec5_check']['verified'])
+	# 2026-10-31
+	# "Prevent rogue ꘖ directory outside harness meta repo, remove mirror logic, and recognize GIT_OPTIONAL_LOCKS in git gate":
+	# https://github.com/dmitry-ai/harness/issues/28
 	def test_unflagged_git_read_allows_env_assignment(self):
 		from agent_tools.git_gate import unflagged_git_read_commands
 		self.assertEqual(unflagged_git_read_commands('$env:GIT_OPTIONAL_LOCKS="0"; git status --short'), [])
 		self.assertEqual(unflagged_git_read_commands('GIT_OPTIONAL_LOCKS=0 git status --short'), [])
 		self.assertEqual(unflagged_git_read_commands('git --no-optional-locks status --short'), [])
 		self.assertEqual(unflagged_git_read_commands('git status --short'), ['git status --short'])
+	# 2026-10-30
+	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+	# https://github.com/dmitry-ai/harness/issues/21
 	def test_codex_compaction_and_adhoc_http_fetch_gates(self):
 		self.rows.append({'type': 'response_item', 'payload': {'type': 'custom_tool_call', 'call_id': 'c-http', 'name': 'exec', 'input': "exec_command({ cmd: 'curl.exe https://df.tips/t/2722' })"}})
 		self.write()
@@ -717,6 +638,9 @@ class CompletionCase(unittest.TestCase):
 		self.assertEqual(self.sync()['turns'][0]['status'], 'conflict')
 	def test_changed_prepared_bytes_and_new_uncovered_request_do_not_overwrite(self):
 		self.prepare('Original')
+		# 2026-11-10
+		# "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop":
+		# https://github.com/dmitry-ai/harness/issues/49
 		reprep = self.prepare('Changed')
 		self.assertTrue(reprep.get('reprepared_before_delivery'))
 		assert_journal_response_body(self, self.saved('res'), b'Changed')
@@ -851,6 +775,9 @@ class CompletionCase(unittest.TestCase):
 		self.assertTrue(retried['valid'])
 		self.assertTrue(retried['turns'][0]['recovered_after_delivery'])
 		assert_journal_response_body(self, response.read_bytes(), b'Original native final')
+	# 2026-11-03
+	# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+	# https://github.com/dmitry-ai/harness/issues/41
 	def test_begin_reconciles_previous_delivery_in_the_same_foreground_call(self):
 		self.finish('Foreground reconciliation at next turn')
 		second = str(uuid.uuid4())
@@ -860,6 +787,12 @@ class CompletionCase(unittest.TestCase):
 		self.assertEqual(result['execution_mode'], 'foreground-only')
 		self.assertTrue(result['native_reconciliation']['turns'][0]['delivery_verified'])
 		assert_journal_response_body(self, self.saved('res'), b'Foreground reconciliation at next turn')
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class AntigravityCompletionTests(unittest.TestCase):
 	def setUp(self):
 		self.temp = tempfile.TemporaryDirectory()
@@ -899,6 +832,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		self.write()
 	def sync(self):
 		return completion.sync(self.project, self.cid, platform='antigravity', backend=self.backend)
+	# 2026-11-03
+	# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+	# https://github.com/dmitry-ai/harness/issues/41
 	def project_snapshot(self):
 		return {path.relative_to(self.project).as_posix(): (path.read_bytes(), path.stat().st_mtime_ns) for path in self.project.rglob('*') if path.is_file()}
 	def assert_repeated_delivery_is_read_only(self, *, prepared):
@@ -935,6 +871,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 			second = completion.prepare(self.project, 'Stable Antigravity preparation', self.cid, platform='antigravity', backend=self.backend)
 		self.assertEqual(second['recorded_at'], first['recorded_at'])
 		self.assertEqual(self.project_snapshot(), before)
+	# 2026-11-20
+	# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
+	# https://github.com/dmitry-ai/harness/issues/105
 	def test_explicit_sync_preserves_real_antigravity_admission_scope(self):
 		foreground_sync_preserves_admitted_delivery(self, platform='antigravity', backend=self.backend)
 	def test_prepared_completed_antigravity_tail_is_monotonic_and_read_only(self):
@@ -968,6 +907,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		c.commit()
 		c.close()
 		self.assertTrue(self.sync()['turns'][0]['delivery_verified'])
+	# 2026-10-30
+	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+	# https://github.com/dmitry-ai/harness/issues/21
 	def test_mid_turn_checkpoint_blocks_until_recover_checkpoint(self):
 		self.rows += [{'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'c1', 'name': 'run_command', 'args': {'CommandLine': 'echo ok'}}]}, {'step_index': 2, 'type': 'GENERIC', 'content': '2722: Resolving Next.js interference'}, {'step_index': 3, 'type': 'CHECKPOINT', 'content': 'Compacted summary omitting 2722'}]
 		self.write()
@@ -987,6 +929,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		self.assertTrue(synced['valid'])
 		self.assertFalse((turns_dir / f'{t_key}-recovery').exists())
 		self.assertFalse((turns_dir / f'{t_key}-checkpoint-recovery.json').exists())
+	# 2026-10-30
+	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+	# https://github.com/dmitry-ai/harness/issues/21
 	def test_adhoc_http_fetch_in_shell_blocks_and_collect_http_persists(self):
 		from agent_tools import research
 		self.rows += [{'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'c1', 'name': 'run_command', 'args': {'CommandLine': 'python -c "import urllib.request; urllib.request.urlopen(\'https://df.tips/tag/google-analytics.json\')"'}}]}]
@@ -997,6 +942,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		obs = research.collect_http(self.project, 'https://df.tips/t/2722', fetcher=lambda u, h, t: research.Response(u, 200, 'text/html', fake_html))
 		self.assertEqual(obs['status'], 200)
 		self.assertTrue((self.project / 'ꘖ/data/http-index.json').is_file())
+	# 2026-10-30
+	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+	# https://github.com/dmitry-ai/harness/issues/21
 	def test_external_article_link_requires_kb_grounding_and_matching_observed_title(self):
 		marker = self.project / 'ꘖ/project.json'
 		marker.parent.mkdir(parents=True, exist_ok=True)
@@ -1017,6 +965,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		good_resp = "See [Resolving Next.js interference with the Google tag's cross-domain measurement linker](https://df.tips/t/2722)."
 		prepared = completion.prepare(self.project, good_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
 		self.assertTrue(prepared['ready'])
+	# 2026-10-31
+	# "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
+	# https://github.com/dmitry-ai/harness/issues/27
 	def test_universal_source_kb_check_blocks_reddit_js_shell_unverified_short_links_missing_anchors_and_fake_quotes(self):
 		from agent_tools import research
 		self.assertFalse((self.project / 'ꘖ/project.json').exists())
@@ -1039,6 +990,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 			completion.prepare(self.project, fake_quote_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
 		prepared = completion.prepare(self.project, short_link_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
 		self.assertTrue(prepared['ready'])
+	# 2026-10-30
+	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+	# https://github.com/dmitry-ai/harness/issues/21
 	def test_unadopted_substantive_followup_in_tracked_project_cannot_bypass_review(self):
 		marker = self.project / 'ꘖ/project.json'
 		marker.parent.mkdir(parents=True, exist_ok=True)
@@ -1053,6 +1007,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 			completion.prepare(self.project, 'Hypothesis H-1: score 85%.', self.cid, platform='antigravity', backend=self.backend, watch=False)
 		prepared_ordinary = completion.prepare(self.project, 'Ordinary reply after analysis completion (90.77%) mentioning ꘖ/KB.', self.cid, platform='antigravity', backend=self.backend, watch=False)
 		self.assertTrue(prepared_ordinary['ready'])
+	# 2026-10-30
+	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+	# https://github.com/dmitry-ai/harness/issues/21
 	def test_kb_persistence_checks_target_path_not_scratch_content(self):
 		self.rows.append({'step_index': 1, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': 'c1', 'name': 'write_file', 'args': {'Path': 'ꘖ/data/scratch/answer.md', 'Content': 'Mentions ꘖ/KB and ꘖ\\KB.'}}]})
 		self.write()
@@ -1062,6 +1019,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		self.write()
 		res2 = completion.begin(self.project, self.cid, platform='antigravity', backend=self.backend, watch=False)
 		self.assertEqual(res2['delegation_check']['kb_persistence_step_count'], 1)
+	# 2026-10-30
+	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+	# https://github.com/dmitry-ai/harness/issues/21
 	def test_adopt_requests_isolates_foreign_answer_group_mismatch(self):
 		jdir = self.project / 'ꙮ/1 - Analysis'
 		(jdir / 'req').mkdir(parents=True, exist_ok=True)
@@ -1072,6 +1032,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		gdir.mkdir(parents=True, exist_ok=True)
 		(gdir / 'native-foreign.json').write_text(json.dumps({'turn': 'native-foreign', 'journal': str(jdir.resolve()), 'status': 'complete', 'steps': [99], 'requests': ['Original foreign req'], 'request_ids': ['foreign-cid-0'], 'response_sha256': '00' * 32}), encoding='utf-8')
 		self.assertEqual(journal.answer_groups(jdir, request_ids={f'{self.cid}-0'}), [])
+	# 2026-10-30
+	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+	# https://github.com/dmitry-ai/harness/issues/21
 	def test_unencoded_file_uri_accepted_in_prepare_and_reconciled_in_sync(self):
 		with self.assertRaisesRegex(ValueError, 'LINK-5'):
 			completion.prepare(self.project, 'See [File](file:///C:/work/with%20space.md).', self.cid, platform='antigravity', backend=self.backend, watch=False)
@@ -1081,6 +1044,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		synced = self.sync()['turns'][0]
 		self.assertEqual(synced['status'], 'delivered')
 		self.assertTrue(synced['delivery_verified'])
+	# 2026-10-30
+	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+	# https://github.com/dmitry-ai/harness/issues/21
 	def test_single_turn_conversation_with_minus_one_last_user_index_syncs(self):
 		c = sqlite3.connect(self.backend / 'conversation_summaries.db')
 		c.execute('UPDATE conversation_summaries SET last_user_input_step_index=-1')
@@ -1090,6 +1056,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		synced = self.sync()['turns'][0]
 		self.assertEqual(synced['status'], 'delivered')
 		self.assertTrue(synced['delivery_verified'])
+	# 2026-10-30
+	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+	# https://github.com/dmitry-ai/harness/issues/21
 	def test_excessive_unpersisted_tool_steps_without_subagent_or_kb_write_blocks(self):
 		marker = self.project / 'ꘖ/project.json'
 		marker.parent.mkdir(parents=True, exist_ok=True)
@@ -1103,6 +1072,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		self.write()
 		prepared = completion.prepare(self.project, 'Simple reply.', self.cid, platform='antigravity', backend=self.backend, watch=False)
 		self.assertTrue(prepared['ready'])
+	# 2026-10-31
+	# "Prevent intermediate subagent status replies from polluting the journal, enforce TEXT-1 language gate in completion, and codify background task timeouts":
+	# https://github.com/dmitry-ai/harness/issues/30
 	def test_unfinished_parallel_subagent_turn_merges_with_next_request_and_blocks_english_stub_on_russian_request(self):
 		req1 = '\u041f\u0440\u043e\u0432\u0435\u0440\u044c \u0434\u0432\u0435 \u0437\u0430\u0434\u0430\u0447\u0438 \u0432 \u0440\u0435\u043f\u043e\u0437\u0438\u0442\u043e\u0440\u0438\u0438.'
 		req2 = '\u041a\u0430\u043a\u043e\u0439 \u0441\u0442\u0430\u0442\u0443\u0441 \u043f\u043e \u0437\u0430\u0434\u0430\u0447\u0430\u043c?'
@@ -1136,6 +1108,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		prepared = completion.prepare(self.project, final_ru, self.cid, platform='antigravity', backend=self.backend, watch=False)
 		self.assertTrue(prepared['ready'])
 		self.assertEqual([1, 2], prepared['journal_steps'])
+	# 2026-10-31
+	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+	# https://github.com/dmitry-ai/harness/issues/31
 	def test_code_and_issue_lifecycle_gate_blocks_uncommitted_unpushed_and_open_issue_in_prepare(self):
 		import subprocess
 		bare = self.root / 'remote.git'
@@ -1143,10 +1118,14 @@ class AntigravityCompletionTests(unittest.TestCase):
 		code_repo = self.project / 'code'
 		(self.project / '_/ꘖ').mkdir(parents=True, exist_ok=True)
 		code_repo.mkdir(parents=True, exist_ok=True)
+		# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 		subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 		(code_repo / '.git/config').write_text((code_repo / '.git/config').read_text(encoding='utf-8') + f'[user]\n\temail = test@example.com\n\tname = Test\n[remote "origin"]\n\turl = {bare.as_posix()}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n', encoding='utf-8')
 		mod = code_repo / 'mod.py'
 		mod.write_text('x = 1\n', encoding='utf-8')
+		# 2026-11-23
+		# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+		# https://github.com/dmitry-ai/harness/issues/138
 		test_mod = code_repo / 'tests/test_mod.py'
 		test_mod.parent.mkdir(parents=True, exist_ok=True)
 		test_mod.write_text('# https://github.com/dmitry-ai/antigravity-addons/issues/999\nimport unittest\nclass T(unittest.TestCase):\n\tdef test_x(self):\n\t\tself.assertEqual(1, 1)\n', encoding='utf-8')
@@ -1173,6 +1152,7 @@ class AntigravityCompletionTests(unittest.TestCase):
 		subprocess.run(['git', 'commit', '-m', 'https://github.com/dmitry-ai/antigravity-addons/issues/999'], cwd=code_repo, check=True, capture_output=True)
 		with self.assertRaisesRegex(ValueError, 'has not been pushed to upstream'):
 			completion.prepare(self.project, 'Done.', self.cid, platform='antigravity', backend=self.backend, watch=False)
+		# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 		subprocess.run(['git', 'push'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 		repo_tags.ensure_commit_tag(code_repo, push=True)
 		ev_file = self.project / '_/ꘖ/KB/Evidence/GitHub/dmitry-ai__antigravity-addons/issue-999.json'
@@ -1184,6 +1164,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		prepared = completion.prepare(self.project, 'Done.', self.cid, platform='antigravity', backend=self.backend, watch=False)
 		self.assertTrue(prepared['ready'])
 		self.assertTrue(prepared['code_lifecycle_check']['verified'])
+	# 2026-11-01
+	# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+	# https://github.com/dmitry-ai/harness/issues/34
 	def test_local_source_grounding_blocks_fabricated_quotes_identifiers_and_currencies(self):
 		src_dir = self.project / 'source/Nexcess/support/48401406/KB'
 		src_dir.mkdir(parents=True, exist_ok=True)
@@ -1207,6 +1190,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		good_resp = 'In [source.md](source/Nexcess/support/48401406/KB/source.md) invoice `#4901796` charged `$425.00`: «Please review our XS Plan renewal invoice.»'
 		prepared = completion.prepare(self.project, good_resp, self.cid, platform='antigravity', backend=self.backend, watch=False)
 		self.assertTrue(prepared['ready'])
+	# 2026-11-01
+	# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+	# https://github.com/dmitry-ai/harness/issues/34
 	def test_post_checkpoint_unreread_source_blocks_analysis_and_response(self):
 		src_dir = self.project / 'source/Nexcess/support/48401406/KB'
 		src_dir.mkdir(parents=True, exist_ok=True)
@@ -1228,6 +1214,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		self.write()
 		prepared = completion.prepare(self.project, 'In [source.md](source/Nexcess/support/48401406/KB/source.md) invoice `#4901796` charged `$425.00`.', self.cid, platform='antigravity', backend=self.backend, watch=False)
 		self.assertTrue(prepared['ready'])
+	# 2026-11-01
+	# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+	# https://github.com/dmitry-ai/harness/issues/34
 	def test_unpersisted_source_reads_and_af_worker_cannot_bypass_substantive_review(self):
 		marker = self.project / '\ua616/project.json'
 		marker.parent.mkdir(parents=True, exist_ok=True)
@@ -1247,6 +1236,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		wpath.write_text(json.dumps(state), encoding='utf-8')
 		with self.assertRaisesRegex(ValueError, 'REVIEW-3 / REVIEW-4: Adopt current requests'):
 			completion.prepare(self.project, 'Method M-SRV-1: score 90%.', self.cid, platform='antigravity', backend=self.backend, watch=False)
+	# 2026-11-02
+	# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+	# https://github.com/dmitry-ai/harness/issues/36
 	def test_orphan_pair_adopted_without_duplicate_and_overwritten_claimed_pair_flags_conflict(self):
 		jdir = self.project / 'ꙮ/1 - Analysis'
 		(jdir / 'req').mkdir(parents=True, exist_ok=True)
@@ -1282,6 +1274,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		self.assertIn('claimed by another answer group', conflict_res['turns'][0]['detail'])
 		self.assertTrue((other.project / 'ꙮ/≻/21–40/36.md').is_file())
 		self.assertIsNone(journal.find_step_file(other.project / 'ꙮ/≻', 37))
+	# 2026-11-02
+	# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+	# https://github.com/dmitry-ai/harness/issues/36
 	def test_recover_turn_violation_unblocks_prepare_and_gate_blocks_direct_journal_writes(self):
 		import check_rules_and_server_gate as gate
 		self.assertIsNotNone(gate.check_journal_write_gate('write_file', {'Path': 'C:/work/project/ꙮ/1 - \u0410\u043d\u0430\u043b\u0438\u0437/req/36.md'}))
@@ -1302,6 +1297,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		self.assertTrue(rec['http_fetch_check'].get('recovered_via_receipt'))
 		prepared = completion.prepare(self.project, 'Final after recovery.', self.cid, platform='antigravity', backend=self.backend, watch=False)
 		self.assertTrue(prepared['ready'])
+	# 2026-11-02
+	# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+	# https://github.com/dmitry-ai/harness/issues/36
 	def test_crlf_prepared_journal_and_system_message_subagent_completion_do_not_conflict(self):
 		prepared = completion.prepare(self.project, 'Line 1\r\nLine 2\r\n', self.cid, platform='antigravity', backend=self.backend, watch=False)
 		self.assertTrue(prepared['ready'])
@@ -1309,6 +1307,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		synced = self.sync()['turns'][0]
 		self.assertEqual(synced['status'], 'delivered')
 		self.assertTrue(synced['delivery_verified'])
+	# 2026-11-02
+	# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+	# https://github.com/dmitry-ai/harness/issues/37
 	def test_universal_gates_m1_to_m6_for_external_writes_dict_issues_and_kb_mutations(self):
 		import check_rules_and_server_gate as gate
 		self.assertIsNotNone(gate.check_external_write_gate('run_command', {'CommandLine': 'gh issue create --repo smokeday-com/m --title T --body B'}))
@@ -1338,6 +1339,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		ev_p.write_text(json.dumps({'url': 'https://github.com/smokeday-com/m/issues/48', 'number': 48, 'state': 'open', 'title': '\u0420\u0443\u0441\u0441\u043a\u0438\u0439 \u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a', 'body': '\u0420\u0443\u0441\u0441\u043a\u0438\u0439 \u0442\u0435\u043a\u0441\u0442 \u043e\u043f\u0438\u0441\u0430\u043d\u0438\u044f \u0437\u0430\u0434\u0430\u0447\u0438 \u0441 \u043a\u043e\u0434\u043e\u043c `test`.'}), encoding='utf-8')
 		with self.assertRaisesRegex(ValueError, 'EXEC-5 violation in active turn \\(code/issue lifecycle incomplete\\).*LOCALE_MISMATCH'):
 			completion.prepare(self.project, 'Summary.', self.cid, platform='antigravity', backend=self.backend, watch=False)
+	# 2026-11-02
+	# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+	# https://github.com/dmitry-ai/harness/issues/38
 	def test_git_blob_size_gates_cygwin_paths_and_stale_credential_locks(self):
 		import os
 		import subprocess
@@ -1388,6 +1392,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 				git_gate.verify_push_blob_sizes(repo)
 		eff_push, _ = git_shim.prepare_git_invocation(['-C', str(repo), 'push', 'origin', 'HEAD'])
 		self.assertEqual(eff_push[:2], ['-c', 'credentialstore.locktimeoutms=5000'])
+		# 2026-11-02
+		# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
+		# https://github.com/dmitry-ai/harness/issues/39
 		self.assertFalse(git_gate.is_agent_git_context(env={}, ancestor_names=('python.exe', 'sh.exe', 'git.exe', 'bash.exe', 'windowsterminal.exe', 'explorer.exe')))
 		self.assertTrue(git_gate.is_agent_git_context(env={'ANTIGRAVITY_AGENT': '1'}, ancestor_names=('python.exe', 'bash.exe')))
 		self.assertTrue(git_gate.is_agent_git_context(env={}, ancestor_names=('python.exe', 'sh.exe', 'git.exe', 'powershell.exe', 'language_server.exe', 'antigravity.exe')))
@@ -1404,12 +1411,15 @@ class AntigravityCompletionTests(unittest.TestCase):
 		git_gate.verify_git_write_invocation(['-C', str(repo), 'commit', '-am', '2026-11-02'], agent_context=False)
 		msg_file.write_text('https://github.com/dmitry-ai/harness/issues/39\n', encoding='utf-8')
 		self.assertEqual(git_gate.run_git_hook('commit-msg', [str(msg_file)], cwd=repo, agent_context=True), 0)
+		# 2026-11-02
+		# "Eliminate flashing Git console windows on Windows by enforcing CREATE_NO_WINDOW and skipping redundant Git subprocesses in journal-watch":
+		# https://github.com/dmitry-ai/harness/issues/40
 		self.assertEqual(git_gate._NO_WINDOW, getattr(subprocess, 'CREATE_NO_WINDOW', 0))
 		with patch.object(completion, '_code_and_issue_lifecycle_status', side_effect=AssertionError('sync must not run git lifecycle checks')):
 			self.finish('Delivered without git storm in sync.')
 			synced = self.sync()['turns'][0]
 			self.assertTrue(synced['delivery_verified'])
-	# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+	# 2026-11-03
 	# "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
 	# https://github.com/dmitry-ai/harness/issues/43
 	def test_post_finalize_turn_with_adopted_request_skips_authorize_when_non_substantive(self):
@@ -1436,6 +1446,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		updated_wf = json.loads(wf_path.read_text(encoding='utf-8'))
 		req = next(r for r in updated_wf['requests'] if r['id'] == f'{self.cid}-0')
 		self.assertIsNotNone(req.get('response_prepared'))
+	# 2026-11-03
+	# "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
+	# https://github.com/dmitry-ai/harness/issues/43
 	def test_adopt_and_unadopt_requests_lifecycle(self):
 		pj = self.project / 'ꘖ/project.json'
 		pj.parent.mkdir(parents=True, exist_ok=True)
@@ -1463,6 +1476,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		flow.unadopt_requests(self.project, conversation_id=self.cid)
 		updated_wf2 = json.loads(wf_path.read_text(encoding='utf-8'))
 		self.assertEqual(len(updated_wf2['requests']), 0)
+	# 2026-11-03
+	# "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
+	# https://github.com/dmitry-ai/harness/issues/43
 	def test_journal_sync_adopt_conflict_recovers_failed_turn(self):
 		pj = self.project / 'ꘖ/project.json'
 		pj.parent.mkdir(parents=True, exist_ok=True)
@@ -1482,6 +1498,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		self.assertEqual(turn_res['status'], 'delivered')
 		self.assertTrue(turn_res['delivery_verified'])
 		self.assertTrue(turn_res['recovered_after_delivery'])
+	# 2026-11-10
+	# "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop":
+	# https://github.com/dmitry-ai/harness/issues/49
 	def test_parallel_turn_scratch_isolation_and_budget_gate(self):
 		import argparse
 		from agent_tools.operations import _operation_input
@@ -1507,6 +1526,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		deliverable.parent.mkdir(parents=True, exist_ok=True)
 		violation = check_markdown_content('Single sentence.  \n', str(deliverable))
 		self.assertIn('Turn Budget & Graceful Checkpoint Gate (M-4)', violation or '')
+	# 2026-11-10
+	# "Enforce source grounding and review.authorize across external client deliverables, edit_file calls, and post-compaction tool outputs":
+	# https://github.com/dmitry-ai/harness/issues/50
 	def test_client_deliverable_grounding_and_evicted_step_output_gate(self):
 		from agent_tools.source_grounding import local_source_grounding_issues
 		deliverable = self.project / 'Letters/1.md'
@@ -1525,6 +1547,9 @@ class AntigravityCompletionTests(unittest.TestCase):
 		c_status = completion._compaction_status(self.project, 'k1', comp_turn)
 		self.assertFalse(c_status['verified'])
 		self.assertIn('C:/Users/test/.system_generated/steps/5/output.txt', c_status['unreread_analysis_sources'])
+	# 2026-11-10
+	# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
+	# https://github.com/dmitry-ai/harness/issues/51
 	def test_issue51_post_finalize_deliverable_decoupling_journal_persistence_and_grounding_cache(self):
 		from agent_tools import source_grounding
 		pj = self.project / 'ꘖ/project.json'
@@ -1562,6 +1587,12 @@ class AntigravityCompletionTests(unittest.TestCase):
 		synced = self.sync()
 		self.assertTrue(synced['valid'])
 		self.assertEqual(synced['turns'][0]['status'], 'delivered')
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class CausalBasisTests(unittest.TestCase):
 	def test_observed_ignorance_to_equal_probability_error_is_rejected(self):
 		text = 'Scores are conditional: equal percentages mean there is no evidentiary basis to prefer one over the other.'
@@ -1570,6 +1601,9 @@ class CausalBasisTests(unittest.TestCase):
 		bad = 'equal percentages mean there is no evidentiary basis'
 		for text in ['> ' + bad, '```text\n' + bad + '\n```', 'The source writes: «' + bad + '».', 'Absence of data does not mean equal probabilities.', 'Equal prior probabilities are given by the symmetric experiment condition.']:
 			self.assertFalse(unsupported_probability_claims(text), text)
+# 2026-11-13
+# "Extract issue_lifecycle.py from completion.py, fix open backlog-issue lifecycle gating, and consolidate Git/issue helpers in git_gate.py":
+# https://github.com/dmitry-ai/harness/issues/53
 class IssueLifecycleTests(unittest.TestCase):
 	def test_mixed_multi_commit_closed_issues_and_open_backlog_issue(self):
 		import subprocess
@@ -1582,6 +1616,7 @@ class IssueLifecycleTests(unittest.TestCase):
 			(project / '_/\ua616').mkdir(parents=True, exist_ok=True)
 			code_repo = project / 'code'
 			code_repo.mkdir(parents=True, exist_ok=True)
+			# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 			subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 			(code_repo / '.git/config').write_text((code_repo / '.git/config').read_text(encoding='utf-8') + f'[user]\n\temail = test@example.com\n\tname = Test\n[remote "origin"]\n\turl = https://github.com/dmitry-ai/antigravity-addons.git\n\tpushurl = {bare.as_posix()}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n[url "{bare.as_posix()}"]\n\tinsteadOf = https://github.com/dmitry-ai/antigravity-addons.git\n', encoding='utf-8')
 			url_a = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/901'
@@ -1590,6 +1625,7 @@ class IssueLifecycleTests(unittest.TestCase):
 			file_a = code_repo / 'a.py'
 			file_b = code_repo / 'b.py'
 			file_a.write_text('# ' + url_a + '\nx = 1\n', encoding='utf-8')
+			# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 			subprocess.run(['git', 'add', 'a.py'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 			subprocess.run(['git', 'commit', '-m', url_a], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 			repo_tags.ensure_commit_tag(code_repo, push=False)
@@ -1612,6 +1648,9 @@ class IssueLifecycleTests(unittest.TestCase):
 			(ev_dir / 'issue-901.json').write_text(json.dumps({'url': url_a, 'issue': {'number': 901, 'state': 'CLOSED', 'title': 'Fix A', 'body': '# Scope\nDetails.\n'}}), encoding='utf-8')
 			verified = issue_lifecycle.code_and_issue_lifecycle_status(project, turn, turn_state={})
 			self.assertTrue(verified['verified'], verified['violations'])
+	# 2026-11-18
+	# "Enforce parent problem issues and per-subtask child issue commits across issue and Git lifecycle gates":
+	# https://github.com/dmitry-ai/harness/issues/84
 	def test_multi_subtask_parent_and_child_commits_enforced_in_lifecycle(self):
 		import subprocess
 		from agent_tools import issue_lifecycle
@@ -1623,6 +1662,7 @@ class IssueLifecycleTests(unittest.TestCase):
 			(project / '_/\ua616').mkdir(parents=True, exist_ok=True)
 			code_repo = project / 'code'
 			code_repo.mkdir(parents=True, exist_ok=True)
+			# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 			subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 			(code_repo / '.git/config').write_text((code_repo / '.git/config').read_text(encoding='utf-8') + f'[user]\n\temail = test@example.com\n\tname = Test\n[remote "origin"]\n\turl = https://github.com/dmitry-ai/antigravity-addons.git\n\tpushurl = {bare.as_posix()}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n[url "{bare.as_posix()}"]\n\tinsteadOf = https://github.com/dmitry-ai/antigravity-addons.git\n', encoding='utf-8')
 			url_mono = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/910'
@@ -1631,6 +1671,7 @@ class IssueLifecycleTests(unittest.TestCase):
 			url_c2 = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/922'
 			f_mono = code_repo / 'mono.py'
 			f_mono.write_text('# ' + url_mono + '\nx = 1\n', encoding='utf-8')
+			# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 			subprocess.run(['git', 'add', 'mono.py'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 			subprocess.run(['git', 'commit', '-m', url_mono], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 			repo_tags.ensure_commit_tag(code_repo, push=False)
@@ -1647,6 +1688,7 @@ class IssueLifecycleTests(unittest.TestCase):
 			f_c1 = code_repo / 'c1.py'
 			f_c2 = code_repo / 'c2.py'
 			f_c1.write_text('# ' + url_c1 + '\na = 1\n', encoding='utf-8')
+			# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 			subprocess.run(['git', 'add', 'c1.py'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 			subprocess.run(['git', 'commit', '-m', url_c1], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 			repo_tags.ensure_commit_tag(code_repo, push=False)
@@ -1671,6 +1713,9 @@ class IssueLifecycleTests(unittest.TestCase):
 			}
 			ok_res = issue_lifecycle.code_and_issue_lifecycle_status(project, decomposed_turn, turn_state={}, response=multi_resp)
 			self.assertTrue(ok_res['verified'], ok_res['violations'])
+	# 2026-11-18
+	# "Fix post-audit edge cases in parent-child issue validation and turn-scoped lifecycle checks":
+	# https://github.com/dmitry-ai/harness/issues/87
 	def test_post_audit_turn_isolation_diagnostic_parent_and_unclosed_parent_checks(self):
 		import subprocess
 		from agent_tools import issue_lifecycle
@@ -1682,6 +1727,7 @@ class IssueLifecycleTests(unittest.TestCase):
 			(project / '_/\ua616').mkdir(parents=True, exist_ok=True)
 			code_repo = project / 'code'
 			code_repo.mkdir(parents=True)
+			# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 			subprocess.run(['git', 'init'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 			(code_repo / '.git/config').write_text((code_repo / '.git/config').read_text(encoding='utf-8') + f'[user]\n\temail = test@example.com\n\tname = Test\n[remote "origin"]\n\turl = https://github.com/dmitry-ai/antigravity-addons.git\n\tpushurl = {bare.as_posix()}\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n[url "{bare.as_posix()}"]\n\tinsteadOf = https://github.com/dmitry-ai/antigravity-addons.git\n', encoding='utf-8')
 			url_single = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/931'
@@ -1689,6 +1735,7 @@ class IssueLifecycleTests(unittest.TestCase):
 			url_foreign = 'https://github.com/dmitry-ai/antigravity-addons/' + 'issues/999'
 			f_single = code_repo / 'single.py'
 			f_single.write_text('# ' + url_single + '\nx = 1\n', encoding='utf-8')
+			# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 			subprocess.run(['git', 'add', 'single.py'], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 			subprocess.run(['git', 'commit', '-m', url_single], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 			repo_tags.ensure_commit_tag(code_repo, push=False)
@@ -1718,6 +1765,7 @@ class IssueLifecycleTests(unittest.TestCase):
 			f_c2 = code_repo / 'c2.py'
 			f_c1.write_text('# ' + url_c1 + '\na = 1\n', encoding='utf-8')
 			subprocess.run(['git', 'add', 'c1.py'], cwd=code_repo, check=True, capture_output=True)
+			# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 			subprocess.run(['git', 'commit', '-m', url_c1], cwd=code_repo, check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 			repo_tags.ensure_commit_tag(code_repo, push=False)
 			f_c2.write_text('# ' + url_c2 + '\nb = 2\n', encoding='utf-8')
@@ -1732,7 +1780,13 @@ class IssueLifecycleTests(unittest.TestCase):
 			open_parent_res = issue_lifecycle.code_and_issue_lifecycle_status(project, open_parent_turn, turn_state={}, response='1. M-1 Done\n1. M-2 Done\n')
 			self.assertFalse(open_parent_res['verified'])
 			self.assertTrue(any(('remains open after all tracked child subtask issues are closed' in v for v in open_parent_res['violations'])), open_parent_res['violations'])
+# 2026-11-13
+# "Extract ResponseEvidenceAuditor class into response_grounding.py from response_source_and_kb_issues and helpers in completion.py":
+# https://github.com/dmitry-ai/harness/issues/56
 class ResponseEvidenceAuditorTests(unittest.TestCase):
+	# 2026-11-13
+	# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
+	# https://github.com/dmitry-ai/harness/issues/59
 	def test_multi_segment_quote_and_thousand_grouped_numeric_tokens(self):
 		from agent_tools.claims import source_numeric_tokens
 		from agent_tools.response_grounding import ResponseEvidenceAuditor
@@ -1773,6 +1827,9 @@ class ResponseEvidenceAuditorTests(unittest.TestCase):
 			bad_auditor = ResponseEvidenceAuditor(project, 'See [Example Platform Guide](https://example.com/guide#missing-anchor).', [{'text': 'Check checkout hooks'}])
 			errs = bad_auditor.validate()
 			self.assertTrue(any(('missing-anchor' in e for e in errs)), errs)
+	# 2026-11-16
+	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+	# https://github.com/dmitry-ai/harness/issues/81
 	def test_m2_m3_m5_response_grounding_markdown_stale_extraction_and_canonical_upwork_job_urls(self):
 		from agent_tools.response_grounding import ResponseEvidenceAuditor
 		with tempfile.TemporaryDirectory() as temp:
@@ -1806,6 +1863,9 @@ class ResponseEvidenceAuditorTests(unittest.TestCase):
 			(chal_dir / 'extracted-html.json').write_text(json.dumps({'extractor_version': '0000000000000000', 'browser_check_required': False, 'title': 'Un instant...', 'anchors': [], 'text': 'Verification', 'word_count': 4}), encoding='utf-8')
 			stale_chal_errs = ResponseEvidenceAuditor(project, 'Blocked [page](https://example.com/gated).', [{'text': 'Audit'}]).validate()
 			self.assertTrue(any(('no valid saved observation' in e for e in stale_chal_errs)), stale_chal_errs)
+# 2026-11-13
+# "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
+# https://github.com/dmitry-ai/harness/issues/64
 class TraceCommonTests(unittest.TestCase):
 	def test_iter_antigravity_subagents_and_kb_persistence_parity(self):
 		from agent_tools.platforms import trace_common
@@ -1820,6 +1880,9 @@ class TraceCommonTests(unittest.TestCase):
 		trace_common.record_normalized_tool_effects(Path('.'), 3, 'run_command', {'CommandLine': 'python harness.py collect-browser proj --url https://example.com'}, 'python harness.py collect-browser proj --url https://example.com', acc, track_turn_steps=True)
 		trace_common.record_normalized_tool_effects(Path('.'), 4, 'apply_patch', {}, '*** Begin Patch\n*** Update File: \ua616/KB/Module.md\n*** End Patch', acc, track_turn_steps=True)
 		self.assertEqual([3, 4], acc['kb_persistence_steps'])
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 class TurnJournalReconcilerTests(unittest.TestCase):
 	def test_compacted_status5_steps_single_pass_authorize_and_group_helpers(self):
 		with tempfile.TemporaryDirectory() as temp:
@@ -1856,6 +1919,9 @@ class TurnJournalReconcilerTests(unittest.TestCase):
 			idx = journal.completed_request_group_index(j_dir)
 			self.assertIn(f'{cid}-0', idx)
 			assert_journal_response_body(self, journal.matching_group_response(j_dir, [f'{cid}-0'], 'Final answer for compacted request.'), 'Final answer for compacted request.')
+# 2026-11-03
+# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+# https://github.com/dmitry-ai/harness/issues/41
 class WatcherLifecycleTests(unittest.TestCase):
 	def test_equal_byte_replacement_does_not_create_temporary_files_or_touch_mtime(self):
 		with tempfile.TemporaryDirectory() as temp:
@@ -1866,13 +1932,13 @@ class WatcherLifecycleTests(unittest.TestCase):
 				storage.replace_bytes(path, b'{"domain":"same"}')
 			self.assertEqual(path.stat().st_mtime_ns, before)
 			self.assertEqual(path.read_bytes(), b'{"domain":"same"}')
+	# 2026-11-20
+	# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
+	# https://github.com/dmitry-ai/harness/issues/105
 	def test_retired_journal_watch_commands_are_removed(self):
 		self.assertNotIn('journal-watch', completion.COMMANDS)
 		self.assertNotIn('journal-unwatch', completion.COMMANDS)
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove Antigravity addons runtime health probing from Harness":
-# https://github.com/dmitry-ai/harness/issues/93
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-11-19
 # "Integrate declarative Antigravity addons health and sanctioning into Harness":
 # https://github.com/dmitry-ai/harness/issues/92
 class AntigravityAddonsIntegrationTests(unittest.TestCase):
@@ -1920,6 +1986,9 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 				self.assertIsNotNone(gate.check_cdp_bypass_gate('read_file', {'Path': 'C:/ChromeU/DevToolsActivePort'}))
 				self.assertIsNone(gate.check_cdp_bypass_gate('run_command', {'CommandLine': f'node "{addons_code}/Upgrade/runtime-health.js"'}))
 				self.assertIsNotNone(gate.check_cdp_bypass_gate('run_command', {'CommandLine': 'curl http://127.0.0.1:9222/json/version'}))
+	# 2026-11-19
+	# "Remove Antigravity addons runtime health probing from Harness":
+	# https://github.com/dmitry-ai/harness/issues/93
 	def test_doctor_and_turn_begin_exclude_addons_health(self):
 		import importlib.util
 		import json
@@ -2021,6 +2090,9 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			committed_short = {repo_a: set(), repo_b: set(committed[repo_b])}
 			_check_multi_subtask_decomposition(root, response, repo_touched, committed_short, turn_issues, req, [repo_a, repo_b], violations_missing)
 			self.assertEqual(len(violations_missing), 2)
+	# 2026-11-21
+	# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
+	# https://github.com/dmitry-ai/harness/issues/116
 	def test_pre_invocation_hook_idempotent_turn_begin_child_skip_terminate_and_dry_run(self):
 		from contextlib import closing
 		import os
@@ -2099,6 +2171,9 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			self.assertIn('injectSteps', ok_unflushed)
 			self.assertFalse(unflushed_log.exists())
 			self.assertTrue(any((proj_c / '\ua616/data/turns').glob('*.json')))
+	# 2026-11-21
+	# "Add read-only answer-check pre-flight validation command to harness CLI":
+	# https://github.com/dmitry-ai/harness/issues/117
 	def test_answer_check_detects_link5_doc4_verify1_and_exec5_without_disk_side_effects(self):
 		from contextlib import closing
 		import os
@@ -2215,6 +2290,9 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			scratch_nested.write_text('Root-relative [Note.md](\ua616/KB/Note.md#section-one).  \n', encoding='utf-8')
 			scratch_ok = completion.check_answer(proj, scratch_nested.read_text(encoding='utf-8'), child_cid, response_path=scratch_nested, platform='antigravity', backend=backend)
 			self.assertTrue(scratch_ok['valid'], scratch_ok)
+	# 2026-11-21
+	# "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
+	# https://github.com/dmitry-ai/harness/issues/119
 	def test_compaction_index_offload_stdout_bounds_delivery_cleanup_and_dry_run_non_bypass(self):
 		from contextlib import closing
 		import hashlib
@@ -2323,6 +2401,9 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			self.assertTrue(synced['valid'], synced)
 			self.assertFalse(idx_path.exists())
 			self.assertFalse(idx_path.parent.exists())
+	# 2026-11-22
+	# "Auto-name Antigravity conversations from project journal step numbers":
+	# https://github.com/dmitry-ai/harness/issues/120
 	def test_antigravity_journal_conversation_auto_titling_and_comma_append(self):
 		from contextlib import closing
 		from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -2508,6 +2589,9 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			cli_json = json.loads(cli_res.stdout)
 			self.assertEqual(cli_json['title'], '191, 204')
 			self.assertEqual(cli_json['steps'], [191, 204])
+	# 2026-11-22
+	# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
+	# https://github.com/dmitry-ai/harness/issues/123
 	def test_similar_projects_parity_gate_stop_hook_pre_invocation_and_exemption(self):
 		from contextlib import closing
 		import os
@@ -2516,8 +2600,12 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 		import check_stop_gate
 		with tempfile.TemporaryDirectory() as tmp:
 			t = Path(tmp).resolve()
+			# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 			peer_a, peer_b = (t / 'peer_a', t / 'peer_b')
 			bare_a, bare_b = (t / 'bare_a.git', t / 'bare_b.git')
+			# 2026-11-24
+			# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+			# https://github.com/dmitry-ai/harness/issues/175
 			subprocess.run(['git', 'init', '--bare', '-b', 'main', str(bare_a)], check=True, capture_output=True)
 			subprocess.run(['git', 'init', '--bare', '-b', 'main', str(bare_b)], check=True, capture_output=True)
 			for p, bare, peer_other, slug in ((peer_a, bare_a, peer_b, 'test-org/peer-a'), (peer_b, bare_b, peer_a, 'test-org/peer-b')):
@@ -2563,13 +2651,20 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 				mod_path.write_text(f'# https://github.com/test-org/peer-a/issues/{issue_num}\nx = {val}\n', encoding='utf-8')
 				subprocess.run(['git', 'add', 'app.py', 'tests/test_app.py'], cwd=peer_a / 'code', check=True, capture_output=True)
 				subprocess.run(['git', 'commit', '-m', f'https://github.com/test-org/peer-a/issues/{issue_num}'], cwd=peer_a / 'code', check=True, capture_output=True)
+				# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 				subprocess.run(['git', 'push'], cwd=peer_a / 'code', check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 				repo_tags.ensure_commit_tag(peer_a / 'code', push=True)
 				ev_a = peer_a / f'_/\ua616/KB/Evidence/GitHub/test-org__peer-a/issue-{issue_num}.json'
 				ev_a.parent.mkdir(parents=True, exist_ok=True)
 				ev_a.write_text(json.dumps({'url': f'https://github.com/test-org/peer-a/issues/{issue_num}', 'issue': {'number': issue_num, 'state': 'CLOSED'}}), encoding='utf-8')
+			# 2026-11-23
+			# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+			# https://github.com/dmitry-ai/harness/issues/138
 			def _append_tdd_rows(rows_list: list[dict], test_paths: list[Path], prod_paths: list[Path], issue_specs: list[tuple[str, int]] = ()) -> int:
 				st = max((r.get('step_index', 0) for r in rows_list), default=0) + 1
+				# 2026-11-23
+				# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+				# https://github.com/dmitry-ai/harness/issues/146
 				for slug_i, num_i in issue_specs:
 					rows_list.append({'step_index': st, 'type': 'PLANNER_RESPONSE', 'content': '', 'tool_calls': [{'id': f'iss-{st}', 'name': 'run_command', 'args': {'CommandLine': f'python scripts/df_github_issue.py create --repo {slug_i} --title "Problem {num_i}" --body-file b.md'}}]})
 					rows_list.append({'step_index': st + 1, 'type': 'GENERIC', 'content': 'Command exited with code 0.\n\nCommand output:\n' + json.dumps({'ok': True, 'action': 'create', 'repo': slug_i, 'number': num_i, 'state': 'open', 'html_url': f'https://github.com/{slug_i}/issues/{num_i}', 'verified': True}) + '\n'})
@@ -2670,6 +2765,9 @@ class AntigravityAddonsIntegrationTests(unittest.TestCase):
 			prep3_ok = completion.prepare(peer_a, 'Updated both peer_a and peer_b.', cid3, platform='antigravity', backend=backend)
 			self.assertTrue(prep3_ok['ready'])
 			self.assertEqual(prep3_ok['code_lifecycle_check']['similar_projects']['peers'][0]['resolution'], 'peer_code_updated')
+	# 2026-11-23
+	# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+	# https://github.com/dmitry-ai/harness/issues/132
 	def test_registered_empty_launcher_project_tracks_pre_init_failures_and_hands_off_to_daily_project(self):
 		from contextlib import closing
 		from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer

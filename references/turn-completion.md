@@ -1,3 +1,5 @@
+<!-- 2026-10-23 "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader": https://github.com/dmitry-ai/harness/issues/16 -->  
+<!-- 2026-10-31 "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow": https://github.com/dmitry-ai/harness/issues/26 -->  
 # Completing Any Turn
 
 This contract applies to the primary conversation and ordinary analytical responses, including `.agents` investigations; an article/proposal format or the five-stage analysis workflow is not a prerequisite for journaling.  
@@ -8,88 +10,139 @@ Edits to client documents retain their own checks for scope, baseline, evidence,
 
 After determining the exact root of the primary conversation, run:  
 
+<!-- 2026-10-31 "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare": https://github.com/dmitry-ai/harness/issues/27 -->  
+<!-- 2026-11-21 "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag": https://github.com/dmitry-ai/harness/issues/116 -->  
 ```text
 python <agents>/scripts/harness.py turn-begin <root> [--dry-run] --platform codex
 python <agents>/scripts/harness.py turn-begin <root> [--dry-run] --conversation <native-uuid> --platform antigravity
 ```
 
 Codex obtains the UUID from `CODEX_THREAD_ID` and the profile from `CODEX_HOME` or an explicit `--codex-profile`; a neighboring profile or chat is never selected automatically.  
+<!-- 2026-11-21 "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag": https://github.com/dmitry-ai/harness/issues/116 -->  
 Antigravity requires the valid UUID of the current conversation; in globally configured Antigravity instances (`platforms/antigravity/hooks.json`), the idempotent `PreInvocation` hook (`check_pre_invocation.py`) automatically runs `turn-begin` on the first model invocation of a primary user turn in tracked workspaces (skipping child subagents via `parent_conversation_id` and fast-exiting on subsequent invocations when the receipt already covers the latest user step), injecting `turn_key` via `injectSteps` or stopping genuine project-binding mismatches immediately via `"terminationBehavior": "terminate"`.  
+<!-- 2026-11-22 "Auto-name Antigravity conversations from project journal step numbers": https://github.com/dmitry-ai/harness/issues/120 -->  
 On non-dry-run primary turns, `turn-begin` first reconciles any earlier completed turns of the conversation, reserves collision-free journal step number(s) in `ꘖ/data/.journal/<hash>/turn-reservations.json` (without creating `ꙮ` early or affecting `validate_step --all`), and in Antigravity synchronously updates the conversation title via the instance's local `LanguageServerService/UpdateConversationAnnotations` RPC (`mergeAnnotations: true`) to the sorted comma-separated journal step numbers of that conversation (for example, `211` on a new conversation and `191, 204` when a follow-up request arrives in an existing conversation); `answer-prepare`, `journal-sync`, and the explicit `sync-conversation-title` command re-verify and synchronize the title against committed journal steps without mutating native SQLite databases directly.  
+<!-- 2026-11-21 "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag": https://github.com/dmitry-ai/harness/issues/116 -->  
 Passing `--dry-run` validates native turn ownership and hygiene checks without creating locks, mutating `ꘖ/data/turns`, or upgrading legacy journals on disk (for example, inside Plan Mode or environments without `PreInvocation`).  
 The tool verifies native request ownership for the root and the `primary`/`child` role; an ordinary agent project does not require a synthetic job post or client article.  
 `ꘖ/data/turns` records the root, native turn, exact requests, applicable FILE-3/EXEC-5/DOC-2 rules, their sources, and mandatory stages.  
+<!-- 2026-10-24 "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates": https://github.com/dmitry-ai/harness/issues/17 -->  
 In the first phase of a turn, run `policy-instructions` (in Codex), `turn-begin`, and batched reading of rules without output truncation; launch any `git` commands only after receiving the first-phase output and strictly with `--no-optional-locks` (or via `git-read`).  
+<!-- 2026-11-21 "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems": https://github.com/dmitry-ai/harness/issues/109 -->  
 The `--journal <directory>` option records a journal explicitly chosen by the user; without it, a new turn uses `ꙮ/{≻,≺}` (`O-ꙮ` 20-entry subfolders `1–20`, `21–40`, …) and automatically upgrades any legacy `ꙮ` layout (`V1` `1 - Analysis/{req,res}` / `req,res` or flat `≻,≺`) inside `ꙮ` to `O-ꙮ` (`journal_version: 3`) while preserving `V1` project structure outside `ꙮ`.  
 The journal of an already started turn cannot be silently redirected; the verifier preserves its binding and also checks linked documents against the project root.  
 This record is evidence of applicability and configuration, not proof that the model read or understood the rules.  
 `instruction_snapshot` records the list and SHA256 digests of shared rules, the adapter, `runtime.json`, local registration, and its path sources; for Codex it also records discovered `AGENTS.md`/`AGENTS.override.md` candidates along the configured root and in the active profile.  
 This is an inventory of available sources rather than proof of trigger selection or actual context injection: `selection_verified` and `delivery_to_model_verified` remain `false`.  
 Errors resolving local registrations are saved in `errors`; appending a snapshot to prior state is marked `existing-state-upgrade`, and post-delivery recovery is marked `recovery`.  
+<!-- 2026-11-03 "Replace persistent journal daemon with foreground-only idempotent reconciliation": https://github.com/dmitry-ai/harness/issues/41 -->  
 Execution is foreground-only: `turn-begin` reconciles earlier completed turns of the current conversation synchronously, and `answer-prepare` records the current exact response before returning.  
 Neither command registers or starts a background process, including calls using the legacy `watch` parameter; `--no-watch` remains a compatibility option.  
 No persistent verifier, detached worker, polling loop, or timer runs between working calls, whether applications are open or closed.  
 Prepared response bytes are saved before publication; native delivery can only be confirmed during a later foreground call after the completion event exists.  
+<!-- 2026-11-20 "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories": https://github.com/dmitry-ai/harness/issues/105 -->  
 When the user explicitly opts out of journaling under SCOPE-1, honor the opt-out and do not call `answer-prepare` for that response; previously saved history remains intact.  
 
 ## Answer Preparation
 
+<!-- 2026-10-31 "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare": https://github.com/dmitry-ai/harness/issues/27 -->  
+<!-- 2026-11-10 "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop": https://github.com/dmitry-ai/harness/issues/49 -->  
+<!-- 2026-11-21 "Add read-only answer-check pre-flight validation command to harness CLI": https://github.com/dmitry-ai/harness/issues/117 -->  
+<!-- 2026-11-24 "Add deterministic reactive wait primitive for transient repository and journal contention": https://github.com/dmitry-ai/harness/issues/199 -->  
+<!-- 2026-11-24 "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility": https://github.com/dmitry-ai/harness/issues/225 -->  
 ```text
 python <agents>/scripts/harness.py answer-check <root> --response-file <root>/ꘖ/data/scratch/answer-<turn_key>.md [--blocked-report] [--conversation <native-uuid>] [--platform codex|antigravity]
 python <agents>/scripts/harness.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer-<turn_key>.md --consume-input [--blocked-report] [--wait-timeout <S>] --platform codex
 python <agents>/scripts/harness.py answer-prepare <root> --response-file <root>/ꘖ/data/scratch/answer-<turn_key>.md --consume-input [--blocked-report] [--wait-timeout <S>] --conversation <native-uuid> --platform antigravity
 ```
 
+<!-- 2026-11-24 "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility": https://github.com/dmitry-ai/harness/issues/225 -->  
 For pre-finalize tracked workflow projects blocked by an unresolvable external or Harness defect, document the active blocker and next step in `ꘖ/data/continuation.md` and pass `--blocked-report` to `answer-check` and `answer-prepare`: this records the blocker report (including mandatory five-part `DOC-5` `/df-analysis` problem reports without client Upwork claims or five-stage headings) in `ꙮ` with `completion_kind: "blocked_report"`, preserves any deferred `issue_first`/`tdd`/`code_lifecycle` diagnostics in `blocked_hygiene_diagnostics`, and leaves `workflow.json` stages open until review authorization completes.  
+<!-- 2026-11-25 "Extract ask_question clarification metadata and prohibit Stop Gate bypass via ask_question": https://github.com/dmitry-ai/harness/issues/234 -->  
 Do not park a blocked turn in `CASCADE_RUN_STATUS_RUNNING` or bypass `Stop Gate` via `ask_question` (reserve `ask_question` strictly for legitimate user product decisions); when completed `ask_question` tool outputs (`A1: ...`) occur within an Antigravity turn, `AntigravityTurnScanner` preserves them under `clarifications` in the turn state without altering native `USER_INPUT` segmentation.  
 
+<!-- 2026-11-21 "Add read-only answer-check pre-flight validation command to harness CLI": https://github.com/dmitry-ai/harness/issues/117 -->  
+<!-- 2026-11-23 "Codify mandatory TDD workflow and ratchet contract in Harness documentation": https://github.com/dmitry-ai/harness/issues/139 -->  
+<!-- 2026-11-23 "Codify mandatory pre-TDD Issue-First workflow in Harness rules and documentation": https://github.com/dmitry-ai/harness/issues/147 -->  
 `answer-check` performs a single read-only pre-flight pass over a candidate response (`DOC-4` line structure, `LINK-4` / `LINK-5` readable links and local file/anchor/`#L10-L20`/JSON-pointer targets, `DOC-2` equiprobability checks, `ResponseEvidenceAuditor` / `local_source_grounding_issues`, `compaction_check` / evicted citations, `EXEC-5` / `issue_first_check`, `EXEC-2` / `tdd_check`, and `EXEC-5` / `code_lifecycle_check`) across primary turns, Plan Mode, and child `A.A` / `A.F` subagents without writing to `ꙮ` or `ꘖ/data/turns` and without acquiring sequence locks, returning compact JSON diagnostics with exit code `0` (`valid: true`) or `2` (`valid: false`).  
 
+<!-- 2026-10-28 "Add authenticated portal access contract (EXEC-6) and prevent PowerShell OEM/ASCII pipe corruption of UTF-8 journals": https://github.com/dmitry-ai/harness/issues/18 -->  
 **Mandatory UTF-8 encoding rule in Windows PowerShell:**  
 1. In Windows PowerShell 5.1, piping text (`@' ... '@ | python ...` or `"..." | python ... --response-file -`) defaults to the single-byte `[Console]::OutputEncoding` (OEM/ASCII), irreversibly replacing Cyrillic and the characters `ꘖ` (`\ua616`) / `ꙮ` (`\ua66e`) with question marks `?` (`0x3F`).  
+<!-- 2026-11-10 "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop": https://github.com/dmitry-ai/harness/issues/49 -->  
 2. Therefore, before calling `answer-prepare` (as well as `record-answer`, `prepare-review`, `record-review`, and `save-analysis`), **always write the response text in UTF-8 without BOM to `<root>/ꘖ/data/scratch/answer-<turn_key>.md`** using the native file tool (`write_file` in Antigravity or `[System.IO.File]::WriteAllText($path, $text, [System.Text.UTF8Encoding]::new($false))` in PowerShell) and pass the path via `--response-file "<root>/ꘖ/data/scratch/answer-<turn_key>.md" --consume-input` (optionally with `--expected-sha256 <sha256>`); using a shared `answer.md` when parallel turns are open is rejected.  
 3. If you run a `python -` one-liner via a pipe `|` in PowerShell, always prefix the command with `[Console]::InputEncoding = [Console]::OutputEncoding = $OutputEncoding = [System.Text.UTF8Encoding]::new($false);`, and use the Unicode escapes `\ua616` and `\ua66e` for paths containing `ꘖ` and `ꙮ` inside Python code.  
 
+<!-- 2026-11-10 "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop": https://github.com/dmitry-ai/harness/issues/49 -->  
+<!-- 2026-11-23 "Document JSON metadata header contract in rules and references": https://github.com/dmitry-ai/harness/issues/152 -->  
 The operation re-verifies the active native turn under its isolated per-turn lock (`turn-<turn_key>.lock`), reserves collision-free step number(s), automatically prepends a tab-indented JSON metadata header (`Time` in the computer's local timezone with `Request`/`Response`/`Duration`, `Project`, `Journal`, `Agent` with `System`/`Instance`/`Model`/`Effort`, and `Trace`) to new or pre-delivery re-prepared journal response files (`≺/<range>/<N>.md`), records the exact requests and metadata-prefixed response through `record_answer` under the short journal sequence lock, validates the read-back bytes (rejecting corrupted OEM/ASCII output where words were replaced by `???`), and returns `response_file`, on-disk `response_sha256`, clean-chat `body_sha256`, pair numbers, `retryable: false`, and `ready: true`.  
+<!-- 2026-11-24 "Add deterministic reactive wait primitive for transient repository and journal contention": https://github.com/dmitry-ai/harness/issues/199 -->  
 Under `--wait-timeout <S>` (CLI default `180` seconds), `answer-prepare` waits reactively in the foreground on transient resource contention (active `repo-leases` on workspace repositories, concurrent `journal.lock`/`turn-<key>.lock` contention, or SQLite busy errors) while failing fast immediately on permanent response or workflow defects (`DOC-4`, broken links, `TDD`, `Issue-First`, missing issues), emitting machine-readable `"retryable": true/false` in JSON outputs.  
+<!-- 2026-11-10 "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop": https://github.com/dmitry-ai/harness/issues/49 -->  
 It also records `budget_check` (`checkpoint_count`, `tool_step_count`, `window_5h_tool_steps`, `graceful_checkpoint_required`) so turns exceeding safe compaction/step thresholds persist verified evidence and `ꘖ/data/continuation.md` before generating new client deliverables.  
+<!-- 2026-11-03 "Replace persistent journal daemon with foreground-only idempotent reconciliation": https://github.com/dmitry-ai/harness/issues/41 -->  
 New answer admission runs the current linked-document and source freshness gates, including semantic approval when required for the linked operation, before recording a proof bound to the exact journal, native turn, request identities, and response bytes.  
 The immutable proof retains the selected document revision, source checks, evidence, and approvals used at admission; unrelated registry entries do not become historical dependencies.  
 Its scope reflects the checks required for that operation; semantic publication clearance remains a separate requirement for publication workflows.  
+<!-- 2026-10-24 "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates": https://github.com/dmitry-ai/harness/issues/17 -->  
 It also checks public tool calls of the active turn for compliance with `EXEC-5` (no read-only Git invocations without `--no-optional-locks`), saving the result in `exec5_check`.  
+<!-- 2026-11-02 "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle": https://github.com/dmitry-ai/harness/issues/36 -->  
+<!-- 2026-11-20 "Wire V2 filesystem layout across Harness runtime subsystems and shared projections": https://github.com/dmitry-ai/harness/issues/101 -->  
 If an earlier step in the active turn triggered an `exec5_check` or `http_fetch_check` violation, run `python <agents>/scripts/harness.py recover-turn-violation <root> --conversation <native-uuid> --reason "<explanation>"` to record a retrospective violation receipt in `ꘖ/data/turns/<turn_key>-violation-recovery.json` (preserving the violation list with `recovered_via_receipt: true`) before calling `answer-prepare`, rather than writing directly to `ꙮ/**/req|res|≻|≺/*.md`.  
+<!-- 2026-10-30 "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks": https://github.com/dmitry-ai/harness/issues/21 -->  
 Additionally, `answer-prepare` performs seven protective turn and source checks:  
 1. `http_fetch_check` (`KB-3` / `EXEC-1`): rejects ad-hoc external network requests in the shell (`urllib.request`, `requests`, `Invoke-WebRequest`, `curl`) executed outside `collect` / `collect-http` / `collect-browser`.  
+<!-- 2026-11-07 "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification": https://github.com/dmitry-ai/harness/issues/47 -->  
+<!-- 2026-11-20 "Wire V2 filesystem layout across Harness runtime subsystems and shared projections": https://github.com/dmitry-ai/harness/issues/101 -->  
+<!-- 2026-11-21 "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode": https://github.com/dmitry-ai/harness/issues/119 -->  
 2. `compaction_check` (`COMPACT-1` / `KB-3`): if context compaction (`CHECKPOINT` / `context_compacted`) occurred in the active turn after tool calls, requires restoring pre-compaction results via `harness.py recover-checkpoint <root> --conversation <native-uuid>` or reading `transcript_full.jsonl` after the `CHECKPOINT` step, and blocks citing any primary source file (`source.md`, `res/<N>.md`, `≺/<N>.md`, `ꘖ/KB/Evidence/**`) that was read only before `CHECKPOINT` and evicted without a post-checkpoint re-read; on compacted turns, full `pre_checkpoint_records`, `pre_checkpoint_read_files`, `post_checkpoint_read_files`, `evicted_unreread_files`, and per-file `SHA-256`/byte/line metadata are offloaded to `ꘖ/data/turns/<turn_key>-recovery/index.json` while `turn-begin`, `recover-checkpoint`, and `answer-prepare` keep `stdout` `compaction_check` concise (counts, `index_file`, and blocking `unreread_analysis_sources`), and `recover-checkpoint --dry-run` provides a read-only pre-checkpoint `file_index` and step summary for Plan Mode navigation immediately after `CHECKPOINT` without writing receipts or bypassing `COMPACT-1`.  
+<!-- 2026-11-07 "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification": https://github.com/dmitry-ai/harness/issues/47 -->  
 3. `delegation_check` (`REVIEW-1` / `KB-3` / `REVIEW-4`): in Upwork projects (`ꘖ/project.json`), rejects executing more than 40 tool steps in the primary agent without delegating to subagents (`A.F`/`A.A`) or writing intermediate findings to `ꘖ/KB` (when inspecting file tools, only the target path `Path` / `TargetFile` is checked, not `Content`), and rejects `A.A` audit subagents that read only a truncated or non-contiguous partial slice of a candidate response (`aa_partial_read_violations`).  
+<!-- 2026-10-31 "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation": https://github.com/dmitry-ai/harness/issues/31 -->  
+<!-- 2026-11-06 "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation": https://github.com/dmitry-ai/harness/issues/48 -->  
+<!-- 2026-11-07 "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification": https://github.com/dmitry-ai/harness/issues/47 -->  
+<!-- 2026-11-18 "Document parent-child issue decomposition and enumerated title ban in EXEC-5 and df-github-issue": https://github.com/dmitry-ai/harness/issues/85 -->  
+<!-- 2026-11-18 "Fix post-audit edge cases in parent-child issue validation and turn-scoped lifecycle checks": https://github.com/dmitry-ai/harness/issues/87 -->  
+<!-- 2026-11-22 "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks": https://github.com/dmitry-ai/harness/issues/123 -->  
+<!-- 2026-11-26 "Codify daily Git tagging and tagged GitHub links in rules and documentation": https://github.com/dmitry-ai/harness/issues/265 -->  
 4. `code_lifecycle_check` (`EXEC-5`): for any issue-tracked `code` repository modified during the active turn (whether inside or outside `<root>`, including nested subagents), requires zero uncommitted changes, a GitHub Issue URL reference in every modified code file, a commit in `HEAD` referencing that exact Issue URL (with the commit message containing only the Issue URL), `HEAD` pushed to upstream `@{u}`, a pushed daily Git tag (`YYYY-MM-DD` / `YYYY-MM-DD--<N>`) on each issue-closing commit via `harness.py repo-tag <repo> --push`, the GitHub Issue closed (`state == 'closed'`), rejection of `ENUMERATED_SLOP_TITLE` (`"X, Y, and Z"`) and `BUNDLED_SUBTASKS_IN_SINGLE_ISSUE` violations, and parent-child decomposition (`--parent <N>`) with a parent problem issue plus separate child issues and commits whenever multiple autonomous `M-*` subtasks or multi-commit created subtasks are implemented (verifying parent closure across completed child subtasks in `df_github_issue.py close` and `issue_lifecycle.py`); for analysis-only turns that diagnose repository defects and remediation methods in an issue-tracked `code` workspace without modifying code, requires filing verified unparented parent problem GitHub Issues via `df_github_issue.py` with saved read-back Evidence JSON and local source grounding; and whenever code or `affiliated_paths` belonging to a declared `similar_projects` peer or overlay are touched, enforces sibling parity in `answer-check`, `answer-prepare`, and `check_stop_gate.py` (while advertising `similar_peers=...` in `check_pre_invocation.py` and `similar_projects_pending` in `df_github_issue.py close`) by requiring peer code edits, a peer repository GitHub issue (`create`/`edit`/`comment` with saved `issue-<N>.json` Evidence), or a `similar-project-exempt` justification (`>= 30` chars).  
+<!-- 2026-10-31 "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare": https://github.com/dmitry-ai/harness/issues/27 -->  
+<!-- 2026-11-07 "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification": https://github.com/dmitry-ai/harness/issues/47 -->  
+<!-- 2026-11-24 "Create /df-analysis skill and codify mandatory analytical rules": https://github.com/dmitry-ai/harness/issues/182 -->  
+<!-- 2026-11-24 "Add FILE-6 warning banner rule for out-of-workspace file-scattering recommendations": https://github.com/dmitry-ai/harness/issues/200 -->  
+<!-- 2026-11-25 "Require separate companion /df-analysis tracks for every complex problem analysis": https://github.com/dmitry-ai/harness/issues/249 -->  
+<!-- 2026-11-26 "Codify daily Git tagging and tagged GitHub links in rules and documentation": https://github.com/dmitry-ai/harness/issues/265 -->  
 5. `source_kb_check` (`LINK-1` / `LINK-2` / `LINK-5` / `LINK-6` / `DOC-4` / `DOC-5` / `FILE-6` / `VERIFY-1` / `KB-1` / `KB-3`): verifies link readability (`readable_link_issues`, permitting unencoded local `file:///` links in chat responses only for non-GitHub-repository or gitignored local files), `LINK-6` enforcement (prohibiting `file:///` links to GitHub repository files and cross-repository relative links, requiring existing tagged GitHub URLs with verified paths/lines/anchors for local GitHub repositories, and grounding verified local-repo tagged GitHub URLs directly against `git show <tag>:<path>`), Markdown table prohibition (`DOC-4`), `/df-analysis` multi-hypothesis/multi-method and four-track separate `# 0`..`# 4` complex problem analysis structure (`DOC-2`/`DOC-3`/`DOC-5`: Primary Problem plus separate Culprit/Provenance, Test & Verification Escape, and Journal & Reporting Integrity analyses, validating every block independently), the mandatory uppercase `FILE-6` warning banner on recommendations proposing out-of-workspace file scattering across every analysis block, provenance tiers (`Tier 0`/`Tier 1`/`Tier 2`, rejecting `Tier 2` rule/draft/`res/*.md` files as sole evidence for factual or numeric claims and auto-binding sibling `source.md` whenever `analysis.md` is linked), structured fact-tuple consistency against `ꘖ/data/facts.json` (`vcpu=null`, `mem_total`, `swap_total`, normalized `load average`), deterministic AST inline arithmetic (`A - B = C`, `A / B = C`), presence of all external `http(s)://` links from the response in `ꘖ/KB` modules or `Analysis.json` (in projects with `ꘖ/project.json`), presence of valid primary observations in `ꘖ/KB/Evidence` across all projects for every external link (rejecting anti-bot/JS challenge shells with `browser_check_required: true` and empty `word_count: 0` HTML captures), verification of `#fragment` anchors against extracted `anchors` (and requiring a section `#anchor` on external documentation URLs when verified anchors exist unless `anchor_exception` is documented), verification of attributed verbatim quotes (`«...»` / `Оригинал:`) against the saved observation text, and agreement between a descriptive link label (`[Title](url)`) and the actual `<title>` / `<h1>` / JSON topic title in the saved observation.  
+<!-- 2026-11-23 "Codify mandatory TDD workflow and ratchet contract in Harness documentation": https://github.com/dmitry-ai/harness/issues/139 -->  
 6. `tdd_check` (`EXEC-2`): enforces universal Red-First TDD (writing a behavioral test and observing a genuine failing test run before any production code edit, resetting after each `git commit`) and a passing full test suite run after the final code or test edit across both Antigravity (including background task completions) and Codex (`apply_patch` / `exec_command`) turns; enforced in `answer-check`, `answer-prepare`, and `check_stop_gate.py`, never bypassed by `recover-turn-violation`, with read-only diagnostics via `harness.py tdd-check` and audited Test Ratchet overrides via `harness.py ratchet-ok` (recording `ꘖ/data/turns/<turn_key>-ratchet-ok.json` or honoring `RATCHET-OK:` lines in linked GitHub issue Evidence JSON).  
+<!-- 2026-11-23 "Codify mandatory pre-TDD Issue-First workflow in Harness rules and documentation": https://github.com/dmitry-ai/harness/issues/147 -->  
 7. `issue_first_check` (`EXEC-5` / `Issue-First`): enforces establishing an open parent/strategic GitHub issue (via `df_github_issue.py create` without `--parent` or `df_github_issue.py fetch` on an open parent issue) strictly before creating or editing any test file, production code file, or versioned deliverable in a GitHub-backed repository (preceding `EXEC-2` Red-First TDD, permitting child issues `--parent <N>` while the parent remains open, and resetting once the parent is closed); enforced live by `EXEC-5-ISSUE-FIRST-GATE` (`PreToolUse`, before `EXEC-2-TDD-GATE`), `df_github_issue.py` `pre_flight_issue_first`, Git `pre-commit`, `answer-check`, `answer-prepare`, and `check_stop_gate.py`, never bypassed by `recover-turn-violation`, with read-only diagnostics via `harness.py issue-first-check`.  
-<!-- https://github.com/dmitry-ai/harness/issues/47 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/48 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/85 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/87 -->
 
+<!-- 2026-10-30 "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks": https://github.com/dmitry-ai/harness/issues/21 -->  
 In tracked projects with `ꘖ/data/workflow.json` and `ꘖ/project.json`, while the `finalize` stage of initial analysis is incomplete (or when a subsequent analytical response contains causal hypotheses or methods `H-N` / `M-N` without a delegated subagent audit in the current turn), requests must be adopted via `adopt-requests` and approved via `authorize` (filtered to the current conversation without blocking on historical conversations); once `finalize` is complete, client text edits (`/df-article`, `/df-proposal`) and ordinary follow-up turns are recorded in the journal via `_record` and checked against `source_kb_check` and `gate_requests` without binding to the initial analysis cards in `Analysis.json`.  
 Verification includes a full request snapshot after `turn-begin`, after lock acquisition, and after writing the journal.  
 If a new request or turn change is detected after writing, history is preserved, the state receives `preparation_unverified` and a negative `readiness_check`, and readiness is withheld.  
 This check does not create an atomic transaction with platform delivery: a message arriving after the last check still requires handling by the primary agent.  
 Linked client documents pass through `gate_requests`; requests of a tracked initial analysis retain the substantive `authorize` gate.  
+<!-- 2026-11-23 "Document JSON metadata header contract in rules and references": https://github.com/dmitry-ai/harness/issues/152 -->  
 Publish the exact clean authored response body (matching `body_sha256`, without the leading Harness JSON metadata header) in chat without modification; `check_stop_gate.py` and foreground `journal-sync` match the clean chat reply against `body_sha256` and the saved `response_file` after stripping the leading Harness JSON metadata header, while preserving on-disk header integrity against tampering.  
+<!-- 2026-11-10 "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop": https://github.com/dmitry-ai/harness/issues/49 -->  
+<!-- 2026-11-20 "Wire V2 filesystem layout across Harness runtime subsystems and shared projections": https://github.com/dmitry-ai/harness/issues/101 -->  
 Retrying with the exact same bytes is idempotent; before native chat delivery occurs (`delivery == null`), re-running `answer-prepare` for the same request set updates the prepared `res/<N>.md` (or `≺/<N>.md` in `V2`) and answer-group receipt in place (`reprepared_before_delivery: true`), whereas after delivery or when a new uncovered request arrives, prior history is never overwritten.  
 `delivery_verified: false` indicates preparation rather than observed delivery.  
-<!-- https://github.com/dmitry-ai/harness/issues/49 -->  
 A narrow check rejects justifying equal probabilities solely from absence of data; verbatim quotes, code blocks, and explicit negations of that fallacy are preserved.  
 This check does not identify hidden causes, does not forbid justified equal priors, and does not replace substantive review.  
 
 ## Native Verification
 
+<!-- 2026-10-31 "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare": https://github.com/dmitry-ai/harness/issues/27 -->  
 ```text
 python <agents>/scripts/harness.py journal-sync <root> --conversation <native-uuid> --platform codex
 ```
 
+<!-- 2026-11-03 "Replace persistent journal daemon with foreground-only idempotent reconciliation": https://github.com/dmitry-ai/harness/issues/41 -->  
 The foreground reconciler reads the explicitly selected conversation, its exact user requests, and completed final messages; private reasoning traces are never exported.  
+<!-- 2026-11-20 "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories": https://github.com/dmitry-ai/harness/issues/105 -->  
 The next `turn-begin` performs this check for earlier completed turns in the current conversation; `journal-sync` requests it explicitly without starting any later work, and confirmed `delivered` turns automatically prune temporary `<turn_key>-recovery/` checkpoint directories.  
 Codex requires a native turn-completion event and a final assistant message matching that completion event.  
 Antigravity verifies a completed step; for the active tail, it additionally requires native idle state, `not_fully_idle: 0`, absence of killed status, and consistent indices for the last user request and planner step.  
@@ -99,6 +152,7 @@ If preparation was skipped, the actual exchange is recorded with `recovered_afte
 If the exact request group already existed without the new contract state, reconciliation records `completion_provenance: existing_journal`, avoids creating a duplicate, and does not retroactively mark it as pre-delivery verified.  
 Historical responses are preserved verbatim even if they contain errors; recording them does not constitute substantive approval.  
 Altered bytes are recorded as a conflict alongside the separate native text; existing journal pairs are never overwritten.  
+<!-- 2026-11-03 "Replace persistent journal daemon with foreground-only idempotent reconciliation": https://github.com/dmitry-ai/harness/issues/41 -->  
 An explicit reconciliation checks current journal integrity even when the native source is unchanged; repeated checks preserve unchanged receipt bytes, timestamps, and file modification times.  
 For an already recorded answer, reconciliation verifies its original admission proof and historical integrity rather than re-running publication-time freshness or requesting new semantic approval.  
 Elapsed time and a later legitimate applied revision do not invalidate the earlier admission; altered or missing journal, proof, evidence, or required document history remain integrity conflicts.  
@@ -106,6 +160,8 @@ Applied successors bind the preceding registered version; historical verificatio
 Explicit baseline reconciliation retains its acknowledged bytes and predecessor link, preserving earlier history while the changed baseline awaits any required new publication approval.  
 Legacy records without a proof report an explicit proof gap and are never silently promoted to current approval; a previously failed admission cannot become approved through recovery.  
 When a completion state exists, deleting a recorded pair or its receipt is flagged as a conflict without silent restoration or history duplication.  
+<!-- 2026-11-02 "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle": https://github.com/dmitry-ai/harness/issues/36 -->  
+<!-- 2026-11-20 "Wire V2 filesystem layout across Harness runtime subsystems and shared projections": https://github.com/dmitry-ai/harness/issues/101 -->  
 When an unrecorded native turn matches an existing unclaimed pair in `req/<N>.md` and `res/<N>.md` (or `≻/<N>.md` and `≺/<N>.md` in `V2`, after normalizing `CRLF`/`LF`, trailing newlines, and local `file:///` prefixes), `_record` adopts that pair into `answer-groups/native-<turn_key>.json` with `completion_provenance: existing_journal` instead of allocating a duplicate `max + 1` pair; if the matching on-disk pair is claimed by another `answer-groups` receipt whose recorded hashes disagree with the overwritten disk bytes, `_record` raises a conflict and preserves the evidence.  
 A syntactically or structurally corrupted binding is preserved with an error and does not halt verification of other conversations; a transient read error is retried on the next pass rather than cached as success.  
 Failure of a prior gate on a linked client document is likewise preserved as a conflict with the native text rather than bypassed for recovery.  
@@ -113,26 +169,12 @@ A stable native ID and request check prevent duplicates; identical wording in di
 
 ## Limits and Verification
 
+<!-- 2026-11-20 "Wire V2 filesystem layout across Harness runtime subsystems and shared projections": https://github.com/dmitry-ai/harness/issues/101 -->  
+<!-- 2026-11-20 "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner": https://github.com/dmitry-ai/harness/issues/103 -->  
+<!-- 2026-11-20 "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories": https://github.com/dmitry-ai/harness/issues/105 -->  
 The shared source remains `AI/harness/Ⰿ/≻/♕/⛯`, and native databases are never modified.  
+<!-- 2026-11-03 "Replace persistent journal daemon with foreground-only idempotent reconciliation": https://github.com/dmitry-ai/harness/issues/41 -->  
 Foreground reconciliation does not close windows, restart Codex or Antigravity, or terminate third-party processes.  
 The contract does not intercept platform message submission: an agent can still bypass preparation by emitting a direct final reply, after which the next foreground reconciliation detects the violation and recovers the journal entry.  
 If no later working call occurs, native delivery remains unverified; there is no autonomous post-delivery repair or promise of immediate background recovery.  
 Criteria: routine analysis and articles use the same FILE-3 contract; an incomplete reply is not imported; a skipped preparation is recovered; retries do not duplicate pairs; a foreign root/profile/child is rejected; a conflict preserves the original bytes.  
-<!-- https://github.com/dmitry-ai/harness/issues/41 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/48 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/109 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/116 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/117 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/119 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/120 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/123 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/139 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/147 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/152 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/182 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/199 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/200 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/225 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/234 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/249 -->  
-<!-- https://github.com/dmitry-ai/harness/issues/265 -->  

@@ -1,6 +1,4 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add deterministic rules-audit CLI and aggregate budget enforcement":
-# https://github.com/dmitry-ai/harness/issues/244
 from __future__ import annotations
 from pathlib import Path
 from .rules_audit_checks import (
@@ -120,6 +118,9 @@ def _touches_audit_surface(staged_paths: list[str]) -> bool:
 			r = True
 			break
 	return r
+# 2026-11-26
+# "Add deterministic rules-audit CLI and aggregate budget enforcement":
+# https://github.com/dmitry-ai/harness/issues/244
 def audit_rules(primary: str | Path, *, workspace: str | Path | None=None, max_file_bytes: int=MAX_RULE_FILE_BYTES, max_always_on_bytes: int=MAX_ALWAYS_ON_BYTES, max_always_on_tokens: int=MAX_ALWAYS_ON_TOKENS, overrides: dict[Path, bytes] | None=None) -> dict:
 	prim = Path(primary).resolve()
 	ws = Path(workspace).resolve() if None is not workspace else None

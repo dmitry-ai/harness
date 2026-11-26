@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
-# https://github.com/dmitry-ai/harness/issues/213
 from __future__ import annotations
 import json
 from pathlib import Path
@@ -17,6 +15,9 @@ for p in (str(SCRIPTS), str(TESTS)):
 from agent_tools import completion, workflow as flow
 from test_analysis_workflow import ProjectCase
 from test_continuation_binding import wire
+# 2026-11-24
+# "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
+# https://github.com/dmitry-ai/harness/issues/213
 class BlockedReportM2Tests(ProjectCase):
 	def setUp(self) -> None:
 		super().setUp()

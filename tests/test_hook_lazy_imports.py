@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Convert PreToolUse hook entry points to lazy tool-scoped imports":
-# https://github.com/dmitry-ai/harness/issues/187
 from __future__ import annotations
 import json
 from pathlib import Path
@@ -15,6 +13,9 @@ if str(SCRIPTS) not in sys.path:
 def _run_probe(code: str) -> dict:
 	proc = subprocess.run([sys.executable, '-I', '-c', code, str(SCRIPTS.resolve())], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30, check=True)
 	return json.loads(proc.stdout)
+# 2026-11-24
+# "Convert PreToolUse hook entry points to lazy tool-scoped imports":
+# https://github.com/dmitry-ai/harness/issues/187
 class HookLazyImportsTests(unittest.TestCase):
 	def test_cdp_bypass_py_edit_and_read_skip_git_gate_and_still_blocks_loopback(self) -> None:
 		code = (

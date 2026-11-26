@@ -1,9 +1,4 @@
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Require separate companion /df-analysis tracks for every complex problem analysis":
-# https://github.com/dmitry-ai/harness/issues/249
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
-# https://github.com/dmitry-ai/harness/issues/225
 from __future__ import annotations
 import json
 from pathlib import Path
@@ -22,6 +17,9 @@ from agent_tools import blocked_report, completion, workflow as flow
 from agent_tools.path_registry import project_paths
 from test_analysis_workflow import ProjectCase
 from test_continuation_binding import wire
+# 2026-11-25
+# "Require separate companion /df-analysis tracks for every complex problem analysis":
+# https://github.com/dmitry-ai/harness/issues/249
 DOC5_HARNESS_BLOCKER = (
 	'# 0. \u041c\u0435\u0442\u0430\u0434\u0430\u043d\u043d\u044b\u0435 \u043f\u0440\u043e\u0431\u043b\u0435\u043c\u044b\n\n'
 	'```json\n'
@@ -154,6 +152,9 @@ DOC5_HARNESS_BLOCKER = (
 	'- **\u0414\u043e\u0432\u043e\u0434\u044b \u043f\u0440\u043e\u0442\u0438\u0432:** \u041d\u0430\u0440\u0443\u0448\u0430\u0435\u0442 `FILE-3`.  \n'
 	'- **\u041e\u0446\u0435\u043d\u043a\u0430:** 5%.  \n'
 )
+# 2026-11-24
+# "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
+# https://github.com/dmitry-ai/harness/issues/225
 class BlockedReportHygieneAndDoc5M2Tests(ProjectCase):
 	def setUp(self) -> None:
 		super().setUp()

@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add harness perf-timesheet CLI for deterministic turn chronometry":
-# https://github.com/dmitry-ai/harness/issues/191
 from __future__ import annotations
 from pathlib import Path
 from typing import Any
@@ -32,6 +30,9 @@ def _slice_rows(surface: str, rows: list[dict[str, Any]], start_step: int | None
 	else:
 		r = [row for pos, row in enumerate(rows) if (None is start_step or int(row.get('step_index', pos)) >= start_step) and (None is end_step or int(row.get('step_index', pos)) <= end_step)]
 	return r
+# 2026-11-24
+# "Add harness perf-timesheet CLI for deterministic turn chronometry":
+# https://github.com/dmitry-ai/harness/issues/191
 def build_timesheet(trace_path: str | Path, *, conversation_id: str | None=None, summary_db: str | Path | None=None, turn_start_step: int | None=None, turn_end_step: int | None=None, top_gaps_limit: int=10) -> dict[str, Any]:
 	tp = Path(trace_path).resolve()
 	digest, all_rows = load_jsonl_rows(tp)

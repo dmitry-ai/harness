@@ -1,6 +1,10 @@
+<!-- 2026-10-20 "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering": https://github.com/dmitry-ai/harness/issues/13 -->  
+<!-- 2026-10-31 "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow": https://github.com/dmitry-ai/harness/issues/26 -->  
 # Commands and Service Data
 
 All commands below are executed by the agent.  
+<!-- 2026-11-20 "Wire V2 filesystem layout across Harness runtime subsystems and shared projections": https://github.com/dmitry-ai/harness/issues/101 -->  
+<!-- 2026-11-20 "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner": https://github.com/dmitry-ai/harness/issues/103 -->  
 `<scripts>` denotes `AI/harness/Ⰿ/≻/♕/⛯/scripts`, and `<root>` denotes the exact root of the instruction.  
 `df_text.py`, `df_article.py`, and `df_proposal.py` import the same CLI; the latter two select their default format.  
 UTF-8 JSON/Markdown may be piped via `-` on stdin (subject to the UTF-8 file rule on Windows PowerShell).  
@@ -24,6 +28,7 @@ Proposal profile: `numbering: nested|flat`, `voice: technical|offer`; extra para
 `fields.json` maps exact field names to the text being submitted, and `limits.json` maps them to each field's verified character limit.  
 By default, length is counted as UTF-16 code units as in a browser; `--count-mode unicode` is used only when a different counter is verified.  
 An article accepts the `link_style: markdown` profile for explicit checking of bare URLs.  
+<!-- 2026-10-23 "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader": https://github.com/dmitry-ai/harness/issues/16 -->  
 The `formatted` profile verifies that the domain, path, query, and fragment match between the visible label and target URL; a technical URL in the label does not create standalone numeric claims.  
 See the [link contract](sources.md#link-labels-and-numbers).  
 An external section reference is identified by an explicitly named document: `11 CCR §7025`, `RFC 9110 §15.4.3`, `ISO 27001:2022 §5.1`.  
@@ -75,6 +80,7 @@ Required links and quotes obtain observations via the shared collector `upwork_p
 Never populate `observation` with a fabricated report.  
 `sources` verifies the exact closure of the listed claims; a mismatched quote, hash, or locator fails validation.  
 A.A evaluates semantic applicability.  
+<!-- 2026-10-23 "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader": https://github.com/dmitry-ai/harness/issues/16 -->  
 For external URLs in the candidate, `source-check` writes separate mandatory receipts whose paths are listed in `manifest.source_checks`.  
 The specification schema, expiration window, DOM fallback, failed probes, and source replacement are detailed in the [source contract](sources.md#observation-and-receipt).  
 
@@ -120,12 +126,14 @@ Check, package, and proof paths are relative to `<root>` and taken from actual c
 `risk.json` specifies `risk: routine|significant`, a substantive `basis`, and `task_flags` for the current instruction; an actual material claim escalates risk regardless of a `routine` label.  
 A native review is launched via the native subagent tool of the active platform.  
 Pass the package path in the parent prompt; the child agent first executes `review-input` and then returns its authored JSON in its final message.  
+<!-- 2026-10-23 "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader": https://github.com/dmitry-ai/harness/issues/16 -->  
 `review-input` provides the exact report schema, including `claim_reviews[].test_alignment`, `text_checks`, and `source_reviews`, in `report_contract`; do not rewrite that contract in a custom schema.  
 The parent generates a separate native proof receipt and submits the report via `review-record`.  
 Forged or self-authored reports do not grant clearance to the text.  
 Pass `--platform antigravity` on Antigravity; Codex C1/C2 is resolved from the active `CODEX_HOME` or an explicit `--codex-profile` on the shared tool.  
 History from another profile may be read only when explicitly instructed by the user.  
 
+<!-- 2026-10-23 "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader": https://github.com/dmitry-ai/harness/issues/16 -->  
 For a purely mechanical edit, a passing `check` does not require a block map or new substantive approval, though external source checks remain mandatory.  
 A mechanical check does not confer semantic readiness for submission.  
 `--warnings` accepts JSON `{"RULE:line":"Substantive disposition of the warning"}`.  
@@ -141,11 +149,12 @@ python <scripts>/df_text.py finalize <root>
 python <scripts>/df_text.py finalize <root> --publication
 ```
 
+<!-- 2026-10-23 "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader": https://github.com/dmitry-ai/harness/issues/16 -->  
 `answer-prepare` fetches the exact requests from the active native turn, records the response, and verifies linked clearances; Antigravity passes `--platform antigravity --conversation <native-uuid>`.  
+<!-- 2026-11-03 "Replace persistent journal daemon with foreground-only idempotent reconciliation": https://github.com/dmitry-ai/harness/issues/41 -->  
 Turn initialization and foreground native delivery verification are documented in the [shared turn completion contract](../turn-completion.md#native-verification).  
 No autonomous verifier runs after publication; actual delivery is reconciled on the next foreground working call.  
 New publication requires current source checks and semantic approval; answer preparation records the applicable checks for its linked operation so later integrity verification does not reauthorize historical text solely because sources have aged.  
-<!-- https://github.com/dmitry-ai/harness/issues/41 -->  
 Low-level `df_text.py record-answer <root> --journal <journal> --request-file <request> --response-file <answer> --turn <stable-turn-id>` remains available for compatibility and recovery; multiple `--request-file` flags bind several requests to one response, and retries are allowed only with identical bytes.  
 Standard `record_step`, `record-answer`, analysis `finalize`, and `safe_commit` invoke the same gates for target files linked to the current instruction or explicit commit list.  
 `finalize` validates registered documents in the explicitly selected text root; `--publication` additionally requires an active substantive clearance.  
@@ -157,8 +166,10 @@ Primary evidence remains in `KB/Evidence`; temporary inputs may be deleted once 
 
 `browser-check <root> --spec <session.json>` reads live `/json/version` and `/json/list` endpoints, verifies the profile and target via native CDP, and returns `unknown` when proof is unavailable.  
 Specification fields: `session_id`, current `target_id`, and optional exact `target_url`.  
+<!-- 2026-11-16 "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses": https://github.com/dmitry-ai/harness/issues/80 -->  
 Permitted sessions are defined exclusively in `runtime.json → text.browser.sessions`; each entry specifies surface (`browser|codex|antigravity`), loopback endpoint or `devtools_active_port` (with optional `fallback_endpoint`), profile verification (`Browser.getBrowserCommandLine` when `--enable-automation` is set, or single-directory `Default` `browserContextId` isolation via `M-2A` unpacked MV3 `offscreen.html` anchor and `M-2B` `https://harness-profile.invalid` sentinel), and `target_url_patterns`.  
 The client window and account are selected according to the instruction and live observation; this document never authorizes picking an arbitrary profile.  
 Profiles C1/C2 use the reference `profile: {platform: codex, name: C1|C2, argument: --codex-home}` only when that exact argument is observable in the running build; otherwise the status remains `unknown`.  
+<!-- 2026-11-16 "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses": https://github.com/dmitry-ai/harness/issues/80 -->  
 Direct loopback CDP access (`/json`, `/devtools/page/`, `/devtools/browser/`, `DevToolsActivePort`) outside `harness.py` and `df_text.py` is blocked by `CDP-BYPASS-GATE` (`M-4`), and external browser MCP mutations require a session-owned background page (`M-5`).  
 Do not use native Codex/Antigravity UI automation as a workaround for a rejected CDP check.  

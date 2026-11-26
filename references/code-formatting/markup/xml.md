@@ -1,3 +1,4 @@
+<!-- 2026-11-23 "Add PHP and markup formatting standards derived from mage2pro/core": https://github.com/dmitry-ai/harness/issues/155 -->  
 # XML Formatting Standard
 
 Inherits all general rules from [CODE-1](../../../rules/11-code-formatting.md#code-1) (tab indentation, zero blank lines, single quotes by default, alphabetical ordering, no unrequested comments).  
@@ -38,4 +39,3 @@ This example illustrates formatting only and is not part of any target program; 
 	</event>
 </config>
 ```
-<!-- https://github.com/dmitry-ai/harness/issues/155 -->  

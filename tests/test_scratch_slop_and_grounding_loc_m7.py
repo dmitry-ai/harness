@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Skip blocking grounding on scratch drafts and add line locations to diagnostics":
-# https://github.com/dmitry-ai/harness/issues/214
 from __future__ import annotations
 from pathlib import Path
 import sys
@@ -12,6 +10,9 @@ if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 from agent_tools import source_grounding
 import check_markdown_slop
+# 2026-11-24
+# "Skip blocking grounding on scratch drafts and add line locations to diagnostics":
+# https://github.com/dmitry-ai/harness/issues/214
 class ScratchSlopAndGroundingLocM7Tests(unittest.TestCase):
 	def _make_project(self, root: Path) -> Path:
 		ev = root / '\ua616/KB/Evidence/HTTP/abc123/response.bin'

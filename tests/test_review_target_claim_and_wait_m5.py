@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
-# https://github.com/dmitry-ai/harness/issues/212
 from __future__ import annotations
 import json
 from pathlib import Path
@@ -28,6 +26,9 @@ def _exec_sql(db_path: Path, statements: list[tuple[str, tuple]]) -> None:
 		conn.commit()
 	finally:
 		conn.close()
+# 2026-11-24
+# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
+# https://github.com/dmitry-ai/harness/issues/212
 class ReviewTargetClaimAndWaitM5Tests(ProjectCase):
 	def setUp(self) -> None:
 		super().setUp()

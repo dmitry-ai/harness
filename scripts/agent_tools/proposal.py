@@ -1,25 +1,29 @@
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
-# https://github.com/dmitry-ai/harness/issues/70
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 import re
 from typing import Mapping
 from .text_core import Finding, Line, author_text, check_code, check_prose, detect_language, external_section_ref, find_bans, load_lexicon, scan, transform_prose
+# 2026-11-14
+# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+# https://github.com/dmitry-ai/harness/issues/70
 from .text_sections import AddressedSection, KEYED_REF as KEY_REF, PROPOSAL_NUMBER_KEY, build_render_report, close_spans, reassemble_lines as _reassemble, rewrite_keyed_prose, validate_ref_range
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 PREFIX = '(?P<prefix>(?:[^\\w\\s@#]+\\s+)?)'
 NUMBERED = re.compile(PREFIX + '(?P<number>\\d+(?:\\.\\d+)*)\\.(?P<gap>[ \\t]+)(?P<body>.*)$')
 KEYED = re.compile(PREFIX + '@(?P<name>[\\w]+(?:[.\\-][\\w]+)*)(?P<gap>[ \\t]+)(?P<body>.*)$')
 REF = re.compile('(?<![\\w§])(?P<marks>§§?)(?P<space>[ \\t]*)(?P<start>\\d+(?:\\.\\d+)*)(?:[ \\t]*(?P<dash>[-–—])[ \\t]*§?(?P<end>\\d+(?:\\.\\d+)*))?(?!\\w|\\.\\d)')
 MARKDOWN_LINK = re.compile('!?\\[[^\\]\\n]*\\]\\(<?(?:https?://|#)[^\\n]*?\\)')
 URL = re.compile('https?://[^\\s<>`]+')
+# 2026-11-14
+# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+# https://github.com/dmitry-ai/harness/issues/70
 @dataclass
 class ProposalBlock(AddressedSection):
 	name: str
@@ -67,6 +71,9 @@ def parse_blocks(value: str | list[Line], findings: list[Finding] | None=None, *
 				findings.append(Finding('error', 'KEY-PARENT' if keyed else 'PROPOSAL-PARENT', line.no, f'no preceding parent {parent}', line.raw))
 		known[name] = block
 		r.append(block)
+	# 2026-11-14
+	# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+	# https://github.com/dmitry-ai/harness/issues/70
 	close_spans(r, lines)
 	return r
 parse_sections = parse_blocks
@@ -104,6 +111,9 @@ def _check_references(lines, blocks, findings, profile):
 				findings.append(Finding('error', 'PROPOSAL-REF-SPACE', line.no, 'write the point number immediately after §', match.group(0)))
 			if end and ('§§' != marks or '-' != dash) or (not end and '§§' == marks):
 				findings.append(Finding('error', 'PROPOSAL-RANGE', line.no, 'use §N for one point and §§N-M for a range', match.group(0)))
+			# 2026-11-14
+			# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+			# https://github.com/dmitry-ai/harness/issues/70
 			validate_ref_range(start, end, known, findings, line.no, match.group(0), order_key=lambda k: tuple(map(int, k.split('.'))), order_rule='PROPOSAL-RANGE-ORDER', order_msg='range endpoints must be in document order', check_dense=True)
 		if KEY_REF.search(author_text(line.raw)):
 			findings.append(Finding('error', 'KEY-UNRENDERED', line.no, 'render keyed references before using the proposal', line.raw))
@@ -218,9 +228,15 @@ def render(source: str, previous: str | None=None):
 			block = by_line[line.no]
 			raw = f'{block.prefix}{block.key}.{block.gap}{block.body}'
 		if 'prose' == line.kind:
+			# 2026-11-14
+			# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+			# https://github.com/dmitry-ai/harness/issues/70
 			raw = rewrite_keyed_prose(raw, line.no, mapping, findings, external_changes, format_ref=lambda _m, s, e: f'§§{mapping[s]}-{mapping[e]}' if e else f'§{mapping[s]}')
 		out.append(raw)
 	rendered = _reassemble(source, lines, out)
+	# 2026-11-14
+	# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+	# https://github.com/dmitry-ai/harness/issues/70
 	report = build_render_report(mapping, PROPOSAL_NUMBER_KEY, external_changes, [block.key for block in parse_blocks(previous)] if None is not previous else [])
 	final_lines = scan(rendered)
 	_check_references(final_lines, parse_blocks(final_lines), findings, {})

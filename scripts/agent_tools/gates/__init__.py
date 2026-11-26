@@ -1,15 +1,4 @@
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add CODE-1 Python style ratchet linter gate in PreToolUse and pre-commit":
-# https://github.com/dmitry-ai/harness/issues/243
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce single falsifier review default and block duplicate send_message reports":
-# https://github.com/dmitry-ai/harness/issues/226
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Convert PreToolUse hook entry points to lazy tool-scoped imports":
-# https://github.com/dmitry-ai/harness/issues/187
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract PreToolUse and completion gates into priority plugin registry":
-# https://github.com/dmitry-ai/harness/issues/167
 from __future__ import annotations
 import importlib
 import importlib.util
@@ -17,21 +6,32 @@ from pathlib import Path
 import pkgutil
 from .answer_checks import run_answer_gates
 from .stop_checks import run_stop_gates
+# 2026-11-24
+# "Convert PreToolUse hook entry points to lazy tool-scoped imports":
+# https://github.com/dmitry-ai/harness/issues/187
 _BUILTIN_TOOLS_MANIFEST = {
 	'batch_synthesis': frozenset({'run_command', 'write_file', 'edit_file'}),
 	'browser_mcp': frozenset({'mcp_*', 'invoke_subagent', 'write_file', 'edit_file'}),
 	'bulk_source_read': frozenset({'read_file'}),
 	'cdp_bypass': frozenset({'run_command', 'read_file', 'write_file', 'edit_file'}),
 	'code_size': frozenset({'write_file', 'edit_file'}),
+	# 2026-11-25
+	# "Add CODE-1 Python style ratchet linter gate in PreToolUse and pre-commit":
+	# https://github.com/dmitry-ai/harness/issues/243
 	'code_style': frozenset({'write_file', 'edit_file'}),
 	'external_write': frozenset({'run_command'}),
 	'git_write': frozenset({'run_command'}),
-	# 2026-11-26 "Add PreToolUse and pre-commit gate for issue-comment placement": https://github.com/dmitry-ai/harness/issues/273
+	# 2026-11-26
+	# "Add PreToolUse and pre-commit gate for issue-comment placement":
+	# https://github.com/dmitry-ai/harness/issues/273
 	'issue_comment': frozenset({'write_file', 'edit_file'}),
 	'issue_first': frozenset({'run_command', 'write_file', 'edit_file'}),
 	'journal_write': frozenset({'run_command', 'write_file', 'edit_file'}),
 	'rules_budget': frozenset({'write_file', 'edit_file'}),
 	'schedule_gate': frozenset({'schedule'}),
+	# 2026-11-24
+	# "Enforce single falsifier review default and block duplicate send_message reports":
+	# https://github.com/dmitry-ai/harness/issues/226
 	'send_message_gate': frozenset({'send_message'}),
 	'server_hygiene': frozenset({'run_command', 'write_file', 'edit_file'}),
 	'subprocess_hygiene': frozenset({'write_file', 'edit_file'}),
@@ -92,6 +92,9 @@ def discover_pre_tool_gates(*, tool_name: str | None=None, extra_dirs: list[Path
 			gates.extend(_load_extra_dir(Path(d), tool_name=tool_name))
 		gates.sort(key=lambda item: (item['priority'], item['name']))
 	return gates
+# 2026-11-23
+# "Extract PreToolUse and completion gates into priority plugin registry":
+# https://github.com/dmitry-ai/harness/issues/167
 def run_pre_tool_gates(name: str, args: dict, payload: dict, *, extra_dirs: list[Path] | tuple[Path, ...] | None=None) -> dict:
 	r = {'decision': 'allow'}
 	for gate in discover_pre_tool_gates(tool_name=name, extra_dirs=extra_dirs):

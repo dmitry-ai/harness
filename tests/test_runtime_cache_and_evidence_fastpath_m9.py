@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Cache runtime settings and deduplicate evidence validation in hot paths":
-# https://github.com/dmitry-ai/harness/issues/227
 import hashlib
 import json
 import os
@@ -63,6 +61,9 @@ def _write_fake_ag_backend(tmp: Path, root: Path, cid: str) -> Path:
 	]
 	(logs / 'transcript_full.jsonl').write_text('\n'.join((json.dumps(r) for r in rows)) + '\n', encoding='utf-8')
 	return backend
+# 2026-11-24
+# "Cache runtime settings and deduplicate evidence validation in hot paths":
+# https://github.com/dmitry-ai/harness/issues/227
 class RuntimeCacheAndEvidenceFastpathM9Tests(unittest.TestCase):
 	def test_authorize_deduplicates_evidence_issues_across_check_project(self) -> None:
 		with tempfile.TemporaryDirectory() as td:

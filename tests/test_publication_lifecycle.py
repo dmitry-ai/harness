@@ -1,12 +1,4 @@
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Initialize new Upwork projects in the V2 filesystem layout":
-# https://github.com/dmitry-ai/harness/issues/110
 # 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
-# https://github.com/dmitry-ai/harness/issues/7
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from copy import deepcopy
 import io
 import json
@@ -18,7 +10,16 @@ from test_evidence_contract import v3_analysis
 from agent_tools import operations, workflow, research
 from agent_tools.analysis import analysis_issues, publish_analysis
 from agent_tools.knowledge import sync_website_card
+# 2026-10-17
+# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+# https://github.com/dmitry-ai/harness/issues/7
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class PublicationLifecycleTests(ProjectCase):
+	# 2026-10-18
+	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+	# https://github.com/dmitry-ai/harness/issues/10
 	def valid_analysis(self):
 		value = v3_analysis(self.project, super().valid_analysis())
 		self.put_project('ꘖ/KB/Analysis.json', json.dumps(value, ensure_ascii=False))
@@ -31,6 +32,9 @@ class PublicationLifecycleTests(ProjectCase):
 		kwargs = dict(domain_or_topic='Known', extracted_data=data, daily_root=self.root / 'new-daily', register_native=False)
 		result = initialize_upwork_project(data['job_id'], site_hypothesis=hypothesis, **kwargs)
 		from pathlib import Path
+		# 2026-11-21
+		# "Initialize new Upwork projects in the V2 filesystem layout":
+		# https://github.com/dmitry-ai/harness/issues/110
 		card = Path(result['project_dir']) / 'readme.md'
 		self.assertIn('https://example.org/', card.read_text(encoding='utf-8'))
 		self.assertIn('<\U0001f56e/Project.md#13-website>', card.read_text(encoding='utf-8'))
@@ -44,9 +48,15 @@ class PublicationLifecycleTests(ProjectCase):
 		value['identity'] = [claim('H-SITE-1')]
 		ident = value['identity'][0]['id']
 		value['websites'] = [{'url': 'https://example.org/', 'role': 'target', 'basis_id': ident}]
+		# 2026-10-18
+		# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+		# https://github.com/dmitry-ai/harness/issues/10
 		value = v3_analysis(self.project, value)
 		source = self.project / 'ꘖ/KB/Analysis.json'
 		source.write_text(json.dumps(value), encoding='utf-8')
+		# 2026-11-21
+		# "Initialize new Upwork projects in the V2 filesystem layout":
+		# https://github.com/dmitry-ai/harness/issues/110
 		card = self.project / 'readme.md'
 		original = card.read_bytes()
 		old_state = json.loads((self.project / 'ꘖ/project.json').read_text())
@@ -75,6 +85,9 @@ class PublicationLifecycleTests(ProjectCase):
 	def test_new_analysis_cannot_finish_with_an_unpublished_website_card(self):
 		value = self.valid_analysis()
 		value['identity'] = [claim('H-SITE-1')]
+		# 2026-10-18
+		# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+		# https://github.com/dmitry-ai/harness/issues/10
 		value = v3_analysis(self.project, value)
 		path = self.project / 'ꘖ/KB/Analysis.json'
 		path.write_text(json.dumps(value), encoding='utf-8')
@@ -102,14 +115,23 @@ class PublicationLifecycleTests(ProjectCase):
 		value['identity'] = [claim('H-SITE-1')]
 		value['websites'] = [{'url': None, 'role': 'target', 'basis_id': 'H-SITE-1'}]
 		value['red_flags'] = [{'id': 'RF-WEBSITE-UNIDENTIFIED', 'status': 'unresolved', 'summary': 'No established site.', 'basis_ids': ['H-SITE-1']}]
+		# 2026-10-18
+		# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+		# https://github.com/dmitry-ai/harness/issues/10
 		value = v3_analysis(self.project, value)
 		path = self.project / 'ꘖ/KB/Analysis.json'
 		path.write_text(json.dumps(value), encoding='utf-8')
 		publish_analysis(path)
+		# 2026-11-21
+		# "Initialize new Upwork projects in the V2 filesystem layout":
+		# https://github.com/dmitry-ai/harness/issues/110
 		card = self.project / 'readme.md'
 		original = card.read_bytes()
 		publish_analysis(path)
 		self.assertEqual(card.read_bytes(), original)
+		# 2026-10-17
+		# "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks":
+		# https://github.com/dmitry-ai/harness/issues/5
 		self.assertLess(original.index(b'websites:start'), original.index(b'red-flags:start'))
 		self.assertLess(original.index(b'# Red Flags'), original.index(b'red-flags:start'))
 		self.assertTrue(original.rstrip().endswith(b'<!-- upwork-init:red-flags:end -->'))

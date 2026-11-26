@@ -1,43 +1,4 @@
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Refactor shared rules into compact three-layer M-2 architecture":
-# https://github.com/dmitry-ai/harness/issues/242
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add schema-help CLI, validator hints, save-analysis --merge, and af-worker file handoff":
-# https://github.com/dmitry-ai/harness/issues/217
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Manage Harness ephemeral Git exclusions in install-global and doctor":
-# https://github.com/dmitry-ai/harness/issues/198
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix worktree scope resolution for new files in TDD classifier":
-# https://github.com/dmitry-ai/harness/issues/188
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
-# https://github.com/dmitry-ai/harness/issues/133
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
-# https://github.com/dmitry-ai/harness/issues/116
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Canonicalize native profile manifests and Codex links across compatibility junctions in install-global":
-# https://github.com/dmitry-ai/harness/issues/106
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
-# https://github.com/dmitry-ai/harness/issues/103
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
-# https://github.com/dmitry-ai/harness/issues/100
-# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix runtime instance path derivation and store validation":
-# https://github.com/dmitry-ai/harness/issues/89
-# https://github.com/dmitry-ai/harness/issues/86
-# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
-# https://github.com/dmitry-ai/harness/issues/80
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
-# https://github.com/dmitry-ai/harness/issues/71
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace per-profile Harness projections with shared native connections":
-# https://github.com/dmitry-ai/harness/issues/35
 from contextlib import nullcontext
 from copy import deepcopy
 import hashlib
@@ -48,9 +9,18 @@ import re
 import subprocess
 import tomllib
 import uuid
+# 2026-11-14
+# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
+# https://github.com/dmitry-ai/harness/issues/71
 from .configuration import DISCOVERY_KINDS as KINDS, _frontmatter, _loader, has_linked_ancestor, is_linked_path, load_discovery_manifest, load_project_receipt, receipt_sha256, replace_managed_block, resolve_manifest_entry, store_content_backup
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
 from .runtime import PRIMARY, extract_platform_instances, settings
 from .storage import create_bytes, data_dir_for, locked, replace_bytes
+# 2026-11-02
+# "Replace per-profile Harness projections with shared native connections":
+# https://github.com/dmitry-ai/harness/issues/35
 ISSUE = 'https://github.com/dmitry-ai/harness/issues/35'
 START = '<!-- harness:native-loader:start -->'
 END = '<!-- harness:native-loader:end -->'
@@ -70,14 +40,26 @@ def _exists(path):
 	return os.path.lexists(path)
 def _same_path(first, second):
 	return Path(first).resolve() == Path(second).resolve()
+# 2026-11-20
+# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
+# https://github.com/dmitry-ai/harness/issues/100
+# 2026-11-20
+# "Canonicalize native profile manifests and Codex links across compatibility junctions in install-global":
+# https://github.com/dmitry-ai/harness/issues/106
 def _link_target_path(path):
 	raw = os.readlink(path)
 	if raw.startswith(('\\\\?\\', '\\??\\')):
 		raw = raw[4:]
 	cand = Path(raw)
 	return _absolute(cand if cand.is_absolute() else (Path(path).parent / cand))
+# 2026-11-20
+# "Canonicalize native profile manifests and Codex links across compatibility junctions in install-global":
+# https://github.com/dmitry-ai/harness/issues/106
 def _direct_link_matches_target(path, target):
 	return _linked(path) and os.path.normcase(str(_link_target_path(path))) == os.path.normcase(str(_absolute(target)))
+# 2026-11-20
+# "Canonicalize native profile manifests and Codex links across compatibility junctions in install-global":
+# https://github.com/dmitry-ai/harness/issues/106
 def _is_relocated_owned_link(path, prior_target, current_target, relocated_targets):
 	if not isinstance(prior_target, str):
 		return False
@@ -89,6 +71,9 @@ def _is_relocated_owned_link(path, prior_target, current_target, relocated_targe
 	except OSError:
 		return False
 	return actual in {os.path.normcase(str(_absolute(t))) for t in relocated_targets}
+# 2026-11-20
+# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
+# https://github.com/dmitry-ai/harness/issues/100
 def _link_matches_target(path, target):
 	try:
 		if _same_path(path, target):
@@ -96,6 +81,9 @@ def _link_matches_target(path, target):
 	except OSError:
 		pass
 	return _linked(path) and os.path.normcase(str(_link_target_path(path))) == os.path.normcase(str(_absolute(target)))
+# 2026-11-20
+# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
+# https://github.com/dmitry-ai/harness/issues/100
 def _relocated_primaries(primary):
 	from .path_registry import relocated_harness_code_dirs
 	return tuple((_absolute(p) for p in relocated_harness_code_dirs(primary=primary)))
@@ -121,23 +109,41 @@ def _model_fields(primary, role):
 	value = (config.get('roles') or {})[role]
 	return '' if 'parent' == config.get('subagents', {}).get('selection') or value.get('selection') in ('parent', 'inherit') else f"model = {json.dumps(value['model'])}\nmodel_reasoning_effort = {json.dumps(value['effort'])}\n"
 def shared_native_outputs(primary=PRIMARY):
+	# 2026-11-24
+	# "Fix worktree scope resolution for new files in TDD classifier":
+	# https://github.com/dmitry-ai/harness/issues/188
 	from .path_cache import resolve_code_anchor
 	primary, r = (Path(primary).resolve(), {})
 	canon, plats = (resolve_code_anchor(primary), _configuration(primary)['platforms'])
+	# 2026-11-18
+	# "Externalize agent environments and per-instance system paths into runtime.json":
+	# https://github.com/dmitry-ai/harness/issues/86
 	if 'antigravity' in plats:
+		# 2026-11-21
+		# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
+		# https://github.com/dmitry-ai/harness/issues/116
 		from .upwork_project import canonical_global_hooks
 		for kind in KINDS:
 			r[primary / f'platforms/antigravity/{kind}.json'] = _json({'entries': [{'path': (canon / kind).as_posix()}]}).decode('utf-8')
 		r[primary / 'platforms/antigravity/hooks.json'] = _json(canonical_global_hooks(canon)).decode('utf-8')
+		# 2026-11-23
+		# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
+		# https://github.com/dmitry-ai/harness/issues/133
 		ag_cfg = plats.get('antigravity') or {}
 		ag_roles = ag_cfg.get('roles') or {}
 		if 'AF' in ag_roles:
 			af_cfg = ag_roles['AF']
 			ag_parent = 'parent' == (ag_cfg.get('subagents') or {}).get('selection') or af_cfg.get('selection') in ('parent', 'inherit')
 			model_line = '' if ag_parent or not af_cfg.get('tier') else f'model: {af_cfg["tier"]}\n'
+			# 2026-11-24
+			# "Prevent context compaction with schema-help CLI and staged analysis merge":
+			# https://github.com/dmitry-ai/harness/issues/217
 			r[primary / 'agents/af-worker.md'] = f'---\nname: af-worker\ndescription: "Extracts and verifies Upwork evidence for an assigned question."\n{model_line}subagent: true\nmainAgent: false\n---\nRead the shared worker protocol: {(canon / "agents/worker.md").as_posix()}  \nEnvironment: Antigravity.  \nFollow the platform protocol and runtime.json; the parent agent selects the model per task complexity, and the requested selection does not prove the actual runtime model.  \nUse `harness.py extract` and `harness.py evidence-query` on saved captures instead of reading raw HTML/JSON bodies into context, write structured findings to the assigned output path (default `\ua616/KB/Evidence/<question>-extract.json`), and return only that file path plus a compact summary of verified facts, quotes, and gaps.  \n<!-- https://github.com/dmitry-ai/harness/issues/217 -->  \n'
 	if 'codex' in plats:
 		bootstrap = canon / 'platforms/codex/AGENTS.md'
+		# 2026-11-25
+		# "Refactor shared rules into compact three-layer M-2 architecture":
+		# https://github.com/dmitry-ai/harness/issues/242
 		r[primary / 'platforms/codex/AGENTS.md'] = f'# Harness: Codex\n\n<!-- Generated from canonical rules; {ISSUE} -->\n\n' + _loader(primary, display_root=canon) + '\n'
 		for role, name, purpose, _ in _role_values(primary):
 			instructions = f'Role: {role}.  \n{purpose}  \nRead and execute the shared Codex bootstrap before work, including all mandatory rule sources: {bootstrap.as_posix()}  \nAlso read the worker protocol: {(canon / "agents/worker.md").as_posix()}  '
@@ -156,6 +162,9 @@ def _legacy_skill(name, primary):
 	if 'upwork-init' == name:
 		r += 'Determine the active UI platform from the conversation and use the corresponding platform adapter of the shared skill.  \n'
 	elif 'upwork-cleanup' == name:
+		# 2026-11-18
+		# "Fix runtime instance path derivation and store validation":
+		# https://github.com/dmitry-ai/harness/issues/89
 		r += 'Determine the active UI platform from the conversation; a normal run cleans all enabled environment instances configured in runtime.json.  \n'
 	return r
 def _legacy_role(primary, role, name, purpose):
@@ -190,10 +199,16 @@ def _load_state(primary):
 	if not isinstance(data, dict) or data.get('schema_version') != 1 or any(not isinstance(data.get(key, {}), dict) for key in ('shared', 'profiles', 'backups')):
 		raise ValueError('Native profile ownership receipt is malformed; preserved')
 	return data
+# 2026-11-14
+# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
+# https://github.com/dmitry-ai/harness/issues/71
 class _ApplyFailure(ValueError):
 	def __init__(self, error, rollback, backups, recovery=None):
 		super().__init__(f'{error}; rollback {rollback["status"]}' + (f'; recovery receipt: {recovery}' if recovery else ''))
 		self.rollback, self.backups, self.recovery = (rollback, backups, recovery)
+# 2026-11-14
+# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
+# https://github.com/dmitry-ai/harness/issues/71
 class _ManagedLink:
 	def __init__(self, path, target, kind, *, label='skill', legacy_dir=False):
 		self.path = _absolute(path)
@@ -436,6 +451,12 @@ def _profile_state(state, name, path):
 	previous = state.get('profiles', {}).get(name, {})
 	return previous if previous.get('path') == str(_absolute(path)) else {}
 def _antigravity_plan(plan, name, config, primary, state):
+	# 2026-11-20
+	# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+	# https://github.com/dmitry-ai/harness/issues/103
+	# 2026-11-21
+	# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
+	# https://github.com/dmitry-ai/harness/issues/116
 	from .upwork_project import HOOK_RUNNER_HEADER, canonical_global_hooks, harness_hook_runner_source, legacy_direct_global_hooks, legacy_runner_global_hooks
 	config = _absolute(config)
 	previous = _profile_state(state, name, config)
@@ -452,6 +473,9 @@ def _antigravity_plan(plan, name, config, primary, state):
 			profile['files'][str(path)] = _hash(wanted)
 		except (ValueError, OSError) as exc:
 			plan.issue(path, str(exc))
+	# 2026-11-20
+	# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+	# https://github.com/dmitry-ai/harness/issues/103
 	runner_path = config / 'harness_hook_runner.py'
 	try:
 		wanted_runner = harness_hook_runner_source(primary).encode('utf-8')
@@ -490,6 +514,9 @@ def _antigravity_plan(plan, name, config, primary, state):
 		profile['files'][str(path)] = _hash(wanted)
 	except (ValueError, OSError) as exc:
 		plan.issue(path, str(exc))
+	# 2026-11-16
+	# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+	# https://github.com/dmitry-ai/harness/issues/80
 	cfg_json = config / 'config.json'
 	if cfg_json.is_file():
 		try:
@@ -619,6 +646,9 @@ def _plan_codex_link(plan, profile, link, active_valid, active_error, retire_pat
 		link.legacy_dir = 'directory' == link.kind
 		plan.file(retire_path, None)
 		plan.managed_links[path] = link
+# 2026-11-16
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 def _disable_codex_bundled_chrome_plugin(text):
 	data = tomllib.loads(text) if text.strip() else {}
 	plugins = data.get('plugins')
@@ -839,6 +869,15 @@ def build_shared_native(primary=PRIMARY, *, check=False):
 		_shared_plan(plan, primary, state)
 		_retire_shared_roles(plan, primary, state)
 		return _execute(plan, primary, state, check=check)
+# 2026-11-02
+# "Replace per-profile Harness projections with shared native connections":
+# https://github.com/dmitry-ai/harness/issues/35
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
+# 2026-11-24
+# "Manage Harness ephemeral Git exclusions in install-global and doctor":
+# https://github.com/dmitry-ai/harness/issues/198
 def install_native_profiles(target_profiles=None, *, check=False, primary=PRIMARY, config_dirs=None, codex_homes=None, git_ignore_path=None):
 	primary = Path(primary).resolve()
 	config = _configuration(primary)
@@ -882,6 +921,9 @@ def install_native_profiles(target_profiles=None, *, check=False, primary=PRIMAR
 			else:
 				_codex_plan(plan, name, codex_all[name], primary, state)
 		_retire_shared_roles(plan, primary, state)
+		# 2026-11-24
+		# "Manage Harness ephemeral Git exclusions in install-global and doctor":
+		# https://github.com/dmitry-ai/harness/issues/198
 		from .git_ignore import finalize_install_result
 		return finalize_install_result(_execute(plan, primary, state, check=check), all_declared, names, primary, check=check, git_ignore_path=git_ignore_path)
 def legacy_project_projection_paths(root, primary=PRIMARY):

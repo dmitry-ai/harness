@@ -1,3 +1,5 @@
+<!-- 2026-10-23 "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader": https://github.com/dmitry-ai/harness/issues/16 -->  
+<!-- 2026-10-31 "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow": https://github.com/dmitry-ai/harness/issues/26 -->  
 # External Source Clearance for Client Text
 
 ## Mandatory Source Clearance
@@ -62,6 +64,7 @@ List the exact receipt paths returned by the command in the candidate manifest:
 For a substantive edit, this field supplements the block map; for a mechanical edit, it is required even without a block map.  
 A failed `source-check` also writes an immutable receipt, but returns `valid: false` and exit code `1`; such a receipt never clears the text.  
 
+<!-- 2026-11-16 "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance": https://github.com/dmitry-ai/harness/issues/81 -->  
 Validation checks the requested and final URLs, HTTP status, saved bytes, their SHA256 digest, existence and uniqueness of the anchor, and containment of the quote within that fragment (resolving HTML section scopes across `<h1..h6>` IDs, child `<a>`/`<span>` anchors, heading-only wrappers, and adjacent empty sentinels, as well as remote `text/markdown` sections with standard slugs or `{#id}` / `&#123;#id&#125;` heading attributes).  
 An unexpected final URL after redirection is rejected.  
 For a verified redirect, specify `expected_final_url` explicitly; quote and anchor checks still apply.  
@@ -69,6 +72,7 @@ A shortened URL is permissible only after verifying that it resolves to the same
 
 For documentation, an existing anchor must appear in the cited URL itself.  
 If no suitable anchor exists on the page, use `locator.type: text`, an exact quote, and `anchor_exception: {"section":"Section Title","observation":"Same observation path"}` inside `evidence`.  
+<!-- 2026-11-16 "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance": https://github.com/dmitry-ai/harness/issues/81 -->  
 The collector must confirm that the section title is unique and that the heading carries no section anchor (`section_anchors` empty, ignoring page-level layout wrappers); a prose note from the author does not replace this check.  
 
 `currency: current` requires an observation no older than 24 hours.  
@@ -76,6 +80,7 @@ That window defines receipt freshness rather than automatic proof that a standar
 `currency: historical` requires non-empty `edition` and `currency_basis` fields; applicability of a historical edition to the claim is evaluated during review.  
 An archived edition cannot be relabeled `current` merely by changing the field value.  
 
+<!-- 2026-11-16 "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance": https://github.com/dmitry-ai/harness/issues/81 -->  
 For the canonical Upwork job URL of an initialized project (`ꘖ/project.json -> job_id`, across `upwork.com` and `www.upwork.com`), `source-check` also accepts `evidence.kind: "intake"` referencing `manifest: "Evidence/<sha256>.json"` (or its registered `Intake` receipt), `source_sha256`, `documentation: false`, `locator`, and `quote`, binding currency to the content-addressed snapshot immutability rather than the 24-hour live-HTTP window.  
 
 ## Unavailability and Replacement
@@ -84,11 +89,11 @@ A later failed or contradicting check of the same URL within the project blocks 
 Editing the candidate text does not erase that failure record.  
 A new successful observation, sufficient quote, and fresh receipt resolve the conflict; independently collected later bytes of the same resource with an identical hash do not invalidate the author's check.  
 
+<!-- 2026-11-16 "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance": https://github.com/dmitry-ai/harness/issues/81 -->  
 An HTTP error or structural anti-bot interstitial page (`browser_check_required: true`; passive Cloudflare JavaScript Detections `/cdn-cgi/challenge-platform/...` scripts and inert `<noscript>` fallbacks on rendered pages do not classify a page as a challenge) may be resolved via a DOM snapshot captured through `harness.py collect-browser` or `df_text.py capture-dom`.  
 Both `collect-browser` and `capture-dom` return the observation and `cdp_identity`; pass both in the `source-check` specification.  
 Validation verifies the cryptographic binding between `observation.json`, `READ_DOM`, and a verified `CDPSessions` receipt (`profile.status: "verified"`, across isolated `ManagedHeadlessShell`, authenticated `GuardedCDP`, or tab-pinned `capture-dom`).  
 An unverified browser profile or arbitrary local DOM file cannot substitute for this path.  
-<!-- https://github.com/dmitry-ai/harness/issues/81 -->  
 
 A replacement official source is validated as a brand-new URL: quote, fragment, edition, and applicability.  
 Update the candidate text first and then generate its new receipts.  

@@ -1,21 +1,4 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add schema-help CLI, validator hints, save-analysis --merge, and af-worker file handoff":
-# https://github.com/dmitry-ai/harness/issues/217
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
-# https://github.com/dmitry-ai/harness/issues/113
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
-# https://github.com/dmitry-ai/harness/issues/72
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
-# https://github.com/dmitry-ai/harness/issues/10
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -29,6 +12,9 @@ STATUSES = ('verified', 'refuted', 'unverified', 'unavailable')
 METHODS = ('http', 'dom', 'browser_scenario', 'admin', 'serp', 'geolocation')
 OPERATORS = ('equals', 'not_equals', 'contains', 'gt', 'gte', 'lt', 'lte')
 PROPERTY_METHODS = {'content': set(METHODS), 'markup': {'http', 'dom', 'browser_scenario'}, 'dom': {'dom', 'browser_scenario'}, 'interaction': {'browser_scenario'}, 'currency_transition': {'browser_scenario'}, 'ip_country': {'geolocation', 'browser_scenario'}, 'admin_configuration': {'admin'}, 'serp': {'serp'}, 'platform_capability': {'http', 'dom'}, 'causality': set(), 'business_impact': set()}
+# 2026-11-14
+# "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
+# https://github.com/dmitry-ai/harness/issues/72
 class BrowserTraceInspector:
 	DIRECT_ACTIONS = {'click_browser_element': 'click', 'browser_click': 'click', 'select_browser_option': 'select', 'browser_select_option': 'select', 'browser_navigate': 'navigate', 'read_browser_dom': 'read', 'browser_screenshot': 'read', 'browser_get_state': 'inspect'}
 	GEO_HOSTS = ('ipapi.co', 'ipinfo.io', 'api.iplocation.net')
@@ -281,9 +267,15 @@ class BrowserTraceInspector:
 			else:
 				r = calls
 		return r
+# 2026-11-14
+# "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
+# https://github.com/dmitry-ai/harness/issues/72
 class ExperimentPlanStore:
 	CLI_NAMES = ('harness.py', 'upwork_project.py')
 	def __init__(self, root):
+		# 2026-11-19
+		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+		# https://github.com/dmitry-ai/harness/issues/96
 		from .path_registry import project_paths
 		self.pp = project_paths(root, exact_root=True)
 		self.root = self.pp.root
@@ -304,6 +296,9 @@ class ExperimentPlanStore:
 			if not re.search('\\bprepare-experiment\\b', args) or not any((cli in args for cli in self.CLI_NAMES)):
 				r = False
 			else:
+				# 2026-11-21
+				# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+				# https://github.com/dmitry-ai/harness/issues/113
 				from .path_registry import same_project_root
 				r = any((1 == receipt.get('upwork_experiment_plan') and same_project_root(receipt.get('project_root'), self.root) and (receipt.get('plan') == run.get('plan')) and (receipt.get('plan_sha256') == run.get('plan_sha256')) and (receipt.get('requirement_sha256') == run.get('requirement_sha256')) for receipt in iter_embedded_json_objects(event.get('result'))))
 		return r
@@ -376,6 +371,9 @@ class ExperimentPlanStore:
 					issues.append('Actual experimental condition differs from preregistered ' + key + '.' + field)
 			r = issues
 		return r
+# 2026-11-14
+# "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
+# https://github.com/dmitry-ai/harness/issues/72
 class ExperimentRunValidator:
 	CONTEXT_FIELDS = {'session', 'egress', 'url_country', 'language', 'selected_country', 'currency', 'session_id', 'state_fingerprint'}
 	MODE_PATTERNS = {'incognito': '"(?:incognito|isIncognito)"\\s*:\\s*true', 'normal': '"(?:incognito|isIncognito)"\\s*:\\s*false', 'isolated': '"isolated"\\s*:\\s*true'}
@@ -552,6 +550,9 @@ class ExperimentRunValidator:
 		run['artifacts'] = saved
 		return (saved, contents)
 	def _verify_saved_artifacts(self, path):
+		# 2026-11-19
+		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+		# https://github.com/dmitry-ai/harness/issues/96
 		from .path_registry import project_paths
 		kb_dir = project_paths(self.root, exact_root=True).kb_dir
 		for artifact in self.run.get('artifacts', []):
@@ -640,6 +641,9 @@ class ExperimentRunValidator:
 		return {'status': status, 'assertions': results, 'interpretation': 'Restricted predicates establish only the preregistered raw property; A.A checks semantic entailment and alternative explanations'}
 	@classmethod
 	def load(cls, root, reference):
+		# 2026-11-19
+		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+		# https://github.com/dmitry-ai/harness/issues/96
 		from .path_registry import project_paths
 		pp = project_paths(root, exact_root=True)
 		resolved = pp.root
@@ -668,6 +672,9 @@ class ExperimentRunValidator:
 		return [self.events[nid] for ident in ids if isinstance(ident, str) and (nid := self.artifacts.get(ident, {}).get('native_event_id')) in self.events]
 	@classmethod
 	def record(cls, root, specification, *, tool_trace=None):
+		# 2026-11-19
+		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+		# https://github.com/dmitry-ai/harness/issues/96
 		from .path_registry import project_paths
 		pp = project_paths(root, exact_root=True)
 		resolved = pp.root
@@ -734,6 +741,9 @@ class ExperimentRunValidator:
 				elif 'browser_scenario' == method:
 					issues += self._check_browser_scenario_steps()
 		return issues
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def _compare(actual, operator, expected):
 	if 'contains' == operator:
 		if not isinstance(actual, str) or not isinstance(expected, str):
@@ -776,16 +786,19 @@ def load_experiment(root, reference):
 	return ExperimentRunValidator.load(root, reference)
 def load_plan(root, reference):
 	return ExperimentPlanStore(root).load(reference)
-# 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
 def prepare_experiment(root, requirement, *, amendment_of=None, amendment_reason=None):
 	return ExperimentPlanStore(root).prepare(requirement, amendment_of=amendment_of, amendment_reason=amendment_reason)
-# 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
 def record_experiment(root, specification, *, tool_trace=None):
 	return ExperimentRunValidator.record(root, specification, tool_trace=tool_trace)
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
 def requirement_issues(requirements):
 	issues, seen = ([], set())
 	if not isinstance(requirements, list) or not requirements:
@@ -817,9 +830,15 @@ def requirement_issues(requirements):
 				issues.append(label + ': scope.objects must identify the exact sampled objects')
 			if not isinstance(requirement.get('conditions'), dict):
 				issues.append(label + ': explicit conditions object required')
+			# 2026-11-24
+			# "Prevent context compaction with schema-help CLI and staged analysis merge":
+			# https://github.com/dmitry-ai/harness/issues/217
 			from .schema_help import requirement_assertion_issues
 			issues.extend(requirement_assertion_issues(label, requirement, OPERATORS))
 		r = issues
+	# 2026-11-24
+	# "Prevent context compaction with schema-help CLI and staged analysis merge":
+	# https://github.com/dmitry-ai/harness/issues/217
 	from .schema_help import annotate_experiment_issues
 	return annotate_experiment_issues(r)
 def result_issues(root, requirement, result):
@@ -830,6 +849,9 @@ def result_issues(root, requirement, result):
 		if result.get('requirement_id') != requirement.get('id') or result.get('status') not in STATUSES:
 			issues.append('Property result must identify the exact requirement and valid status')
 		try:
+			# 2026-11-19
+			# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+			# https://github.com/dmitry-ai/harness/issues/96
 			from .path_registry import project_paths
 			path = inside(project_paths(root, exact_root=True).kb_dir, result.get('experiment', ''))
 			run = load_experiment(root, result.get('experiment', ''))

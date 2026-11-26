@@ -1,44 +1,4 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/173
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
-# https://github.com/dmitry-ai/harness/issues/166
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
-# https://github.com/dmitry-ai/harness/issues/146
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
-# https://github.com/dmitry-ai/harness/issues/138
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
-# https://github.com/dmitry-ai/harness/issues/119
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add compact evidence-query command and unify collect-http CLI flags":
-# https://github.com/dmitry-ai/harness/issues/118
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add read-only answer-check pre-flight validation command to harness CLI":
-# https://github.com/dmitry-ai/harness/issues/117
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
-# https://github.com/dmitry-ai/harness/issues/75
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
-# https://github.com/dmitry-ai/harness/issues/67
 # 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
-# https://github.com/dmitry-ai/harness/issues/64
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
-# https://github.com/dmitry-ai/harness/issues/63
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deduplicate turn compaction/delegation reducers, shell/path tool normalization, and request/metadata wrappers across Antigravity and Codex adapters":
-# https://github.com/dmitry-ai/harness/issues/58
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify A.A reviewer isolation, prompt-bias checks, and review-proof helpers across Antigravity and Codex adapters into platforms/trace_common.py":
-# https://github.com/dmitry-ai/harness/issues/52
 from collections import Counter
 from contextlib import contextmanager
 import hashlib
@@ -49,19 +9,43 @@ import re
 import sqlite3
 from urllib.parse import unquote, urlsplit
 from ..research import json_data
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-11-14
+# "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
+# https://github.com/dmitry-ai/harness/issues/67
+# 2026-11-24
 # "Cache runtime settings and deduplicate evidence validation in hot paths":
 # https://github.com/dmitry-ai/harness/issues/227
 from ..shell_audit import run_shell_violation_scan, unflagged_git_read_commands, unpersisted_http_fetch_commands
+# 2026-11-13
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
 from ..storage import write_immutable_bytes
+# 2026-11-14
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
 UUID_PATTERN = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+# 2026-11-13
+# "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
+# https://github.com/dmitry-ai/harness/issues/64
 _ACCUMULATOR_INTERNAL_KEYS = ('checkpoint_steps', 'tool_steps', 'subagent_steps', 'aa_subagent_steps', 'aa_partial_read_violations', 'af_subagent_steps', 'kb_persistence_steps', 'completion_service_steps', 'transcript_read_steps', 'tool_records', 'file_reads', 'file_writes')
 _KB_PATH_TOKENS = ('\ua616/KB', '\ua616\\KB', '\\ua616/KB', '\\ua616\\\\KB')
 _KB_PERSIST_CMD_RE = re.compile('\\b(?:save-analysis|collect|collect-http|collect-browser|extract|extract-file|capture-dom)\\b')
 _SCRATCH_PATH_TOKENS = ('\ua616/data/scratch/', '\ua616/data/continuation.md', '\\ua616/data/scratch/', '\\ua616/data/continuation.md')
+# 2026-11-21
+# "Add read-only answer-check pre-flight validation command to harness CLI":
+# https://github.com/dmitry-ai/harness/issues/117
+# 2026-11-21
+# "Add compact evidence-query command and unify collect-http CLI flags":
+# https://github.com/dmitry-ai/harness/issues/118
 _SERVICE_CMD_RE = re.compile('\\b(?:turn-begin|answer-check|answer-prepare|evidence-query|prepare-review|review-input|native-review-proof|record-review|disposition-review|authorize|recover-checkpoint|recover-turn-violation|adopt-requests|unadopt-requests|journal-sync|reconcile-unprepared-delivery|native-executor-metadata|validate_links\\.py|df_github_issue\\.py)\\b')
 _SHELL_KB_WRITE_RE = re.compile('(?i)\\b(?:Set-Content|Out-File|Add-Content|WriteAllText|WriteAllBytes|write_text|write_bytes|tee)\\b')
+# 2026-11-14
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
 _TOKEN_FIELDS = ('input_tokens', 'cache_read_tokens', 'output_tokens')
+# 2026-11-23
+# "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
+# https://github.com/dmitry-ai/harness/issues/166
 _WAIT_STUB_FENCE_RE = re.compile(r'```[\s\S]*?```')
 _WAIT_STUB_QUOTE_RE = re.compile(r'\u00ab[^\u00bb]{0,400}\u00bb')
 _WAIT_STUB_EN_RE = re.compile(r'(?i)(?:^|\n|\.\s+)\s*waiting\s+for\s+(?:the\s+)?(?:remaining\s+)?(?:\d+\s+)?(?:subagents?|background\s+tasks?|tasks?|commands?|test\s+runs?|tests?|suites?)\b[^\n]{0,140}\bto\s+(?:complete|finish)\b')
@@ -72,6 +56,9 @@ def _format_token_counts(known, unavailable):
 def _has_kb_target(text):
 	s = str(text or '')
 	return any((tok in s for tok in _KB_PATH_TOKENS)) or '/kb/analysis.md' in s.replace('\\', '/').lower()
+# 2026-11-13
+# "Unify A.A reviewer isolation, prompt-bias checks, and review-proof helpers across Antigravity and Codex adapters into platforms/trace_common.py":
+# https://github.com/dmitry-ai/harness/issues/52
 def _iter_normalized_tool_calls(rows):
 	rows_list = rows if isinstance(rows, list) else []
 	for pos, entry in enumerate(rows_list):
@@ -98,6 +85,9 @@ def _merge_line_intervals(intervals):
 		else:
 			r[-1][1] = max(r[-1][1], e_val)
 	return r
+# 2026-11-14
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
 def _strip_win_extended_prefix(text):
 	r = text
 	if text.startswith('\\\\?\\UNC\\'):
@@ -105,6 +95,9 @@ def _strip_win_extended_prefix(text):
 	elif text.startswith('\\\\?\\'):
 		r = text[4:]
 	return r
+# 2026-11-14
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
 def build_native_review_proof(root, surface, parent_id, reviewer_id, agent_name, log_path, parent_log, raw_log_bytes, final_step, final_text, matched_prompts, rows, *, diff_error='Existing reviewer proof changed; preserve both and recheck native progress', extra_fields_fn=None, write=True):
 	from .request_binding import native_project_fields
 	bias_issues = collect_prompt_bias_issues(matched_prompts)
@@ -124,6 +117,9 @@ def collect_prompt_bias_issues(prompts):
 			if issue not in r:
 				r.append(issue)
 	return r
+# 2026-11-13
+# "Deduplicate turn compaction/delegation reducers, shell/path tool normalization, and request/metadata wrappers across Antigravity and Codex adapters":
+# https://github.com/dmitry-ai/harness/issues/58
 def collect_shell_violations(cmd, step_idx, exec5_violations, http_violations, *, extra=None):
 	meta = extra or {}
 	bad = unflagged_git_read_commands(cmd)
@@ -132,6 +128,9 @@ def collect_shell_violations(cmd, step_idx, exec5_violations, http_violations, *
 	bad_http = unpersisted_http_fetch_commands(cmd)
 	if bad_http:
 		http_violations.append({'step': step_idx, **meta, 'commands': bad_http})
+# 2026-11-13
+# "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
+# https://github.com/dmitry-ai/harness/issues/64
 def collect_subagent_bfs(root_id, root_p, seeds, resolve_child, aa_violations, *, max_depth=4):
 	r = {root_id}
 	queued_pairs = set()
@@ -181,8 +180,20 @@ def finalize_executor_checks(surface, role, conversation_id, parent_id, requeste
 		checks['model'] = 'mismatch'
 	status = 'mismatch' if 'mismatch' in checks.values() else 'verified' if {'verified'} == set(checks.values()) else 'unverified'
 	return {'schema_version': 1, 'surface': surface, 'role': role, 'conversation_id': conversation_id, 'parent_id': parent_id, 'requested': requested, 'observed': observed, 'observation_history': history, 'metadata_sources': sources, 'verification': {'status': status, **checks, 'detail': detail}}
+# 2026-11-13
+# "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
+# https://github.com/dmitry-ai/harness/issues/64
+# 2026-11-23
+# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+# https://github.com/dmitry-ai/harness/issues/138
+# 2026-11-23
+# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+# https://github.com/dmitry-ai/harness/issues/146
 def init_turn_accumulator(*, extra=None):
 	return {'aa_partial_read_violations': [], 'aa_subagent_steps': [], 'af_subagent_steps': [], 'checkpoint_steps': [], 'completion_service_steps': [], 'exec5_violations': [], 'file_reads': [], 'file_writes': [], 'http_fetch_violations': [], 'issue_first_events': [], 'kb_persistence_steps': [], 'subagent_steps': [], 'tdd_events': [], 'tool_records': [], 'tool_steps': [], 'touched_files': [], 'transcript_read_steps': [], **(extra or {})}
+# 2026-11-23
+# "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
+# https://github.com/dmitry-ai/harness/issues/166
 def is_waiting_status_stub(text: str) -> bool:
 	r = False
 	raw = (text or '').strip()
@@ -210,6 +221,9 @@ def iter_antigravity_subagents(call):
 			if isinstance(subs, list):
 				r = [sub for sub in subs if isinstance(sub, dict)]
 	return r
+# 2026-11-14
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
 def local_uri_to_path(value, *, require_absolute=False):
 	raw = os.fspath(value) if isinstance(value, os.PathLike) else value
 	if not isinstance(raw, str) or not raw:
@@ -256,6 +270,9 @@ def merge_turn_accumulators(items, *, allow_step_output_recovery=False):
 	for k in _ACCUMULATOR_INTERNAL_KEYS:
 		r.pop(k, None)
 	return r
+# 2026-11-14
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
 @contextmanager
 def open_readonly_sqlite(db_path, *, guard=None, query_only=False, row_factory=None, timeout=None):
 	path = Path(db_path)
@@ -328,7 +345,13 @@ def partial_candidate_read_issues(project_root: Path, rows: list) -> list[str]:
 				detail = f'non-contiguous intervals {merged} of {total}' if 1 < len(merged) else f'lines {min_s}-{max_e} of {total}'
 				r.append(f'reviewer performed a partial/truncated read of candidate response {info["path"].name} ({detail})')
 	return r
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-11-13
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
+# 2026-11-19
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
+# 2026-11-24
 # "Verify reused reviewer package assignments and tolerate volatile executor metadata":
 # https://github.com/dmitry-ai/harness/issues/222
 def persist_review_proof(root, reviewer_id, digest, final_text, proof, *, write=True, diff_error='Existing reviewer proof changed; preserve both and recheck native progress'):
@@ -362,6 +385,9 @@ def prompt_bias_issues(prompt_text):
 			issues.append('prompt hardcodes empty findings=[] without specifying finding object fields')
 		r = issues
 	return r
+# 2026-11-14
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
 def read_jsonl_objects(source, *, partial_error=None):
 	text = source.decode('utf-8') if isinstance(source, (bytes, bytearray)) else Path(source).read_text(encoding='utf-8')
 	try:
@@ -371,6 +397,9 @@ def read_jsonl_objects(source, *, partial_error=None):
 			raise ValueError(partial_error) from exc
 		raise
 	return r
+# 2026-11-13
+# "Deduplicate turn compaction/delegation reducers, shell/path tool normalization, and request/metadata wrappers across Antigravity and Codex adapters":
+# https://github.com/dmitry-ai/harness/issues/58
 def record_canonical_path(root_p, step_idx, raw_path, is_read, file_reads, file_writes, touched_files):
 	cleaned = str(raw_path or '').strip()
 	if cleaned:
@@ -385,6 +414,9 @@ def record_canonical_path(root_p, step_idx, raw_path, is_read, file_reads, file_
 			if cleaned not in touched_files:
 				touched_files.append(cleaned)
 			file_writes.append((step_idx, norm_p))
+# 2026-11-13
+# "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
+# https://github.com/dmitry-ai/harness/issues/64
 def record_normalized_tool_effects(root_p, step_idx, name, raw_args, raw_cmd, acc, *, extra_violation=None, track_turn_steps=False, transcript_tokens=(), cmd_outputs=None, sub_step=None):
 	args = raw_args if isinstance(raw_args, dict) else parse_tool_args(raw_args)
 	scan_text = str(raw_cmd or '')
@@ -392,10 +424,19 @@ def record_normalized_tool_effects(root_p, step_idx, name, raw_args, raw_cmd, ac
 	shell_cmd = str(args.get('CommandLine') or '') if name.endswith('run_command') else scan_text
 	tdd_cmd_event = None
 	if is_shell:
+		# 2026-11-24
+		# "Cache runtime settings and deduplicate evidence validation in hot paths":
+		# https://github.com/dmitry-ai/harness/issues/227
 		run_shell_violation_scan(collect_shell_violations, shell_cmd, step_idx, acc['exec5_violations'], acc['http_fetch_violations'], extra=extra_violation)
 		eff_cmd = shell_cmd if name.endswith('run_command') else str(args.get('cmd') or args.get('command') or scan_text)
 		raw_cwd = args.get('workdir') or args.get('Cwd')
 		eff_cwd = Path(raw_cwd) if isinstance(raw_cwd, str) and raw_cwd.strip() else Path(root_p)
+		# 2026-11-23
+		# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+		# https://github.com/dmitry-ai/harness/issues/138
+		# 2026-11-24
+		# "Fix EXEC-2 TDD trace scoping for deleted worktrees and subagent steps":
+		# https://github.com/dmitry-ai/harness/issues/173
 		if 'tdd_events' in acc:
 			from ..tdd.events import build_command_tdd_event, record_tdd_tool_write_event
 			from ..tdd_gate import shell_code_write_targets
@@ -405,6 +446,9 @@ def record_normalized_tool_effects(root_p, step_idx, name, raw_args, raw_cmd, ac
 			if eff_cmd.strip():
 				tdd_cmd_event = build_command_tdd_event(step_idx, eff_cmd, cmd_outputs or (), cwd=eff_cwd, sub_step=sub_step, subagent_id=sub_cid)
 				acc['tdd_events'].append(tdd_cmd_event)
+		# 2026-11-23
+		# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+		# https://github.com/dmitry-ai/harness/issues/146
 		if 'issue_first_events' in acc:
 			from ..issue_first_gate import build_code_write_issue_first_event, build_issue_action_events
 			from ..tdd_gate import shell_write_targets
@@ -447,6 +491,9 @@ def record_normalized_tool_effects(root_p, step_idx, name, raw_args, raw_cmd, ac
 		if is_shell and 'answer_prepared_in_segment' in acc and re.search('\\banswer-prepare\\b', shell_cmd):
 			acc['answer_prepared_in_segment'] = True
 		t_tokens = ('transcript_full.jsonl', 'transcript.jsonl') + tuple(transcript_tokens or ())
+		# 2026-11-21
+		# "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
+		# https://github.com/dmitry-ai/harness/issues/119
 		is_real_recover = 'recover-checkpoint' in scan_text and (not re.search('--dry-run\\b', scan_text))
 		if (is_real_recover or any((tok in scan_text for tok in t_tokens))) and step_idx not in acc['transcript_read_steps']:
 			acc['transcript_read_steps'].append(step_idx)
@@ -501,6 +548,9 @@ def reviewer_isolation_issues(root, rows):
 				r.append(f'reviewer accessed sibling project path {candidate}')
 	r.extend(partial_candidate_read_issues(project_root, rows))
 	return r
+# 2026-11-14
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
 def summarize_token_records(events, bindings=None, *, extra=None, field_map=None, prefix=None, tools=None):
 	totals, missing = (Counter(), Counter())
 	generations, duplicates, phases = (0, 0, {})
@@ -578,6 +628,9 @@ def verify_review_proof_core(root, native, r, fields, *, trace_error='Review pro
 	authored = Path(root) / r['authored_response']
 	if authored.exists() and hashlib.sha256(authored.read_bytes()).hexdigest() != r['final_response_sha256']:
 		raise ValueError('Immutable native authored reviewer response changed')
+	# 2026-11-24
+	# "Verify reused reviewer package assignments and tolerate volatile executor metadata":
+	# https://github.com/dmitry-ai/harness/issues/222
 	from .proof_metadata import executor_metadata_equivalent
 	if 'executor_metadata' in native and (not executor_metadata_equivalent(native['executor_metadata'], r.get('executor_metadata'), allow_legacy_generation_model=allow_legacy_generation_model)):
 		raise ValueError('Native executor metadata differs from saved reviewer proof')

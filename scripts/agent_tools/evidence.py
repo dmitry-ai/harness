@@ -1,27 +1,10 @@
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
-# https://github.com/dmitry-ai/harness/issues/81
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
-# https://github.com/dmitry-ai/harness/issues/72
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
-# https://github.com/dmitry-ai/harness/issues/62
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
-# https://github.com/dmitry-ai/harness/issues/59
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
-# https://github.com/dmitry-ai/harness/issues/4
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from pathlib import Path
 from urllib.parse import unquote, urldefrag, urlsplit
 import hashlib
+# 2026-11-16
+# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+# https://github.com/dmitry-ai/harness/issues/81
 import html as html_lib
 import json
 import re
@@ -30,6 +13,9 @@ from .diagnostics import problem
 from .research import inside, load_observation, extract_bytes
 def pointer(*parts):
 	return '/' + '/'.join((str(x).replace('~', '~0').replace('/', '~1') for x in parts)) if parts else ''
+# 2026-11-14
+# "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
+# https://github.com/dmitry-ai/harness/issues/72
 def resolve_pointer(value, fragment, *, decode_uri: bool=True):
 	if decode_uri:
 		fragment = unquote(fragment)
@@ -52,15 +38,22 @@ def resolve_pointer(value, fragment, *, decode_uri: bool=True):
 				value = value[int(key)]
 		r = value
 	return r
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/76
 def local_file(root, reference):
+	# 2026-11-23
+	# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+	# https://github.com/dmitry-ai/harness/issues/76
 	from .links import decode_file_uri
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	path = decode_file_uri(reference, reject_remote=True)
 	pp = project_paths(root, exact_root=True)
 	root_resolved = pp.root
 	target = (pp.kb_dir / path).resolve()
+	# 2026-10-17
+	# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+	# https://github.com/dmitry-ai/harness/issues/7
 	if not target.exists() and path.replace('\\', '/').lstrip('/').startswith('source/'):
 		alt = (root_resolved / path.replace('\\', '/').lstrip('/')).resolve()
 		if alt.is_relative_to(pp.source_dir):
@@ -69,6 +62,12 @@ def local_file(root, reference):
 		raise ValueError('Source path escapes the project; copy authorized primary evidence into Evidence first')
 	r = target
 	return r
+# 2026-10-17
+# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+# https://github.com/dmitry-ai/harness/issues/7
+# 2026-11-16
+# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+# https://github.com/dmitry-ai/harness/issues/81
 def _markdown_section(text: str, fragment: str) -> str:
 	from .links import parse_markdown_headings
 	headings, _, ambiguous, _ = parse_markdown_headings(text)
@@ -85,7 +84,7 @@ def _markdown_section(text: str, fragment: str) -> str:
 	unesc_sec = html_lib.unescape(raw_sec)
 	r = raw_sec if unesc_sec == raw_sec else raw_sec + '\n' + unesc_sec
 	return r
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-11-24
 # "Cache runtime settings and deduplicate evidence validation in hot paths":
 # https://github.com/dmitry-ai/harness/issues/227
 def saved_source(root, source, observation=None, *, need_sections=True):
@@ -110,6 +109,9 @@ def saved_source(root, source, observation=None, *, need_sections=True):
 					raise ValueError('This source format does not support a verified fragment locator')
 				r = {'kind': 'text', 'text': text, 'fragment': unquote(fragment), 'file': file, 'sha256': hashlib.sha256(raw).hexdigest()}
 		else:
+			# 2026-10-17
+			# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+			# https://github.com/dmitry-ai/harness/issues/7
 			from .upwork_data import extract_attachment_markdown
 			md_text = extract_attachment_markdown(file, raw)
 			if fragment:
@@ -117,10 +119,16 @@ def saved_source(root, source, observation=None, *, need_sections=True):
 			plain_text = re.sub('\\[([^\\]]+)\\]\\([^)]+\\)', '\\1', md_text).replace('**', '')
 			r = {'kind': 'text', 'text': md_text + '\n' + plain_text, 'fragment': unquote(fragment), 'file': file, 'sha256': hashlib.sha256(raw).hexdigest()}
 	else:
+		# 2026-11-23
+		# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+		# https://github.com/dmitry-ai/harness/issues/76
 		from .evidence_loader import load_observation_content, resolve_http_observation
 		obs_ref, meta = resolve_http_observation(root, base, observation)
 		r = load_observation_content(root, obs_ref, meta, fragment=fragment, need_sections=need_sections)
 	return r
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def contains_quote(text, quote, mode='exact'):
 	if 'exact' == mode:
 		r = quote in text
@@ -129,7 +137,7 @@ def contains_quote(text, quote, mode='exact'):
 	else:
 		r = ' '.join(quote.split()) in ' '.join(text.split())
 	return r
-# 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
 def evidence_issues(root, value, *, skip_structural=False):
@@ -142,6 +150,9 @@ def evidence_issues(root, value, *, skip_structural=False):
 				continue
 			exception = argument.get('anchor_exception') if isinstance(argument.get('anchor_exception'), dict) else {}
 			try:
+				# 2026-11-13
+				# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
+				# https://github.com/dmitry-ai/harness/issues/62
 				verify_saved_quote(root, source, argument['quote'], mode=argument.get('quote_match', 'exact'), expected_hash=argument.get('source_sha256'), observation=argument.get('observation') or exception.get('observation'), documentation=bool(argument.get('documentation')), exception=exception)
 			except (OSError, ValueError, KeyError, IndexError, TypeError, UnicodeError) as exc:
 				issues.append(problem('evidence.unconfirmed', field, str(exc), claim_id=ident, hint='Use the exact saved source and locator; keep the claim unverified until resolved'))
@@ -156,6 +167,9 @@ def evidence_issues(root, value, *, skip_structural=False):
 						continue
 					try:
 						if source.startswith(('http://', 'https://')):
+							# 2026-11-24
+							# "Cache runtime settings and deduplicate evidence validation in hot paths":
+							# https://github.com/dmitry-ai/harness/issues/227
 							saved_source(root, source, need_sections=False)
 						else:
 							file = local_file(root, source)
@@ -167,21 +181,36 @@ def evidence_issues(root, value, *, skip_structural=False):
 									raise ValueError('An unavailable observation establishes unavailable, not a completed search for counterevidence')
 					except (OSError, ValueError, KeyError, TypeError) as exc:
 						issues.append(problem('counterevidence.unconfirmed', f'/{section}/{index}/counterevidence', str(exc), claim_id=claim.get('id')))
+		# 2026-10-18
+		# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+		# https://github.com/dmitry-ai/harness/issues/10
 		from .claims import evidence_contract_issues
 		issues.extend(evidence_contract_issues(root, value, skip_structural=skip_structural))
 		r = issues
 	return r
 def source_reference(root, file, parts=()):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	kb_dir = project_paths(root, exact_root=True).kb_dir.resolve()
 	file = inside(kb_dir, file)
 	r = file.relative_to(kb_dir).as_posix() + ('#' + pointer(*parts) if parts else '')
 	return r
+# 2026-11-13
+# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
+# https://github.com/dmitry-ai/harness/issues/59
 def verify_html_quote_scope(saved, quote, mode='exact', *, documentation=False, exception=None, observation=None, require_bound_observation=False) -> str:
+	# 2026-11-16
+	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+	# https://github.com/dmitry-ai/harness/issues/81
 	from .research import classify_html_challenge
 	data, fragment = (saved['data'], saved.get('fragment'))
 	is_md = bool(saved.get('is_markdown'))
 	meta_status = (saved.get('meta') or {}).get('status')
+	# 2026-11-24
+	# "Cache runtime settings and deduplicate evidence validation in hot paths":
+	# https://github.com/dmitry-ai/harness/issues/227
 	if data.get('browser_check_required') or ((not is_md) and (not saved.get('challenge_checked')) and classify_html_challenge(saved['raw'], parsed=data, status=meta_status)):
 		raise ValueError('Challenge page requires browser verification; it cannot establish the intended page content')
 	if fragment:
@@ -214,7 +243,13 @@ def verify_html_quote_scope(saved, quote, mode='exact', *, documentation=False, 
 			raise ValueError('Quote does not match the documented section')
 		r = matches[0]['content']
 	return r
+# 2026-11-13
+# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
+# https://github.com/dmitry-ai/harness/issues/62
 def verify_saved_quote(root, source, quote, *, mode='exact', expected_hash=None, require_hash=False, observation=None, documentation=False, exception=None, locator=None, require_bound_observation=False, hash_error='Source hash differs from the referenced observation', absent_error='Quote is absent from the referenced source fragment'):
+	# 2026-11-24
+	# "Cache runtime settings and deduplicate evidence validation in hot paths":
+	# https://github.com/dmitry-ai/harness/issues/227
 	r = saved_source(root, source, observation, need_sections=bool(urldefrag(source)[1] or documentation))
 	actual_hash = r.get('sha256') or r.get('meta', {}).get('body_sha256')
 	if (require_hash or expected_hash) and expected_hash != actual_hash:

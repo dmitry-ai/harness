@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract ask_question clarification metadata and prohibit Stop Gate bypass via ask_question":
-# https://github.com/dmitry-ai/harness/issues/234
 from __future__ import annotations
 from contextlib import closing
 from pathlib import Path
@@ -50,6 +48,9 @@ def _wire(field: int, payload: bytes) -> bytes:
 			if not val:
 				break
 	return bytes(out) + payload
+# 2026-11-25
+# "Extract ask_question clarification metadata and prohibit Stop Gate bypass via ask_question":
+# https://github.com/dmitry-ai/harness/issues/234
 class AskQuestionClarificationsM8Tests(unittest.TestCase):
 	def test_antigravity_scanner_and_turn_state_preserve_clarifications_without_breaking_user_turns(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

@@ -1,7 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/250
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/239
 from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,6 +8,9 @@ from .comment_diff import _git_read_text
 from .ratchet import _turn_receipt_dirs
 import json
 import re
+# 2026-11-25
+# "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
+# https://github.com/dmitry-ai/harness/issues/239
 _MECH_SLOP_RE = re.compile(r'(?i)\b(?:bypass|skip|avoid|circumvent)\s+(?:the\s+)?(?:tdd|tests?|testing|gate|hook)\b')
 _MECH_SUFFIX = '-mechanical-exempt.json'
 def _candidate_recipe_dirs(project_root: Path | None, repo_root: Path | None) -> list[Path]:
@@ -29,6 +29,9 @@ def _candidate_recipe_dirs(project_root: Path | None, repo_root: Path | None) ->
 	except (OSError, ValueError, ImportError):
 		pass
 	return [d for d in dirs if d.is_dir()]
+# 2026-11-25
+# "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
+# https://github.com/dmitry-ai/harness/issues/250
 def _collect_recipe_files(project_root: Path | None, repo: Path) -> list[Path]:
 	return [rf for td in _candidate_recipe_dirs(project_root, repo) for rf in sorted(td.glob(f'*{_MECH_SUFFIX}'))]
 def _compile_recipe_regex(recipe: dict) -> re.Pattern[str] | None:

@@ -1,25 +1,23 @@
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
-# https://github.com/dmitry-ai/harness/issues/73
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
-# https://github.com/dmitry-ai/harness/issues/63
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Verify saved publication approval independently of current publication policy":
-# https://github.com/dmitry-ai/harness/issues/41
 from copy import deepcopy
 import json
 from pathlib import Path
 from .research import inside, json_data
+# 2026-11-13
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
+# 2026-11-14
+# "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
+# https://github.com/dmitry-ai/harness/issues/73
 from .review import REPORT_CONTRACT, REVIEW_SCHEMA, ReviewClassifier, ReviewQuorumEvaluator, ReviewReportValidator, digest, is_nonempty_text, parse_report_object, prepare_verdict_record, read_package_envelope, register_package_handler, resolve_addressed_reviews, subject_digest, verify_entry_native_proof
 from .storage import locked, replace_bytes, write_immutable_bytes
 from .text_workflow import _folder, operation, refresh_check
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 SCOPES = ('format', 'scope', 'evidence', 'relevance', 'kb_consistency', 'response')
 TEXT_CHECKS = ('role_and_coverage', 'source_applicability', 'scope_alignment', 'goal_relevance', 'semantic_deduplication', 'numeric_provenance')
 def report_contract():
@@ -27,6 +25,9 @@ def report_contract():
 	value['required_scope'] = list(SCOPES)
 	value['claim_review_fields'].append('text_checks')
 	value['text_checks'] = {key: 'Authored assessment with concrete evidence and limits.' for key in TEXT_CHECKS}
+	# 2026-10-23
+	# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+	# https://github.com/dmitry-ai/harness/issues/16
 	value['source_reviews'] = {'required_when': 'The package has external source_checks', 'fields': ['url', 'receipt', 'assessment', 'outcome'], 'outcome': ['supported', 'unsupported'], 'instruction': 'Assess every cited external URL against a verified source receipt and its exact quote/anchor/edition; a reviewer may supply its own candidate-bound receipt.'}
 	value['instruction'] = 'Review the exact request, baseline, diff and candidate. Check every substantive statement, including those labelled nonfactual. Test the actual claim, quantifier and scope; give a counterexample. Distinguish product documentation from this site, historical from current measurements, purpose from motive. Read saved primary bytes and fetch primary sources when necessary. Network access is allowed. Do not edit the document, KB, package or previous verdicts. Return one authored JSON report; no default verdict.'
 	return value
@@ -36,7 +37,7 @@ def _state(root):
 	if 1 != value.get('schema_version') or not isinstance(value.get('reviews'), list):
 		raise ValueError('Invalid text review history; preserve it for recovery')
 	return value
-# 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-19
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
 def prepare(root, check, parent_id, spec=None):
@@ -51,6 +52,9 @@ def prepare(root, check, parent_id, spec=None):
 	flags = spec_d.get('task_flags', [])
 	if not isinstance(flags, list) or any((not is_nonempty_text(x) for x in flags)):
 		raise ValueError('task_flags must name the current task changes')
+	# 2026-11-14
+	# "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
+	# https://github.com/dmitry-ai/harness/issues/73
 	significant = ReviewClassifier.has_significant_flags(checked['claims'], flags)
 	if spec_d.get('risk') not in (None, 'routine', 'significant'):
 		raise ValueError('Review risk must be routine or significant')
@@ -61,9 +65,15 @@ def prepare(root, check, parent_id, spec=None):
 	if ReviewQuorumEvaluator(root_p, _state(root_p)).significant_findings(value['subject_sha256']):
 		value['risk'] = 'significant'
 	raw = json_data(value)
+	# 2026-11-13
+	# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+	# https://github.com/dmitry-ai/harness/issues/63
 	path = write_immutable_bytes(_folder(root_p) / 'reviews' / (digest(raw) + '-inputs.json'), raw, diff_error='Immutable text review artifact differs')
 	return {**value, 'package': path.relative_to(root_p).as_posix(), 'package_sha256': digest(raw), 'required_independent_reviewers': 2 if 'significant' == value['risk'] else 1, 'report_contract': report_contract()}
 def read_package(root, reference, *, require_current=True, applied=False):
+	# 2026-11-13
+	# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+	# https://github.com/dmitry-ai/harness/issues/63
 	root_p, _, value, _ = read_package_envelope(root, reference, expected_kind='client_text', error_msg='Invalid immutable text review package')
 	if digest(inside(root_p, value['baseline']['file']).read_bytes()) != value['baseline']['sha256']:
 		raise ValueError('Reviewed baseline bytes changed')
@@ -75,9 +85,15 @@ def read_package(root, reference, *, require_current=True, applied=False):
 		op, _ = operation(root_p, checked['operation'])
 		if checked['inputs'] != {**value['kb_inputs'], **value['evidence_inputs']} or checked['claims'] != value['claims'] or checked['manifest'] != value['manifest'] or (checked['diff'] != value['diff']) or (op['requests'] != value['requests']):
 			raise ValueError('Review no longer covers the exact request, diff, claim map or primary versions')
+		# 2026-11-14
+		# "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
+		# https://github.com/dmitry-ai/harness/issues/73
 		if 'routine' == value['risk'] and ReviewQuorumEvaluator(root_p, _state(root_p)).significant_findings(value['subject_sha256']):
 			raise ValueError('Significant finding requires a new significant package and two independent reviewers')
 	return value
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
 def _source_reviews(root, data, package, candidate):
 	from .text_sources import read_source_check
 	required = {read_source_check(root, candidate, ref)['url'] for ref in package.get('source_checks', [])}
@@ -98,17 +114,26 @@ def _source_reviews(root, data, package, candidate):
 	if 'approved' == data.get('result') and required != seen:
 		raise ValueError('Approval needs a receipt-bound assessment of every external source')
 	return inputs
+# 2026-11-14
+# "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
+# https://github.com/dmitry-ai/harness/issues/73
 def _issues(data, package, candidate, *, root=None):
 	reviewer = (lambda d, p: _source_reviews(root, d, p, candidate)) if None is not root else None
 	return ReviewReportValidator(package, candidate=candidate, text_checks=TEXT_CHECKS, source_reviewer=reviewer).validate(data)
-# 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-19
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
 def record(root, report, *, parent_id, reviewer_id, native_evidence):
 	from .workflow import hashes, now
 	root_r = Path(root).resolve()
+	# 2026-11-13
+	# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+	# https://github.com/dmitry-ai/harness/issues/63
 	prepared = prepare_verdict_record(root_r, report, parent_id=parent_id, reviewer_id=reviewer_id, native_evidence=native_evidence, allow_self=False, package_reader=read_package, issue_checker=lambda d, p, c: _issues(d, p, c, root=root_r), reviews_dir_fn=lambda r_p, sha: _folder(r_p) / 'reviews' / sha, artifact_prefix_fn=lambda _rev, rid: rid, diff_error='Immutable text review artifact differs')
 	data, package, ident = (prepared['data'], prepared['package'], prepared['review_id'])
+	# 2026-10-23
+	# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+	# https://github.com/dmitry-ai/harness/issues/16
 	proof_paths = prepared['proof_paths'] + list(_source_reviews(root_r, data, package, prepared['candidate']))
 	with locked(_folder(root_r) / 'review-writer.lock'):
 		state = _state(root_r)
@@ -119,11 +144,14 @@ def record(root, report, *, parent_id, reviewer_id, native_evidence):
 			state['reviews'].append(entry)
 			replace_bytes(_folder(root_r) / 'reviews.json', json_data(state))
 	return entry
-# 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-19
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
 def authorize(root, check, *, applied=False):
 	root_p, state = (Path(root).resolve(), _state(root))
+	# 2026-11-14
+	# "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
+	# https://github.com/dmitry-ai/harness/issues/73
 	evaluator = ReviewQuorumEvaluator(root_p, state)
 	checked, _ = refresh_check(root_p, check, applied=applied)
 	groups, diagnostics = ({}, [])
@@ -137,6 +165,9 @@ def authorize(root, check, *, applied=False):
 			data = parse_report_object(inside(root_p, entry['report']).read_text(encoding='utf-8'))
 			if _issues(data, package, inside(root_p, package['response']['file']).read_text(encoding='utf-8'), root=root_p):
 				raise ValueError('Reviewer assessment is incomplete')
+			# 2026-11-13
+			# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+			# https://github.com/dmitry-ai/harness/issues/63
 			verify_entry_native_proof(root_p, entry)
 			if 'approved' != entry['result'] or not evaluator.findings_closed(entry):
 				continue
@@ -148,6 +179,9 @@ def authorize(root, check, *, applied=False):
 		raise ValueError('Current independent text approval is required; significant claims need two reviewers' + (': ' + '; '.join(dict.fromkeys(diagnostics)) if diagnostics else ''))
 	reference, package, eligible = selected
 	return {'package': reference, 'package_sha256': digest(inside(root_p, reference).read_bytes()), 'risk': package['risk'], 'subject_sha256': package['subject_sha256'], 'review_ids': [entry['id'] for entry in eligible]}
+# 2026-11-03
+# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+# https://github.com/dmitry-ai/harness/issues/41
 def approval_integrity(root, approval, *, versioned_inputs=(), require_live_proof=True):
 	root_p = Path(root).resolve()
 	if not isinstance(approval, dict) or not isinstance(approval.get('review_ids'), list):
@@ -176,6 +210,9 @@ def approval_integrity(root, approval, *, versioned_inputs=(), require_live_proo
 		if require_live_proof:
 			if _issues(data, package, inside(root_p, package['response']['file']).read_text(encoding='utf-8')):
 				raise ValueError('Saved publication review no longer matches its admitted report')
+			# 2026-11-13
+			# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+			# https://github.com/dmitry-ai/harness/issues/63
 			verify_entry_native_proof(root_p, entry, error_msg='Saved review differs from its original native response')
 		elif entry.get('native_evidence'):
 			native_file = inside(root_p, entry['native_evidence'])
@@ -191,4 +228,7 @@ def approval_integrity(root, approval, *, versioned_inputs=(), require_live_proo
 	if (2 if 'significant' == package['risk'] else 1) > len(eligible):
 		raise ValueError('Saved publication approval lacks its required independent reviewers')
 	return {'files': inputs, 'reviews': reviews}
+# 2026-11-14
+# "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
+# https://github.com/dmitry-ai/harness/issues/73
 register_package_handler('client_text', package_reader=read_package, contract_factory=report_contract)

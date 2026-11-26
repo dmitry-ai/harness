@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
-# https://github.com/dmitry-ai/harness/issues/237
 from __future__ import annotations
 from contextlib import contextmanager
 from pathlib import Path
@@ -11,6 +9,9 @@ import shutil
 from .journal import resolve_journal_dir, state_dir
 from .path_cache import clear_path_cache
 from .path_registry import _path_key, load_registry
+# 2026-11-25
+# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
+# https://github.com/dmitry-ai/harness/issues/237
 def _copy_file(src: Path, dst: Path, *, hardlink: bool) -> None:
 	dst.parent.mkdir(parents=True, exist_ok=True)
 	linked = False

@@ -1,31 +1,4 @@
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace getElementById with querySelector in read-only CDP registry and verify on live headless Chromium":
-# https://github.com/dmitry-ai/harness/issues/130
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# https://github.com/dmitry-ai/harness/issues/86
-# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
-# https://github.com/dmitry-ai/harness/issues/81
-# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
-# https://github.com/dmitry-ai/harness/issues/80
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
-# https://github.com/dmitry-ai/harness/issues/66
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
-# https://github.com/dmitry-ai/harness/issues/63
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
-# https://github.com/dmitry-ai/harness/issues/27
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -45,8 +18,20 @@ from urllib.error import URLError
 from urllib.parse import urldefrag, urlsplit
 from urllib.request import urlopen
 import uuid
+# 2026-11-16
+# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+# https://github.com/dmitry-ai/harness/issues/81
 from .research import classify_html_challenge
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
 from .runtime import HARNESS_META, extract_platform_homes, platform_settings, settings
+# 2026-11-13
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
 from .storage import locked, write_immutable_bytes
 _LOCKS, _LOCKS_GUARD = ({}, threading.Lock())
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
@@ -55,6 +40,9 @@ _NAVIGATE = frozenset({'Page.navigate', 'Page.reload', 'Page.navigateToHistoryEn
 _CLOSE = frozenset({'Target.closeTarget', 'Page.close'})
 _NEVER = frozenset({'Browser.close', 'Target.createTarget', 'Target.disposeBrowserContext', 'Target.createBrowserContext', 'Target.attachToTarget', 'Target.sendMessageToTarget', 'Browser.crash', 'Page.crash'})
 _LOCAL_HOSTS = {'127.0.0.1', 'localhost', '::1'}
+# 2026-11-23
+# "Replace getElementById with querySelector in read-only CDP registry and verify on live headless Chromium":
+# https://github.com/dmitry-ai/harness/issues/130
 DOM_CAPTURE_EXPR = '({url:location.href,html:document.documentElement?document.documentElement.outerHTML:"",title:document.title||"",readyState:document.readyState||"",textLen:document.body?(document.body.innerText||"").trim().length:0})'
 MINIMAL_DOM_CAPTURE_EXPR = '({url:location.href,html:document.documentElement.outerHTML})'
 UPWORK_PAGE_STATE_EXPR = '({nuxt:document.querySelector("#__NUXT_DATA__")?.textContent||"",title:document.title||"",heading:document.querySelector("h1")?.textContent||"",body:(document.body?.innerText||"").slice(0,1000),readyState:document.readyState||""})'
@@ -128,6 +116,9 @@ def _profile(session, config):
 		raise ValueError('Use one profile path or one runtime profile reference')
 	path = value.get('path')
 	if not path and value.get('platform') and value.get('name'):
+		# 2026-11-18
+		# "Externalize agent environments and per-instance system paths into runtime.json":
+		# https://github.com/dmitry-ai/harness/issues/86
 		plat_cfg = config.get('platforms', {}).get(value['platform'], {})
 		path = extract_platform_homes(plat_cfg, platform=value['platform'], include_disabled=True).get(value['name'])
 	argument = value.get('argument')
@@ -161,6 +152,9 @@ def _transport(config, override):
 			raise RuntimeError('CDP request failed: ' + (result.stderr.strip() or 'no native response'))
 		return json.loads(result.stdout)
 	return call
+# 2026-11-16
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 class CDPSession:
 	def __init__(self, browser_ws, config=None, *, cdp_call=None):
 		self.browser_ws = browser_ws
@@ -257,6 +251,9 @@ class CDPSession:
 					r = msg.get('result', {})
 					break
 		return r
+# 2026-11-16
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 class ManagedHeadlessShell:
 	def __init__(self, config=None, *, executable=None):
 		self.config = settings() if None is config else config
@@ -370,6 +367,9 @@ def _query_target_infos(cdp_sess, fallback_targets):
 	if not infos and isinstance(fallback_targets, list):
 		infos = [{'targetId': t.get('id') or t.get('targetId'), 'type': t.get('type'), 'url': t.get('url'), 'title': t.get('title'), 'browserContextId': t.get('browserContextId')} for t in fallback_targets if isinstance(t, dict)]
 	return infos
+# 2026-11-16
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 def _verify_context_anchor(prof_cfg, target_infos, targets, endpoint, cdp_sess, report):
 	ext_id = prof_cfg.get('extension_id')
 	sentinel_origin = prof_cfg.get('sentinel_origin')
@@ -435,6 +435,9 @@ def _verify_context_anchor(prof_cfg, target_infos, targets, endpoint, cdp_sess, 
 			return
 	if 'verified' != report['profile'].get('status'):
 		report['issues'].append('Primary Chrome profile Default could not be verified via M-2A offscreen extension anchor or M-2B sentinel origin')
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
 def preflight(spec, *, config=None, http_get=None, cdp_call=None, require_target=True, cdp_session=None):
 	config = settings() if None is config else config
 	report = {'schema_version': 1, 'session_id': spec.get('session_id'), 'valid': False, 'profile': {'status': 'unknown'}, 'target': {'status': 'unknown'}, 'account': {'status': 'unknown'}, 'issues': [], 'independent_http_allowed': True, 'limitation': 'Cooperative check of the configured live CDP endpoint; it does not prove server internals, model reading, or ownership of external calls'}
@@ -589,6 +592,9 @@ def operation(method, params=None):
 	else:
 		r = 'forbidden'
 	return r
+# 2026-11-16
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 def _poll_dom_on_session(cdp_sess, session_id, timeout, *, single_pass=False):
 	deadline = time.time() + max(1.0, float(timeout))
 	data = None
@@ -603,6 +609,9 @@ def _poll_dom_on_session(cdp_sess, session_id, timeout, *, single_pass=False):
 				cur_url = val.get('url') or ''
 				ready = val.get('readyState') in ('complete', 'interactive') and cur_url not in ('', 'about:blank') and (not cur_url.startswith('about:blank#'))
 				has_text = 0 < (val.get('textLen') or 0) or bool(re.sub('(?is)<(?:script|style|head|title)[^>]*>.*?</(?:script|style|head|title)>|<[^>]+>', '', html_str).strip())
+				# 2026-11-16
+				# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+				# https://github.com/dmitry-ai/harness/issues/81
 				is_challenge = classify_html_challenge(html_str)
 				if single_pass or (ready and has_text and (not is_challenge)):
 					break
@@ -618,6 +627,9 @@ def _poll_dom_on_session(cdp_sess, session_id, timeout, *, single_pass=False):
 			break
 		time.sleep(0.3)
 	return data
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
 class GuardedCDP:
 	def __init__(self, root, spec, *, config=None, http_get=None, cdp_call=None):
 		if None is root or not str(root).strip():
@@ -648,6 +660,9 @@ class GuardedCDP:
 			allowed &= set(self.spec['allowed_operations'])
 		if op not in allowed:
 			raise PermissionError(f'CDP {op} is not authorized for this session')
+	# 2026-11-16
+	# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+	# https://github.com/dmitry-ai/harness/issues/80
 	def _broker_create_tab(self, cdp_sess, anchor_target_id, verified_ctx, url, endpoint):
 		nonce = uuid.uuid4().hex
 		placeholder = f'about:blank#{nonce}'
@@ -784,6 +799,9 @@ class GuardedCDP:
 			self._owned[identifier] = {'browser': browser_ws, 'url': url, 'ext_tab_id': ext_tab_id}
 			r = {'target_id': identifier, 'owner': 'this-guard', 'session_id': self.spec['session_id'], 'new_window': not (background or hidden), 'background': bool(background or hidden), 'browser': browser_ws}
 		return r
+	# 2026-11-16
+	# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+	# https://github.com/dmitry-ai/harness/issues/80
 	def capture_authenticated_dom(self, url, *, timeout=15):
 		if 'browser' != self.session['surface']:
 			raise PermissionError('Authenticated DOM capture requires a browser session surface')
@@ -847,11 +865,17 @@ class GuardedCDP:
 				raise PermissionError('Target was not created by this guard')
 			self.spec['target_id'] = identifier
 			self.spec.pop('target_url', None)
+# 2026-10-31
+# "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
+# https://github.com/dmitry-ai/harness/issues/27
 @contextmanager
 def _endpoint_lock(endpoint, config):
 	key = hashlib.sha256(endpoint.encode()).hexdigest()
 	with _LOCKS_GUARD:
 		lock = _LOCKS.setdefault(key, threading.Lock())
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths, workspace_override
 	cfg_ws = Path(config['workspace_root']).resolve()
 	ovr_locks = workspace_override(cfg_ws, 'browser_locks_dir')
@@ -859,6 +883,9 @@ def _endpoint_lock(endpoint, config):
 	path = lock_dir / f'{key}.lock'
 	with lock, locked(path):
 		yield
+# 2026-10-31
+# "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
+# https://github.com/dmitry-ai/harness/issues/27
 def resolve_cdp_port(config=None, explicit_port=None):
 	if None is not explicit_port:
 		r = int(explicit_port)
@@ -875,6 +902,9 @@ def resolve_cdp_port(config=None, explicit_port=None):
 					break
 		r = int(plat_port or 9222)
 	return r
+# 2026-11-16
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 def collect_headless_dom(root, url, *, timeout=15, config=None, headless_shell=None):
 	if None is root or not str(root).strip():
 		raise ValueError('An explicit project root is required')
@@ -933,6 +963,12 @@ def collect_headless_dom(root, url, *, timeout=15, config=None, headless_shell=N
 		profile_meta = {'status': 'verified', 'mode': 'ephemeral_headless_shell', 'evidence_method': 'DevToolsActivePort+Target.createBrowserContext', 'executable': str(shell.executable)}
 		identity_ref, identity_hash = save_cdp_identity(root_path, {'schema_version': 1, 'observed_at': datetime.now(timezone.utc).isoformat(timespec='microseconds'), 'endpoint': shell.endpoint, 'browser': (shell.version or {}).get('Browser'), 'browser_websocket': shell.browser_ws, 'target_id': target_id, 'target_mode': 'ephemeral_headless_context', 'closed_after_capture': closed, 'profile': profile_meta})
 		return {'url': data.get('url') or url, 'html': data['html'], 'title': data.get('title') or '', 'target_id': target_id, 'target_mode': 'ephemeral_headless_context', 'closed_after_capture': closed, 'cdp_identity': identity_ref, 'cdp_identity_sha256': identity_hash, 'endpoint': shell.endpoint}
+# 2026-10-31
+# "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
+# https://github.com/dmitry-ai/harness/issues/27
+# 2026-11-16
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 def collect_cdp_dom(root, url, *, cdp_port=None, session_id=None, timeout=15, config=None, http_get=None, cdp_call=None, headless_shell=None):
 	if None is root or not str(root).strip():
 		raise ValueError('An explicit project root is required')
@@ -995,6 +1031,9 @@ def collect_cdp_dom(root, url, *, cdp_port=None, session_id=None, timeout=15, co
 		identity_ref, identity_hash = save_cdp_identity(root_path, {'schema_version': 1, 'observed_at': datetime.now(timezone.utc).isoformat(timespec='microseconds'), 'endpoint': endpoint, 'browser': version.get('Browser'), 'browser_websocket': browser_ws, 'target_id': target_id, 'target_mode': target_mode, 'closed_after_capture': closed, 'profile': profile_info})
 		r = {'url': data.get('url') or url, 'html': data['html'], 'title': data.get('title') or '', 'target_id': target_id, 'target_mode': target_mode, 'closed_after_capture': closed, 'cdp_identity': identity_ref, 'cdp_identity_sha256': identity_hash, 'endpoint': endpoint}
 	return r
+# 2026-11-16
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 def browser_anchor_status(*, session_id=None, init_sentinel_tab=None, config=None, http_get=None, cdp_call=None):
 	cfg = settings() if None is config else deepcopy(config)
 	sid = session_id or cfg.get('text', {}).get('browser', {}).get('primary_session_id') or 'chrome-default'
@@ -1022,6 +1061,9 @@ def browser_anchor_status(*, session_id=None, init_sentinel_tab=None, config=Non
 				mux.detach_target(attach_sid)
 	report = preflight({'session_id': sid}, config=cfg, http_get=http_get, cdp_call=cdp_call, require_target=False)
 	return {'valid': report['valid'], 'session_id': sid, 'extension_id': ext_id, 'extension_path': ext_path, 'sentinel_origin': sentinel_origin, 'sentinel_initialized': sentinel_initialized, 'profile': report['profile'], 'endpoint': report.get('endpoint'), 'issues': report['issues']}
+# 2026-11-13
+# "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
+# https://github.com/dmitry-ai/harness/issues/66
 def discover_cdp_browser(endpoint, get):
 	version, targets = (get(endpoint + '/json/version'), get(endpoint + '/json/list'))
 	if not isinstance(version, dict) or not isinstance(targets, list):
@@ -1030,16 +1072,28 @@ def discover_cdp_browser(endpoint, get):
 	if not urlsplit(browser_ws).path.startswith('/devtools/browser/'):
 		raise ValueError('Discovery did not expose a browser endpoint')
 	return (version, targets, browser_ws)
+# 2026-11-13
+# "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
+# https://github.com/dmitry-ai/harness/issues/66
 def probe_cdp_arguments(browser_ws, call):
 	observed = call(browser_ws, 'Browser.getBrowserCommandLine', {})
 	r = observed.get('arguments') if isinstance(observed, dict) else None
 	if not isinstance(r, list):
 		raise ValueError('Native browser command-line arguments are unavailable')
 	return r
+# 2026-11-13
+# "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
+# https://github.com/dmitry-ai/harness/issues/66
 def save_cdp_identity(root, observed_identity):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	pp = project_paths(root)
 	identity_bytes = (json.dumps(observed_identity, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
 	identity_hash = hashlib.sha256(identity_bytes).hexdigest()
+	# 2026-11-13
+	# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+	# https://github.com/dmitry-ai/harness/issues/63
 	identity_path = write_immutable_bytes(pp.evidence_dir / 'CDPSessions' / f'{identity_hash}.json', identity_bytes, diff_error='Immutable CDP session identity changed')
 	return (identity_path.relative_to(pp.kb_dir).as_posix(), identity_hash)

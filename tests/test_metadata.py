@@ -1,6 +1,4 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement shared execution metadata collector and tab-indented JSON header formatter":
-# https://github.com/dmitry-ai/harness/issues/149
 from __future__ import annotations
 
 from contextlib import closing
@@ -21,6 +19,9 @@ if str(SCRIPT_DIR) not in sys.path:
 from agent_tools import metadata
 
 
+# 2026-11-23
+# "Implement shared execution metadata collector and tab-indented JSON header formatter":
+# https://github.com/dmitry-ai/harness/issues/149
 class MetadataFormattingAndCollectionTests(unittest.TestCase):
 	def test_format_local_timestamp_and_duration_timecode(self) -> None:
 		tz_plus3 = timezone(timedelta(hours=3))

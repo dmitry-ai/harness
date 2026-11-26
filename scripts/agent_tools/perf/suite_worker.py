@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add harness perf-profile-tests CLI for test suite and subprocess profiling":
-# https://github.com/dmitry-ai/harness/issues/192
 from __future__ import annotations
 from pathlib import Path
 from typing import Any
@@ -12,6 +10,9 @@ import subprocess
 import sys
 import time
 import unittest
+# 2026-11-24
+# "Add harness perf-profile-tests CLI for test suite and subprocess profiling":
+# https://github.com/dmitry-ai/harness/issues/192
 _STAT_KEYS = ('popen_count', 'popen_s', 'git_count', 'git_s', 'python_count', 'python_s', 'other_proc_count', 'other_proc_s', 'sleep_count', 'sleep_s')
 def _blank_stats() -> dict[str, Any]:
 	return {k: 0 if k.endswith('_count') else 0.0 for k in _STAT_KEYS}

@@ -1,17 +1,15 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce single falsifier review default and block duplicate send_message reports":
-# https://github.com/dmitry-ai/harness/issues/226
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Default upwork-init review to single falsifier and block subagent schedule timers":
-# https://github.com/dmitry-ai/harness/issues/215
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Detect active Antigravity 2.0 subagents in check_stop_gate via summary DB":
-# https://github.com/dmitry-ai/harness/issues/211
 from __future__ import annotations
 import json
 from pathlib import Path
 import re
 import sqlite3
+# 2026-11-24
+# "Detect active Antigravity 2.0 subagents in check_stop_gate via summary DB":
+# https://github.com/dmitry-ai/harness/issues/211
+# 2026-11-24
+# "Enforce single falsifier review default and block duplicate send_message reports":
+# https://github.com/dmitry-ai/harness/issues/226
 _CHILD_MSG_RE = re.compile(r'\[Message\]\s+timestamp=[^\n]*?\bsender=([a-f0-9-]{36})(?!/)\b', re.I)
 _INVOKE_UUID_RE = re.compile(r'"(?:conversationId|agent_id|subagent_id)"\s*:\s*"([a-f0-9-]{36})"', re.I)
 _LEGACY_DONE_RE = re.compile(r'<SYSTEM_MESSAGE>.*\bSubagent\b.*\bcompleted\b', re.S)
@@ -29,6 +27,9 @@ def _apply_call(segment: list[dict], pos: int, row: dict, call: dict, state: dic
 		recip = str(args.get('Recipient') or '').strip().lower()
 		if _UUID_RE.fullmatch(recip):
 			state['spawned_uuids'].add(recip)
+			# 2026-11-24
+			# "Enforce single falsifier review default and block duplicate send_message reports":
+			# https://github.com/dmitry-ai/harness/issues/226
 			state['completed_uuids'].discard(recip)
 			state['killed_all'] = False
 			state['spawned'] += 1
@@ -60,6 +61,9 @@ def _filter_turn_db_rows(db_rows: list[dict], state: dict) -> list[dict]:
 	else:
 		r = list(db_rows)
 	return r
+# 2026-11-24
+# "Default upwork-init review to single falsifier and block subagent schedule timers":
+# https://github.com/dmitry-ai/harness/issues/215
 def _find_summary_db(t_path: Path) -> Path | None:
 	r: Path | None = None
 	for parent in t_path.parents:
@@ -77,6 +81,9 @@ def _is_row_running(row: dict) -> bool:
 		not_idle = 0 != int(row.get('not_fully_idle') or 0)
 		r = not_idle or (bool(status) and status not in _TERMINAL_STATUSES)
 	return r
+# 2026-11-24
+# "Enforce single falsifier review default and block duplicate send_message reports":
+# https://github.com/dmitry-ai/harness/issues/226
 def _live_running_db_children(conversations_db: Path | None, session_id: str, killed_uuids: set[str]) -> list[str]:
 	db_rows = _query_summary_children(conversations_db, session_id) if session_id else None
 	return sorted({row['conversation_id'] for row in (db_rows or ()) if row['conversation_id'] not in killed_uuids and _is_row_running(row)})
@@ -135,6 +142,9 @@ def _query_summary_children(conversations_db: Path | None, session_id: str) -> l
 			if None is not conn:
 				conn.close()
 	return r
+# 2026-11-24
+# "Default upwork-init review to single falsifier and block subagent schedule timers":
+# https://github.com/dmitry-ai/harness/issues/215
 def _read_turn_segment(t_path: Path) -> list[dict]:
 	try:
 		rows = [json.loads(line) for line in t_path.read_text(encoding='utf-8', errors='replace').splitlines() if line.strip()]
@@ -152,6 +162,9 @@ def _record_invoke(segment: list[dict], pos: int, row: dict, args: dict, state: 
 	if not state['first_spawn_ts'] and row.get('created_at'):
 		state['first_spawn_ts'] = str(row.get('created_at'))
 	state['spawned_uuids'].update(_collect_invoke_outputs(segment, pos))
+# 2026-11-24
+# "Default upwork-init review to single falsifier and block subagent schedule timers":
+# https://github.com/dmitry-ai/harness/issues/215
 def _resolve_transcript_file(transcript_path: str) -> Path | None:
 	r = Path(transcript_path) if transcript_path else None
 	if None is not r and 'transcript.jsonl' == r.name:
@@ -159,6 +172,9 @@ def _resolve_transcript_file(transcript_path: str) -> Path | None:
 		if full.is_file():
 			r = full
 	return r if None is not r and r.is_file() else None
+# 2026-11-24
+# "Default upwork-init review to single falsifier and block subagent schedule timers":
+# https://github.com/dmitry-ai/harness/issues/215
 def evaluate_schedule_subagent_block(transcript_path: str, args: dict, payload: dict) -> str | None:
 	t_path = _resolve_transcript_file(transcript_path)
 	r: str | None = None
@@ -166,6 +182,9 @@ def evaluate_schedule_subagent_block(transcript_path: str, args: dict, payload: 
 		state = extract_segment_subagent_state(_read_turn_segment(t_path))
 		cond = str(args.get('TimerCondition') or '').strip().lower()
 		sid = str(payload.get('conversationId') or payload.get('conversation_id') or '').strip()
+		# 2026-11-24
+		# "Enforce single falsifier review default and block duplicate send_message reports":
+		# https://github.com/dmitry-ai/harness/issues/226
 		db_path = _find_summary_db(t_path)
 		live_running = _live_running_db_children(db_path, sid, state['killed_uuids'])
 		if cond and cond in state['spawned_uuids']:
@@ -182,6 +201,9 @@ def extract_segment_subagent_state(segment: list[dict]) -> dict:
 			_process_row_message(row, state)
 			_process_row_calls(segment, pos, row, state)
 	return state
+# 2026-11-24
+# "Detect active Antigravity 2.0 subagents in check_stop_gate via summary DB":
+# https://github.com/dmitry-ai/harness/issues/211
 def has_running_subagents(state: dict, session_id: str, conversations_db: Path | None=None) -> bool:
 	if 0 >= int(state.get('spawned') or 0) or state.get('killed_all'):
 		r = False

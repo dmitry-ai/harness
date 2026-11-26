@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Ensure atomic answer-prepare workflow alignment and safe open-turn reconciliation":
-# https://github.com/dmitry-ai/harness/issues/232
 from __future__ import annotations
 from contextlib import closing
 from pathlib import Path
@@ -79,6 +77,9 @@ def _authorize_routine_reply(proj: Path, home: Path, reply: str) -> None:
 	rpath.write_text(json.dumps(rep), encoding='utf-8')
 	with patch.object(Path, 'home', return_value=home):
 		flow.record_review(proj, '\ua616/KB/Evidence/Reviews/self.json', parent_id=CID, reviewer_id=CID)
+# 2026-11-25
+# "Ensure atomic answer-prepare workflow alignment and safe open-turn reconciliation":
+# https://github.com/dmitry-ai/harness/issues/232
 class AtomicPrepareAndNarrowedReconcileM7Tests(unittest.TestCase):
 	def test_answer_check_and_prepare_reject_misaligned_pending_without_writing_journal(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

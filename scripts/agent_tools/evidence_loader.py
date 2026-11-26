@@ -1,8 +1,4 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Cache runtime settings and deduplicate evidence validation in hot paths":
-# https://github.com/dmitry-ai/harness/issues/227
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/76
 from collections import OrderedDict
 import json
 import os
@@ -12,6 +8,9 @@ from urllib.parse import unquote, urldefrag, urlsplit
 from .research import classify_html_challenge, extract_bytes, extract_github_blob_lines, extract_markdown, extractor_version, load_observation
 _HTML_CTYPES = ('text/html', 'application/xhtml+xml')
 _MD_CTYPES = ('text/markdown', 'text/x-markdown')
+# 2026-11-24
+# "Cache runtime settings and deduplicate evidence validation in hot paths":
+# https://github.com/dmitry-ai/harness/issues/227
 _OBS_HTML_CACHE: OrderedDict[tuple, dict] = OrderedDict()
 _OBS_HTML_CACHE_LIMIT = 64
 def _add_anchor(anchors: set[str], value: str) -> None:
@@ -123,6 +122,9 @@ def _put_obs_cache(key: tuple, data: dict) -> dict:
 	while _OBS_HTML_CACHE_LIMIT < len(_OBS_HTML_CACHE):
 		_OBS_HTML_CACHE.popitem(last=False)
 	return data
+# 2026-11-24
+# "Cache runtime settings and deduplicate evidence validation in hot paths":
+# https://github.com/dmitry-ai/harness/issues/227
 def _resolve_html_data(obs_dir: Path, body: bytes | None, meta: dict, *, need_sections: bool) -> dict:
 	base_key = (os.path.normcase(str(obs_dir.resolve())), meta.get('body_sha256'), meta.get('content_type'), meta.get('charset') or 'utf-8', meta.get('status'), extractor_version(), _obs_stat(obs_dir / 'extracted-html.json'), _obs_stat(obs_dir / 'response.bin'))
 	hit = _OBS_HTML_CACHE.get((base_key, True)) or (None if need_sections else _OBS_HTML_CACHE.get((base_key, False)))
@@ -142,6 +144,9 @@ def clear_observation_cache() -> None:
 def is_valid_observation_status(meta: dict) -> bool:
 	r = (not meta.get('error')) and ('dom' == meta.get('kind') or 200 <= (meta.get('status') or 0) < 300)
 	return r
+# 2026-11-24
+# "Cache runtime settings and deduplicate evidence validation in hot paths":
+# https://github.com/dmitry-ai/harness/issues/227
 def load_analysis_card_validation(root, path: Path, prevalidated, *, analysis_issues_fn, evidence_issues_fn) -> tuple[dict | None, list, list]:
 	if None is not prevalidated:
 		r = (prevalidated, [], [])
@@ -151,6 +156,9 @@ def load_analysis_card_validation(root, path: Path, prevalidated, *, analysis_is
 		ev_issues = evidence_issues_fn(root, value) if isinstance(value, dict) else []
 		r = (value, contract, ev_issues)
 	return r
+# 2026-11-23
+# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+# https://github.com/dmitry-ai/harness/issues/76
 def load_observation_bundle(jfile: Path, data: dict, *, max_bytes: int) -> dict:
 	urls_here = [u for u in (data.get('url'), data.get('final_url')) if isinstance(u, str) and u.startswith(('http://', 'https://'))]
 	host = (urlsplit(urls_here[0]).hostname or '').lower() if urls_here else ''
@@ -174,6 +182,9 @@ def load_observation_content(root, observation_ref: str, meta: dict, *, fragment
 	ct_low = (meta.get('content_type') or '').split(';', 1)[0].strip().lower()
 	raw_str, frag = (body.decode(charset, errors='replace'), unquote(fragment))
 	if ct_low in _HTML_CTYPES + _MD_CTYPES:
+		# 2026-11-24
+		# "Cache runtime settings and deduplicate evidence validation in hot paths":
+		# https://github.com/dmitry-ai/harness/issues/227
 		data = _resolve_html_data(obs_dir, body, meta, need_sections=bool(need_sections or frag))
 		r = {'kind': 'html', 'data': data, 'raw': raw_str, 'fragment': frag, 'meta': meta, 'challenge_checked': True}
 		if ct_low in _MD_CTYPES:
@@ -197,6 +208,9 @@ def probe_observation_status(root, meta: dict, base_url: str, fragment: str='') 
 	else:
 		from .evidence import local_file
 		obs_dir = local_file(root, meta['observation']).parent
+		# 2026-11-24
+		# "Cache runtime settings and deduplicate evidence validation in hot paths":
+		# https://github.com/dmitry-ai/harness/issues/227
 		data = _resolve_html_data(obs_dir, None, meta, need_sections=False)
 		frag = unquote(fragment)
 		if data.get('browser_check_required'):

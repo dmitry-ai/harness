@@ -1,15 +1,4 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
-# https://github.com/dmitry-ai/harness/issues/206
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
-# https://github.com/dmitry-ai/harness/issues/204
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deduplicate historical admission fixtures and guard optional temp fsync":
-# https://github.com/dmitry-ai/harness/issues/177
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add parallel fail-fast run-tests runner with module timeouts and TDD gate registration":
-# https://github.com/dmitry-ai/harness/issues/160
 from __future__ import annotations
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 import os
@@ -20,13 +9,22 @@ import sys
 import tempfile
 import threading
 import time
+# 2026-11-24
+# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
+# https://github.com/dmitry-ai/harness/issues/206
 from .process_tree import POPEN_TREE_KWARGS, kill_process_tree
+# 2026-11-23
+# "Add parallel fail-fast run-tests runner with module timeouts and TDD gate registration":
+# https://github.com/dmitry-ai/harness/issues/160
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 _RAN_RE = re.compile(r'(?m)^Ran\s+(\d+)\s+tests?\s+in\s+')
 _SKIP_DIRS = frozenset({'.git', '__pycache__', 'node_modules', 'venv', '.venv', '\ua616', '\ua66e', '\U0001f56e'})
 _SKIPPED_RE = re.compile(r'\bskipped=(\d+)\b')
 def _default_workers() -> int:
 	return min(max(2, (os.cpu_count() or 4) // 2), 8)
+# 2026-11-24
+# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
+# https://github.com/dmitry-ai/harness/issues/206
 def _kill_process_tree(proc: subprocess.Popen) -> None:
 	kill_process_tree(proc)
 def _module_matches_filters(mod: Path, base_dir: Path, filters: list[str]) -> bool:
@@ -57,6 +55,15 @@ def _run_module_worker(mod_path: Path, top_dir: Path, *, failfast: bool, module_
 		started = time.monotonic()
 		timed_out, cancelled = (False, False)
 		with tempfile.TemporaryFile() as out_file:
+			# 2026-11-24
+			# "Deduplicate historical admission fixtures and guard optional temp fsync":
+			# https://github.com/dmitry-ai/harness/issues/177
+			# 2026-11-24
+			# "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
+			# https://github.com/dmitry-ai/harness/issues/204
+			# 2026-11-24
+			# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
+			# https://github.com/dmitry-ai/harness/issues/206
 			proc = subprocess.Popen(cmd, cwd=str(top_dir.parent), stdin=subprocess.DEVNULL, stdout=out_file, stderr=subprocess.STDOUT, env={'HARNESS_TEST_NO_FSYNC': '1', **os.environ}, **POPEN_TREE_KWARGS)
 			with active_lock:
 				active_procs.add(proc)

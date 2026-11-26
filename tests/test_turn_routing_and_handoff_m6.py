@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify handed-off turn routing and deterministic state selection across hooks":
-# https://github.com/dmitry-ai/harness/issues/231
 from __future__ import annotations
 from contextlib import closing
 from pathlib import Path
@@ -79,6 +77,9 @@ def _setup_launcher_and_daily(base: Path) -> tuple[Path, Path]:
 	handed_off = {'key': '0d2d6db4bdc4b0a412770e7aec3fe1fdf8688d73', 'conversation_id': CID, 'native_turn_id': f'ag-{CID}-0', 'native_start_step': 0, 'status': 'handed_off', 'handed_off_to': {'project_root': str(daily), 'job_id': JOB_1}}
 	(launcher / '\ua616/data/turns/0d2d6db4bdc4b0a412770e7aec3fe1fdf8688d73.json').write_text(json.dumps(handed_off), encoding='utf-8')
 	return (launcher, daily)
+# 2026-11-25
+# "Unify handed-off turn routing and deterministic state selection across hooks":
+# https://github.com/dmitry-ai/harness/issues/231
 class TurnRoutingAndHandoffM6Tests(unittest.TestCase):
 	def test_pre_invocation_allows_new_job_in_launcher_instead_of_routing(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

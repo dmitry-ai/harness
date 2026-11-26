@@ -1,5 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/79
 import io
 import json
 import sys
@@ -9,6 +8,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import check_markdown_slop
 from agent_tools import workflow
+# 2026-11-24
+# "Unify PreToolUse/Stop JSON hook harnesses, turns/*.json iterators, DOC-4 sentence scanning, and GitHub Evidence resolvers":
+# https://github.com/dmitry-ai/harness/issues/79
 class HookUnificationTests(unittest.TestCase):
 	def test_doc4_scanner_supports_hook_and_workflow_modes(self):
 		from agent_tools import hook_runtime

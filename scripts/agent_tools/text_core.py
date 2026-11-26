@@ -1,21 +1,4 @@
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prepend JSON metadata headers to new journal responses":
-# https://github.com/dmitry-ai/harness/issues/151
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
-# https://github.com/dmitry-ai/harness/issues/109
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
-# https://github.com/dmitry-ai/harness/issues/101
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from __future__ import annotations
 from dataclasses import dataclass
 import difflib
@@ -27,6 +10,12 @@ import re
 import shutil
 import subprocess
 from .runtime import PRIMARY, settings
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 LEXICON = PRIMARY / 'references/client-text/lexicon.json'
 BANS = Path('ꘖ/data/text-bans.json')
 ANCHOR = re.compile('^\\s*<a\\s+name=[\'"]([^\'"]+)[\'"]\\s*>\\s*</a>\\s*$')
@@ -280,6 +269,9 @@ def find_bans(path: Path | None):
 				result.extend(data.get('bans', []) if isinstance(data, dict) else data)
 		if result:
 			return result
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .storage import data_dir_for
 	dd = data_dir_for(path)
 	result = []
@@ -292,10 +284,19 @@ def find_bans(path: Path | None):
 def normalized(text: str) -> str:
 	return re.sub('\\s+', ' ', text).strip()
 def check_response(path: Path, text: str | None=None, against=(), lexicon=None, journal: Path | None=None) -> list[Finding]:
+	# 2026-11-23
+	# "Prepend JSON metadata headers to new journal responses":
+	# https://github.com/dmitry-ai/harness/issues/151
 	from .metadata import strip_leading_metadata_header
 	text = strip_leading_metadata_header(path.read_bytes().decode('utf-8') if None is text else text)
 	findings = []
 	check_prose(scan(text), 'response', detect_language(text), findings, load_lexicon() if None is lexicon else lexicon, [])
+	# 2026-11-20
+	# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+	# https://github.com/dmitry-ai/harness/issues/101
+	# 2026-11-21
+	# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+	# https://github.com/dmitry-ai/harness/issues/109
 	from .journal import is_bucket_dir_name, iter_side_step_files, journal_pair_dirs
 	folder = journal_pair_dirs(Path(journal))[1] if journal else (path.parent if path.parent.name in ('res', '\u227a') else (path.parent.parent if is_bucket_dir_name(path.parent.name) and path.parent.parent.name in ('res', '\u227a') else None))
 	if None is not folder and folder.is_dir():
@@ -341,6 +342,9 @@ def check_response(path: Path, text: str | None=None, against=(), lexicon=None, 
 	r = sorted(findings, key=lambda f: (f.line, f.rule))
 	return r
 def default_shell():
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import tool_list
 	configured = os.environ.get('DF_TEXT_BASH') or os.environ.get('CYGWIN_BASH') or settings().get('client_text', {}).get('bash')
 	if configured:

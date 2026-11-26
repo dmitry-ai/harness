@@ -1,11 +1,4 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Isolate per-conversation github_issues recording and turn-state filtering":
-# https://github.com/dmitry-ai/harness/issues/195
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
-# https://github.com/dmitry-ai/harness/issues/172
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/77
 from __future__ import annotations
 import json
 from pathlib import Path
@@ -40,6 +33,9 @@ def _parse_parent_from_issue_dict(iss_obj: dict[str, Any], repo: str, issue_num:
 		cand = IssueMarkdownLinter.extract_parent_number(str(iss_obj.get('body') or ''), repo)
 		r = cand if None is not cand and cand != int(issue_num) else None
 	return r
+# 2026-11-24
+# "Isolate per-conversation github_issues recording and turn-state filtering":
+# https://github.com/dmitry-ai/harness/issues/195
 def _update_turn_issue_entry(tdata: dict[str, Any], repo: str, issue_num: int, record: dict[str, Any], action: str | None, recorded_cid: str, recorded_plat: str) -> None:
 	issue_url = f'https://github.com/{repo}/issues/{issue_num}'
 	gh_issues = tdata.setdefault('github_issues', {})
@@ -55,6 +51,9 @@ def _update_turn_issue_entry(tdata: dict[str, Any], repo: str, issue_num: int, r
 	if isinstance(parent_num, int) and parent_num != issue_num:
 		entry.update(parent_number=parent_num, parent_url=f'https://github.com/{repo}/issues/{parent_num}')
 	gh_issues[issue_url] = entry
+# 2026-11-24
+# "Decompose github_issue.py and issue_lifecycle.py into IssueMarkdownLinter, IssueEvidenceWorkspace, GitHubIssueService, and TurnIssueLifecycleAuditor with locked turn updates":
+# https://github.com/dmitry-ai/harness/issues/77
 class IssueEvidenceWorkspace:
 	def _build_issue_record(self, source_files: list[tuple[Path, bytes]], repo: str, fetched: dict[str, Any], ident: Any, kind: str, project_root: str | Path | None, parent_number: int | None) -> dict[str, Any]:
 		m_iss = re.search('/issues/(\\d+)\\b', str(fetched.get('html_url') or fetched.get('issue_url') or ''))
@@ -80,6 +79,9 @@ class IssueEvidenceWorkspace:
 			if isinstance(num, int) and (not isinstance(num, bool)) and num != pnum and (num not in by_num) and _parse_parent_from_issue_dict(iss_obj, repo, num) == pnum:
 				url = str(iss_obj.get('html_url') or iss_obj.get('url') or f'https://github.com/{repo}/issues/{num}')
 				by_num[num] = {'number': num, 'url': url, 'state': str(iss_obj.get('state') or 'open').strip().lower(), 'state_reason': iss_obj.get('state_reason'), 'parent_number': pnum}
+	# 2026-11-24
+	# "Isolate per-conversation github_issues recording and turn-state filtering":
+	# https://github.com/dmitry-ai/harness/issues/195
 	@staticmethod
 	def _scan_open_turn_files(turns_dir: Path) -> list[tuple[Path, str, str]]:
 		open_files: list[tuple[Path, str, str]] = []
@@ -155,6 +157,9 @@ class IssueEvidenceWorkspace:
 		return find_local_code_repo(repo, project_root=project_root, source_files=source_files, repo_root=repo_root)
 	def find_tracked_child_issues(self, repo: str, parent_number: int, *, project_root: str | Path | None=None, code_repo: Path | None=None) -> list[dict[str, Any]]:
 		pnum = int(parent_number)
+		# 2026-11-24
+		# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
+		# https://github.com/dmitry-ai/harness/issues/172
 		targets = self.resolve_issue_targets([], repo, project_root=project_root, code_repo=code_repo)
 		if None is not code_repo:
 			extra = self.issue_target_for_path(Path(code_repo).resolve().parent)
@@ -239,6 +244,9 @@ class IssueEvidenceWorkspace:
 			if None is primary_out:
 				primary_out = out_file
 		return primary_out
+	# 2026-11-24
+	# "Isolate per-conversation github_issues recording and turn-state filtering":
+	# https://github.com/dmitry-ai/harness/issues/195
 	def record_issue_in_open_turns(self, turns_dir: Path, repo: str, record: dict[str, Any], action: str | None, *, conversation_id: str | None=None) -> None:
 		issue_num = _extract_issue_num(record)
 		if turns_dir.is_dir() and None is not issue_num:
@@ -250,6 +258,9 @@ class IssueEvidenceWorkspace:
 	@staticmethod
 	def repo_matches_slug(code_repo: Path, repo: str) -> bool:
 		return repo_matches_slug(code_repo, repo)
+	# 2026-11-24
+	# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
+	# https://github.com/dmitry-ai/harness/issues/172
 	def _target_for_project_root(self, project_root: str | Path | None) -> tuple[Path, Path] | None:
 		from ..path_registry import project_paths, store_path, workspace_override
 		r = None
@@ -260,6 +271,9 @@ class IssueEvidenceWorkspace:
 				pp = project_paths(pr)
 				r = (store_path('github_evidence_dir'), pp.turns_dir) if None is not workspace_override(pp.root) else (pp.evidence_dir / 'GitHub', pp.turns_dir)
 		return r
+	# 2026-11-24
+	# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
+	# https://github.com/dmitry-ai/harness/issues/172
 	def resolve_issue_targets(self, source_files: list[tuple[Path, bytes]], repo: str, project_root: str | Path | None=None, *, code_repo: Path | None=None) -> list[tuple[Path, Path]]:
 		from ..path_registry import store_path, store_value
 		r: list[tuple[Path, Path]] = []

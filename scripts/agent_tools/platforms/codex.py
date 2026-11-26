@@ -1,64 +1,4 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
-# https://github.com/dmitry-ai/harness/issues/212
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prepend JSON metadata headers to new journal responses":
-# https://github.com/dmitry-ai/harness/issues/151
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
-# https://github.com/dmitry-ai/harness/issues/146
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
-# https://github.com/dmitry-ai/harness/issues/138
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Use native workspace priority and AST command parsing in request binding":
-# https://github.com/dmitry-ai/harness/issues/129
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
-# https://github.com/dmitry-ai/harness/issues/113
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove text-based explicit-project-root override from request binding":
-# https://github.com/dmitry-ai/harness/issues/112
-# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix runtime instance path derivation and store validation":
-# https://github.com/dmitry-ai/harness/issues/89
-# https://github.com/dmitry-ai/harness/issues/86
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
-# https://github.com/dmitry-ai/harness/issues/75
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
-# https://github.com/dmitry-ai/harness/issues/67
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
-# https://github.com/dmitry-ai/harness/issues/72
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
-# https://github.com/dmitry-ai/harness/issues/64
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract CodexTurnScanner class from native_answers in platforms/codex.py with completion_service_steps parity and cached subagent indexing":
-# https://github.com/dmitry-ai/harness/issues/61
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deduplicate turn compaction/delegation reducers, shell/path tool normalization, and request/metadata wrappers across Antigravity and Codex adapters":
-# https://github.com/dmitry-ai/harness/issues/58
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify A.A reviewer isolation, prompt-bias checks, and review-proof helpers across Antigravity and Codex adapters into platforms/trace_common.py":
-# https://github.com/dmitry-ai/harness/issues/52
-# 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
-# https://github.com/dmitry-ai/harness/issues/6
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
-# https://github.com/dmitry-ai/harness/issues/31
-# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
-# https://github.com/dmitry-ai/harness/issues/34
-# 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
-# https://github.com/dmitry-ai/harness/issues/48
+# 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from collections import Counter
 import glob
 import hashlib
@@ -72,6 +12,12 @@ from ..research import json_data
 from ..shell_audit import extract_issue_actions_from_outputs
 from ..storage import iter_embedded_json_objects
 from .trace_common import UUID_PATTERN, build_native_review_proof, collect_prompt_bias_issues, collect_subagent_bfs, current_turn_requests, finalize_executor_checks, init_turn_accumulator, local_uri_to_path, make_tool_trace_event, open_readonly_sqlite, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, record_normalized_tool_effects, require_turn_binding, reviewer_isolation_issues, summarize_token_records, summarize_turn_activity, verify_review_proof_core
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
+# 2026-11-18
+# "Fix runtime instance path derivation and store validation":
+# https://github.com/dmitry-ai/harness/issues/89
 def _state_db_files(paths_or_home):
 	if isinstance(paths_or_home, dict):
 		home = _local_path(paths_or_home['home']) if paths_or_home.get('home') else None
@@ -82,6 +28,9 @@ def _state_db_files(paths_or_home):
 			return []
 		return sorted((Path(p) for p in glob.glob((home / glob_raw).as_posix(), recursive=True) if Path(p).is_file()))
 	return sorted(_local_path(paths_or_home).glob('state_*.sqlite'))
+# 2026-11-13
+# "Extract CodexTurnScanner class from native_answers in platforms/codex.py with completion_service_steps parity and cached subagent indexing":
+# https://github.com/dmitry-ai/harness/issues/61
 class CodexTurnScanner:
 	def __init__(self, root, conversation_id, *, backend=None, instance=None):
 		self.root = root
@@ -100,9 +49,15 @@ class CodexTurnScanner:
 		self.thread_parent_map: dict[str, str] = {}
 		self.indexed_subagents = False
 		self.completed_turn_sub_ids: set[str] = set()
+		# 2026-11-23
+		# "Use native workspace priority and AST command parsing in request binding":
+		# https://github.com/dmitry-ai/harness/issues/129
 		self.scope_active = False
 		self.scope_binding = None
 		self.expected_job_id = None
+	# 2026-11-13
+	# "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
+	# https://github.com/dmitry-ai/harness/issues/64
 	def _collect_subagent_bfs(self, t_idx, turn, acc):
 		visited_sub_ids = {self.conversation_id}
 		is_last_turn = t_idx == len(self.turn_entries) - 1
@@ -118,13 +73,28 @@ class CodexTurnScanner:
 				anchor = acc['subagent_steps'][-1] if acc['subagent_steps'] else (acc['tool_steps'][-1] if acc['tool_steps'] else turn['start_step'])
 				visited_sub_ids = collect_subagent_bfs(self.conversation_id, self.root_p, seeds, lambda sid, depth, hint, parent: self._resolve_subagent_child(sid, parent, anchor, turn, acc), acc['aa_partial_read_violations'])
 		self.completed_turn_sub_ids.update(visited_sub_ids - {self.conversation_id})
+	# 2026-11-01
+	# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+	# https://github.com/dmitry-ai/harness/issues/34
 	def _finalize_turn(self, t_idx, turn, acc):
 		turn['owned'] = bool(turn['requests']) and len(turn['requests']) == len(acc['all_request_steps'])
+		# 2026-10-31
+		# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+		# https://github.com/dmitry-ai/harness/issues/31
+		# 2026-11-14
+		# "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
+		# https://github.com/dmitry-ai/harness/issues/67
+		# 2026-11-23
+		# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+		# https://github.com/dmitry-ai/harness/issues/146
 		turn['issue_actions'] = [{**act, 'step': rec['step']} for rec in acc['tool_records'] for act in extract_issue_actions_from_outputs(rec.get('outputs', []))]
 		self._collect_subagent_bfs(t_idx, turn, acc)
 		for rec in acc['tool_records']:
 			rec.pop('target_subagents', None)
 		turn['compaction'], turn['delegation'] = summarize_turn_activity(acc['checkpoint_steps'], acc['tool_steps'], acc['subagent_steps'], acc['aa_subagent_steps'], acc['af_subagent_steps'], acc['kb_persistence_steps'], acc['transcript_read_steps'], acc['tool_records'], acc['file_reads'], acc['file_writes'], svc_steps=acc['completion_service_steps'], aa_part_errs=acc['aa_partial_read_violations'])
+	# 2026-11-07
+	# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
+	# https://github.com/dmitry-ai/harness/issues/48
 	def _index_profile_subagents(self):
 		if not self.indexed_subagents:
 			self.indexed_subagents = True
@@ -183,6 +153,9 @@ class CodexTurnScanner:
 			except (ValueError, OSError):
 				r = ([], False, pre_children, None)
 		return r
+	# 2026-11-23
+	# "Prepend JSON metadata headers to new journal responses":
+	# https://github.com/dmitry-ai/harness/issues/151
 	def _scan_primary_turns(self):
 		current, acc = (None, None)
 		last_ctx_model, last_ctx_effort = (None, None)
@@ -203,6 +176,9 @@ class CodexTurnScanner:
 					if e_val:
 						current['effort'] = e_val
 				continue
+			# 2026-10-30
+			# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+			# https://github.com/dmitry-ai/harness/issues/21
 			if None is not current and (kind in ('compacted', 'context_compacted', 'checkpoint') or (kind in ('event_msg', 'response_item') and ptype in ('context_compacted', 'compacted', 'checkpoint'))):
 				acc['checkpoint_steps'].append(index)
 			elif None is not current and 'response_item' == kind and ptype in ('function_call_output', 'custom_tool_call_output'):
@@ -213,9 +189,15 @@ class CodexTurnScanner:
 					out_full = out if isinstance(out, str) else json.dumps(out, ensure_ascii=False)
 					if None is not rec:
 						rec['outputs'].append(out_full[:4000])
+					# 2026-11-23
+					# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+					# https://github.com/dmitry-ai/harness/issues/138
 					if call_id in acc['pending_tdd_cmds']:
 						from ..tdd_gate import parse_command_outcome
 						acc['pending_tdd_cmds'][call_id]['outcome'] = parse_command_outcome(out_full)
+					# 2026-11-23
+					# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+					# https://github.com/dmitry-ai/harness/issues/146
 					if call_id in acc['pending_issue_cmds']:
 						from ..issue_first_gate import build_issue_action_events
 						c_step, c_cmd = acc['pending_issue_cmds'].pop(call_id)
@@ -285,9 +267,15 @@ class CodexTurnScanner:
 				s_cid = s_pay.get('call_id')
 				if s_cid in sub_spawn_call_ids:
 					r.extend(_extract_codex_spawn_output_uuids(out_s))
+				# 2026-11-23
+				# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+				# https://github.com/dmitry-ai/harness/issues/138
 				if s_cid in sub_pending_tdd:
 					from ..tdd_gate import parse_command_outcome
 					sub_pending_tdd[s_cid]['outcome'] = parse_command_outcome(out_full)
+				# 2026-11-23
+				# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+				# https://github.com/dmitry-ai/harness/issues/146
 				if s_cid in sub_pending_issue:
 					from ..issue_first_gate import build_issue_action_events
 					c_sub, c_cmd = sub_pending_issue.pop(s_cid)
@@ -315,6 +303,9 @@ class CodexTurnScanner:
 			if act_with_sub not in turn['issue_actions']:
 				turn['issue_actions'].append(act_with_sub)
 		return r
+	# 2026-11-23
+	# "Prepend JSON metadata headers to new journal responses":
+	# https://github.com/dmitry-ai/harness/issues/151
 	def scan(self):
 		self._load_context()
 		self._scan_primary_turns()
@@ -326,12 +317,30 @@ class CodexTurnScanner:
 			out['instance'] = self.paths['instance']
 		return out
 _SUBAGENT_PARENT_CACHE: dict[str, tuple[int, int, str]] = {}
+# 2026-10-16
+# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
+# https://github.com/dmitry-ai/harness/issues/6
+# 2026-11-14
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
 def _local_path(value):
 	return local_uri_to_path(value)
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
 def _paths(backend=None, profile=None, *, conversation_id=None):
 	return resolve_codex_paths(backend, instance=profile, conversation_id=conversation_id, codex_cfg=platform_settings('codex'))
 def _home(backend=None, profile=None, *, conversation_id=None):
 	return _paths(backend, profile=profile, conversation_id=conversation_id)['home']
+# 2026-10-15
+# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
+# https://github.com/dmitry-ai/harness/issues/6
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-18
+# "Fix runtime instance path derivation and store validation":
+# https://github.com/dmitry-ai/harness/issues/89
 def _trace(home, conversation_id, *, paths=None):
 	resolved = paths or _paths(home, conversation_id=conversation_id)
 	home = _local_path(resolved['home']) if resolved.get('home') else None
@@ -362,6 +371,9 @@ def _trace(home, conversation_id, *, paths=None):
 		kind, payload = (value.get('type'), value.get('payload', {}))
 		if kind in ('session_meta', 'turn_context') or ('response_item' == kind and 'reasoning' != payload.get('type')) or ('event_msg' == kind and payload.get('type') in ('task_started', 'task_complete', 'turn_aborted')):
 			rows.append((index, value))
+		# 2026-10-30
+		# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+		# https://github.com/dmitry-ai/harness/issues/21
 		elif kind in ('compacted', 'context_compacted', 'checkpoint') or ('event_msg' == kind and payload.get('type') in ('context_compacted', 'compacted', 'checkpoint')):
 			rows.append((index, {'type': 'event_msg', 'payload': {'type': 'context_compacted', 'turn_id': payload.get('turn_id')}}))
 	if not rows or 'session_meta' != rows[0][1].get('type') or rows[0][1]['payload'].get('id') != conversation_id:
@@ -388,6 +400,15 @@ def _actual_user_input(text, payload):
 	else:
 		r = not text.lstrip().startswith(('<environment_context>', '<external_codex_apps_open_page>')) and (not (text.lstrip().startswith('# AGENTS.md instructions') and '<INSTRUCTIONS>' in text))
 	return r
+# 2026-10-16
+# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
+# https://github.com/dmitry-ai/harness/issues/6
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
 def _request_scope(root, rows, *, until=None, identifier=None):
 	from .request_binding import native_project_id, scoped_inputs
 	job_id = identifier if None is not identifier else native_project_id(root)
@@ -407,11 +428,23 @@ def _request_scope(root, rows, *, until=None, identifier=None):
 				roots.append((index, str(_local_path(matching[0][1]['cwd'])), 'codex-turn-cwd'))
 			inputs.append((index, text))
 	return scoped_inputs(root, job_id, inputs, roots, until=until)
+# 2026-11-13
+# "Deduplicate turn compaction/delegation reducers, shell/path tool normalization, and request/metadata wrappers across Antigravity and Codex adapters":
+# https://github.com/dmitry-ai/harness/issues/58
+# 2026-11-21
+# "Remove text-based explicit-project-root override from request binding":
+# https://github.com/dmitry-ai/harness/issues/112
 def native_requests(root, conversation_id, *, backend=None, instance=None):
 	paths = _paths(backend, profile=instance, conversation_id=conversation_id)
 	home = paths['home']
 	selected, _, _ = _request_scope(root, _trace(home, conversation_id, paths=paths)[3])
 	return current_turn_requests(selected, conversation_id, 'codex-ui', 'Native Codex requests do not identify this project; open the session in the exact project directory or pass its /upwork-init URL', id_fmt='codex:{cid}:{idx}', extra={'native_profile_home': str(home)})
+# 2026-11-13
+# "Deduplicate turn compaction/delegation reducers, shell/path tool normalization, and request/metadata wrappers across Antigravity and Codex adapters":
+# https://github.com/dmitry-ai/harness/issues/58
+# 2026-11-23
+# "Use native workspace priority and AST command parsing in request binding":
+# https://github.com/dmitry-ai/harness/issues/129
 def require_current_binding(root, conversation_id, *, backend=None, instance=None, rows=None, until=None):
 	from .request_binding import format_binding_diagnostic, native_project_id
 	if None is rows:
@@ -423,6 +456,9 @@ def require_current_binding(root, conversation_id, *, backend=None, instance=Non
 	selected, active, binding = _request_scope(root, rows_val, until=until, identifier=job_id)
 	diag = format_binding_diagnostic(str(Path(root).resolve()), binding, expected_job_id=job_id)
 	return require_turn_binding(selected, active, binding, f'Native Codex conversation is currently bound to another project or no exact project root ({diag})')
+# 2026-11-07
+# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
+# https://github.com/dmitry-ai/harness/issues/48
 def _extract_codex_target_subagents(raw_args) -> list[str]:
 	parsed_args = parse_tool_args(raw_args)
 	candidates = [val.strip().lower() for key in ('id', 'Recipient', 'agent_id', 'subagent_id') for val in [parsed_args.get(key)] if isinstance(val, str)]
@@ -430,6 +466,9 @@ def _extract_codex_target_subagents(raw_args) -> list[str]:
 	if isinstance(ids_val, list):
 		candidates.extend((item.strip().lower() for item in ids_val if isinstance(item, str)))
 	return [u for u in dict.fromkeys(candidates) if re.fullmatch(UUID_PATTERN, u)]
+# 2026-11-07
+# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
+# https://github.com/dmitry-ai/harness/issues/48
 def _extract_codex_spawn_output_uuids(out_text: str) -> list[str]:
 	r = []
 	if isinstance(out_text, str) and out_text.strip():
@@ -446,6 +485,12 @@ def _extract_codex_spawn_output_uuids(out_text: str) -> list[str]:
 			else:
 				r = [m.lower() for m in re.findall(f'\\b({UUID_PATTERN})\\b', out_text, flags=re.I)]
 	return r
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-11-13
+# "Extract CodexTurnScanner class from native_answers in platforms/codex.py with completion_service_steps parity and cached subagent indexing":
+# https://github.com/dmitry-ai/harness/issues/61
 def native_answers(root, conversation_id, *, backend=None, instance=None):
 	return CodexTurnScanner(root, conversation_id, backend=backend, instance=instance).scan()
 def _model(rows, before=None):
@@ -472,6 +517,12 @@ def _selection(parent_rows, child_meta, invocation=None):
 	if None is effort and model == parent['model']:
 		effort = parent['effort']
 	return {'model': model, 'effort': effort, 'invocation_call_id': call_id, 'task_name': arguments['task_name'], 'selection': 'explicit-parent-spawn' if arguments.get('model') or arguments.get('reasoning_effort') else 'inherit'}
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
+# 2026-11-13
+# "Deduplicate turn compaction/delegation reducers, shell/path tool normalization, and request/metadata wrappers across Antigravity and Codex adapters":
+# https://github.com/dmitry-ai/harness/issues/58
 def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, backend=None, instance=None):
 	if role not in ('primary', 'AA', 'AF'):
 		raise ValueError('Unknown executor role')
@@ -502,6 +553,9 @@ def native_executor_metadata(root, conversation_id, *, role='primary', parent_id
 			requested.update(model=arguments.get('model'), effort=arguments.get('reasoning_effort') or arguments.get('model_reasoning_effort'), selection='explicit-parent-spawn' if arguments.get('model') else 'inherit')
 		requested['source'] = {'native_file': str(parent_path), 'kind': 'spawn_agent', 'step': invocation[0], 'call_id': invocation[1]}
 	return finalize_executor_checks('codex-ui', role, conversation_id, parent_id, requested, observed, history, sources, 'Native turn_context reports selected model/effort; missing fields remain unknown; server execution internals are not inferred')
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
 def native_tool_trace(root, request):
 	conversation_id = request.get('conversation_id', '')
 	paths = _paths(request.get('native_profile_home'), profile=request.get('instance'), conversation_id=conversation_id)
@@ -562,8 +616,14 @@ def _assignment_source(rows, meta, assignment):
 			raise ValueError('Encrypted native spawn does not match the child assignment')
 		r = 'native-parent-spawn.message'
 	return r
+# 2026-11-14
+# "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
+# https://github.com/dmitry-ai/harness/issues/72
 def _json_objects(value):
 	return iter_embedded_json_objects(value, parse_root=False)
+# 2026-11-21
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
 def _review_inputs(root, rows, parent_id, reviewer_id):
 	from ..path_registry import canonicalize_root_dir, same_project_root
 	from ..research import inside
@@ -588,9 +648,18 @@ def _review_inputs(root, rows, parent_id, reviewer_id):
 	if not r:
 		raise ValueError('Native reviewer has no successful review-input execution for this immutable package')
 	return r
-# 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
+# 2026-11-13
+# "Unify A.A reviewer isolation, prompt-bias checks, and review-proof helpers across Antigravity and Codex adapters into platforms/trace_common.py":
+# https://github.com/dmitry-ai/harness/issues/52
+# 2026-11-14
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
+# 2026-11-24
+# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
+# https://github.com/dmitry-ai/harness/issues/212
 def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=None, write=True, wait_timeout=0.0):
 	paths = _paths(backend, profile=instance, conversation_id=reviewer_id or parent_id)
 	home = paths['home']
@@ -629,9 +698,12 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 					matched_prompts.append(msg_txt)
 	resolved_inst = paths['instance'] or instance
 	return build_native_review_proof(root, 'codex-ui', parent_id, reviewer_id, spawn.get('agent_path'), path, parent_path, raw, final_index, final['last_agent_message'], matched_prompts, rows, diff_error='Existing Codex proof differs; preserve both versions', extra_fields_fn=lambda: {'native_profile_home': str(home), 'assignment_sha256': hashlib.sha256(assignment.encode('utf-8')).hexdigest(), 'assignment_source': _assignment_source(rows, meta, assignment), 'review_inputs': _review_inputs(root, rows, parent_id, reviewer_id), 'observed_model': child_model, 'model_selection': selection, 'executor_metadata': native_executor_metadata(root, reviewer_id, role='AA', parent_id=parent_id, backend=home, instance=resolved_inst), 'model_verification': 'native child model/effort checked against actual parent spawn parameters'}, write=write)
-# 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
+# 2026-11-13
+# "Unify A.A reviewer isolation, prompt-bias checks, and review-proof helpers across Antigravity and Codex adapters into platforms/trace_common.py":
+# https://github.com/dmitry-ai/harness/issues/52
 def verify_native_proof(root, native, package=None):
 	home = Path(native.get('native_profile_home', '')).resolve()
 	allowed_homes = [Path(value).resolve() for value in extract_platform_homes(platform_settings('codex'), platform='codex', include_disabled=True).values()]
@@ -641,6 +713,9 @@ def verify_native_proof(root, native, package=None):
 	if package and (not any((Path(item['package']).name == package for item in r['review_inputs']))):
 		raise ValueError('Codex reviewer did not verify this immutable KB review package')
 	return r
+# 2026-10-17
+# "Add /upwork-cleanup skill and cross-platform empty project pruner with timestamped audit logs":
+# https://github.com/dmitry-ai/harness/issues/8
 def shared_control(request):
 	config = platform_settings('codex')
 	script = 'import {controlWithHelper as control} from ' + json.dumps(Path(config['ui_manage']).as_uri()) + ";let input='';for await(const part of process.stdin)input+=part;console.log(JSON.stringify(await control(JSON.parse(input))));"
@@ -651,11 +726,17 @@ def shared_control(request):
 	if result.returncode:
 		raise RuntimeError('Shared-Projects request failed: ' + (result.stderr.strip() or result.stdout.strip()))
 	return json.loads(result.stdout)
+# 2026-10-16
+# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
+# https://github.com/dmitry-ai/harness/issues/6
 def register(project_dir, domain_or_topic, date_str=None):
 	from ..runtime import request_day, registration_profile_name
 	from ..registration import validate_registration
 	profile, day = (registration_profile_name(), request_day(date_str))
 	receipt = shared_control({'command': 'shared-ensure-project', 'profile': profile, 'project': {'name': f'{domain_or_topic} - U.P.{day:%Y.%m.%d}', 'trustPolicy': 'upwork-daily', 'rootPaths': [str(Path(project_dir).resolve())], 'folderPath': ['Upwork', 'Proposals', f'{day.year:04d}', f'{day.month:02d}', f'{day.day:02d}']}})
+	# 2026-10-25
+	# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+	# https://github.com/dmitry-ai/harness/issues/17
 	if not receipt.get('complete') and receipt.get('shared_id') and any((isinstance(info, dict) and info.get('state') in ('connected', 'initializing') for info in (receipt.get('accounts') or {}).values())):
 		import time
 		for _ in range(8):
@@ -664,6 +745,9 @@ def register(project_dir, domain_or_topic, date_str=None):
 			if receipt.get('complete') or not any((isinstance(info, dict) and info.get('state') in ('connected', 'initializing') for info in (receipt.get('accounts') or {}).values())):
 				break
 	return validate_registration(project_dir, domain_or_topic, day.isoformat(), 'codex', {**receipt, 'surface': 'codex-ui', 'profile': profile})
+# 2026-11-14
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
 def summarize(paths, bindings=None):
 	tools, events, seen = (Counter(), [], set())
 	for path in paths:

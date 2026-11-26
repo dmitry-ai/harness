@@ -1,10 +1,11 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
-# https://github.com/dmitry-ai/harness/issues/251
 from __future__ import annotations
 from pathlib import Path
 import subprocess
 import sys
+# 2026-11-25
+# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
+# https://github.com/dmitry-ai/harness/issues/251
 CANARY_COMMITTED_FILES = 20
 CANARY_MAX_SECONDS = 2.0
 CANARY_MAX_SUBPROCESSES = 5

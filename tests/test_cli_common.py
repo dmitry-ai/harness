@@ -1,6 +1,4 @@
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
-# https://github.com/dmitry-ai/harness/issues/69
 import argparse
 import hashlib
 import io
@@ -15,6 +13,9 @@ SCRIPT_DIR = Path(__file__).resolve().parents[1] / 'scripts'
 if str(SCRIPT_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPT_DIR))
 from agent_tools import cli, cli_common, github_issue, text_cli, upwork_project
+# 2026-11-14
+# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
+# https://github.com/dmitry-ai/harness/issues/69
 class CliCommonTests(unittest.TestCase):
 	def test_declarative_arg_specs_and_routers_parse_expected_flags(self):
 		parser = argparse.ArgumentParser(prog='demo')

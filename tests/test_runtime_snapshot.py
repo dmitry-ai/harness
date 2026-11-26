@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deploy immutable Harness runtime snapshots with LKG fallback":
-# https://github.com/dmitry-ai/harness/issues/184
 from __future__ import annotations
 import json
 import os
@@ -50,6 +48,9 @@ def _seed_harness_git_repo(base: Path) -> Path:
 	_git(repo, 'add', '.')
 	_git(repo, 'commit', '-m', 'init')
 	return repo
+# 2026-11-24
+# "Deploy immutable Harness runtime snapshots with LKG fallback":
+# https://github.com/dmitry-ai/harness/issues/184
 class RuntimeSnapshotTests(unittest.TestCase):
 	def test_broken_head_rejected_by_validation_preserving_current(self) -> None:
 		from agent_tools.runtime_snapshot import promote_runtime_snapshot

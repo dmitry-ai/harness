@@ -1,6 +1,4 @@
 # 2026-11-04 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
-# https://github.com/dmitry-ai/harness/issues/44
 from pathlib import Path
 import sys
 import tempfile
@@ -15,6 +13,9 @@ from agent_tools.review import authorize
 from agent_tools import completion
 
 
+# 2026-11-04
+# "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
+# https://github.com/dmitry-ai/harness/issues/44
 class TestIssue44(unittest.TestCase):
 	def test_validate_kb_factual_note_clean(self):
 		clean_text = """# Dev-Server Research (2026-11-04)

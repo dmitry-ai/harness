@@ -1,6 +1,4 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add deterministic FIFO repository landing lease with reactive wait":
-# https://github.com/dmitry-ai/harness/issues/163
 from __future__ import annotations
 import ctypes
 from ctypes import wintypes
@@ -104,6 +102,9 @@ def _unqueue_owner(path: Path, repo_str: str, owner: str) -> None:
 		state = _load_state(path, repo_str)
 		state['queue'] = [q for q in state['queue'] if owner != q.get('owner')]
 		_save_state(path, state)
+# 2026-11-23
+# "Add deterministic FIFO repository landing lease with reactive wait":
+# https://github.com/dmitry-ai/harness/issues/163
 def acquire_lease(repo: Path | str, owner: str | None=None, *, wait: bool=False, timeout: float=600.0, ttl: float=DEFAULT_TTL_SECONDS, poll_interval: float=DEFAULT_POLL_SECONDS, pid: int | None=None, leases_dir: Path | None=None) -> dict:
 	main_repo, path = _lease_file_for(repo, leases_dir=leases_dir)
 	eff_owner = str(owner).strip() if owner and str(owner).strip() else _default_owner()

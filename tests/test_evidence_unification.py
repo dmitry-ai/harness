@@ -1,5 +1,4 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/76
 import hashlib
 import json
 import sys
@@ -8,6 +7,9 @@ import unittest
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from agent_tools import links, markdown_links, source_grounding
+# 2026-11-23
+# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+# https://github.com/dmitry-ai/harness/issues/76
 class EvidenceUnificationTests(unittest.TestCase):
 	def test_decode_file_uri_handles_windows_relative_and_remote(self):
 		self.assertEqual('C:/foo bar/baz.md', links.decode_file_uri('file:///C:/foo%20bar/baz.md#sec'))

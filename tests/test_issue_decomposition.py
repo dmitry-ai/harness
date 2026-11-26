@@ -1,5 +1,4 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/77
 import argparse
 import json
 import subprocess
@@ -10,6 +9,9 @@ from pathlib import Path
 from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from agent_tools import github_issue, issue_lifecycle
+# 2026-11-24
+# "Decompose github_issue.py and issue_lifecycle.py into IssueMarkdownLinter, IssueEvidenceWorkspace, GitHubIssueService, and TurnIssueLifecycleAuditor with locked turn updates":
+# https://github.com/dmitry-ai/harness/issues/77
 class IssueDecompositionTests(unittest.TestCase):
 	def test_gh_api_paginates_concatenated_json_via_shared_decoder(self):
 		fake = subprocess.CompletedProcess(['gh'], 0, stdout=b'[{"number": 1}][{"number": 2}]', stderr=b'')

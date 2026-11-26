@@ -1,21 +1,4 @@
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce pushed Git tags on issue-closing commits in lifecycle gates":
-# https://github.com/dmitry-ai/harness/issues/263
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
-# https://github.com/dmitry-ai/harness/issues/186
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deploy immutable Harness runtime snapshots with LKG fallback":
-# https://github.com/dmitry-ai/harness/issues/184
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove landed worktrees by default and flag stale worktrees in worktree-status":
-# https://github.com/dmitry-ai/harness/issues/203
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Auto-exclude worktrees_dir in enclosing repo info/exclude on worktree creation":
-# https://github.com/dmitry-ai/harness/issues/201
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add isolated git worktree task workflow and worktree-scoped issue gates":
-# https://github.com/dmitry-ai/harness/issues/165
 from __future__ import annotations
 from pathlib import Path
 import re
@@ -25,6 +8,9 @@ from .git_gate import GitRepoGate, _NO_WINDOW
 from .git_ignore import ensure_worktree_dir_ignored, prepare_worktrees_base_dir
 from .landing_lease import acquire_lease, release_lease
 from .path_registry import project_paths
+# 2026-11-23
+# "Add isolated git worktree task workflow and worktree-scoped issue gates":
+# https://github.com/dmitry-ai/harness/issues/165
 _SAFE_TASK_RE = re.compile(r'[^A-Za-z0-9_.-]+')
 def _apply_porcelain_line(cur: dict, line: str) -> None:
 	if line.startswith('worktree '):
@@ -38,6 +24,9 @@ def _apply_porcelain_line(cur: dict, line: str) -> None:
 def _current_branch(repo: Path) -> str:
 	proc = GitRepoGate(repo).run_read(['rev-parse', '--abbrev-ref', 'HEAD'], check=False)
 	return proc.stdout.decode('utf-8', errors='replace').strip() if 0 == proc.returncode else ''
+# 2026-11-24
+# "Remove landed worktrees by default and flag stale worktrees in worktree-status":
+# https://github.com/dmitry-ai/harness/issues/203
 def _enrich_worktree_entry(main_repo: Path, main_posix: str, base_ref: str, entry: dict) -> None:
 	wp = Path(entry['path'])
 	is_main = wp.resolve().as_posix() == main_posix
@@ -55,10 +44,14 @@ def _fail_land(main_repo: Path, wt_path: Path, branch: str, stage: str, error: s
 	return {'valid': False, 'landed': False, 'stage': stage, 'error': error, 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': branch, 'test_runs': test_runs, 'test_result': test_result}
 def _git_exec(repo: Path, *args: str) -> subprocess.CompletedProcess:
 	return subprocess.run(['git', '-C', str(Path(repo).resolve()), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', check=False, creationflags=_NO_WINDOW)
+# 2026-11-24
+# "Deploy immutable Harness runtime snapshots with LKG fallback":
+# https://github.com/dmitry-ai/harness/issues/184
 def _maybe_promote_snapshot(main_repo: Path, *, promote_snapshot: bool | None, snapshot_store: Path | None) -> dict | None:
 	from .runtime_snapshot import is_harness_code_repo, promote_runtime_snapshot
 	should = promote_snapshot if None is not promote_snapshot else is_harness_code_repo(main_repo)
 	return promote_runtime_snapshot(main_repo, store_dir=snapshot_store) if should else None
+# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 def _merge_and_finalize(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, push: bool, remove: bool, test_runs: int, test_res: dict | None, post_merge_fn, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False) -> dict:
 	ff = _git_exec(main_repo, 'merge', '--ff-only', branch)
 	if 0 != ff.returncode:
@@ -72,6 +65,7 @@ def _merge_and_finalize(main_repo: Path, wt_path: Path, branch: str, target_bran
 		else:
 			r = _push_and_finish_land(main_repo, wt_path, branch, target_branch, push=push, remove=remove, test_runs=test_runs, test_res=test_res, snap=snap, tag=tag)
 	return r
+# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 def _push_and_finish_land(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, push: bool, remove: bool, test_runs: int, test_res: dict | None, snap: dict | None, tag: bool=False) -> dict:
 	p_err = ''
 	if push:
@@ -85,6 +79,7 @@ def _push_and_finish_land(main_repo: Path, wt_path: Path, branch: str, target_br
 		removed = bool(worktree_cleanup(main_repo, wt_path, force=True)['valid']) if remove else False
 		r = {'valid': True, 'landed': True, 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': branch, 'target_branch': target_branch, 'head': head, 'tag': tag_name, 'test_runs': test_runs, 'test_result': test_res, 'pushed': push, 'removed': removed, 'runtime_snapshot': snap}
 	return r
+# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 def _apply_land_tag(main_repo: Path, head: str, *, push: bool) -> str:
 	from .repo_tags import ensure_commit_tag
 	return ensure_commit_tag(main_repo, commit=head, push=push)['tag']
@@ -108,6 +103,9 @@ def _rebase_and_test(main_repo: Path, wt_path: Path, branch: str, target_branch:
 		_git_exec(wt_path, 'rebase', '--abort')
 		r = (_fail_land(main_repo, wt_path, branch, 'rebase', reb.stderr.strip() or reb.stdout.strip()), 0, None)
 	else:
+		# 2026-11-24
+		# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
+		# https://github.com/dmitry-ai/harness/issues/186
 		py_errs = verify_worktree_python_changes(wt_path, target_branch)
 		if py_errs:
 			r = (_fail_land(main_repo, wt_path, branch, 'python_integrity', '; '.join(py_errs[:5])), 0, None)
@@ -183,6 +181,9 @@ def worktree_begin(repo: Path | str, task_id: str, *, base_ref: str='main', work
 	main_repo = GitRepoGate(Path(repo).resolve()).main_repo()
 	safe_id = _safe_task_id(task_id)
 	branch = f'task/{safe_id}'
+	# 2026-11-24
+	# "Auto-exclude worktrees_dir in enclosing repo info/exclude on worktree creation":
+	# https://github.com/dmitry-ai/harness/issues/201
 	base_dir, ignore_info = prepare_worktrees_base_dir(main_repo, worktrees_dir=worktrees_dir)
 	wt_path = (base_dir / safe_id).resolve()
 	if not (wt_path / '.git').exists():
@@ -203,6 +204,7 @@ def worktree_cleanup(repo: Path | str, target: Path | str, *, force: bool=False)
 	if branch and branch.startswith('task/'):
 		branch_deleted = 0 == _git_exec(main_repo, 'branch', '-D' if force else '-d', branch).returncode
 	return {'valid': not wt_path.exists(), 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': branch, 'branch_deleted': branch_deleted}
+# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_branch: str, run_tests: bool, push: bool, remove: bool, workers: int | None, post_merge_fn, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False) -> dict:
 	if GitRepoGate(wt_path).git('status', '--porcelain').strip():
 		r = _fail_land(main_repo, wt_path, branch, 'dirty_worktree', 'Worktree has uncommitted changes')
@@ -212,6 +214,7 @@ def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_bra
 		err, test_runs, test_res = _rebase_and_test(main_repo, wt_path, branch, target_branch, run_tests=run_tests, workers=workers)
 		r = err if None is not err else _merge_and_finalize(main_repo, wt_path, branch, target_branch, push=push, remove=remove, test_runs=test_runs, test_res=test_res, post_merge_fn=post_merge_fn, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store, tag=tag)
 	return r
+# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 def worktree_land(worktree: Path | str, *, target_branch: str='main', run_tests: bool=True, push: bool=False, remove: bool=True, owner: str | None=None, wait_timeout: float=600.0, leases_dir: Path | None=None, workers: int | None=None, post_merge_fn=None, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False) -> dict:
 	wt_path = Path(worktree).resolve()
 	if not is_linked_worktree(wt_path):

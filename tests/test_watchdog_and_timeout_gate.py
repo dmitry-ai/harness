@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
-# https://github.com/dmitry-ai/harness/issues/205
 from __future__ import annotations
 from pathlib import Path
 import os
@@ -38,6 +36,9 @@ def _kill_pid(pid: int) -> None:
 				os.kill(pid, 9)
 			except OSError:
 				pass
+# 2026-11-24
+# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+# https://github.com/dmitry-ai/harness/issues/205
 class WatchdogAndTimeoutGateTests(unittest.TestCase):
 	def test_non_test_command_mentioning_pytest_in_quoted_arg_is_ignored(self) -> None:
 		cmd = f'python "{SCRIPTS_DIR / "df_github_issue.py"}" create --title "Enforce timeout for unittest and pytest in failfast_gate"'

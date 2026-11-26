@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
-# https://github.com/dmitry-ai/harness/issues/186
 from __future__ import annotations
 import ast
 import builtins
@@ -10,6 +8,9 @@ import py_compile
 import subprocess
 import symtable
 import tempfile
+# 2026-11-24
+# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
+# https://github.com/dmitry-ai/harness/issues/186
 _BUILTIN_NAMES = frozenset(dir(builtins)) | frozenset({'__all__', '__annotations__', '__builtins__', '__cached__', '__class__', '__doc__', '__file__', '__loader__', '__module__', '__name__', '__package__', '__path__', '__qualname__', '__spec__', '__warningregistry__'})
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 _SKIP_PARTS = frozenset({'.git', '__pycache__', 'node_modules', '\ua616', '\ua66e'})

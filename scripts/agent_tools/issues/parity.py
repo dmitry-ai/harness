@@ -1,14 +1,13 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Isolate per-conversation github_issues recording and turn-state filtering":
-# https://github.com/dmitry-ai/harness/issues/195
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/77
 from __future__ import annotations
 import json
 from pathlib import Path
 import re
 from ..git_gate import is_issue_tracked_code_repo, parse_issue_url
 from .workspace import IssueEvidenceWorkspace
+# 2026-11-24
+# "Decompose github_issue.py and issue_lifecycle.py into IssueMarkdownLinter, IssueEvidenceWorkspace, GitHubIssueService, and TurnIssueLifecycleAuditor with locked turn updates":
+# https://github.com/dmitry-ai/harness/issues/77
 _DEFERRED_HEADING_RE = re.compile('(?i)\\b(?:\\u043e\\u0442\\u043b\\u043e\\u0436\\u0435\\u043d\\w*|\\u043d\\u0435\\s+\\u0440\\u0435\\u0430\\u043b\\u0438\\u0437\\w*|\\u043d\\u0435\\s+\\u0437\\u0430\\u0442\\u0440\\u043e\\u043d\\u0443\\u0442\\w*|\\u043f\\u0440\\u043e\\u043f\\u0443\\u0449\\u0435\\u043d\\w*|deferred|skipped|excluded|out\\s+of\\s+scope|not\\s+implemented)\\b')
 _DEFERRED_LINE_RE = re.compile('(?i)\\b(?:\\u043d\\u0435\\s+\\u0440\\u0435\\u0430\\u043b\\u0438\\u0437\\w*|\\u043e\\u0442\\u043b\\u043e\\u0436\\u0435\\u043d\\w*|deferred|skipped|excluded|not\\s+implemented)\\b')
 _M_SUBTASK_ITEM_RE = re.compile('^(?:\\s*#{1,6}\\s+(?:\\d+(?:\\.\\d+)*\\.?\\s*)?|\\s*(?:[-*+]|\\d+[.)])\\s+)(?:\\*\\*|__|`|\\u00ab|"|\\\')*(?:(?i:implement|fix|add|enforce|update|resolve|subtask|method|\\u0440\\u0435\\u0430\\u043b\\u0438\\u0437\\u043e\\u0432\\u0430\\u0442\\u044c|\\u0438\\u0441\\u043f\\u0440\\u0430\\u0432\\u0438\\u0442\\u044c|\\u0434\\u043e\\u0431\\u0430\\u0432\\u0438\\u0442\\u044c|\\u043f\\u043e\\u0434\\u0437\\u0430\\u0434\\u0430\\u0447\\u0430|\\u043c\\u0435\\u0442\\u043e\\u0434)\\s+)?(?:\\*\\*|__|`|\\u00ab|"|\\\')*(?P<mid>M-(?:[A-Za-z]+-)*\\d+)[A-Za-z]?\\b')
@@ -130,6 +129,9 @@ def extract_implemented_m_roots(response: str) -> list[str]:
 				if root_id not in r:
 					r.append(root_id)
 	return r
+# 2026-11-24
+# "Isolate per-conversation github_issues recording and turn-state filtering":
+# https://github.com/dmitry-ai/harness/issues/195
 def _item_belongs_to_turn(item: dict, ts_cid_low: str, ts_plat: str, native_urls: set[str], has_competing_open_turns: bool) -> bool:
 	rec_cid = str(item.get('recorded_conversation_id') or '').strip().lower()
 	rec_plat = str(item.get('recorded_platform') or '').strip().lower()
@@ -146,6 +148,9 @@ def _item_belongs_to_turn(item: dict, ts_cid_low: str, ts_plat: str, native_urls
 	else:
 		r = (not native_urls) or (u_item in native_urls)
 	return r
+# 2026-11-24
+# "Isolate per-conversation github_issues recording and turn-state filtering":
+# https://github.com/dmitry-ai/harness/issues/195
 def filter_turn_state_items(gh_items: list, ts_cid: str, ts_plat: str, native_urls: set[str], *, has_competing_open_turns: bool=False) -> list[dict]:
 	ts_cid_low = str(ts_cid or '').strip().lower()
 	ts_plat_low = str(ts_plat or '').strip().lower()

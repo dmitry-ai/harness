@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
-# https://github.com/dmitry-ai/harness/issues/251
 from __future__ import annotations
 from pathlib import Path
 from typing import Any
@@ -123,6 +121,9 @@ def detect_hook_crashes(native: dict[str, Any] | None, turn: dict[str, Any] | No
 				step_idx = row.get('step_index') if isinstance(row.get('step_index'), int) else pos
 				r.append({'error': hit[1], 'hook': hit[0], 'step': step_idx})
 	return r
+# 2026-11-25
+# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
+# https://github.com/dmitry-ai/harness/issues/251
 def evaluate_hook_crash_check(root: Path, native: dict[str, Any] | None, turn: dict[str, Any] | None, value: dict[str, Any] | None, response: str | None) -> dict[str, Any]:
 	crashes = detect_hook_crashes(native, turn)
 	if not crashes:

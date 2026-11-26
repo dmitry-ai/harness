@@ -1,54 +1,4 @@
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs":
-# https://github.com/dmitry-ai/harness/issues/264
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Cache normalized text and numeric tokens in LocalSourceGroundingAuditor corpus":
-# https://github.com/dmitry-ai/harness/issues/216
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Skip blocking grounding on scratch drafts and add line locations to diagnostics":
-# https://github.com/dmitry-ai/harness/issues/214
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
-# https://github.com/dmitry-ai/harness/issues/131
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add read-only answer-check pre-flight validation command to harness CLI":
-# https://github.com/dmitry-ai/harness/issues/117
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Initialize new Upwork projects in the V2 filesystem layout":
-# https://github.com/dmitry-ai/harness/issues/110
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
-# https://github.com/dmitry-ai/harness/issues/109
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
-# https://github.com/dmitry-ai/harness/issues/103
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
-# https://github.com/dmitry-ai/harness/issues/101
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate dual Tier 0 source caches into Tier0SourceIndex, extract LocalSourceGroundingAuditor, and isolate hosting domain rules in source_grounding.py":
-# https://github.com/dmitry-ai/harness/issues/54
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
-# https://github.com/dmitry-ai/harness/issues/59
-# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
-# https://github.com/dmitry-ai/harness/issues/51
-# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce local_source_grounding_issues across touched client deliverables, require post-compaction re-read of evicted tool outputs, and close A.A review bypass":
-# https://github.com/dmitry-ai/harness/issues/50
 # 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
-# https://github.com/dmitry-ai/harness/issues/34
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
-# https://github.com/dmitry-ai/harness/issues/37
-# 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
-# https://github.com/dmitry-ai/harness/issues/45
 from contextlib import contextmanager
 from contextvars import ContextVar
 import hashlib
@@ -74,6 +24,9 @@ from .grounding_domains import (
 	ticket_author_issues,
 	ticket_message_issues,
 )
+# 2026-11-02
+# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+# https://github.com/dmitry-ai/harness/issues/37
 ALLOWED_MATH_GREEK = {'\u03b1', '\u03b2', '\u03b3', '\u03b4', '\u03b5', '\u03bb', '\u03bc', '\u03c0', '\u03c3', '\u03c4', '\u03c6', '\u03c9', '\u0394', '\u03a3', '\u03a9'}
 EN_FUNCTION_WORDS = {
 	'the', 'and', 'for', 'that', 'with', 'this', 'from', 'not', 'are', 'was', 'were', 'have', 'has', 'had',
@@ -93,6 +46,9 @@ NON_EN_LATIN_STOPWORDS = {
 	'jest', 'nie', 'oraz', 'czy', 'jak', 'przy', 'tylko', 'przez', 'jego', 'tego',
 	'bir', 'veya', 'olarak', 'ancak', 'sonra', 'kadar', 'gibi', 'daha', '\u091a\u0942\u0902\u0915\u093f',
 }
+# 2026-11-02
+# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+# https://github.com/dmitry-ai/harness/issues/37
 RELATIONAL_MOD_RE = re.compile(
 	'(?i)(?:'
 	'modified\\s+directly\\s+inside|'
@@ -104,7 +60,13 @@ RELATIONAL_MOD_RE = re.compile(
 	'\\u043d\\u0435\\u0441\\u0442\\u0430\\u043d\\u0434\\u0430\\u0440\\u0442\\w+\\s+(?:\\u043c\\u043e\\u0434\\u0438\\u0444\\u0438\\u043a\\u0430\\u0446\\w+|\\u043f\\u0440\\u0430\\u0432\\u043a\\w+|\\u0438\\u0437\\u043c\\u0435\\u043d\\w+)'
 	')'
 )
+# 2026-11-10
+# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
+# https://github.com/dmitry-ai/harness/issues/51
 _SOURCE_INFO_CACHE: dict[tuple[str, int, int], dict] = {}
+# 2026-11-21
+# "Add read-only answer-check pre-flight validation command to harness CLI":
+# https://github.com/dmitry-ai/harness/issues/117
 _READ_ONLY_GROUNDING: ContextVar[bool] = ContextVar('harness_read_only_grounding', default=False)
 @contextmanager
 def read_only_grounding():
@@ -113,9 +75,15 @@ def read_only_grounding():
 		yield
 	finally:
 		_READ_ONLY_GROUNDING.reset(tok)
+# 2026-11-10
+# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
+# https://github.com/dmitry-ai/harness/issues/51
 _TIER0_INDEX_CACHE: dict[str, dict[str, dict]] = {}
 _TIER0_MAX_FILE_BYTES = 512 * 1024
 _TIER0_TEXT_SUFFIXES = {'.md', '.txt', '.json', '.yaml', '.yml', '.xml', '.csv', '.ini', '.conf', '.env', '.log', ''}
+# 2026-11-14
+# "Consolidate dual Tier 0 source caches into Tier0SourceIndex, extract LocalSourceGroundingAuditor, and isolate hosting domain rules in source_grounding.py":
+# https://github.com/dmitry-ai/harness/issues/54
 class LocalSourceGroundingAuditor:
 	def __init__(self, root: Path, content: str, *, doc_path: Path | None=None, observed_texts: dict | None=None, cache: dict | None=None, visited: set | None=None):
 		self.root = Path(root).resolve()
@@ -161,6 +129,10 @@ class LocalSourceGroundingAuditor:
 				self.section_ext_urls = list(ext_urls)
 			self._check_relational_operands(block.content, filtered_locals, ext_urls)
 			active_primary = primary_here or self.section_sources or self.default_sources
+			# 2026-11-24
+			# "Skip blocking grounding on scratch drafts and add line locations to diagnostics":
+			# https://github.com/dmitry-ai/harness/issues/214
+			# 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
 			from .grounding_helpers import audit_active_block
 			audit_active_block(self, block, filtered_locals, ext_urls, active_primary, norm_quote_text, _source_numeric_tokens)
 	def _audit_linked_analyses(self) -> None:
@@ -173,6 +145,9 @@ class LocalSourceGroundingAuditor:
 				sub_errs = LocalSourceGroundingAuditor(self.root, a_text, doc_path=ap, observed_texts=self.observed_texts, cache=self.cache, visited=self.visited).run()
 				for se in sub_errs[:5]:
 					self.errors.append(f'Linked {ap.parent.parent.name}/{ap.name} -> {se}')
+	# 2026-11-24
+	# "Cache normalized text and numeric tokens in source_grounding active corpus":
+	# https://github.com/dmitry-ai/harness/issues/216
 	def _build_active_corpus(self, filtered_locals: list[Path], ext_urls: list[str], active_primary: list[Path]) -> tuple[list[dict], str, str, set[str], str]:
 		from .grounding_helpers import build_active_corpus_cached
 		active_locals = _filter_primary_sources(list(dict.fromkeys(filtered_locals + self.section_all_locals + active_primary)))
@@ -205,6 +180,9 @@ class LocalSourceGroundingAuditor:
 				self.errors.extend(ticket_author_issues(sline, combined_norm, src_label))
 			for ungrounded_num in _line_grounded_numbers_check(sline, ev_nums, valid_msg_nums, bound_ticket_ids, bool(ticket_infos)):
 				self.errors.append(f'VERIFY-1 / DOC-1: Unverified numeric figure or identifier ({ungrounded_num}) attributed to {src_label} is absent from the primary source')
+			# 2026-11-10
+			# "Enforce source grounding and review.authorize across external client deliverables, edit_file calls, and post-compaction tool outputs":
+			# https://github.com/dmitry-ai/harness/issues/50
 			self.errors.extend(order_url_issues(sline, ev_nums, combined_raw, src_label))
 			self.errors.extend(fact_tuple_contradictions(sline, infos, ledger_tuples=self.ledger_tuples))
 			for code_span in re.findall('`([^`\\n]{3,60})`', sline):
@@ -213,6 +191,9 @@ class LocalSourceGroundingAuditor:
 					c_lookup = c_strip.lstrip('#')
 					if norm_quote_text(c_strip) not in combined_norm and c_strip.lower() not in combined_raw.lower() and c_lookup.lower() not in combined_raw.lower():
 						self.errors.append(f'VERIFY-1 / DOC-1: Technical literal `{c_strip}` attributed to {src_label} is absent from the primary source')
+	# 2026-11-02
+	# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+	# https://github.com/dmitry-ai/harness/issues/37
 	def _check_relational_operands(self, text: str, filtered_locals: list[Path], ext_urls: list[str]) -> None:
 		if RELATIONAL_MOD_RE.search(text) and (not META_REFUTATION_RE.search(text)):
 			rel_operands = list(dict.fromkeys(filtered_locals + self.section_all_locals))
@@ -222,6 +203,9 @@ class LocalSourceGroundingAuditor:
 				op_hashes = {self.index.load_source_info(p, self.cache)['sha256'] for p in rel_operands if self.index.load_source_info(p, self.cache)['sha256']}
 				if 1 == len(op_hashes):
 					self.errors.append('VERIFY-1 / LINK-1: Relational modification claim is refuted because the linked local source operands are byte-identical (matching SHA-256)')
+	# 2026-11-06
+	# "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
+	# https://github.com/dmitry-ai/harness/issues/45
 	def _check_tier2_sole_evidence(self, text: str, local_all: list[Path], orphan_analyses: list[Path], primary_here: list[Path], ext_urls: list[str]) -> None:
 		tier2_here = [p for p in local_all if 'tier_2' == classify_provenance_tier(p, self.root)] + orphan_analyses
 		if tier2_here and (not primary_here) and (not ext_urls) and (not META_REFUTATION_RE.search(text)):
@@ -232,10 +216,16 @@ class LocalSourceGroundingAuditor:
 					dp = (self.root / disc['path']).resolve()
 					if dp.is_file() and dp not in primary_here:
 						primary_here.append(dp)
+	# 2026-11-10
+	# "Enforce source grounding and review.authorize across external client deliverables, edit_file calls, and post-compaction tool outputs":
+	# https://github.com/dmitry-ai/harness/issues/50
 	def _check_unlinked_deliverable_metrics(self, text: str) -> None:
 		if _is_client_deliverable_doc(self.doc_path) and 0 == self.quote_depth and (not META_REFUTATION_RE.search(text)):
 			if CLIENT_DELIVERABLE_METRIC_RE.search(text):
 				self.errors.append('VERIFY-1 / LINK-1: Client deliverable block asserts quantitative metrics or transaction/order identifiers without linking to a Tier 0 primary source in \ua616/KB/Evidence/')
+	# 2026-11-07
+	# "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
+	# https://github.com/dmitry-ai/harness/issues/45
 	def _load_ledger_tuples(self) -> list[dict]:
 		r: list[dict] = []
 		seen_keys: set[tuple] = set()
@@ -293,10 +283,16 @@ class LocalSourceGroundingAuditor:
 				self._audit_linked_analyses()
 				r = list(dict.fromkeys(self.errors))
 		return r
+# 2026-11-14
+# "Consolidate dual Tier 0 source caches into Tier0SourceIndex, extract LocalSourceGroundingAuditor, and isolate hosting domain rules in source_grounding.py":
+# https://github.com/dmitry-ai/harness/issues/54
 class Tier0SourceIndex:
 	CACHE_SCHEMA_VERSION = 2
 	_INDICES: dict[str, 'Tier0SourceIndex'] = {}
 	def __init__(self, root: Path):
+		# 2026-11-19
+		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+		# https://github.com/dmitry-ai/harness/issues/96
 		from .path_registry import project_paths
 		self.pp = project_paths(root, exact_root=True)
 		self.root = self.pp.root
@@ -304,8 +300,9 @@ class Tier0SourceIndex:
 		self.cache_file = self.pp.grounding_cache_json
 		self.entries: dict[str, dict] = {}
 		self._disk_loaded = False
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/76
+	# 2026-11-23
+	# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+	# https://github.com/dmitry-ai/harness/issues/76
 	@staticmethod
 	def _build_hydrated_info(path: Path, rp: Path, stat_key: tuple[str, int, int] | None, raw: str, sha256: str, tuples: list[dict], root: Path | None=None) -> dict:
 		extra = [raw]
@@ -323,6 +320,9 @@ class Tier0SourceIndex:
 	def _candidate_files(self, tickets: list[str] | tuple[str, ...]=()) -> list[Path]:
 		r: list[Path] = []
 		seen: set[Path] = set()
+		# 2026-11-20
+		# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+		# https://github.com/dmitry-ai/harness/issues/101
 		art_in = self.pp.path('artifacts_in_dir')
 		scan_bases = [self.pp.evidence_dir, self.pp.source_dir, self.pp.manual_kb_dir, *([art_in] if None is not art_in else []), self.root / 'tickets', *self.pp.source_dirs]
 		for base in scan_bases:
@@ -373,6 +373,9 @@ class Tier0SourceIndex:
 						self.entries = {}
 				_TIER0_INDEX_CACHE[self.root_key] = self.entries
 	def _persist_if_dirty(self, dirty: bool) -> None:
+		# 2026-11-21
+		# "Add read-only answer-check pre-flight validation command to harness CLI":
+		# https://github.com/dmitry-ai/harness/issues/117
 		if _READ_ONLY_GROUNDING.get():
 			return
 		if (dirty or (self.entries and (not self.cache_file.is_file()))) and (self.cache_file.parent.is_dir() or self.pp.agent_dir.is_dir()):
@@ -458,6 +461,9 @@ class Tier0SourceIndex:
 			r = cls(resolved)
 			cls._INDICES[rkey] = r
 		return r
+	# 2026-11-23
+	# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+	# https://github.com/dmitry-ai/harness/issues/76
 	@staticmethod
 	def _stat_and_read(path: Path) -> tuple[Path, tuple[str, int, int] | None, bytes, str]:
 		stat_key = None
@@ -474,6 +480,9 @@ class Tier0SourceIndex:
 			raw_bytes, raw = (b'', '')
 		r = (rp, stat_key, raw_bytes, raw)
 		return r
+	# 2026-11-23
+	# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+	# https://github.com/dmitry-ai/harness/issues/76
 	@classmethod
 	def hydrate_standalone(cls, path: Path, cache: dict | None=None) -> dict:
 		key = str(path)
@@ -549,11 +558,17 @@ class Tier0SourceIndex:
 			if isinstance(entry, dict) and isinstance(entry.get('fact_tuples'), list):
 				tuples.extend(entry['fact_tuples'])
 		r = {'version': 1, 'tuple_count': len(tuples), 'tuples': tuples}
+		# 2026-11-19
+		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+		# https://github.com/dmitry-ai/harness/issues/96
 		facts_file = self.pp.facts_json
 		if tuples or facts_file.parent.is_dir() or self.pp.agent_dir.is_dir():
 			facts_file.parent.mkdir(parents=True, exist_ok=True)
 			facts_file.write_text(json.dumps(r, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 		return r
+# 2026-11-02
+# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+# https://github.com/dmitry-ai/harness/issues/37
 def _char_script(ch: str) -> str:
 	name = unicodedata.name(ch, '')
 	if not name:
@@ -570,6 +585,9 @@ def _filter_primary_sources(paths: list[Path]) -> list[Path]:
 	if any(('tier_2' != classify_provenance_tier(p) for p in r)):
 		r = [p for p in r if 'tier_2' != classify_provenance_tier(p)]
 	return r
+# 2026-11-10
+# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
+# https://github.com/dmitry-ai/harness/issues/51
 def _get_tier0_file_entry(root: Path, rp: Path, mem_idx: dict[str, dict]) -> tuple[str, dict | None, bool]:
 	idx = Tier0SourceIndex.for_root(root)
 	idx.entries = mem_idx
@@ -591,6 +609,12 @@ def _infer_source_root(path: Path) -> Path | None:
 			except ValueError:
 				pass
 	return r
+# 2026-11-10
+# "Enforce source grounding and review.authorize across external client deliverables, edit_file calls, and post-compaction tool outputs":
+# https://github.com/dmitry-ai/harness/issues/50
+# 2026-11-21
+# "Initialize new Upwork projects in the V2 filesystem layout":
+# https://github.com/dmitry-ai/harness/issues/110
 def _is_client_deliverable_doc(doc_path: Path | None) -> bool:
 	if None is doc_path or is_normative_harness_doc(doc_path):
 		r = False
@@ -632,27 +656,51 @@ def _line_grounded_numbers_check(sline: str, ev_nums: set[str], valid_msg_nums: 
 			if num not in ev_with_calc and norm_num not in ev_with_calc:
 				r.append(num)
 	return r
+# 2026-11-23
+# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+# https://github.com/dmitry-ai/harness/issues/76
 def _load_local_source_info(path: Path, cache: dict | None=None, *, root: Path | None=None) -> dict:
 	eff_root = root if None is not root else _infer_source_root(path)
 	r = Tier0SourceIndex.for_root(eff_root).load_source_info(path, cache) if None is not eff_root else Tier0SourceIndex.hydrate_standalone(path, cache)
 	return r
+# 2026-11-10
+# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
+# https://github.com/dmitry-ai/harness/issues/51
 def _load_tier0_index(root: Path, tickets: list[str] | tuple[str, ...]=()) -> tuple[list[Path], dict[str, dict]]:
 	return Tier0SourceIndex.for_root(root).load_index(tickets)
 def _quote_segments_present(q_raw: str, obs_norm: str, min_seg_len: int=12) -> bool:
 	return quote_segments_present(q_raw, obs_norm, min_seg_len)
+# 2026-11-13
+# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
+# https://github.com/dmitry-ai/harness/issues/59
 _source_numeric_tokens = source_numeric_tokens
+# 2026-11-10
+# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
+# https://github.com/dmitry-ai/harness/issues/51
 def _tier0_candidate_files(root: Path, tickets: list[str] | tuple[str, ...]=()) -> list[Path]:
 	return Tier0SourceIndex.for_root(root)._candidate_files(tickets)
+# 2026-11-06
+# "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
+# https://github.com/dmitry-ai/harness/issues/45
 def classify_provenance_tier(path: Path, root: Path | None=None) -> str:
 	norm = '/' + path.as_posix().lower().lstrip('/')
 	name = path.name.lower()
+	# 2026-11-20
+	# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+	# https://github.com/dmitry-ai/harness/issues/101
 	if name in {'draft.md', 'draft.prev.md', 'context.md'} or '/.agents/rules/' in norm or '/rules/' in norm or ('/skills/' in norm) or ('/references/' in norm) or ('/platforms/' in norm) or ('/candidates/' in norm) or ('/data/scratch/' in norm) or ('/evidence/reviews/' in norm) or ('/res/' in norm) or bool(re.search('/\\ua66e/(?:[^/]+/)?\\u227a/', norm)) or norm.endswith('-audit.json'):
 		r = 'tier_2'
+	# 2026-11-20
+	# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+	# https://github.com/dmitry-ai/harness/issues/103
 	elif 'source.md' == name or ('/source/' in norm and 'analysis.md' != name) or ('/kb/evidence/' in norm and (not norm.endswith('-audit.json')) and ('/evidence/github/' not in norm) and ('/evidence/reviews/' not in norm)) or norm.endswith(('/kb/project.md', '/kb/projects.md', '/kb/evidence.md', '/\U0001f56e/project.md')) or ('/req/' in norm) or bool(re.search('/\\ua66e/(?:[^/]+/)?\\u227b/', norm)) or (('/\u2c3f/\u227a/' in norm or '/artifacts/\u227a/' in norm) and 'analysis.md' != name and ('/\ua66e/' not in norm) and ('/\u26ef/' not in norm)):
 		r = 'tier_0'
 	else:
 		r = 'tier_1'
 	return r
+# 2026-11-02
+# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+# https://github.com/dmitry-ai/harness/issues/37
 def detect_prose_locale(prose: str) -> dict:
 	script_counts: dict[str, int] = {}
 	for ch in prose or '':
@@ -677,8 +725,14 @@ def detect_prose_locale(prose: str) -> dict:
 			locale_family = 'en'
 		r = {'dominant_script': dominant_script, 'dominant_ratio': dominant_ratio, 'total_alpha': total_alpha, 'script_counts': script_counts, 'word_count': len(words), 'en_hits': en_hits, 'non_en_hits': non_en_hits, 'diacritic_words': diacritic_words, 'locale_family': locale_family}
 	return r
+# 2026-11-06
+# "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
+# https://github.com/dmitry-ai/harness/issues/45
 def discover_entity_tier0_sources(root: Path, text: str) -> list[dict]:
 	return Tier0SourceIndex.for_root(root).discover_entities(text)
+# 2026-11-02
+# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+# https://github.com/dmitry-ai/harness/issues/37
 def extract_authored_prose(text: str, *, is_title: bool=False) -> str:
 	if not isinstance(text, str) or (not text.strip()):
 		r = ''
@@ -697,6 +751,9 @@ def extract_authored_prose(text: str, *, is_title: bool=False) -> str:
 			elif 'blockquote_close' == token.type:
 				quote_depth = max(0, quote_depth - 1)
 			elif 0 == quote_depth and token.type not in ('fence', 'code_block', 'html_block') and ('inline' == token.type) and token.children:
+				# 2026-11-23
+				# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
+				# https://github.com/dmitry-ai/harness/issues/131
 				link_skip: list[bool] = []
 				for child in token.children:
 					if 'link_open' == child.type:
@@ -739,9 +796,18 @@ def extract_blockquote_quotes(content: str, *, min_guillemet_len: int=8, allow_b
 		if m_orig:
 			r.append(m_orig.group(1).strip(' "\u00ab\u00bb'))
 	return r
+# 2026-11-07
+# "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
+# https://github.com/dmitry-ai/harness/issues/45
+# 2026-11-13
+# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
+# https://github.com/dmitry-ai/harness/issues/59
 def is_normative_harness_doc(path: Path) -> bool:
 	norm = '/' + path.as_posix().lower().lstrip('/')
 	return '/.agents/rules/' not in norm and any((seg in norm for seg in ('/rules/', '/skills/', '/references/', '/platforms/')))
+# 2026-11-01
+# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+# https://github.com/dmitry-ai/harness/issues/34
 def is_primary_local_source(path: Path) -> bool:
 	tier = classify_provenance_tier(path)
 	if 'tier_2' == tier:
@@ -749,9 +815,18 @@ def is_primary_local_source(path: Path) -> bool:
 	elif 'tier_0' == tier:
 		r = True
 	else:
+		# 2026-11-20
+		# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+		# https://github.com/dmitry-ai/harness/issues/101
 		r = path.as_posix().lower().endswith(('/kb/project.md', '/kb/projects.md', '/kb/evidence.md', '/\U0001f56e/project.md'))
 	return r
+# 2026-11-07
+# "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
+# https://github.com/dmitry-ai/harness/issues/45
 def load_fact_ledger(root: Path) -> list[dict]:
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	r: list[dict] = []
 	ledger_path = project_paths(root, exact_root=True).facts_json
@@ -763,17 +838,32 @@ def load_fact_ledger(root: Path) -> list[dict]:
 		except (OSError, ValueError):
 			pass
 	return r
+# 2026-11-01
+# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+# https://github.com/dmitry-ai/harness/issues/34
 def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | None=None, observed_texts: dict | None=None, cache: dict | None=None, _visited: set | None=None) -> list[str]:
 	return LocalSourceGroundingAuditor(root, content, doc_path=doc_path, observed_texts=observed_texts, cache=cache, visited=_visited).run()
+# 2026-11-13
+# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
+# https://github.com/dmitry-ai/harness/issues/59
+# 2026-11-23
+# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+# https://github.com/dmitry-ai/harness/issues/76
 def markdown_parser() -> MarkdownIt:
 	from .markdown_links import parser as md_parser
 	r = md_parser(preserve_links=True)
 	return r
+# 2026-11-01
+# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+# https://github.com/dmitry-ai/harness/issues/34
 def norm_quote_text(value: str) -> str:
 	cleaned = re.sub('[`*_~]+', '', value or '')
 	cleaned = cleaned.replace('\u00a0', ' ').replace('\u2014', '-').replace('\u2013', '-').replace('\u2019', "'").replace('\u2018', "'").replace('\u201c', '"').replace('\u201d', '"')
 	cleaned = re.sub('(?m)^>\\s*', '', cleaned)
 	return ' '.join(cleaned.split()).lower()
+# 2026-11-01
+# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+# https://github.com/dmitry-ai/harness/issues/34
 def quote_segments_present(q_raw: str, obs_norm: str, min_seg_len: int=12) -> bool:
 	raw_parts = [norm_quote_text(s) for s in re.split('\\[\\.\\.\\.\\]|\\(\\.\\.\\.\\)|\\[\\u2026\\]|\\(\\u2026\\)|\\.{3,}|\\u2026', q_raw)]
 	segs = [s for s in raw_parts if min_seg_len <= len(s)]
@@ -786,10 +876,16 @@ def quote_segments_present(q_raw: str, obs_norm: str, min_seg_len: int=12) -> bo
 		whole = raw_parts[0] if raw_parts else ''
 		r = 8 > len(whole) or whole in obs_norm
 	return r
+# 2026-11-01
+# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+# https://github.com/dmitry-ai/harness/issues/34
 def resolve_local_href(root: Path, href: str, doc_path: Path | None=None) -> Path | None:
 	r = None
 	raw = urldefrag((href or '').strip())[0].split('?', 1)[0].strip()
 	if raw and (not raw.lower().startswith(('http://', 'https://', 'mailto:', 'javascript:', 'conversation://', '#'))):
+		# 2026-11-23
+		# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+		# https://github.com/dmitry-ai/harness/issues/76
 		from .links import decode_file_uri
 		raw = decode_file_uri(raw)
 		candidates: list[Path] = []
@@ -804,6 +900,9 @@ def resolve_local_href(root: Path, href: str, doc_path: Path | None=None) -> Pat
 			try:
 				res = cand.resolve()
 				is_valid_file = res.is_file()
+				# 2026-11-21
+				# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+				# https://github.com/dmitry-ai/harness/issues/109
 				if not is_valid_file and None is not res:
 					from .journal import resolve_migrated_step_file
 					mig = resolve_migrated_step_file(res)
@@ -815,8 +914,14 @@ def resolve_local_href(root: Path, href: str, doc_path: Path | None=None) -> Pat
 				r = None if None is not doc_path and res == doc_path.resolve() else res
 				break
 	return r
+# 2026-11-06
+# "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
+# https://github.com/dmitry-ai/harness/issues/45
 def sync_fact_ledger(root: Path) -> dict:
 	return Tier0SourceIndex.for_root(root).sync_ledger()
+# 2026-11-23
+# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
+# https://github.com/dmitry-ai/harness/issues/131
 _LOCALE_SCRIPT_MAP = {'ru': 'cyrillic', 'uk': 'cyrillic', 'be': 'cyrillic', 'bg': 'cyrillic', 'sr': 'cyrillic', 'mk': 'cyrillic', 'kk': 'cyrillic', 'ky': 'cyrillic', 'mn': 'cyrillic', 'cyrillic': 'cyrillic', 'el': 'greek', 'greek': 'greek', 'he': 'hebrew', 'iw': 'hebrew', 'hebrew': 'hebrew', 'ar': 'arabic', 'fa': 'arabic', 'ur': 'arabic', 'arabic': 'arabic', 'hi': 'devanagari', 'mr': 'devanagari', 'ne': 'devanagari', 'devanagari': 'devanagari', 'ko': 'hangul', 'hangul': 'hangul', 'ja': 'cjk', 'zh': 'cjk', 'cjk': 'cjk'}
 def _locale_to_target(locale_code: str | None) -> str | None:
 	if not isinstance(locale_code, str) or not locale_code.strip():
@@ -832,6 +937,12 @@ def _locale_to_target(locale_code: str | None) -> str | None:
 	if 'en' == base:
 		return 'en-US'
 	return norm
+# 2026-11-02
+# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+# https://github.com/dmitry-ai/harness/issues/37
+# 2026-11-13
+# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
+# https://github.com/dmitry-ai/harness/issues/59
 def verify_target_locale(text: str, *, target_locale: str='en-US', container_text: str | None=None, is_title: bool=False, allow_explicit_english_request: bool=False, min_target_ratio: float=0.35, min_alpha: int=15, default_locale: str | None=None) -> list[dict]:
 	r: list[dict] = []
 	eff_target = (target_locale or 'en-US').strip()
@@ -844,6 +955,9 @@ def verify_target_locale(text: str, *, target_locale: str='en-US', container_tex
 				c_dom = c_info['dominant_script']
 				if c_dom not in ('NONE', 'LATIN') and 6 <= c_info['script_counts'].get(c_dom, 0):
 					eff_target = c_dom.lower()
+				# 2026-11-23
+				# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
+				# https://github.com/dmitry-ai/harness/issues/131
 				elif 0 == c_info['total_alpha'] or 0 == c_info.get('word_count', 0):
 					fb = _locale_to_target(default_locale)
 					if fb:

@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Accelerate project_paths and overlay link resolution with fast-path caching":
-# https://github.com/dmitry-ai/harness/issues/174
 from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
@@ -12,6 +10,9 @@ SCRIPTS = Path(__file__).resolve().parents[1] / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 from agent_tools import journal, path_registry as pr, storage
+# 2026-11-24
+# "Accelerate project_paths and overlay link resolution with fast-path caching":
+# https://github.com/dmitry-ai/harness/issues/174
 class PathRegistryPerformanceTests(unittest.TestCase):
 	def tearDown(self) -> None:
 		pr.clear_registry_cache()

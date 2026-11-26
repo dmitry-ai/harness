@@ -1,21 +1,4 @@
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
-# https://github.com/dmitry-ai/harness/issues/95
-# 2026-10-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
-# https://github.com/dmitry-ai/harness/issues/17
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
-# https://github.com/dmitry-ai/harness/issues/31
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
-# https://github.com/dmitry-ai/harness/issues/38
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate flashing Git console windows on Windows via CREATE_NO_WINDOW and journal-watch lifecycle skip":
-# https://github.com/dmitry-ai/harness/issues/40
+# 2026-10-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 import os
 from pathlib import Path
 import shutil
@@ -23,21 +6,39 @@ import subprocess
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from agent_tools.git_gate import READ_SUBCOMMANDS, classify_git_argv, cleanup_stale_credential_locks, is_agent_git_context, normalize_host_path, run_git_hook, verify_git_write_invocation
+# 2026-11-19
+# "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
+# https://github.com/dmitry-ai/harness/issues/95
 from agent_tools.path_registry import tool_list, tool_path
+# 2026-11-02
+# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+# https://github.com/dmitry-ai/harness/issues/38
 _NET_SUBCOMMANDS = ('push', 'fetch', 'pull', 'clone', 'ls-remote', 'submodule')
+# 2026-11-02
+# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+# https://github.com/dmitry-ai/harness/issues/38
 def _normalize_arg_token(token: str) -> str:
+	# 2026-11-19
+	# "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
+	# https://github.com/dmitry-ai/harness/issues/95
 	prefixes = tuple(tool_list('posix_drive_prefixes'))
 	if token.startswith(prefixes) and len(token.split('/')) >= 3:
 		r = str(normalize_host_path(token)).replace('\\', '/')
 	else:
 		r = token
 	return r
+# 2026-10-24
+# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+# https://github.com/dmitry-ai/harness/issues/17
 def resolve_system_git() -> str:
 	r = None
 	explicit = os.environ.get('UPWORK_REAL_GIT')
 	if explicit and normalize_host_path(explicit).is_file():
 		r = str(normalize_host_path(explicit).resolve())
 	else:
+		# 2026-11-19
+		# "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
+		# https://github.com/dmitry-ai/harness/issues/95
 		shim_dir = tool_path('git_shim_dir').resolve()
 		script_dir = Path(__file__).resolve().parent.resolve()
 		filtered_paths = []
@@ -53,6 +54,9 @@ def resolve_system_git() -> str:
 		if found:
 			r = found
 		else:
+			# 2026-11-19
+			# "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
+			# https://github.com/dmitry-ai/harness/issues/95
 			for raw_cand in tool_list('git_candidates'):
 				candidate = Path(raw_cand)
 				if candidate.is_file():
@@ -61,6 +65,9 @@ def resolve_system_git() -> str:
 	if None is r:
 		raise FileNotFoundError('System git executable not found outside .agents shim directory')
 	return r
+# 2026-10-24
+# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+# https://github.com/dmitry-ai/harness/issues/17
 def prepare_git_invocation(argv: list[str], *, mode: str | None=None, cwd: Path | None=None) -> tuple[list[str], dict[str, str]]:
 	mode = (mode or os.environ.get('GIT_SHIM_MODE') or os.environ.get('UPWORK_GIT_SHIM_MODE') or 'inject').strip().lower()
 	effective = [_normalize_arg_token(tok) for tok in argv]
@@ -69,8 +76,17 @@ def prepare_git_invocation(argv: list[str], *, mode: str | None=None, cwd: Path 
 		if 'reject' == mode:
 			raise ValueError(f'EXEC-5 violation: git {subcommand} requires --no-optional-locks')
 		effective = ['--no-optional-locks', *effective]
+	# 2026-10-31
+	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+	# https://github.com/dmitry-ai/harness/issues/31
+	# 2026-11-02
+	# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+	# https://github.com/dmitry-ai/harness/issues/38
 	elif subcommand in ('commit', 'push', 'filter-branch', 'merge', 'rebase', 'cherry-pick'):
 		verify_git_write_invocation(effective, cwd=cwd)
+	# 2026-11-02
+	# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+	# https://github.com/dmitry-ai/harness/issues/38
 	if subcommand in _NET_SUBCOMMANDS and (not any((tok.lower().startswith('credentialstore.locktimeoutms=') for tok in effective))):
 		effective = ['-c', 'credentialstore.locktimeoutms=5000', *effective]
 	env = {**os.environ, 'GIT_OPTIONAL_LOCKS': '0'}
@@ -79,8 +95,14 @@ def prepare_git_invocation(argv: list[str], *, mode: str | None=None, cwd: Path 
 normalize_argv = prepare_git_invocation
 def main(argv: list[str] | None=None) -> int:
 	args = list(sys.argv[1:] if None is argv else argv)
+	# 2026-10-31
+	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+	# https://github.com/dmitry-ai/harness/issues/31
 	if len(args) >= 2 and '--hook' == args[0]:
 		return run_git_hook(args[1], args[2:])
+	# 2026-11-02
+	# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+	# https://github.com/dmitry-ai/harness/issues/38
 	cleanup_stale_credential_locks()
 	try:
 		effective, env = prepare_git_invocation(args)
@@ -90,11 +112,17 @@ def main(argv: list[str] | None=None) -> int:
 		r = 2
 	else:
 		try:
+			# 2026-11-02
+			# "Eliminate flashing Git console windows on Windows by enforcing CREATE_NO_WINDOW and skipping redundant Git subprocesses in journal-watch":
+			# https://github.com/dmitry-ai/harness/issues/40
 			flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0) if is_agent_git_context() else 0
 			completed = subprocess.run([binary, *effective], env=env, creationflags=flags)
 			r = completed.returncode
 		finally:
 			cleanup_stale_credential_locks()
 	return r
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 if '__main__' == __name__:
 	raise SystemExit(main())

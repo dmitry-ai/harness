@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deduplicate historical admission fixtures and guard optional temp fsync":
-# https://github.com/dmitry-ai/harness/issues/177
 from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
@@ -12,6 +10,9 @@ SCRIPTS = Path(__file__).resolve().parents[1] / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 from agent_tools import storage
+# 2026-11-24
+# "Deduplicate historical admission fixtures and guard optional temp fsync":
+# https://github.com/dmitry-ai/harness/issues/177
 class StorageFsyncGuardTests(unittest.TestCase):
 	def test_fsync_runs_by_default_and_when_env_is_zero(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Exempt service finalization calls from EXEC-2-TDD-GATE and add journal-sync --all-open":
-# https://github.com/dmitry-ai/harness/issues/256
 from __future__ import annotations
 from pathlib import Path
 from typing import Any
@@ -20,6 +18,9 @@ def _is_service_command(cmd: str, cwd: Path | None) -> bool:
 def _is_service_write_path(raw_path: str) -> bool:
 	norm = raw_path.strip().replace('\\', '/')
 	return bool(norm) and ('..' not in Path(norm).parts) and bool(_SERVICE_WRITE_RE.search(norm))
+# 2026-11-26
+# "Exempt service finalization calls from PreToolUse TDD gate and add journal-sync --all-open":
+# https://github.com/dmitry-ai/harness/issues/256
 def is_service_finalization_call(name: str, args: dict[str, Any], payload: dict[str, Any] | None=None) -> bool:
 	if name in ('write_file', 'edit_file'):
 		r = _is_service_write_path(str(args.get('Path') or ''))

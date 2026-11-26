@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
-# https://github.com/dmitry-ai/harness/issues/251
 from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
@@ -49,6 +47,9 @@ def _write_transcript(path: Path, rows: list[dict]) -> Path:
 	path.parent.mkdir(parents=True, exist_ok=True)
 	path.write_text(''.join((json.dumps(r, ensure_ascii=False) + '\n' for r in rows)), encoding='utf-8')
 	return path
+# 2026-11-25
+# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
+# https://github.com/dmitry-ai/harness/issues/251
 class SnapshotCanaryAndHookCrashAuditTests(unittest.TestCase):
 	def test_answer_check_enforces_hook_crash_gate(self) -> None:
 		from agent_tools import completion

@@ -1,9 +1,4 @@
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
-# https://github.com/dmitry-ai/harness/issues/131
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate dual Tier 0 source caches into Tier0SourceIndex, extract LocalSourceGroundingAuditor, and isolate hosting domain rules in source_grounding.py":
-# https://github.com/dmitry-ai/harness/issues/54
 from pathlib import Path
 import json
 import sys
@@ -14,6 +9,9 @@ SCRIPT_DIR = Path(__file__).resolve().parents[1] / 'scripts'
 if str(SCRIPT_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPT_DIR))
 from agent_tools import grounding_domains, source_grounding
+# 2026-11-14
+# "Consolidate dual Tier 0 source caches into Tier0SourceIndex, extract LocalSourceGroundingAuditor, and isolate hosting domain rules in source_grounding.py":
+# https://github.com/dmitry-ai/harness/issues/54
 class SourceGroundingRefactorTests(unittest.TestCase):
 	def test_auditor_and_domain_rules_deduplicate_ledger_tuples(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
@@ -62,6 +60,9 @@ class SourceGroundingRefactorTests(unittest.TestCase):
 			saved_cache = json.loads(stale_cache.read_text(encoding='utf-8'))
 			self.assertEqual(2, saved_cache['version'])
 			self.assertNotIn('stale.json', saved_cache['files'])
+	# 2026-11-23
+	# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
+	# https://github.com/dmitry-ai/harness/issues/131
 	def test_language_neutral_slash_commands_enforce_user_default_locale_without_breaking_english_requests(self) -> None:
 		from agent_tools import completion, runtime
 		self.assertEqual('ru', runtime.default_user_locale())

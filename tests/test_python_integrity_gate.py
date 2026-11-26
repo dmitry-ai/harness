@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
-# https://github.com/dmitry-ai/harness/issues/186
 from __future__ import annotations
 from pathlib import Path
 import shutil
@@ -37,6 +35,9 @@ def _init_repo(repo: Path, files: dict[str, str], *, copy_rels: tuple[str, ...]=
 	return repo
 def _make_legacy_file(lines_count: int=310) -> str:
 	return ''.join((f'CONST_{i} = {i}\n' for i in range(lines_count)))
+# 2026-11-24
+# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
+# https://github.com/dmitry-ai/harness/issues/186
 class PythonIntegrityGateTests(unittest.TestCase):
 	def test_check_python_size_violations_rejects_syntax_error(self) -> None:
 		from agent_tools.code_size_gate import check_python_size_violations

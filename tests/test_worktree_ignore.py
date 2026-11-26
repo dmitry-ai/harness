@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Auto-exclude worktrees_dir in enclosing repo info/exclude on worktree creation":
-# https://github.com/dmitry-ai/harness/issues/201
 from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
@@ -16,6 +14,9 @@ if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 from agent_tools.git_gate import GitRepoGate, WorktreeCommitTransaction
 from agent_tools.worktree_flow import worktree_begin, worktree_cleanup
+# 2026-11-24
+# "Auto-exclude worktrees_dir in enclosing repo info/exclude on worktree creation":
+# https://github.com/dmitry-ai/harness/issues/201
 class WorktreeIgnoreInvariantTests(unittest.TestCase):
 	def _git(self, cwd: Path, *args: str, env: dict[str, str] | None=None, check: bool=True) -> subprocess.CompletedProcess:
 		return subprocess.run(['git', '-C', str(cwd), *args], capture_output=True, text=True, encoding='utf-8', errors='replace', env=env, check=check)

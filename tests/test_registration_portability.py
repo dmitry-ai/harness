@@ -1,10 +1,4 @@
-# https://github.com/dmitry-ai/harness/issues/86
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
-# https://github.com/dmitry-ai/harness/issues/6
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor
 import json
@@ -18,12 +12,21 @@ from test_agent_tools import TemporaryCase
 from test_onboarding import source
 from agent_tools import registration, runtime, upwork_project as up
 from agent_tools.platforms import antigravity, codex
+# 2026-10-16
+# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
+# https://github.com/dmitry-ai/harness/issues/6
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class RegistrationTests(TemporaryCase):
 	def setUp(self):
 		super().setUp()
 		self.project = Path(up.initialize_upwork_project(source()['job_id'], 'Topic', '2026-10-15', daily_root=self.root / 'daily', extracted_data=source(), register_native=False)['project_dir'])
 		self.config = deepcopy(runtime.settings())
 		self.config['registration'] = {'targets': ['antigravity', 'codex']}
+		# 2026-11-18
+		# "Externalize agent environments and per-instance system paths into runtime.json":
+		# https://github.com/dmitry-ai/harness/issues/86
 		for inst in self.config['platforms']['codex']['instances'].values():
 			inst['enabled'] = True
 		self.patch = patch.object(registration, 'settings', return_value=self.config)
@@ -192,6 +195,9 @@ class RegistrationTests(TemporaryCase):
 		self.assertEqual(saved['last_success']['shared_id'], 'shared')
 		self.assertEqual(saved['attempts'], 2)
 		self.assertEqual(len(saved['attempt_history']), 2)
+	# 2026-10-25
+	# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+	# https://github.com/dmitry-ai/harness/issues/17
 	def test_git_only_resource_does_not_collide_when_cwd_equals_project_root(self):
 		self.native_projects.mkdir(parents=True, exist_ok=True)
 		(self.native_projects / 'git-only.json').write_text(json.dumps({'id': 'git-only', 'name': 'U.I.2026.10.22', 'projectResources': {'resources': [{'gitFolder': {'folderUri': 'file:///c:/other'}}]}}), encoding='utf-8')
@@ -203,6 +209,9 @@ class RegistrationTests(TemporaryCase):
 			os.chdir(previous_cwd)
 		self.assertTrue(result['complete'])
 		self.assertNotEqual(result['project_id'], 'git-only')
+	# 2026-10-25
+	# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+	# https://github.com/dmitry-ai/harness/issues/17
 	def test_workflow_registration_status_exposes_all_targets_and_pending_targets(self):
 		from agent_tools import workflow
 		def pending(*args):
@@ -270,6 +279,9 @@ class RegistrationProfileTests(TemporaryCase):
 			with self.assertRaises(registration.RegistrationConflict):
 				codex.register(self.root, 'Topic', '2026-10-15')
 			self.assertEqual(invoke.call_count, 1)
+		# 2026-10-25
+		# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+		# https://github.com/dmitry-ai/harness/issues/17
 		pending_receipt = {**expected, 'shared_id': 'shared', 'folder_id': 'folder', 'complete': False, 'accounts': {'C2': {'state': 'connected'}}, 'profiles': {'C2': {'project_id': 'c2', 'ready': False}}}
 		ready_receipt = {**pending_receipt, 'complete': True, 'profiles': {'C2': {'project_id': 'c2', 'ready': True}}}
 		with patch.object(codex.subprocess, 'run', side_effect=[SimpleNamespace(returncode=0, stdout=json.dumps(pending_receipt), stderr=''), SimpleNamespace(returncode=0, stdout=json.dumps(ready_receipt), stderr='')]) as invoke:

@@ -1,12 +1,4 @@
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
-# https://github.com/dmitry-ai/harness/issues/133
 # 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
-# https://github.com/dmitry-ai/harness/issues/45
-# 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
-# https://github.com/dmitry-ai/harness/issues/48
 from __future__ import annotations
 
 import json
@@ -37,6 +29,9 @@ def _wire(field: int, payload: bytes) -> bytes:
     return _varint((field << 3) | 2) + _varint(len(payload)) + payload
 
 
+# 2026-11-06
+# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
+# https://github.com/dmitry-ai/harness/issues/48
 class Issue45To48Tests(unittest.TestCase):
     def test_issue45_provenance_tiers_and_tier2_rejection(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -108,6 +103,9 @@ class Issue45To48Tests(unittest.TestCase):
             discovered_paths = [d['path'] for d in discovered]
             self.assertIn('tickets/1465836/source.md', discovered_paths)
 
+            # 2026-11-07
+            # "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
+            # https://github.com/dmitry-ai/harness/issues/45
             # 4. Normative Harness documentation files (/rules/, /skills/, /references/, /platforms/ outside /.agents/rules/)
             # must not trigger false-positive Tier 2 empirical grounding errors when cross-referencing other rule/reference files.
             self.assertFalse(source_grounding._is_normative_harness_doc(Path('.agents/rules/91-servers.md')))
@@ -924,6 +922,9 @@ class Issue45To48Tests(unittest.TestCase):
             # Parent thread: Turn 1 spawns turn1_sub_cid and completes; Turn 2 spawns child_cid and reads a file mentioning hist_cid
             p_rows = [
                 {'type': 'session_meta', 'payload': {'id': cid, 'cwd': str(project), 'source': 'cli'}},
+                # 2026-11-23
+                # "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
+                # https://github.com/dmitry-ai/harness/issues/133
                 {'type': 'turn_context', 'payload': {'turn_id': turn1_id, 'cwd': str(project), 'model': 'native-codex', 'effort': 'xhigh'}},
                 {'type': 'event_msg', 'payload': {'type': 'task_started', 'turn_id': turn1_id}},
                 {
@@ -963,6 +964,9 @@ class Issue45To48Tests(unittest.TestCase):
                     },
                 },
                 {'type': 'event_msg', 'payload': {'type': 'task_complete', 'turn_id': turn1_id, 'last_agent_message': 'Turn 1 done.'}},
+                # 2026-11-23
+                # "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
+                # https://github.com/dmitry-ai/harness/issues/133
                 {'type': 'turn_context', 'payload': {'turn_id': turn2_id, 'cwd': str(project), 'model': 'native-codex', 'effort': 'xhigh'}},
                 {'type': 'event_msg', 'payload': {'type': 'task_started', 'turn_id': turn2_id}},
                 {

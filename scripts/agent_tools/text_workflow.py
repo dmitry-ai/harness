@@ -1,30 +1,4 @@
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
-# https://github.com/dmitry-ai/harness/issues/113
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose text_workflow.py into ClientTextWorkspace and TextIntegrityVerifier classes":
-# https://github.com/dmitry-ai/harness/issues/78
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
-# https://github.com/dmitry-ai/harness/issues/70
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
-# https://github.com/dmitry-ai/harness/issues/60
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
-# https://github.com/dmitry-ai/harness/issues/63
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Separate publication admission from immutable historical integrity":
-# https://github.com/dmitry-ai/harness/issues/41
 from copy import deepcopy
 import difflib
 import json
@@ -32,11 +6,32 @@ from pathlib import Path
 import re
 import uuid
 from .research import inside, json_data
+# 2026-11-13
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
 from .storage import create_bytes, data_dir_for, locked, read_addressed_json, replace_bytes, write_immutable_bytes
 from .text_claims import digest, validate_map
+# 2026-11-14
+# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+# https://github.com/dmitry-ai/harness/issues/70
 from .text_sections import TEXT_KINDS as KINDS, lint_document as _lint, mechanical_projection as _mechanical_projection, scope_blocks as _scope_blocks
 _APPLIED_CHECK_KEYS = ('operation', 'target', 'kind', 'base_sha256', 'candidate_sha256', 'coverage', 'inputs', 'claim_versions', 'candidate', 'manifest', 'source_checks')
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-14
+# "Decompose text_workflow.py into ClientTextWorkspace and TextIntegrityVerifier classes":
+# https://github.com/dmitry-ai/harness/issues/78
 class ClientTextWorkspace:
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
+	# 2026-11-22
+	# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+	# https://github.com/dmitry-ai/harness/issues/113
 	def __init__(self, root, *, strict=False):
 		from .path_registry import canonicalize_root_dir, project_paths
 		raw_p = Path(root)
@@ -83,6 +78,9 @@ class ClientTextWorkspace:
 				if saved.get('candidate_sha256') != entry['sha256']:
 					r.append('Applied receipt changed: ' + name)
 				else:
+					# 2026-10-23
+					# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+					# https://github.com/dmitry-ai/harness/issues/16
 					from .text_sources import validate_source_checks
 					sources = validate_source_checks(self.root, target.read_bytes().decode('utf-8'), saved.get('source_checks', []))
 					r.extend((item['message'] for item in sources['issues']))
@@ -173,6 +171,9 @@ class ClientTextWorkspace:
 			previous = state['targets'].get(r['target'])
 			op_folder = self.folder / 'operations' / ident
 			if previous and previous.get('sha256') != r['base_sha256']:
+				# 2026-11-03
+				# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+				# https://github.com/dmitry-ai/harness/issues/41
 				if 'reconcile_sha256' not in spec or spec['reconcile_sha256'] != r['base_sha256']:
 					raise ValueError('Registered output changed outside the workflow; read and explicitly reconcile its current SHA256 first')
 				baseline = _immutable(op_folder / 'base.bin', current or b'')
@@ -226,6 +227,9 @@ class ClientTextWorkspace:
 		if not mechanical and 'inspect' != op['mode']:
 			mapped = validate_map(self.root, candidate, op['kind'], manifest)
 			issues.extend(mapped['issues'])
+		# 2026-10-23
+		# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+		# https://github.com/dmitry-ai/harness/issues/16
 		from .text_sources import validate_source_checks
 		sources = validate_source_checks(self.root, candidate, (manifest or {}).get('source_checks', []))
 		issues.extend(sources['issues'])
@@ -285,6 +289,9 @@ class ClientTextWorkspace:
 		if (digest(base) if result['base_exists'] else None) != result['base_sha256']:
 			raise ValueError('Captured baseline bytes changed')
 		return (result, base)
+	# 2026-11-22
+	# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+	# https://github.com/dmitry-ai/harness/issues/113
 	def operation_meta(self, ident):
 		from .path_registry import same_project_root
 		if not isinstance(ident, str) or not re.fullmatch('[a-f0-9]{32}', ident):
@@ -293,6 +300,12 @@ class ClientTextWorkspace:
 		if not same_project_root(r.get('root'), self.root) or r.get('id') != ident:
 			raise ValueError('Text operation belongs to another workspace')
 		return r
+	# 2026-11-13
+	# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+	# https://github.com/dmitry-ai/harness/issues/63
+	# 2026-11-22
+	# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+	# https://github.com/dmitry-ai/harness/issues/113
 	def read_check(self, reference):
 		from .path_registry import same_project_root
 		_, data = read_addressed_json(inside(self.root, reference), suffix='-check.json', error_msg='Invalid/changed text check receipt')
@@ -346,6 +359,12 @@ class ClientTextWorkspace:
 				if name not in permit and (not any((name.startswith(parent + '.') for parent in permit))):
 					r.append({'code': 'text.outside_scope', 'message': 'Added section outside scope: ' + name})
 		return r
+# 2026-11-03
+# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+# https://github.com/dmitry-ai/harness/issues/41
+# 2026-11-14
+# "Decompose text_workflow.py into ClientTextWorkspace and TextIntegrityVerifier classes":
+# https://github.com/dmitry-ai/harness/issues/78
 class TextIntegrityVerifier:
 	def __init__(self, workspace: ClientTextWorkspace, *, index_state=None):
 		self.ws = workspace
@@ -488,11 +507,17 @@ class TextIntegrityVerifier:
 					raise ValueError('Applied text successor has no exact predecessor: ' + name)
 				entry = previous
 		return {'valid': True, 'scope': 'exact_applied_successor_lineage'}
+# 2026-11-19
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 def _folder(root):
 	from .path_registry import project_paths
 	return project_paths(root, exact_root=True).data_dir / 'texts'
 def _read(path):
 	return json.loads(Path(path).read_text(encoding='utf-8-sig'))
+# 2026-11-13
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
 def _immutable(path, payload):
 	return write_immutable_bytes(path, payload, diff_error='Immutable text artifact differs: ' + str(path))
 def _index(root):
@@ -505,6 +530,9 @@ def _target_bytes(path):
 	return path.read_bytes() if path.exists() else None
 def _document(root, name):
 	return ClientTextWorkspace(root).document(name)
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 def _has_linked_ancestor(root, target, *, require_exists=True):
 	return any((p.is_symlink() or (hasattr(p, 'is_junction') and p.is_junction()) for p in (target, *target.parents) if (not require_exists or p.exists()) and p.is_relative_to(root)))
 def _hash_or_none(value):
@@ -540,9 +568,6 @@ def write_candidate_output(path, payload, *, expected_sha256=None):
 		else:
 			replace_bytes(path, payload)
 	return {'path': str(path), 'sha256': digest(payload), 'kind': 'candidate', 'publication_approved': False}
-# 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
 def begin(root, spec):
 	return ClientTextWorkspace(root, strict=True).begin(spec)
 def operation(root, ident):
@@ -551,18 +576,12 @@ def operation_meta(root, ident):
 	return ClientTextWorkspace(root).operation_meta(ident)
 def scope_issues(op, base, candidate):
 	return ClientTextWorkspace.scope_issues(op, base, candidate)
-# 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
 def check(root, ident, candidate, manifest=None, *, run_replay=False, replay_record=None, warning_dispositions=None, applied=False):
 	return ClientTextWorkspace(root).check(ident, candidate, manifest, run_replay=run_replay, replay_record=replay_record, warning_dispositions=warning_dispositions, applied=applied)
 def read_check(root, reference):
 	return ClientTextWorkspace(root).read_check(reference)
 def refresh_check(root, reference, *, applied=False):
 	return ClientTextWorkspace(root).refresh_check(reference, applied=applied)
-# 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
 def apply(root, reference):
 	return ClientTextWorkspace(root).apply(reference)
 def gate(root, *, targets=None, response=None, publication=False, capture=False):
@@ -581,6 +600,9 @@ def verify_integrity(graph):
 	if not isinstance(graph, dict) or 1 != graph.get('schema_version') or not isinstance(graph.get('root'), str) or not Path(graph['root']).is_absolute() or not isinstance(graph.get('targets'), list):
 		raise ValueError('Invalid historical text integrity graph')
 	return TextIntegrityVerifier(ClientTextWorkspace(graph['root'])).verify(graph)
+# 2026-11-22
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
 def _roots(paths):
 	from .path_registry import canonicalize_root_dir
 	roots = set()
@@ -604,6 +626,9 @@ def gate_requests(paths, requests, response, *, capture=False):
 		if None is not res:
 			r.append(res)
 	return r
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 def record_answer(root, journal, requests, response, turn):
 	from .journal import record_answer as save
 	steps = save(Path(journal), requests, response, turn, admission_roots=[root, journal])

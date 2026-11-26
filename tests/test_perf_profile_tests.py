@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add harness perf-profile-tests CLI for test suite and subprocess profiling":
-# https://github.com/dmitry-ai/harness/issues/192
 from __future__ import annotations
 from pathlib import Path
 import json
@@ -38,6 +36,9 @@ def _write_demo_suite(base: Path) -> Path:
 	(tests_dir / 'test_alpha.py').write_text(_ALPHA_SRC, encoding='utf-8')
 	(tests_dir / 'test_beta.py').write_text(_BETA_SRC, encoding='utf-8')
 	return tests_dir
+# 2026-11-24
+# "Add harness perf-profile-tests CLI for test suite and subprocess profiling":
+# https://github.com/dmitry-ai/harness/issues/192
 class PerfProfileTestsSuiteTests(unittest.TestCase):
 	def test_cli_perf_profile_tests_help_json_output_and_text_format(self) -> None:
 		p_help = subprocess.run([sys.executable, str(SCRIPT_DIR / 'harness.py'), 'perf-profile-tests', '--help'], capture_output=True, text=True, encoding='utf-8', check=True)

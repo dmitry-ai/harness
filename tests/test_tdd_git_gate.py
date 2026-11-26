@@ -1,9 +1,4 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
-# https://github.com/dmitry-ai/harness/issues/175
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce TDD test coverage and ratchet in Git pre-commit gate":
-# https://github.com/dmitry-ai/harness/issues/137
 from __future__ import annotations
 
 import json
@@ -21,9 +16,15 @@ if str(SCRIPT_DIR) not in sys.path:
 from agent_tools import git_gate
 
 ISSUE_URL = 'https://github.com/dmitry-ai/harness/issues/137'
+# 2026-11-24
+# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/175
 _REPO_TEMPLATE: list[tuple[tempfile.TemporaryDirectory, Path]] = []
 
 
+# 2026-11-24
+# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/175
 def _init_repo(repo: Path) -> None:
 	if not _REPO_TEMPLATE:
 		td = tempfile.TemporaryDirectory()
@@ -36,6 +37,9 @@ def _init_repo(repo: Path) -> None:
 	shutil.copytree(_REPO_TEMPLATE[0][1], repo)
 
 
+# 2026-11-23
+# "Enforce TDD test coverage and ratchet in Git pre-commit gate":
+# https://github.com/dmitry-ai/harness/issues/137
 class TddGitGateTests(unittest.TestCase):
 	def test_agent_commit_requires_behavioral_test_for_production_code(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

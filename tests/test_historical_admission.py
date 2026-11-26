@@ -1,12 +1,4 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deduplicate historical admission fixtures and guard optional temp fsync":
-# https://github.com/dmitry-ai/harness/issues/177
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
-# https://github.com/dmitry-ai/harness/issues/109
 # 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Regress immutable historical admission with real current-source and semantic gates":
-# https://github.com/dmitry-ai/harness/issues/41
 from copy import deepcopy
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
@@ -22,6 +14,9 @@ import uuid
 import test_turn_completion as native_fixtures
 import test_text_integration as text_fixtures
 from agent_tools import completion, path_registry, text_claims, text_review, text_sources, text_workflow
+# 2026-11-24
+# "Deduplicate historical admission fixtures and guard optional temp fsync":
+# https://github.com/dmitry-ai/harness/issues/177
 def _restore_tree_in_place(snapshot_dir: Path, work_dir: Path) -> None:
 	for attempt in range(10):
 		try:
@@ -38,8 +33,14 @@ class Later(datetime):
 	@classmethod
 	def now(cls, tz=None):
 		return datetime.now(timezone.utc) + timedelta(days=2)
+# 2026-11-03
+# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+# https://github.com/dmitry-ai/harness/issues/41
 class HistoricalAdmissionTests(unittest.TestCase):
 	def setUp(self):
+		# 2026-11-24
+		# "Deduplicate historical admission fixtures and guard optional temp fsync":
+		# https://github.com/dmitry-ai/harness/issues/177
 		self.enterContext(patch.dict(os.environ, {'HARNESS_TEST_NO_FSYNC': '1'}))
 		self.enterContext(patch('agent_tools.metrics.verify_native_proof', side_effect=lambda root, native, package=None: native))
 	def fixture(self, platform='codex', *, applied=True):
@@ -139,11 +140,17 @@ class HistoricalAdmissionTests(unittest.TestCase):
 				self.assertEqual(result['turns'][0]['status'], 'conflict')
 				self.assertIn('prior preparation/admission gate failed', result['turns'][0]['detail'])
 				self.assertFalse((case.project / 'ꙮ/1 - Analysis/res/1.md').exists())
+				# 2026-11-21
+				# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+				# https://github.com/dmitry-ai/harness/issues/109
 				self.assertFalse((case.project / 'ꙮ/≺/1–20/1.md').exists())
 	def test_proof_evidence_review_document_and_journal_changes_remain_conflicts(self):
 		for platform in ('codex', 'antigravity'):
 			case = self.fixture(platform)
 			self.deliver(case)
+			# 2026-11-24
+			# "Deduplicate historical admission fixtures and guard optional temp fsync":
+			# https://github.com/dmitry-ai/harness/issues/177
 			snap_dir = case.project.parent / f'_delivered_snapshot_{platform}'
 			shutil.copytree(case.project, snap_dir)
 			_, base_state = self.state(case)

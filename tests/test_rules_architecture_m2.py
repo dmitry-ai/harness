@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Refactor shared rules into compact three-layer M-2 architecture":
-# https://github.com/dmitry-ai/harness/issues/242
 from __future__ import annotations
 from pathlib import Path
 import re
@@ -14,6 +12,9 @@ from agent_tools import links, native_profiles, upwork_project
 import check_markdown_slop
 _FENCE_RE = re.compile(r'```[\s\S]*?```')
 _HTML_COMMENT_RE = re.compile(r'<!--[\s\S]*?-->')
+# 2026-11-25
+# "Refactor shared rules into compact three-layer M-2 architecture":
+# https://github.com/dmitry-ai/harness/issues/242
 class RulesArchitectureM2Tests(unittest.TestCase):
 	def test_always_on_budget_and_three_layer_partition(self) -> None:
 		doc = upwork_project.doctor(primary=WT_ROOT)

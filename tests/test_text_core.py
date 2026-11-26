@@ -1,17 +1,15 @@
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
-# https://github.com/dmitry-ai/harness/issues/70
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 import os
 from unittest.mock import patch
 from test_agent_tools import TemporaryCase
 from test_df_article import wrap, rules
 from agent_tools import article, proposal, text_core, text_sections
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class ArticleIntegrityTests(TemporaryCase):
 	def lint(self, text):
 		return article.lint_text(text, kind='article', lexicon=[], bans=[])
@@ -115,6 +113,9 @@ class SharedMechanicsTests(TemporaryCase):
 	def test_article_reexports_single_shared_implementation(self):
 		for name in ('Finding', 'Line', 'scan', 'clean', 'check_prose', 'check_code', 'check_response', 'replay', 'load_lexicon'):
 			self.assertIs(getattr(article, name), getattr(text_core, name))
+		# 2026-11-14
+		# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+		# https://github.com/dmitry-ai/harness/issues/70
 		self.assertTrue(issubclass(article.Section, text_sections.AddressedSection))
 		self.assertTrue(issubclass(proposal.ProposalBlock, text_sections.AddressedSection))
 		self.assertIs(text_sections.keyed_engine('article'), article)

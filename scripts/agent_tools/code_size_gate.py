@@ -1,17 +1,18 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
-# https://github.com/dmitry-ai/harness/issues/186
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce AST function and file SLOC ratchet gate in PreToolUse and Git pre-commit":
-# https://github.com/dmitry-ai/harness/issues/161
 from __future__ import annotations
 import ast
 import io
 from pathlib import Path
 import tokenize
+# 2026-11-24
+# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
+# https://github.com/dmitry-ai/harness/issues/186
 from .python_integrity import check_python_integrity
 from .shell_audit import normalize_host_path
 from .tdd_gate import _compute_edited_content, _git_head_text, _git_index_text, is_test_file
+# 2026-11-23
+# "Enforce AST function and file SLOC ratchet gate in PreToolUse and Git pre-commit":
+# https://github.com/dmitry-ai/harness/issues/161
 PROD_FILE_SLOC_LIMIT = 300
 PROD_FUNC_SLOC_LIMIT = 20
 PROD_MCCABE_LIMIT = 8
@@ -113,6 +114,9 @@ def _is_constant_expr(node: ast.AST) -> bool:
 	else:
 		r = False
 	return r
+# 2026-11-24
+# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
+# https://github.com/dmitry-ai/harness/issues/186
 def _is_legacy_oversized_baseline(path: str | Path, baseline_source: str | None) -> bool:
 	r = False
 	if None is not baseline_source:
@@ -170,6 +174,9 @@ def analyze_python_source(source: str) -> dict:
 	return r
 def check_python_size_violations(path: str | Path, source: str, *, baseline_source: str | None=None) -> list[str]:
 	cur = analyze_python_source(source)
+	# 2026-11-24
+	# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
+	# https://github.com/dmitry-ai/harness/issues/186
 	rel_label = Path(path).as_posix()
 	if cur['syntax_error']:
 		r = [f'CODE-4: Python syntax error in {rel_label}: {cur["syntax_error"]}']
@@ -189,6 +196,9 @@ def evaluate_pre_tool_use_code_size(name: str, args: dict, payload: dict) -> str
 			repo_root, target, rel = resolved
 			_, new_text, _, _ = _compute_edited_content(name, args, target)
 			if None is not new_text:
+				# 2026-11-24
+				# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
+				# https://github.com/dmitry-ai/harness/issues/186
 				base_text = _git_head_text(repo_root, rel)
 				if 'edit_file' != name or (not _is_legacy_oversized_baseline(rel, base_text)):
 					errs = check_python_size_violations(rel, new_text, baseline_source=base_text)
@@ -205,6 +215,9 @@ def verify_staged_code_size_ratchet(repo_root: Path, staged_paths: list[str], *,
 		fpath = repo / rel
 		text = _git_index_text(repo, rel) if use_index else (fpath.read_text(encoding='utf-8', errors='replace') if fpath.is_file() else None)
 		if None is not text:
+			# 2026-11-24
+			# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
+			# https://github.com/dmitry-ai/harness/issues/186
 			size_errs = check_python_size_violations(rel, text, baseline_source=_git_head_text(repo, rel))
 			violations.extend(size_errs)
 			if not any(('syntax' in e.lower() for e in size_errs)):

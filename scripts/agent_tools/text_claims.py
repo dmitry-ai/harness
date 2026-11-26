@@ -1,34 +1,35 @@
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
-# https://github.com/dmitry-ai/harness/issues/70
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
-# https://github.com/dmitry-ai/harness/issues/62
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from copy import deepcopy
 from pathlib import Path
 from urllib.parse import urldefrag, urlsplit
 import hashlib
 import json
 import re
+# 2026-11-13
+# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
+# https://github.com/dmitry-ai/harness/issues/62
 from .claims import all_claims, claim_digest, claim_index, claim_locations, collect_claim_closure, contract_issues, evidence_contract_issues, standalone_numbers
 from .research import inside, json_data
 from .storage import create_bytes, replace_bytes, locked
+# 2026-11-14
+# "Generalize keyed section numbering (@key), section-reference validation, and profile dispatch across article.py, proposal.py, text_workflow.py, text_claims.py, and text_cli.py":
+# https://github.com/dmitry-ai/harness/issues/70
 from .text_sections import content_blocks as blocks
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def digest(data):
 	return hashlib.sha256(data).hexdigest()
 def _nonempty(value):
 	return isinstance(value, str) and bool(value.strip())
 def _issue(code, detail, **extra):
 	return {'code': code, 'message': detail, **extra}
+# 2026-11-19
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 def registry_path(root, reference=None):
 	from .path_registry import project_paths
 	pp = project_paths(root, exact_root=True)
@@ -48,12 +49,18 @@ def subset(value, identifiers):
 	ids = [c.get('id') for c in claims]
 	if any((not isinstance(x, str) for x in ids)) or len(ids) != len(set(ids)):
 		raise ValueError('Claim IDs must be unique throughout the registry')
+	# 2026-11-13
+	# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
+	# https://github.com/dmitry-ai/harness/issues/62
 	needed = set(collect_claim_closure(identifiers, claim_index(value), include_addresses=True, unknown_prefix='Unknown text claim: '))
 	r = {'schema_version': 3, 'facts': []}
 	for _, section, item in claim_locations(value):
 		if item['id'] in needed:
 			r.setdefault(section, []).append(item)
 	return r
+# 2026-11-13
+# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
+# https://github.com/dmitry-ai/harness/issues/62
 def primary_numbers(claim, index, seen=None):
 	seen = set() if None is seen else seen
 	ident = claim.get('id')
@@ -141,6 +148,9 @@ def validate_map(root, text, kind, manifest):
 				value = subset(whole, all_ids)
 				issues.extend(contract_issues(value))
 				if not issues:
+					# 2026-11-13
+					# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
+					# https://github.com/dmitry-ai/harness/issues/62
 					issues.extend(evidence_contract_issues(root, value, skip_structural=True))
 				inputs[registry.relative_to(Path(root).resolve()).as_posix()] = digest(registry.read_bytes())
 				index = claim_index(value)
@@ -160,6 +170,9 @@ def validate_map(root, text, kind, manifest):
 					status = claim.get('verification_status')
 					if status in ('unverified', 'unavailable', 'stale'):
 						issues.append(_issue('text.unverified', 'An unresolved/stale claim cannot support client prose', key=item['key'], claim_id=ident))
+					# 2026-10-22
+					# "Ban conditional conjunctions in limited claim qualifications and isolate closed admin access from proven public storefront facts":
+					# https://github.com/dmitry-ai/harness/issues/15
 					if 'limited' == status:
 						qualification = item.get('qualification')
 						if not _nonempty(qualification) or qualification not in block['prose']:
@@ -179,6 +192,9 @@ def validate_map(root, text, kind, manifest):
 			issues.append(_issue('text.map_input', str(exc)))
 		r = {'valid': not issues, 'issues': issues, 'inputs': inputs, 'claims': assessment, 'claim_versions': {i: claim_digest(c) for i, c in index.items()} if 'index' in locals() else {}}
 	return r
+# 2026-11-19
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 def save_registry(root, candidate, *, expected_sha256=None, reference=None, reassessments=None):
 	from .path_registry import project_paths
 	pp = project_paths(root, exact_root=True)

@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
-# https://github.com/dmitry-ai/harness/issues/172
 from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
@@ -20,6 +18,9 @@ def _make_git_config(repo_dir: Path, slug: str) -> Path:
 	cfg.parent.mkdir(parents=True, exist_ok=True)
 	cfg.write_text(f'[remote "origin"]\n\turl = https://github.com/{slug}.git\n', encoding='utf-8')
 	return repo_dir.resolve()
+# 2026-11-24
+# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
+# https://github.com/dmitry-ai/harness/issues/172
 class RepoLocatorPerformanceTests(unittest.TestCase):
 	def tearDown(self) -> None:
 		path_registry.clear_registry_cache()

@@ -1,11 +1,4 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix worktree scope resolution for new files in TDD classifier":
-# https://github.com/dmitry-ai/harness/issues/188
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
-# https://github.com/dmitry-ai/harness/issues/172
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/77
 from __future__ import annotations
 from pathlib import Path
 from typing import Any
@@ -15,12 +8,21 @@ import os
 import re
 import tempfile
 import time
+# 2026-11-24
+# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
+# https://github.com/dmitry-ai/harness/issues/172
 _GITHUB_SLUG_RE = re.compile(r'github\.com[:/]([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?/?(?:\s|$)', re.IGNORECASE)
 _GLOBAL_INDEX_CACHE: dict[str, Any] = {'expires_at': 0.0, 'key': None, 'slug_map': {}}
 _GLOBAL_INDEX_TTL_S = 30.0
 _MAX_WALK_DEPTH = 8
 _PRUNE_DIRS = frozenset({'.git', '.venv', '__pycache__', 'node_modules', 'venv', '\ua616', '\ua66e'})
+# 2026-11-24
+# "Decompose github_issue.py and issue_lifecycle.py into IssueMarkdownLinter, IssueEvidenceWorkspace, GitHubIssueService, and TurnIssueLifecycleAuditor with locked turn updates":
+# https://github.com/dmitry-ai/harness/issues/77
 _V2_CODE_RELS = ('\u2c0f/\u227b/\u2655/\u26ef', 'Artifacts/\u227b/Deliverables/\u26ef')
+# 2026-11-24
+# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
+# https://github.com/dmitry-ai/harness/issues/172
 def _append_peer_repos(target: list[Path], peer: Path) -> None:
 	from ..path_registry import project_paths
 	try:
@@ -34,12 +36,18 @@ def _append_project_paths(target: list[Path], path: Path) -> None:
 	try:
 		pp = project_paths(path)
 		target.extend([*pp.code_repos, *pp.auxiliary_repos.values()])
+		# 2026-11-24
+		# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
+		# https://github.com/dmitry-ai/harness/issues/172
 		for peer in pp._direct_similar_projects:
 			_append_peer_repos(target, peer)
 	except (OSError, ValueError):
 		pass
 def _append_repo_roots(target: list[Path], base: Path) -> None:
 	target.extend([base, base / 'code', *(base / rel for rel in _V2_CODE_RELS)])
+# 2026-11-24
+# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
+# https://github.com/dmitry-ai/harness/issues/172
 def _build_global_slug_index(reg: Any, raw_roots: list[str]) -> dict[str, Path]:
 	slug_map: dict[str, Path] = {}
 	_index_discovery_roots(reg, slug_map)
@@ -48,6 +56,9 @@ def _build_global_slug_index(reg: Any, raw_roots: list[str]) -> dict[str, Path]:
 		if search_root.is_dir():
 			_index_dir_tree(search_root, slug_map)
 	return slug_map
+# 2026-11-24
+# "Fix worktree scope resolution for new files in TDD classifier":
+# https://github.com/dmitry-ai/harness/issues/188
 def _initial_repo_candidates(repo_root: str | Path | None, cwd: Path, allow_cwd: bool) -> list[Path]:
 	if allow_cwd:
 		r = prioritized_worktree_candidates(repo_root, cwd=cwd)
@@ -55,6 +66,9 @@ def _initial_repo_candidates(repo_root: str | Path | None, cwd: Path, allow_cwd:
 		r = [Path(repo_root).resolve()] if None is not repo_root and str(repo_root).strip() else []
 	return r
 def _collect_local_repo_candidates(project_root: str | Path | None, source_files: list[tuple[Path, bytes]] | None, repo_root: str | Path | None) -> list[Path]:
+	# 2026-11-24
+	# "Fix worktree scope resolution for new files in TDD classifier":
+	# https://github.com/dmitry-ai/harness/issues/188
 	cwd = Path.cwd().resolve()
 	allow_cwd = not (_is_isolated_temp_context(project_root, source_files, repo_root) and (not _is_under_tempdir(cwd)))
 	cands: list[Path] = _initial_repo_candidates(repo_root, cwd, allow_cwd)
@@ -72,6 +86,9 @@ def _collect_local_repo_candidates(project_root: str | Path | None, source_files
 		for anc in (cwd, *cwd.parents):
 			_append_repo_roots(cands, anc)
 	return cands
+# 2026-11-24
+# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
+# https://github.com/dmitry-ai/harness/issues/172
 def _extract_config_slugs(code_repo: Path) -> list[str]:
 	cfg_file = git_config_file(code_repo)
 	r: list[str] = []
@@ -90,6 +107,9 @@ def _first_matching_repo(cands: list[Path], repo: str, seen: set[Path]) -> Path 
 				r = cand
 				break
 	return r
+# 2026-11-24
+# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
+# https://github.com/dmitry-ai/harness/issues/172
 def _index_dir_tree(search_root: Path, slug_map: dict[str, Path]) -> None:
 	base_depth = len(search_root.parts)
 	try:
@@ -138,6 +158,9 @@ def _register_repo_slugs(code_repo: Path, slug_map: dict[str, Path]) -> None:
 	if None is not resolved:
 		for slug in _extract_config_slugs(resolved):
 			slug_map.setdefault(slug.lower(), resolved)
+# 2026-11-24
+# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
+# https://github.com/dmitry-ai/harness/issues/172
 def _search_registry_and_roots(repo: str, seen: set[Path]) -> Path | None:
 	from ..path_registry import load_registry, store_value
 	reg = load_registry()
@@ -150,6 +173,9 @@ def _search_registry_and_roots(repo: str, seen: set[Path]) -> Path | None:
 		_GLOBAL_INDEX_CACHE['expires_at'] = now + _GLOBAL_INDEX_TTL_S
 	hit = _GLOBAL_INDEX_CACHE['slug_map'].get(repo.lower())
 	return hit if None is not hit and hit.is_dir() and hit not in seen else None
+# 2026-11-24
+# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
+# https://github.com/dmitry-ai/harness/issues/172
 def clear_repo_locator_cache() -> None:
 	_GLOBAL_INDEX_CACHE['expires_at'] = 0.0
 	_GLOBAL_INDEX_CACHE['key'] = None
@@ -157,9 +183,15 @@ def clear_repo_locator_cache() -> None:
 def find_local_code_repo(repo: str, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]] | None=None, *, repo_root: str | Path | None=None) -> Path | None:
 	seen: set[Path] = set()
 	r = _first_matching_repo(_collect_local_repo_candidates(project_root, source_files, repo_root), repo, seen)
+	# 2026-11-24
+	# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
+	# https://github.com/dmitry-ai/harness/issues/172
 	if None is r and (not _is_isolated_temp_context(project_root, source_files, repo_root)):
 		r = _search_registry_and_roots(repo, seen)
 	return r
+# 2026-11-24
+# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
+# https://github.com/dmitry-ai/harness/issues/172
 def origin_repo_slug(code_repo: Path) -> str | None:
 	slugs = _extract_config_slugs(Path(code_repo))
 	r = slugs[0] if slugs else None
@@ -169,6 +201,9 @@ def origin_repo_slug(code_repo: Path) -> str | None:
 			m = _GITHUB_SLUG_RE.search(proc.stdout.decode('utf-8', errors='replace').strip())
 			r = m.group(1) if m else None
 	return r
+# 2026-11-24
+# "Optimize local GitHub repository discovery with pruned walk and TTL cache":
+# https://github.com/dmitry-ai/harness/issues/172
 def repo_matches_slug(code_repo: Path, repo: str) -> bool:
 	target = repo.lower()
 	return any((target == slug.lower() for slug in _extract_config_slugs(code_repo)))

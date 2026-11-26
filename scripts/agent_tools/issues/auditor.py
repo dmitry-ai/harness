@@ -1,16 +1,4 @@
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/238
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
-# https://github.com/dmitry-ai/harness/issues/186
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Isolate per-conversation github_issues recording and turn-state filtering":
-# https://github.com/dmitry-ai/harness/issues/195
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
-# https://github.com/dmitry-ai/harness/issues/175
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/77
 from __future__ import annotations
 import json
 from pathlib import Path
@@ -18,11 +6,20 @@ import re
 from ..git_gate import extract_comment_issue_urls, extract_issue_urls, is_code_file, is_issue_tracked_code_repo, parse_issue_url, run_git_read, verify_repo_issue_ready_for_close
 from ..source_grounding import local_source_grounding_issues
 from ..worktree_flow import resolve_touched_repo_file
+# 2026-11-24
+# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/175
 from .git_read_cache import RepoReadCache
 from .linter import IssueMarkdownLinter
 from .parity import check_similar_project_parity, extract_implemented_m_roots, filter_turn_state_items, merge_turn_issue_item, verify_multi_subtask_counts
+# 2026-11-24
+# "Isolate per-conversation github_issues recording and turn-state filtering":
+# https://github.com/dmitry-ai/harness/issues/195
 from .turn_scope import has_competing_open_turns
 from .workspace import IssueEvidenceWorkspace, _V2_CODE_RELS
+# 2026-11-24
+# "Decompose github_issue.py and issue_lifecycle.py into IssueMarkdownLinter, IssueEvidenceWorkspace, GitHubIssueService, and TurnIssueLifecycleAuditor with locked turn updates":
+# https://github.com/dmitry-ai/harness/issues/77
 class TurnIssueLifecycleAuditor:
 	def __init__(self, root: Path, turn: dict, turn_state: dict | None=None, response=None, *, workspace: IssueEvidenceWorkspace | None=None, linter: IssueMarkdownLinter | None=None) -> None:
 		self.root, self.turn, self.turn_state, self.response = (Path(root).resolve(), turn, turn_state, response)
@@ -35,6 +32,9 @@ class TurnIssueLifecycleAuditor:
 		self.candidate_repos: list[Path] = []
 		self.workspace_code_repos: set[Path] = set()
 		self.turn_issues: dict[str, dict] = {}
+		# 2026-11-24
+		# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+		# https://github.com/dmitry-ai/harness/issues/175
 		self.git_cache = RepoReadCache()
 	def _bind_issue_repos(self) -> tuple[dict[Path, set[str]], dict[str, Path]]:
 		for info in self.turn_issues.values():
@@ -108,11 +108,20 @@ class TurnIssueLifecycleAuditor:
 				self._flag_unclosed_completed_parents(code_repo, slug, parent_nums)
 			verify_multi_subtask_counts(impl_m_roots, per_repo, total_child_urls, self.violations)
 	def _check_repo_commits_and_files(self, code_repo: Path, rel_paths: list[str], required_issues: set[str]) -> set[str]:
+		# 2026-11-24
+		# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
+		# https://github.com/dmitry-ai/harness/issues/186
 		from ..python_integrity import verify_touched_python_files
 		committed_urls: set[str] = set()
 		if rel_paths:
+			# 2026-11-24
+			# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+			# https://github.com/dmitry-ai/harness/issues/175
 			if self.git_cache.has_dirty_for_paths(code_repo, rel_paths):
 				self.violations.append(f'Modified files in {code_repo} are not committed: {", ".join(rel_paths)}')
+			# 2026-11-24
+			# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
+			# https://github.com/dmitry-ai/harness/issues/186
 			self.violations.extend(verify_touched_python_files(code_repo, rel_paths))
 			for rel in rel_paths:
 				self._inspect_touched_code_file(code_repo, rel, required_issues, committed_urls)
@@ -135,6 +144,9 @@ class TurnIssueLifecycleAuditor:
 		from ..path_registry import project_paths
 		self._collect_touched_repos()
 		pp_root = project_paths(self.root)
+		# 2026-11-24
+		# "Isolate per-conversation github_issues recording and turn-state filtering":
+		# https://github.com/dmitry-ai/harness/issues/195
 		ts_cid = str((self.turn_state or {}).get('conversation_id') or '').strip()
 		self.turn_issues = self.collect_turn_issues(self.turn, self.turn_state, has_competing_open_turns=has_competing_open_turns(self.root, ts_cid))
 		self.candidate_repos = list(self.repo_touched.keys())
@@ -193,12 +205,18 @@ class TurnIssueLifecycleAuditor:
 					break
 		return r
 	def _inspect_latest_commits(self, code_repo: Path, existing_rels: list[str], required_issues: set[str], committed_urls: set[str]) -> None:
+		# 2026-11-24
+		# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+		# https://github.com/dmitry-ai/harness/issues/175
 		commit_urls = self.git_cache.latest_commit_urls_for_files(code_repo, existing_rels, extract_issue_urls)
 		if not commit_urls:
 			self.violations.append(f'Latest commit for {", ".join(existing_rels)} in {code_repo} does not reference a GitHub Issue URL')
 		required_issues.update(commit_urls)
 		committed_urls.update(commit_urls)
 	def _inspect_touched_code_file(self, code_repo: Path, rel: str, required_issues: set[str], committed_urls: set[str]) -> None:
+		# 2026-11-25
+		# "Add comment-only diff lexer exemption for top 20 repository languages":
+		# https://github.com/dmitry-ai/harness/issues/238
 		from ..tdd.exemption import is_git_path_exempt
 		fpath = code_repo / rel
 		if fpath.is_file() and is_code_file(rel):
@@ -207,6 +225,9 @@ class TurnIssueLifecycleAuditor:
 				urls_in_file, comment_urls = (extract_issue_urls(file_text), extract_comment_issue_urls(file_text))
 			except OSError:
 				urls_in_file, comment_urls = ([], set())
+			# 2026-11-25
+			# "Add comment-only diff lexer exemption for top 20 repository languages":
+			# https://github.com/dmitry-ai/harness/issues/238
 			if (not urls_in_file) and (not is_git_path_exempt(code_repo, rel, project_root=self.root)):
 				self.violations.append(f'Modified code file {fpath} does not reference a GitHub Issue URL')
 			for cu in comment_urls:
@@ -245,6 +266,9 @@ class TurnIssueLifecycleAuditor:
 			if None is not parsed:
 				slug, num = parsed
 				try:
+					# 2026-11-24
+					# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+					# https://github.com/dmitry-ai/harness/issues/175
 					ready = verify_repo_issue_ready_for_close(code_repo, slug, num, project_root=self.root, git_cache=self.git_cache)
 				except (ValueError, RuntimeError) as exc:
 					ready = {'verified': False, 'violations': [str(exc)]}
@@ -268,6 +292,9 @@ class TurnIssueLifecycleAuditor:
 		self._check_turn_issue_evidence(repo_by_url)
 		self._check_multi_subtask_decomposition(committed_by_repo, required_by_repo)
 		return {'verified': not self.violations, 'touched_repos': {str(k): sorted(v) for k, v in self.repo_touched.items()}, 'issues': self.checked_issues, 'similar_projects': sim_status, 'violations': self.violations}
+	# 2026-11-24
+	# "Isolate per-conversation github_issues recording and turn-state filtering":
+	# https://github.com/dmitry-ai/harness/issues/195
 	@staticmethod
 	def collect_turn_issues(turn: dict, turn_state: dict | None, *, has_competing_open_turns: bool=False) -> dict[str, dict]:
 		turn_issues: dict[str, dict] = {}

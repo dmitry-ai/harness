@@ -1,7 +1,9 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/238
 from __future__ import annotations
 import re
+# 2026-11-25
+# "Add comment-only diff lexer exemption for top 20 repository languages":
+# https://github.com/dmitry-ai/harness/issues/238
 _CPP_RAW_RE = re.compile(r'R"([^\s()\\]{0,16})\(')
 _HEREDOC_START_RE = re.compile(r'<<<[ \t]*(?:"([A-Za-z_]\w*)"|\'([A-Za-z_]\w*)\'|([A-Za-z_]\w*))')
 _SH_HEREDOC_RE = re.compile(r'<<(-?)[ \t]*(?:"([A-Za-z_]\w*)"|\'([A-Za-z_]\w*)\'|([A-Za-z_]\w*))')

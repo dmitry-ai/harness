@@ -1,6 +1,4 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate wall-clock race in context.generate and pre-lock flush race in storage.locked":
-# https://github.com/dmitry-ai/harness/issues/158
 from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -15,6 +13,9 @@ if str(SCRIPT_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPT_DIR))
 from agent_tools.context import assemble, generate
 from agent_tools.storage import locked
+# 2026-11-23
+# "Eliminate wall-clock race in context.generate and pre-lock flush race in storage.locked":
+# https://github.com/dmitry-ai/harness/issues/158
 class ContextAndStorageDeterminismTests(unittest.TestCase):
 	def test_generate_accepts_explicit_now_for_deterministic_timestamp(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

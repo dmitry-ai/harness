@@ -1,15 +1,4 @@
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce pushed Git tags on issue-closing commits in lifecycle gates":
-# https://github.com/dmitry-ai/harness/issues/263
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
-# https://github.com/dmitry-ai/harness/issues/175
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Preserve historical delivered turn bytes when tdd_check is absent":
-# https://github.com/dmitry-ai/harness/issues/140
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
-# https://github.com/dmitry-ai/harness/issues/138
 from __future__ import annotations
 
 from contextlib import closing
@@ -28,6 +17,7 @@ SCRIPT_DIR = Path(__file__).resolve().parents[1] / 'scripts'
 if str(SCRIPT_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPT_DIR))
 
+# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 from agent_tools import completion, repo_tags, tdd_gate
 import check_pre_invocation
 import check_stop_gate
@@ -49,6 +39,9 @@ def _wire(field_num: int, payload: bytes) -> bytes:
 	return _varint((field_num << 3) | 2) + _varint(len(payload)) + payload
 
 
+# 2026-11-24
+# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/175
 _TEMPLATE_CACHE: dict[int, tuple[tempfile.TemporaryDirectory, Path, Path]] = {}
 
 
@@ -79,6 +72,7 @@ def _build_template_project(issue_num: int) -> tuple[Path, Path]:
 		(code / 'app.py').write_text(f'# https://github.com/test-org/demo/issues/{issue_num}\nVAL = 2\n', encoding='utf-8')
 		subprocess.run(['git', '-C', str(code), 'add', 'app.py', 'tests/test_existing.py', 'tests/test_app.py'], check=True, capture_output=True)
 		subprocess.run(['git', '-C', str(code), 'commit', '-m', f'https://github.com/test-org/demo/issues/{issue_num}'], check=True, capture_output=True)
+		# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 		subprocess.run(['git', '-C', str(code), 'push', '-u', 'origin', 'main'], check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=30)
 		repo_tags.ensure_commit_tag(code, push=True)
 		ev = proj / f'_/ꘖ/KB/Evidence/GitHub/test-org__demo/issue-{issue_num}.json'
@@ -91,6 +85,9 @@ def _build_template_project(issue_num: int) -> tuple[Path, Path]:
 	return (t_proj, t_bare)
 
 
+# 2026-11-24
+# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/175
 def _init_project_with_git_code(root: Path, *, issue_num: int = 42) -> tuple[Path, Path, Path]:
 	t_proj, t_bare = _build_template_project(issue_num)
 	proj = root / 'proj'
@@ -154,6 +151,9 @@ def _setup_codex_conv(base: Path, proj: Path, prompt_text: str, extra_rows: list
 	return (codex_home, tid, rollout)
 
 
+# 2026-11-23
+# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+# https://github.com/dmitry-ai/harness/issues/138
 class TddTurnCompletionAndCliTests(unittest.TestCase):
 	def test_antigravity_tdd_gate_blocks_violations_and_passes_full_bg_green(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
@@ -352,6 +352,9 @@ class TddTurnCompletionAndCliTests(unittest.TestCase):
 			)
 			self.assertIsInstance(pre_out, dict)
 
+	# 2026-11-23
+	# "Preserve historical delivered turn bytes when tdd_check is absent":
+	# https://github.com/dmitry-ai/harness/issues/140
 	def test_sync_preserves_legacy_delivered_turn_bytes_without_tdd_check(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()

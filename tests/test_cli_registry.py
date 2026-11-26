@@ -1,6 +1,4 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace monolithic CLI router with declarative registry and modular docs":
-# https://github.com/dmitry-ai/harness/issues/168
 from __future__ import annotations
 import argparse
 from pathlib import Path
@@ -12,6 +10,9 @@ if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 from agent_tools import links
 import check_markdown_slop
+# 2026-11-23
+# "Replace monolithic CLI router with declarative registry and modular docs":
+# https://github.com/dmitry-ai/harness/issues/168
 class CliRegistryTests(unittest.TestCase):
 	def test_cli_docs_renders_registered_commands_and_runs_via_cli(self):
 		from agent_tools.cli_registry import render_cli_index

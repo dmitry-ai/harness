@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Support model_decision trigger class in doctor and Codex loader":
-# https://github.com/dmitry-ai/harness/issues/241
 from __future__ import annotations
 from pathlib import Path
 import json
@@ -23,6 +21,9 @@ def _seed_primary(root: Path, rules: dict[str, str]) -> Path:
 	(primary / 'agents/worker.md').write_text('# Worker\n', encoding='utf-8')
 	(primary / 'runtime.json').write_text(json.dumps({'version': 2, 'workspace_root': str(root), 'timezone': 'Europe/Istanbul', 'registration': {'targets': []}, 'platforms': {'antigravity': {'enabled': True, 'surface': 'antigravity-ui', 'adapter': 'antigravity', 'instances': {}}, 'codex': {'enabled': True, 'surface': 'codex-ui', 'adapter': 'codex', 'instances': {}}}}), encoding='utf-8')
 	return primary
+# 2026-11-25
+# "Support model_decision trigger class in doctor and Codex loader":
+# https://github.com/dmitry-ai/harness/issues/241
 class RulesProgressiveDisclosureTests(unittest.TestCase):
 	def test_doctor_accepts_model_decision_and_reports_trigger_metrics(self) -> None:
 		with tempfile.TemporaryDirectory() as td:

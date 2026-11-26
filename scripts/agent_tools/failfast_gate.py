@@ -1,24 +1,31 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Default upwork-init review to single falsifier and block subagent schedule timers":
-# https://github.com/dmitry-ai/harness/issues/215
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
-# https://github.com/dmitry-ai/harness/issues/205
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce PreToolUse fail-fast normalization and block redundant schedule timers over run_command":
-# https://github.com/dmitry-ai/harness/issues/162
 from __future__ import annotations
 from pathlib import Path
 import json
 import re
 from .shell_audit import _split_shell_segments
+# 2026-11-24
+# "Default upwork-init review to single falsifier and block subagent schedule timers":
+# https://github.com/dmitry-ai/harness/issues/215
 from .stop_subagent_check import evaluate_schedule_subagent_block
+# 2026-11-24
+# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+# https://github.com/dmitry-ai/harness/issues/205
 from .tdd.commands import _HARNESS_WATCHDOG_PREFIX_RE, _mask_quoted, unwrap_watchdog_prefix
 from .tdd_gate import _BG_TASK_FINISHED_RE, _BG_TASK_ID_RE, _normalize_args_dict, classify_test_command
+# 2026-11-23
+# "Enforce PreToolUse fail-fast normalization and block redundant schedule timers over run_command":
+# https://github.com/dmitry-ai/harness/issues/162
 _BG_TASK_ENDED_RE = re.compile(r'Task\s+id\s+"([^"]+)"\s+(?:finished|canceled|cancelled|terminated|killed)\b', re.IGNORECASE)
+# 2026-11-24
+# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+# https://github.com/dmitry-ai/harness/issues/205
 _DEFAULT_WATCHDOG_TIMEOUT = 300
 _HARNESS_SCRIPT = (Path(__file__).resolve().parents[1] / 'harness.py').as_posix()
 _MIN_SYNC_WAIT_MS = 5000
+# 2026-11-24
+# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+# https://github.com/dmitry-ai/harness/issues/205
 _PYTEST_TIMEOUT_RE = re.compile(r'(?:^|\s)--timeout(?:=|\s+)\d')
 _QUOTED_RE = re.compile(r'"[^"]*"|\'[^\']*\'')
 _RUNNER_SPECS = (
@@ -31,6 +38,9 @@ _RUNNER_SPECS = (
 	('rspec', re.compile(r'(?i)\brspec\b'), re.compile(r'(?:^|\s)(?:--fail-fast\b|--only-failures\b)'), '--fail-fast'),
 )
 _TARGET_SYNC_WAIT_MS = 10000
+# 2026-11-24
+# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+# https://github.com/dmitry-ai/harness/issues/205
 _UNSAFE_WRAP_RE = re.compile(r'[$`><&|;(\r\n]')
 def _active_turn_run_command_tasks(transcript_path: str) -> tuple[bool, set[str], set[str]]:
 	explicit_schedule = False
@@ -83,11 +93,17 @@ def _active_turn_run_command_tasks(transcript_path: str) -> tuple[bool, set[str]
 								all_tids.add(tid)
 								active_tids.add(tid)
 	return (explicit_schedule, all_tids, active_tids)
+# 2026-11-24
+# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+# https://github.com/dmitry-ai/harness/issues/205
 def _apply_sync_wait(args: dict, overwrite: dict) -> None:
 	if True is not args.get('IsDaemon'):
 		wait_ms = _parse_wait_ms(args.get('WaitMsBeforeAsync'))
 		if None is wait_ms or _MIN_SYNC_WAIT_MS > wait_ms:
 			overwrite['WaitMsBeforeAsync'] = _TARGET_SYNC_WAIT_MS
+# 2026-11-24
+# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+# https://github.com/dmitry-ai/harness/issues/205
 def _apply_timeout_guard(cur: str, segs: list[str], is_single: bool) -> tuple[str | None, str]:
 	deny, out_cmd = (None, cur)
 	miss_t = [mt for seg in segs if None is not (mt := missing_timeout_guard(seg))]
@@ -98,6 +114,9 @@ def _apply_timeout_guard(cur: str, segs: list[str], is_single: bool) -> tuple[st
 		else:
 			deny = f'Unbounded test command ({label}) omits a watchdog timeout and stdin detachment; use {hint}.'
 	return (deny, out_cmd)
+# 2026-11-24
+# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+# https://github.com/dmitry-ai/harness/issues/205
 def _inject_missing_failfast(cmd: str, segs: list[str], is_single: bool) -> tuple[str | None, str]:
 	deny, cur = (None, cmd)
 	missing = [(seg, miss) for seg in segs if None is not (miss := missing_failfast_flag(seg))]
@@ -111,6 +130,9 @@ def _inject_missing_failfast(cmd: str, segs: list[str], is_single: bool) -> tupl
 				pos = m_cmd[2].end()
 				cur = f'{cur[:pos]} {flag}{cur[pos:]}'
 	return (deny, cur)
+# 2026-11-24
+# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+# https://github.com/dmitry-ai/harness/issues/205
 def _is_safe_watchdog_wrap(cmd: str) -> bool:
 	return not bool(_UNSAFE_WRAP_RE.search(_QUOTED_RE.sub('', cmd or '')))
 def _parse_wait_ms(raw) -> int | None:
@@ -120,6 +142,9 @@ def _parse_wait_ms(raw) -> int | None:
 	elif isinstance(raw, str) and raw.strip().lstrip('-').isdigit():
 		r = int(raw.strip())
 	return r
+# 2026-11-24
+# "Default upwork-init review to single falsifier and block subagent schedule timers":
+# https://github.com/dmitry-ai/harness/issues/215
 def _schedule_block_reason(t_raw: str, args: dict, payload: dict) -> str | None:
 	explicit_schedule, all_tids, active_tids = _active_turn_run_command_tasks(t_raw)
 	r = None
@@ -133,8 +158,17 @@ def _schedule_block_reason(t_raw: str, args: dict, payload: dict) -> str | None:
 		else:
 			r = evaluate_schedule_subagent_block(t_raw, args, payload)
 	return r
+# 2026-11-24
+# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+# https://github.com/dmitry-ai/harness/issues/205
 def _wrap_watchdog_cmd(cmd: str) -> str:
 	return f'python "{_HARNESS_SCRIPT}" test-watchdog --timeout {_DEFAULT_WATCHDOG_TIMEOUT} {cmd.strip()}'
+# 2026-11-23
+# "Enforce PreToolUse fail-fast normalization and block redundant schedule timers over run_command":
+# https://github.com/dmitry-ai/harness/issues/162
+# 2026-11-24
+# "Default upwork-init review to single falsifier and block subagent schedule timers":
+# https://github.com/dmitry-ai/harness/issues/215
 def evaluate_pre_tool_use_schedule(name: str, args: dict, payload: dict) -> str | None:
 	is_one_shot = 'schedule' == name and (not args.get('CronExpression')) and (True is not args.get('IsDaemon')) and (None is not args.get('DurationSeconds'))
 	return _schedule_block_reason(str(payload.get('transcriptPath') or '').strip(), args, payload) if is_one_shot else None
@@ -146,6 +180,9 @@ def evaluate_pre_tool_use_test_failfast(name: str, args: dict) -> tuple[str | No
 			segs = [seg.strip() for seg in _split_shell_segments(cmd) if seg.strip()]
 			unquoted = _QUOTED_RE.sub('', cmd)
 			is_single = (1 == len(segs)) and ('|' not in unquoted) and ('\n' not in unquoted)
+			# 2026-11-24
+			# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+			# https://github.com/dmitry-ai/harness/issues/205
 			deny_reason, cur_cmd = _inject_missing_failfast(cmd, segs, is_single)
 			if None is deny_reason:
 				deny_reason, cur_cmd = _apply_timeout_guard(cur_cmd, [cur_cmd.strip()] if is_single else segs, is_single)
@@ -157,6 +194,9 @@ def evaluate_pre_tool_use_test_failfast(name: str, args: dict) -> tuple[str | No
 def missing_failfast_flag(seg: str) -> tuple[str, str, re.Match] | None:
 	r = None
 	if isinstance(seg, str) and seg.strip():
+		# 2026-11-24
+		# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+		# https://github.com/dmitry-ai/harness/issues/205
 		inner = unwrap_watchdog_prefix(seg)
 		prefix_len = len(seg) - len(inner)
 		start = max(0, prefix_len - 1)
@@ -169,6 +209,9 @@ def missing_failfast_flag(seg: str) -> tuple[str, str, re.Match] | None:
 					r = (label, flag, m_anc)
 				break
 	return r
+# 2026-11-24
+# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+# https://github.com/dmitry-ai/harness/issues/205
 def missing_timeout_guard(seg: str) -> tuple[str, str] | None:
 	r = None
 	if isinstance(seg, str) and seg.strip():

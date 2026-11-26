@@ -1,12 +1,4 @@
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs":
-# https://github.com/dmitry-ai/harness/issues/264
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Require separate companion /df-analysis tracks for every complex problem analysis":
-# https://github.com/dmitry-ai/harness/issues/249
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce Markdown table ban and /df-analysis structural validation across response gates":
-# https://github.com/dmitry-ai/harness/issues/181
 from __future__ import annotations
 from pathlib import Path
 import json
@@ -22,6 +14,10 @@ from agent_tools import completion, df_analysis, research
 from agent_tools.issues.linter import IssueMarkdownLinter
 from agent_tools.response_grounding import ResponseEvidenceAuditor
 import check_markdown_slop
+# 2026-11-25
+# "Require separate companion /df-analysis tracks for every complex problem analysis":
+# https://github.com/dmitry-ai/harness/issues/249
+# 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
 _VALID_PROBLEM_RU = """# 0. Мета-данные проблемы
 
 ```json
@@ -276,6 +272,9 @@ _VALID_GENERAL_EN = """# Analysis
 - Arguments against: masks the root cause without removing contention.  
 - Score: 20%.  
 """
+# 2026-11-24
+# "Enforce Markdown table ban and /df-analysis structural validation across response gates":
+# https://github.com/dmitry-ai/harness/issues/181
 class DfAnalysisGatesTests(unittest.TestCase):
 	def test_analysis_check_cli_validates_problem_and_rejects_broken_input(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

@@ -1,24 +1,4 @@
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate wall-clock race in context.generate and pre-lock flush race in storage.locked":
-# https://github.com/dmitry-ai/harness/issues/158
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
-# https://github.com/dmitry-ai/harness/issues/108
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
-# https://github.com/dmitry-ai/harness/issues/2
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
-# https://github.com/dmitry-ai/harness/issues/36
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
-# https://github.com/dmitry-ai/harness/issues/39
-# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
-# https://github.com/dmitry-ai/harness/issues/42
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -39,6 +19,12 @@ from agent_tools.git_gate import check_commit, commit
 from agent_tools.links import Page, check_network, references, validate_content
 from agent_tools.snapshot import snapshot_draft
 from agent_tools.statements import validate_statements
+# 2026-10-11
+# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+# https://github.com/dmitry-ai/harness/issues/2
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class TemporaryCase(unittest.TestCase):
 	def setUp(self):
 		self.temp = tempfile.TemporaryDirectory()
@@ -63,6 +49,9 @@ class JournalTests(TemporaryCase):
 		self.assertFalse((journal.state_dir(journal_dir) / '1.json').exists())
 		self.assertTrue((journal.state_dir(journal_dir) / 'writer.lock').exists())
 		self.assertEqual(journal.step_errors(journal_dir, step), [])
+	# 2026-11-21
+	# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+	# https://github.com/dmitry-ai/harness/issues/108
 	def test_o_journal_20_entry_bucketing_and_partial_range_normalization(self):
 		self.assertEqual(journal.journal_bucket_name(1), '1\u201320')
 		self.assertEqual(journal.journal_bucket_name(20), '1\u201320')
@@ -167,6 +156,9 @@ class JournalTests(TemporaryCase):
 		self.assertEqual(journal.step_errors(self.root, 1), [])
 	def test_concurrent_real_processes_same_request_get_distinct_pairs(self):
 		def run(index):
+			# 2026-11-02
+			# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+			# https://github.com/dmitry-ai/harness/issues/36
 			code = 'import sys; sys.path.insert(0, sys.argv[1]); from agent_tools.cli import main; raise SystemExit(main("record_step", sys.argv[2:]))'
 			return subprocess.run([sys.executable, '-c', code, str(SCRIPTS), '--dir', str(self.root), '--req', 'identical request', '--res', f'response {index}'], cwd=self.root, capture_output=True, encoding='utf-8')
 		with ThreadPoolExecutor(max_workers=6) as pool:
@@ -259,6 +251,9 @@ class SnapshotTests(TemporaryCase):
 		(self.root / '.agents').mkdir()
 		draft = self.put('Letters/draft.md', 'user change\r\n')
 		saved = snapshot_draft(draft, 'turn_1')
+		# 2026-10-14
+		# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
+		# https://github.com/dmitry-ai/harness/issues/3
 		self.assertTrue(saved.is_relative_to(self.root / 'ꘖ/data/.draft-snapshots'))
 		self.assertFalse((draft.parent / '.draft-snapshots').exists())
 		self.put('Letters/draft.md', 'agent revision')
@@ -307,6 +302,9 @@ class ContextTests(TemporaryCase):
 		generate(self.root, config)
 		self.assertTrue((self.root / 'out.md').exists())
 		self.assertFalse((self.root / '.out.md.lock').exists())
+		# 2026-10-14
+		# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
+		# https://github.com/dmitry-ai/harness/issues/3
 		self.assertTrue((self.root / 'ꘖ/data/context.lock').exists())
 	def test_output_cannot_overwrite_input_or_escape_root(self):
 		config = self.put('context.json', json.dumps({'version': 1, 'output': 'kb.md', 'sections': [{'title': 'KB', 'files': ['kb.md']}]}))
@@ -315,7 +313,7 @@ class ContextTests(TemporaryCase):
 			with self.assertRaises(ValueError):
 				generate(self.root, config, output)
 		self.assertEqual((self.root / 'kb.md').read_text(), 'original')
-	# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+	# 2026-11-03
 	# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
 	# https://github.com/dmitry-ai/harness/issues/42
 	def test_default_context_config_includes_agent_kb_and_excludes_evidence_subfolder(self):
@@ -324,6 +322,9 @@ class ContextTests(TemporaryCase):
 		self.put('ꘖ/KB/Evidence/capture.md', '# Raw Capture\nShould be excluded\n')
 		self.put('ꘖ/KB/Evidence/nested/audit.md', '# Deep Capture\nShould be excluded\n')
 		self.put('KB/Manual.md', '# Manual\nShould be excluded\n')
+		# 2026-11-23
+		# "Eliminate wall-clock race in context.generate and pre-lock flush race in storage.locked":
+		# https://github.com/dmitry-ai/harness/issues/158
 		fixed_now = datetime(2026, 11, 23, 12, 0, 0, tzinfo=timezone.utc)
 		content, sources = assemble(self.root, now=fixed_now)
 		self.assertIn('Generated: ', content)
@@ -333,12 +334,15 @@ class ContextTests(TemporaryCase):
 		self.assertNotIn('# Deep Capture', content)
 		self.assertNotIn('# Manual', content)
 		self.assertEqual(set(sources), {kb_main.resolve(), kb_evidence_doc.resolve()})
+		# 2026-11-23
+		# "Eliminate wall-clock race in context.generate and pre-lock flush race in storage.locked":
+		# https://github.com/dmitry-ai/harness/issues/158
 		target, out_content, out_sources = generate(self.root, now=fixed_now)
 		self.assertEqual(target, self.root / 'ꙮ/0/Context.md')
 		self.assertTrue(target.is_file())
 		self.assertEqual(out_content, content)
 		self.assertEqual(set(out_sources), {kb_main.resolve(), kb_evidence_doc.resolve()})
-	# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+	# 2026-11-03
 	# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
 	# https://github.com/dmitry-ai/harness/issues/42
 	def test_generate_context_cli_supports_positional_root_and_default_config(self):
@@ -383,6 +387,9 @@ class GitTests(TemporaryCase):
 			check_commit(self.root, ['a space.md'])
 		self.git('add', '--', 'a space.md')
 		before = self.git('rev-parse', 'HEAD')
+		# 2026-11-02
+		# "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
+		# https://github.com/dmitry-ai/harness/issues/39
 		with self.assertRaises(ValueError):
 			commit(self.root, ['a space.md'], 'review only')
 		commit(self.root, ['a space.md'], 'https://github.com/dmitry-ai/harness/issues/17')
@@ -396,6 +403,9 @@ class StatementTests(TemporaryCase):
 		self.assertTrue(validate_statements(self.root))
 		self.put('1/Test.md', 'Actual test record')
 		self.assertEqual(validate_statements(self.root), [])
+# 2026-10-14
+# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
+# https://github.com/dmitry-ai/harness/issues/3
 class UpworkProjectTests(TemporaryCase):
 	def test_agent_data_dir_prefers_vai_directory(self):
 		(self.root / 'ꘖ').mkdir()

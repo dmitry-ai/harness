@@ -1,14 +1,4 @@
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Exempt service finalization calls from EXEC-2-TDD-GATE and add journal-sync --all-open":
-# https://github.com/dmitry-ai/harness/issues/256
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/250
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/239
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/238
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/169
 from __future__ import annotations
 from pathlib import Path
 from ..shell_audit import _GITHUB_ISSUE_URL_RE, normalize_host_path
@@ -23,6 +13,9 @@ from .substantive import is_substantive_test_content, source_text_assertion_issu
 import difflib
 import os
 import subprocess
+# 2026-11-25
+# "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
+# https://github.com/dmitry-ai/harness/issues/250
 _HEAD_TEXT_CACHE: dict[tuple[str, str, str], str | None] = {}
 def _active_turn_issue_urls(new_text: str | None, old_text: str | None) -> list[str]:
 	r: list[str] = []
@@ -51,6 +44,9 @@ def _diff_added_lines(old_text: str | None, new_text: str) -> tuple[list[str], s
 				added_lines.append(new_lines[idx])
 				added_nums.add(idx + 1)
 	return (added_lines, added_nums)
+# 2026-11-25
+# "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
+# https://github.com/dmitry-ai/harness/issues/250
 def _eval_pre_code_write(name: str, args: dict, target_path: Path, cls: str, cwd: Path | None, payload: dict) -> str | None:
 	scope = resolve_code_scope(target_path)
 	if 'production' != cls:
@@ -58,6 +54,9 @@ def _eval_pre_code_write(name: str, args: dict, target_path: Path, cls: str, cwd
 		r = _eval_pre_test_write(name, args, target_path, scope, cwd, sc_state)
 	else:
 		old_disk, new_text, _, _ = _compute_edited_content(name, args, target_path)
+		# 2026-11-25
+		# "Add comment-only diff lexer exemption for top 20 repository languages":
+		# https://github.com/dmitry-ai/harness/issues/238
 		if is_diff_exempt(target_path, old_disk, new_text, repo_root=scope, project_root=cwd or scope):
 			r = None
 		else:
@@ -72,6 +71,9 @@ def _eval_pre_prod_write(target_path: Path, sc_state: dict | None) -> str | None
 	else:
 		r = f'EXEC-2 TDD-RED-GATE: Cannot write/edit production code "{target_path.name}" before writing a failing test. Strict TDD applies to all code: write a behavioral test first, run it to observe failure (RED), and only then implement production code.'
 	return r
+# 2026-11-25
+# "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
+# https://github.com/dmitry-ai/harness/issues/250
 def _eval_pre_run_command(cmd: str, cwd: Path | None, payload: dict) -> str | None:
 	prod_targets = shell_code_write_targets(cmd, cwd=cwd)
 	del_targets = shell_test_delete_targets(cmd, cwd=cwd)
@@ -114,6 +116,9 @@ def _eval_shell_prod_writes(prod_targets: list[Path], cwd: Path | None, tdd_stat
 	for target_p in prod_targets:
 		scope = resolve_code_scope(target_p)
 		sc_state = tdd_state['scopes'].get(str(scope))
+		# 2026-11-25
+		# "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
+		# https://github.com/dmitry-ai/harness/issues/239
 		if (None is sc_state or sc_state.get('state') not in ('RED_VERIFIED', 'GREEN_IMPLEMENTING')) and (not find_matching_mechanical_recipes(scope, project_root=cwd or scope)):
 			r = f'EXEC-2 TDD-RED-GATE: Shell command writes production code file "{target_p.name}" before a failing (RED) test was written and observed. Write a failing test first.'
 			break
@@ -143,6 +148,9 @@ def _eval_test_ratchet_and_fitting(rel_posix: str, scope: Path, cwd: Path | None
 		if fit_errs:
 			r = 'EXEC-2 TDD-ANTI-FITTING-GATE: Production code was already edited in this cycle; do not weaken or rewrite test assertions to fit the code! ' + '; '.join(fit_errs[:2])
 	return r
+# 2026-11-25
+# "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
+# https://github.com/dmitry-ai/harness/issues/250
 def _git_head_sha(repo_root: Path) -> str | None:
 	gitdir, common = _resolve_git_dirs(repo_root)
 	r = None
@@ -159,6 +167,9 @@ def _git_head_sha(repo_root: Path) -> str | None:
 		except OSError:
 			r = None
 	return r
+# 2026-11-25
+# "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
+# https://github.com/dmitry-ai/harness/issues/250
 def _git_head_text(repo_root: Path, rel_posix: str) -> str | None:
 	sha = _git_head_sha(repo_root)
 	if None is sha:
@@ -186,6 +197,9 @@ def _git_show_text(repo_root: Path, spec: str) -> str | None:
 		if 0 == proc.returncode:
 			r = proc.stdout.decode('utf-8', errors='replace')
 	return r
+# 2026-11-25
+# "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
+# https://github.com/dmitry-ai/harness/issues/250
 def _load_pre_tool_tdd_state(payload: dict, cwd: Path | None) -> dict:
 	t_raw = str(payload.get('transcriptPath') or '').strip()
 	events = extract_antigravity_tdd_events(Path(t_raw), cwd=cwd) if t_raw else []
@@ -255,8 +269,14 @@ def _verify_staged_test_file(repo: Path, rel: str, fpath: Path, head_text: str |
 		for r_err in ratchet_diff_violations(rel, head_text, disk_text, approval=approval):
 			r.append(f'EXEC-2 {r_err}')
 	return r
+# 2026-11-24
+# "Decompose tdd_gate.py into modular TDD verification package":
+# https://github.com/dmitry-ai/harness/issues/169
 def evaluate_pre_tool_use_tdd(name: str, args: dict, payload: dict) -> str | None:
 	r = None
+	# 2026-11-26
+	# "Exempt service finalization calls from PreToolUse TDD gate and add journal-sync --all-open":
+	# https://github.com/dmitry-ai/harness/issues/256
 	if not is_service_finalization_call(name, args, payload):
 		cwd_raw = str(payload.get('cwd') or '').strip()
 		cwd = Path(cwd_raw).resolve() if cwd_raw else None
@@ -265,6 +285,9 @@ def evaluate_pre_tool_use_tdd(name: str, args: dict, payload: dict) -> str | Non
 		elif 'run_command' == name:
 			r = _eval_pre_run_command(str(args.get('CommandLine') or ''), cwd, payload)
 	return r
+# 2026-11-24
+# "Decompose tdd_gate.py into modular TDD verification package":
+# https://github.com/dmitry-ai/harness/issues/169
 def verify_staged_tdd_diff(repo_root: Path, staged_paths: list[str], *, message: str | None=None, project_root: Path | None=None, use_index: bool=False) -> list[str]:
 	repo = Path(repo_root).resolve()
 	r: list[str] = []
@@ -274,6 +297,9 @@ def verify_staged_tdd_diff(repo_root: Path, staged_paths: list[str], *, message:
 	for rel in staged_paths or ():
 		fpath, head_text, disk_text, cls = _staged_entry_texts(repo, rel, use_index, issue_urls)
 		if 'production' == cls and None is not disk_text:
+			# 2026-11-25
+			# "Add comment-only diff lexer exemption for top 20 repository languages":
+			# https://github.com/dmitry-ai/harness/issues/238
 			if not is_diff_exempt(fpath, head_text, disk_text, repo_root=repo, message=message, project_root=project_root):
 				staged_prod.append(rel)
 		elif 'test' == cls:

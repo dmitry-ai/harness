@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
-# https://github.com/dmitry-ai/harness/issues/250
 from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
@@ -49,6 +47,9 @@ def _write_multi_commit_transcript(tx: Path, repo: Path, prod_files: list[Path])
 	rows.append({'step_index': step, 'type': 'PLANNER_RESPONSE', 'tool_calls': [{'name': 'run_command', 'args': {'CommandLine': json.dumps(f'git -C "{repo}" commit -m https://github.com/dmitry-ai/harness/issues/250')}}]})
 	rows.append({'step_index': step + 1, 'type': 'GENERIC', 'content': 'Command exited with code 0.\n\nCommand output:\n[main 1234567] ok\n'})
 	tx.write_text(''.join((json.dumps(row, ensure_ascii=False) + '\n' for row in rows)), encoding='utf-8')
+# 2026-11-25
+# "Short-circuit non-code PreToolUse TDD checks and lazily memoize exemptions":
+# https://github.com/dmitry-ai/harness/issues/250
 class TddFastPathTests(unittest.TestCase):
 	def test_evaluator_lazy_exemption_and_full_green_edge_cases(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

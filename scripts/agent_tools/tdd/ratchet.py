@@ -1,5 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/169
 from __future__ import annotations
 from collections import Counter
 from pathlib import Path
@@ -170,6 +169,9 @@ def find_ratchet_approval(file_path: str | Path, *, repo_root: Path | None=None,
 	if None is r:
 		r = _find_issue_ratchet_approval(file_path, _ratchet_approval_roots(project_root, repo_root), issue_urls)
 	return r
+# 2026-11-24
+# "Decompose tdd_gate.py into modular TDD verification package":
+# https://github.com/dmitry-ai/harness/issues/169
 def ratchet_diff_violations(rel_path: str, old_text: str, new_text: str | None, *, approval: dict | None=None) -> list[str]:
 	approved = None is not approval and validate_ratchet_reason(str(approval.get('reason') or ''))[0]
 	if approved:

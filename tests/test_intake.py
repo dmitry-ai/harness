@@ -1,9 +1,4 @@
 # 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
-# https://github.com/dmitry-ai/harness/issues/7
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import redirect_stdout
 import hashlib
@@ -19,6 +14,12 @@ def digest(payload):
 	return hashlib.sha256(payload).hexdigest()
 def json_data(value):
 	return (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+# 2026-10-17
+# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+# https://github.com/dmitry-ai/harness/issues/7
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class IntakeTests(TemporaryCase):
 	def setUp(self):
 		super().setUp()

@@ -1,10 +1,12 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/169
 from __future__ import annotations
 from pathlib import Path
 from .classifier import _CODE_SUFFIX_ALT, _TEST_HELPER_FILENAMES, is_test_file
 import ast
 import re
+# 2026-11-24
+# "Decompose tdd_gate.py into modular TDD verification package":
+# https://github.com/dmitry-ai/harness/issues/169
 _ASSERTION_LINE_RE = re.compile(
 	r'(?:\bassert\s+|\bassert\s*\('
 	r'|\bself\.assert[A-Z]\w*\s*\('

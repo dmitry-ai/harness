@@ -1,10 +1,12 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/238
 from __future__ import annotations
 from .comment_scanners import finalize_line_tokens, scan_block_comment, scan_cpp_raw, scan_css_url, scan_heredoc, scan_js_regex, scan_line_comment, scan_quoted, scan_triple_quote
 import io
 import re
 import tokenize
+# 2026-11-25
+# "Add comment-only diff lexer exemption for top 20 repository languages":
+# https://github.com/dmitry-ai/harness/issues/238
 _CODING_RE = re.compile(r'coding[:=]\s*[-\w.]+')
 _HTML_OPEN_RE = re.compile(r'<\?(?:php\b|=)?', re.IGNORECASE)
 _REGEX_PREV_CHARS = frozenset('=([{,;:!?&|^~+-*/%<>')

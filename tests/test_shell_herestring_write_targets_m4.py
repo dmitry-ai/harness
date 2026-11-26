@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Strip PowerShell here-strings before shell redirect write-target scanning":
-# https://github.com/dmitry-ai/harness/issues/221
 from __future__ import annotations
 from pathlib import Path
 import sys
@@ -11,6 +9,9 @@ SCRIPTS = WT_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 from agent_tools.tdd.commands import shell_code_write_targets, shell_write_targets
+# 2026-11-24
+# "Strip PowerShell here-strings before shell redirect write-target scanning":
+# https://github.com/dmitry-ai/harness/issues/221
 class ShellHerestringWriteTargetsM4Tests(unittest.TestCase):
 	def test_ignores_arrows_and_html_inside_powershell_herestring(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add structured problem metadata builder and CLI command":
-# https://github.com/dmitry-ai/harness/issues/180
 from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -15,6 +13,9 @@ SCRIPT_DIR = WT_ROOT / 'scripts'
 if str(SCRIPT_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPT_DIR))
 from agent_tools import metadata
+# 2026-11-24
+# "Add structured problem metadata builder and CLI command":
+# https://github.com/dmitry-ai/harness/issues/180
 class ProblemMetadataTests(unittest.TestCase):
 	def test_build_problem_metadata_rejects_missing_or_invalid_issue_url(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

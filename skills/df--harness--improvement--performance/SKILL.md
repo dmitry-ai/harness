@@ -2,6 +2,7 @@
 name: df--harness--improvement--performance
 description: "Conducts evidence-driven Harness performance audits and optimization plans (turn chronometry timesheets, prompt-cache/compaction diagnostics, test-suite and hot-path profiling, and controlled microbenchmarks) with ranked systemic recommendations; use for /df--harness--improvement--performance and Harness performance investigations."
 ---
+<!-- 2026-11-24 "Add /df--harness--improvement--performance skill and update platform adapters": https://github.com/dmitry-ai/harness/issues/193 -->  
 # Harness Performance Improvement Audit and Optimization
 
 This skill codifies the repeatable Harness performance-audit and optimization procedure distilled from Harness journal audits `206` (agent turn latency) and `224` (test-suite and runtime hot-path profiling).  
@@ -50,4 +51,3 @@ python <scripts>/harness.py perf-profile-tests [<tests-dir>] [--workers <N>] [--
 1. Detailed Track A/B chronometry, profiling, bottleneck taxonomy, microbenchmark protocol, and scoring rubric: [methodology.md](references/methodology.md).  
 1. Required five-section `/df-analysis` performance report structure and pre-flight checklist: [report-template.md](references/report-template.md).  
 1. Full Harness CLI documentation for `perf-timesheet`, `perf-profile-tests`, `problem-metadata`, `analysis-check`, and `evidence-query`: [README-agent-tools.md](../../scripts/README-agent-tools.md#additional-tools).  
-<!-- https://github.com/dmitry-ai/harness/issues/193 -->  

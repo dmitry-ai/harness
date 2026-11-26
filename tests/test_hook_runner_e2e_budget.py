@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add cold-start harness_hook_runner budget test against hooks.json timeout":
-# https://github.com/dmitry-ai/harness/issues/254
 from __future__ import annotations
 from pathlib import Path
 import json
@@ -41,6 +39,9 @@ def _stage_snapshot_runner(base: Path) -> tuple[Path, Path]:
 	runner = base / 'harness_hook_runner.py'
 	runner.write_text(harness_hook_runner_source(WT_ROOT, store_dir=store), encoding='utf-8')
 	return (runner, store)
+# 2026-11-25
+# "Add cold-start harness_hook_runner budget test against hooks.json timeout":
+# https://github.com/dmitry-ai/harness/issues/254
 class HookRunnerE2EBudgetTests(unittest.TestCase):
 	def test_cold_start_runner_stays_within_25_percent_of_hooks_json_timeout(self) -> None:
 		timeout_s = _configured_rules_gate_timeout()

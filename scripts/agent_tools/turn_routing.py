@@ -1,9 +1,10 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify handed-off turn routing and deterministic state selection across hooks":
-# https://github.com/dmitry-ai/harness/issues/231
 from __future__ import annotations
 from pathlib import Path
 import sqlite3
+# 2026-11-25
+# "Unify handed-off turn routing and deterministic state selection across hooks":
+# https://github.com/dmitry-ai/harness/issues/231
 _STATUS_RANK = {
 	'conflict': 1,
 	'delivered': 4,

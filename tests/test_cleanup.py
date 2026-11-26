@@ -1,12 +1,4 @@
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
-# https://github.com/dmitry-ai/harness/issues/75
 # 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add /upwork-cleanup skill and cross-platform empty project pruner with timestamped audit logs":
-# https://github.com/dmitry-ai/harness/issues/8
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from copy import deepcopy
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, redirect_stdout
@@ -22,6 +14,12 @@ from test_agent_tools import TemporaryCase
 from agent_tools import cleanup, runtime, upwork_project as up
 from agent_tools.platforms.antigravity import register_antigravity_project
 from test_onboarding import source
+# 2026-10-17
+# "Add /upwork-cleanup skill and cross-platform empty project pruner with timestamped audit logs":
+# https://github.com/dmitry-ai/harness/issues/8
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class CleanupTests(TemporaryCase):
 	def setUp(self):
 		super().setUp()
@@ -427,6 +425,9 @@ class CleanupTests(TemporaryCase):
 		self.assertIsNotNone(datetime.fromisoformat(state['created_at']).tzinfo)
 		up.initialize_upwork_project(source()['job_id'], 'Topic', '2026-10-15', daily_root=self.daily, extracted_data=source(), register_native=False)
 		self.assertEqual(json.loads((root / 'ꘖ/project.json').read_text(encoding='utf-8'))['created_at'], state['created_at'])
+	# 2026-11-14
+	# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+	# https://github.com/dmitry-ai/harness/issues/75
 	def test_project_cleanup_scanner_reuses_single_pass_history_index_in_dry_run(self):
 		self.project(1)
 		_, kept_native, _ = self.project(2)
@@ -437,6 +438,12 @@ class CleanupTests(TemporaryCase):
 		self.assertEqual(loader.call_count, 1)
 		self.assertEqual(preview['counts']['eligible'], 2)
 		self.assertEqual(preview['counts']['preserved'], 1)
+# 2026-10-17
+# "Add /upwork-cleanup skill and cross-platform empty project pruner with timestamped audit logs":
+# https://github.com/dmitry-ai/harness/issues/8
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class CleanupReportTests(TemporaryCase):
 	def test_exact_answer_and_filename_use_the_same_istanbul_time_across_utc_midnight(self):
 		body = 'Cleanup completed.\n\n[History](<C:/work/upwork/code/proposals/daily>)\n'

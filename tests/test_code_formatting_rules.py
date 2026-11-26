@@ -1,15 +1,4 @@
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Refactor shared rules into compact three-layer M-2 architecture":
-# https://github.com/dmitry-ai/harness/issues/242
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add Python and INI formatting standards derived from reference pipelines":
-# https://github.com/dmitry-ai/harness/issues/156
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add PHP and markup formatting standards derived from mage2pro/core":
-# https://github.com/dmitry-ai/harness/issues/155
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Migrate general code formatting rules with Bash and ES6 guides":
-# https://github.com/dmitry-ai/harness/issues/154
 from __future__ import annotations
 from pathlib import Path
 import sys
@@ -22,6 +11,9 @@ from agent_tools import links, native_profiles, upwork_project
 import check_markdown_slop
 CODE_FORMATTING_DIR = HARNESS_ROOT / 'references/code-formatting'
 RULE_DOC = HARNESS_ROOT / 'rules/11-code-formatting.md'
+# 2026-11-23
+# "Migrate general code formatting rules with Bash and ES6 guides":
+# https://github.com/dmitry-ai/harness/issues/154
 class CodeFormattingRulesContractTests(unittest.TestCase):
 	def _assert_clean_doc(self, doc: Path) -> str:
 		self.assertTrue(doc.is_file(), f'Missing formatting document: {doc}')
@@ -46,6 +38,9 @@ class CodeFormattingRulesContractTests(unittest.TestCase):
 			self.assertIn(token, js_text, f'Missing JavaScript formatting requirement {token!r}')
 	def test_general_rule_passes_doctor_native_bootstrap_and_lint(self) -> None:
 		rule_text = self._assert_clean_doc(RULE_DOC)
+		# 2026-11-25
+		# "Refactor shared rules into compact three-layer M-2 architecture":
+		# https://github.com/dmitry-ai/harness/issues/242
 		self.assertLess(len(RULE_DOC.read_bytes()), 6000, 'rules/11-code-formatting.md must stay under per-file budget')
 		for token in ('trigger: model_decision', '## CODE-1', '## CODE-2', '## CODE-3', 'EXEC-5', 'DOC-4', 'FILE-1', 'tab', 'blank lines', 'single return point', '`r`', 'constant on the left', 'shorter', 'single quotes', 'alphabetical', 'programming/bash.md', 'programming/javascript.md'):
 			self.assertIn(token, rule_text, f'Missing general rule token {token!r} in {RULE_DOC.name}')
@@ -68,6 +63,9 @@ class CodeFormattingRulesContractTests(unittest.TestCase):
 		self.assertIn('issue-comments.md', exec_rule)
 		gh_skill = self._assert_clean_doc(HARNESS_ROOT / 'skills/df-github-issue/SKILL.md')
 		self.assertIn('issue-comments.md', gh_skill)
+	# 2026-11-23
+	# "Add PHP and markup formatting standards derived from mage2pro/core":
+	# https://github.com/dmitry-ai/harness/issues/155
 	def test_mage2pro_derived_php_markup_and_other_guides(self) -> None:
 		rule_text = self._assert_clean_doc(RULE_DOC)
 		for rel in ('programming/php.md', 'markup/xml.md', 'markup/html.md', 'other/json.md', 'other/less.md'):
@@ -87,6 +85,9 @@ class CodeFormattingRulesContractTests(unittest.TestCase):
 		less_text = self._assert_clean_doc(CODE_FORMATTING_DIR / 'other/less.md')
 		for token in ('11-code-formatting.md#code-1', 'tab', 'single-line', 'leading comma', 'not part of'):
 			self.assertIn(token, less_text, f'Missing LESS formatting requirement {token!r}')
+	# 2026-11-23
+	# "Add Python and INI formatting standards derived from reference pipelines":
+	# https://github.com/dmitry-ai/harness/issues/156
 	def test_python_and_ini_guides_cover_pipeline_standards(self) -> None:
 		rule_text = self._assert_clean_doc(RULE_DOC)
 		for rel in ('programming/python.md', 'other/ini.md'):

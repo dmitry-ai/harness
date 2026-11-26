@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Use canonical native inputs and strip USER_REQUEST in native_review_proof":
-# https://github.com/dmitry-ai/harness/issues/210
 from __future__ import annotations
 import json
 from pathlib import Path
@@ -27,6 +25,9 @@ def _chip_payload(prefix_text: str, cmd_name: str, suffix_text: str, flat_text: 
 	if suffix_text:
 		parts.append(wire(3, wire(1, suffix_text.encode('utf-8'))))
 	return wire(19, b''.join(parts))
+# 2026-11-24
+# "Use canonical native inputs and strip USER_REQUEST in native_review_proof":
+# https://github.com/dmitry-ai/harness/issues/210
 class NativeReviewBindingM4Tests(ProjectCase):
 	def setUp(self) -> None:
 		super().setUp()

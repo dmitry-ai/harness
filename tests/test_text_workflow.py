@@ -1,12 +1,4 @@
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose text_workflow.py into ClientTextWorkspace and TextIntegrityVerifier classes":
-# https://github.com/dmitry-ai/harness/issues/78
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from copy import deepcopy
 import json
 import os
@@ -18,6 +10,12 @@ def codes(result):
 	issues = result['issues'] if isinstance(result, dict) else result
 	r = {issue['code'] for issue in issues}
 	return r
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class TextWorkspaceCase(TemporaryCase):
 	def setUp(self):
 		super().setUp()
@@ -56,6 +54,9 @@ class TextMapTests(TextWorkspaceCase):
 		self.assertFalse((self.project / 'ꘖ/KB/Analysis.json').exists())
 		self.assertEqual(result['claim_versions'].keys(), {'F-PRIMARY-1'})
 		self.assertEqual(target.read_text(encoding='utf-8'), candidate)
+	# 2026-10-22
+	# "Ban conditional conjunctions in limited claim qualifications and isolate closed admin access from proven public storefront facts":
+	# https://github.com/dmitry-ai/harness/issues/15
 	def test_limited_claim_rejects_lazy_conditional_qualification(self):
 		captured = v3_analysis(self.project)
 		captured['facts'][0]['verification_status'] = 'limited'
@@ -204,6 +205,9 @@ class TextTransactionTests(TextWorkspaceCase):
 		target.write_bytes(b'1. Direct shell overwrite.\n')
 		with self.assertRaisesRegex(ValueError, 'without a current apply receipt'):
 			text_workflow.gate(self.project)
+	# 2026-11-14
+	# "Decompose text_workflow.py into ClientTextWorkspace and TextIntegrityVerifier classes":
+	# https://github.com/dmitry-ai/harness/issues/78
 	def test_workspace_and_integrity_verifier_single_pass_invariants(self):
 		from unittest.mock import patch
 		original = '1. The queue refers to §3.\n\n3. The handler runs.\n'

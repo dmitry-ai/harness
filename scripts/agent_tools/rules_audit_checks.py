@@ -1,10 +1,11 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add deterministic rules-audit CLI and aggregate budget enforcement":
-# https://github.com/dmitry-ai/harness/issues/244
 from __future__ import annotations
 from pathlib import Path
 from . import links
 import re
+# 2026-11-26
+# "Add deterministic rules-audit CLI and aggregate budget enforcement":
+# https://github.com/dmitry-ai/harness/issues/244
 MAX_ALWAYS_ON_BYTES = 24000
 MAX_ALWAYS_ON_TOKENS = 7000
 MAX_RULE_FILE_BYTES = 6000

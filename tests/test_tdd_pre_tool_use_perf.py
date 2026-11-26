@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add deterministic PreToolUse subprocess budget and scaling regression tests":
-# https://github.com/dmitry-ai/harness/issues/253
 from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
@@ -58,6 +56,9 @@ def _seed_multicommit_transcript(base: Path, file_count: int) -> tuple[Path, Pat
 	tx = base / f'tx_{file_count}.jsonl'
 	tx.write_text(''.join((json.dumps(r, ensure_ascii=False) + '\n' for r in rows)), encoding='utf-8')
 	return (repo, tx)
+# 2026-11-25
+# "Add deterministic PreToolUse subprocess budget and scaling regression tests":
+# https://github.com/dmitry-ai/harness/issues/253
 class TddPreToolUsePerfTests(unittest.TestCase):
 	def test_code_and_test_writes_stay_o1_subprocesses_across_25_committed_files(self) -> None:
 		with tempfile.TemporaryDirectory() as td:

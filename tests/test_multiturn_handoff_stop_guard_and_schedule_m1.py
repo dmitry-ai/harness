@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
-# https://github.com/dmitry-ai/harness/issues/224
 from __future__ import annotations
 from contextlib import closing
 import hashlib
@@ -49,6 +47,9 @@ def _payload(cwd: Path, log_file: Path, *, cont: bool=False) -> dict:
 		'continuationActive': cont,
 		'executionNum': 0,
 	}
+# 2026-11-24
+# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
+# https://github.com/dmitry-ai/harness/issues/224
 class MultiturnHandoffStopGuardAndScheduleM1Tests(unittest.TestCase):
 	def test_handed_off_launcher_routes_turn2_followup_but_not_new_job_id(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

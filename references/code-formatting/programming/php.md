@@ -1,3 +1,4 @@
+<!-- 2026-11-23 "Add PHP and markup formatting standards derived from mage2pro/core": https://github.com/dmitry-ai/harness/issues/155 -->  
 # PHP Formatting Standard
 
 Inherits all general rules from [CODE-1](../../../rules/11-code-formatting.md#code-1) (tab indentation, zero blank lines, single return point, variable `$r`, Yoda comparisons, shorter `if` branch above longer `else` branch, single quotes by default, alphabetical ordering, no unrequested comments).  
@@ -74,4 +75,3 @@ final class Frame extends _P {
 	}
 }
 ```
-<!-- https://github.com/dmitry-ai/harness/issues/155 -->  

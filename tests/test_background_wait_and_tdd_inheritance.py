@@ -1,6 +1,4 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
-# https://github.com/dmitry-ai/harness/issues/166
 from __future__ import annotations
 from contextlib import closing
 import json
@@ -28,6 +26,9 @@ def _varint(val: int) -> bytes:
 			return bytes(out)
 def _wire(field_num: int, payload: bytes) -> bytes:
 	return _varint((field_num << 3) | 2) + _varint(len(payload)) + payload
+# 2026-11-23
+# "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
+# https://github.com/dmitry-ai/harness/issues/166
 class BackgroundWaitAndTddInheritanceTests(unittest.TestCase):
 	def test_completed_prior_turn_does_not_bleed_tdd_events_into_unrelated_followup(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

@@ -1,5 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/238
 from __future__ import annotations
 from pathlib import Path
 import subprocess
@@ -80,6 +79,9 @@ def _seed_commit(repo: Path, rel: str, content: str) -> None:
 	target.write_text(content, encoding='utf-8')
 	_git('-C', str(repo), 'add', rel)
 	_git('-C', str(repo), 'commit', '--no-verify', '-m', 'seed')
+# 2026-11-25
+# "Add comment-only diff lexer exemption for top 20 repository languages":
+# https://github.com/dmitry-ai/harness/issues/238
 class CommentOnlyExemptionTests(unittest.TestCase):
 	def test_auditor_exempts_committed_comment_only_js_from_per_file_issue_url(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
-# https://github.com/dmitry-ai/harness/issues/223
 from __future__ import annotations
 import argparse
 import os
@@ -14,6 +12,9 @@ SCRIPTS = WT_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 from agent_tools import cli_domains, review
+# 2026-11-24
+# "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
+# https://github.com/dmitry-ai/harness/issues/223
 class ReviewContractPackageAndPathsM6Tests(unittest.TestCase):
 	def test_report_contract_and_validator_require_package_envelope_keys(self) -> None:
 		req_fields = review.REPORT_CONTRACT.get('required_top_level_fields') or []

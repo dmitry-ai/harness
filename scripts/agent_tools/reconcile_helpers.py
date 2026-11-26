@@ -1,9 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract ask_question clarification metadata and prohibit Stop Gate bypass via ask_question":
-# https://github.com/dmitry-ai/harness/issues/234
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Ensure atomic answer-prepare workflow alignment and safe open-turn reconciliation":
-# https://github.com/dmitry-ai/harness/issues/232
 from __future__ import annotations
 from pathlib import Path
 from . import journal
@@ -35,7 +30,13 @@ def _trim_narrowed_reservation(jdir: Path, value: dict, current: list) -> None:
 				journal._write_turn_reservations(eff, reservations)
 				if isinstance(value.get('reserved_journal_steps'), list):
 					value['reserved_journal_steps'] = [p[1] for p in pairs]
+# 2026-11-25
+# "Ensure atomic answer-prepare workflow alignment and safe open-turn reconciliation":
+# https://github.com/dmitry-ai/harness/issues/232
 def resolve_saved_turn_requests(root: Path, native: dict, turn: dict, value: dict, *, recovered: bool, same_req_fn, journal_dir_fn) -> list:
+	# 2026-11-25
+	# "Extract ask_question clarification metadata and prohibit Stop Gate bypass via ask_question":
+	# https://github.com/dmitry-ai/harness/issues/234
 	if turn.get('clarifications'):
 		value['clarifications'] = list(turn['clarifications'])
 	old, current = (value['requests'], turn['requests'])

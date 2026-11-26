@@ -1,12 +1,4 @@
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs":
-# https://github.com/dmitry-ai/harness/issues/264
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Cache normalized text and numeric tokens in LocalSourceGroundingAuditor corpus":
-# https://github.com/dmitry-ai/harness/issues/216
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Skip blocking grounding on scratch drafts and add line locations to diagnostics":
-# https://github.com/dmitry-ai/harness/issues/214
 from __future__ import annotations
 from pathlib import Path
 from urllib.parse import urldefrag
@@ -57,6 +49,7 @@ def _tag_new_errors(errors: list[str], start_idx: int, line_no: int | None) -> N
 		for idx in range(start_idx, len(errors)):
 			if '(line ' not in errors[idx]:
 				errors[idx] = errors[idx] + suffix
+# 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
 def _collect_local_repo_ext_entries(auditor, active_exts: list[str], norm_fn, num_fn) -> tuple[list[tuple[str, str, set[str]]], list[str]]:
 	from .repo_link_gate import resolve_local_github_blob
 	entries: list[tuple[str, str, set[str]]] = []
@@ -81,6 +74,9 @@ def audit_active_block(auditor, block, filtered_locals: list[Path], ext_urls: li
 			audit_block_lines(auditor, block, infos, combined_raw, combined_norm, ev_nums, ', '.join(labels[:2]))
 		else:
 			auditor._check_unlinked_deliverable_metrics(block.content)
+# 2026-11-24
+# "Skip blocking grounding on scratch drafts and add line locations to diagnostics":
+# https://github.com/dmitry-ai/harness/issues/214
 def audit_block_lines(auditor, block, infos: list[dict], combined_raw: str, combined_norm: str, ev_nums: set[str], src_label: str) -> None:
 	bmap = getattr(block, 'map', None)
 	base_line = (int(bmap[0]) + 1) if isinstance(bmap, (list, tuple)) and bmap else None
@@ -97,6 +93,9 @@ def audit_block_lines(auditor, block, infos: list[dict], combined_raw: str, comb
 			before = len(auditor.errors)
 			auditor._check_prose_line(line.strip(), infos, combined_raw, combined_norm, ev_nums, src_label, ticket_infos, valid_msg_nums, bound_ticket_ids, any_cyrillic_source)
 			_tag_new_errors(auditor.errors, before, None if None is base_line else base_line + offset)
+# 2026-11-24
+# "Cache normalized text and numeric tokens in source_grounding active corpus":
+# https://github.com/dmitry-ai/harness/issues/216
 def build_active_corpus_cached(auditor, active_locals: list[Path], active_exts: list[str], active_primary: list[Path], norm_fn, num_fn) -> tuple[list[dict], str, str, set[str], str]:
 	norm_exts = _norm_ext_urls(active_exts)
 	bucket = _obs_bucket(auditor.cache, auditor.observed_texts)

@@ -1,16 +1,14 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce single falsifier review default and block duplicate send_message reports":
-# https://github.com/dmitry-ai/harness/issues/226
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
-# https://github.com/dmitry-ai/harness/issues/223
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+from __future__ import annotations
+# 2026-11-24
 # "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
 # https://github.com/dmitry-ai/harness/issues/212
-from __future__ import annotations
 TARGET_CLAIM_RULE = 'Copy claims[i].essence verbatim in its original language without translating or paraphrasing (see claim_targets)'
 def _nonempty(value) -> bool:
 	return isinstance(value, str) and bool(value.strip())
+# 2026-11-24
+# "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
+# https://github.com/dmitry-ai/harness/issues/223
 def _package_envelope_issues(data: dict, package: dict) -> list[str]:
 	r: list[str] = []
 	if not _nonempty(data.get('package')):
@@ -35,6 +33,9 @@ def alignment_issues(ident: str, alignment, expected_target: str | None) -> list
 		if rel not in ('direct', 'proxy', 'irrelevant'):
 			issues.append(f'{ident}: test_alignment.relationship must be direct, proxy or irrelevant, got {rel!r}')
 	return issues
+# 2026-11-24
+# "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
+# https://github.com/dmitry-ai/harness/issues/223
 def bind_contract_envelope(contract: dict, package_path: str, package_sha: str, review_mode: str | None=None) -> dict:
 	r = dict(contract)
 	if 'falsifier' == review_mode and isinstance(r.get('falsifier_required_top_level_fields'), list):
@@ -44,6 +45,9 @@ def bind_contract_envelope(contract: dict, package_path: str, package_sha: str, 
 	return r
 def build_claim_targets(claims: list | tuple | None) -> dict[str, str]:
 	return {c['claim_id']: c['essence'] for c in (claims or ()) if isinstance(c, dict) and _nonempty(c.get('claim_id')) and isinstance(c.get('essence'), str)}
+# 2026-11-24
+# "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
+# https://github.com/dmitry-ai/harness/issues/223
 def envelope_issues(data: dict, package: dict, *, review_schema: int, scopes: tuple[str, ...], require_envelope: bool=False) -> list[str]:
 	r: list[str] = []
 	if review_schema != data.get('schema_version'):
@@ -56,6 +60,9 @@ def envelope_issues(data: dict, package: dict, *, review_schema: int, scopes: tu
 	if require_envelope or ('package' in data) or ('package_sha256' in data):
 		r.extend(_package_envelope_issues(data, package))
 	return r
+# 2026-11-24
+# "Enforce single falsifier review default and block duplicate send_message reports":
+# https://github.com/dmitry-ai/harness/issues/226
 def resolve_package_review_mode(spec: object, package: dict, evaluator) -> str | None:
 	if isinstance(spec, dict) and spec.get('review_mode') in ('standard', 'falsifier'):
 		r: str | None = spec['review_mode']

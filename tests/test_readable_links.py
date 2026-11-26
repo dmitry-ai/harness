@@ -1,15 +1,4 @@
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Initialize new Upwork projects in the V2 filesystem layout":
-# https://github.com/dmitry-ai/harness/issues/110
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
-# https://github.com/dmitry-ai/harness/issues/109
-# 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
-# https://github.com/dmitry-ai/harness/issues/9
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
+# 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from test_agent_tools import TemporaryCase
 from test_analysis_workflow import ProjectCase
 from agent_tools.analysis import publish_owned, render_analysis
@@ -19,6 +8,12 @@ from agent_tools.knowledge import sync_website_card
 from agent_tools.links import markdown_link, readable_link_issues, readable_reference, references, validate_file
 from agent_tools.project_card import sync_block
 from agent_tools import workflow
+# 2026-10-17
+# "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
+# https://github.com/dmitry-ai/harness/issues/9
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class ReadableReferenceTests(TemporaryCase):
 	def setUp(self):
 		super().setUp()
@@ -113,6 +108,12 @@ class ReadableReferenceTests(TemporaryCase):
 		output = extract_docx_markdown(stream.getvalue())
 		self.assertIn('[Original source title](<https://example.org/with space/ꘖ>)', output)
 		self.assertEqual(readable_link_issues(output), [])
+# 2026-10-17
+# "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
+# https://github.com/dmitry-ai/harness/issues/9
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class ReadableProjectTests(ProjectCase):
 	def test_analysis_sources_are_readable_while_quotes_keep_their_exact_bytes(self):
 		value = self.valid_analysis()
@@ -122,6 +123,9 @@ class ReadableProjectTests(ProjectCase):
 		self.assertIn('[Source](<Evidence/with space/ꘖ.json>)', output)
 		self.assertIn('> ' + exact, output)
 		self.assertEqual(readable_link_issues(output), [])
+	# 2026-11-21
+	# "Initialize new Upwork projects in the V2 filesystem layout":
+	# https://github.com/dmitry-ai/harness/issues/110
 	def test_website_card_uses_readable_iri_and_keeps_original_website_selection(self):
 		from test_onboarding import claim
 		value = self.valid_analysis()
@@ -136,6 +140,9 @@ class ReadableProjectTests(ProjectCase):
 		self.assertEqual(value['websites'][0]['url'], url)
 		with self.assertRaisesRegex(ValueError, 'LINK-5'):
 			sync_block(self.project, self.project / 'readme.md', 'unsafe', '[Source](https://example.org/a%20b)')
+	# 2026-11-21
+	# "Initialize new Upwork projects in the V2 filesystem layout":
+	# https://github.com/dmitry-ai/harness/issues/110
 	def test_project_check_covers_agent_kb_and_client_markdown_text_and_html(self):
 		self.valid_analysis()
 		files = ['ꘖ/KB/Notes.md', '\u2c0f/\u227b/\u2655/\U0001f582/Letters/EN/draft.md', '\u2c0f/\u227b/\u2655/\U0001f582/Letters/EN/final.txt', '\u2c0f/\u227b/\u2655/\U0001f582/Letters/publish.html']
@@ -148,4 +155,7 @@ class ReadableProjectTests(ProjectCase):
 		with self.assertRaisesRegex(ValueError, 'LINK-5'):
 			workflow.record_current_answer(self.project, '[Source](https://example.org/with%20space)')
 		self.assertFalse(list((self.project / 'ꙮ/1 - Analysis/res').glob('*.md')))
+		# 2026-11-21
+		# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+		# https://github.com/dmitry-ai/harness/issues/109
 		self.assertFalse(iter_side_step_files(self.project / 'ꙮ/≺'))

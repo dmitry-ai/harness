@@ -1,15 +1,4 @@
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Refactor shared rules into compact three-layer M-2 architecture":
-# https://github.com/dmitry-ai/harness/issues/242
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace per-profile Harness projections with shared native connections":
-# https://github.com/dmitry-ai/harness/issues/35
 import json
 import re
 import shutil
@@ -27,6 +16,12 @@ def wrap(*analysis, recommendations=('Fix it (**[§I.1](#I.1)**).',)):
 		out += [f'## {index}', f"<a name='II.{index}'></a>", body, '']
 	r = '\n'.join(out)
 	return r
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class ReferenceArticleTests(TemporaryCase):
 	def test_external_document_spacing_preserves_its_number_and_literal_examples(self):
 		text = wrap('The rule is 11 CCR § 7025.\nThe exact quotation is «11 CCR § 7025».\n`11 CCR § 7025`')
@@ -172,10 +167,16 @@ class LexiconAndProjectionTests(TemporaryCase):
 			self.assertTrue(set(entry['kinds']) <= {'article', 'proposal', 'letter', 'response'})
 			for pattern in entry['patterns']:
 				re.compile(pattern)
+	# 2026-10-22
+	# "Ban conditional conjunctions in limited claim qualifications and isolate closed admin access from proven public storefront facts":
+	# https://github.com/dmitry-ai/harness/issues/15
 	def test_trailing_conditional_recommendation_is_flagged(self):
 		text = wrap('Storefront has religious products: `curl`\n> mihrab clock', recommendations=('**[§I.1](#I.1)** → Submit an appeal in Meta Support if catalog products do not constitute religious practices.',))
 		findings = article.lint_text(text)
 		self.assertIn('REC-TRAILING-CONDITION', rules(findings, 'error'))
+	# 2026-10-22
+	# "Ban conditional conjunctions in limited claim qualifications and isolate closed admin access from proven public storefront facts":
+	# https://github.com/dmitry-ai/harness/issues/15
 	def test_conditional_recommendation_must_branch_from_part_two_diagnostic_step(self):
 		text_bad = wrap('Storefront has religious products: `curl`\n> mihrab clock', recommendations=('If the catalog of **[§I.1](#I.1)** is decorative → Submit an appeal.',))
 		findings_bad = article.lint_text(text_bad)
@@ -183,6 +184,9 @@ class LexiconAndProjectionTests(TemporaryCase):
 		text_good = wrap('Storefront bottleneck: `curl`\n> slow', recommendations=('Profile interactions with DevTools (**[§I.1](#I.1)**).', 'If the bottleneck of **[§II.1](#II.1)** turns out to be script execution → split bundle.'))
 		findings_good = article.lint_text(text_good)
 		self.assertNotIn('GRAPH-CONDITIONAL-STEP', rules(findings_good, 'error'))
+	# 2026-11-02
+	# "Replace per-profile Harness projections with shared native connections":
+	# https://github.com/dmitry-ai/harness/issues/35
 	def test_build_native_uses_shared_skills_without_project_wrappers(self):
 		primary = self.root / 'canonical'
 		for relative in ('rules', 'platforms', 'skills/upwork-init', 'agents'):
@@ -198,4 +202,7 @@ class LexiconAndProjectionTests(TemporaryCase):
 		manifest = json.loads((primary / 'platforms/antigravity/skills.json').read_text(encoding='utf-8'))
 		self.assertEqual(manifest['entries'], [{'path': (primary / 'skills').as_posix()}])
 		self.assertTrue((primary / 'skills/df-article/SKILL.md').is_file())
+		# 2026-11-25
+		# "Refactor shared rules into compact three-layer M-2 architecture":
+		# https://github.com/dmitry-ai/harness/issues/242
 		self.assertIn('00-scope.md', (output / '.codex/config.toml').read_text(encoding='utf-8'))

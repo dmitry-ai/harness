@@ -1,15 +1,4 @@
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace getElementById with querySelector in read-only CDP registry and verify on live headless Chromium":
-# https://github.com/dmitry-ai/harness/issues/130
-# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
-# https://github.com/dmitry-ai/harness/issues/80
 # 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
-# https://github.com/dmitry-ai/harness/issues/3
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 import asyncio
 from datetime import datetime, timezone
 import hashlib
@@ -21,10 +10,25 @@ from urllib.parse import urljoin, urlsplit
 import urllib.request
 from .runtime import HARNESS_META, settings
 from .storage import create_bytes
+# 2026-11-23
+# "Replace getElementById with querySelector in read-only CDP registry and verify on live headless Chromium":
+# https://github.com/dmitry-ai/harness/issues/130
 from .text_browser import UPWORK_PAGE_STATE_EXPR, USER_AGENT_EXPR
 from .upwork_data import canonical_job_url, extract_candidate_domains, extract_client_names, normalize_job_id, resolve_nuxt_devalue
+# 2026-10-14
+# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
+# https://github.com/dmitry-ai/harness/issues/3
 MAX_ATTACHMENT = 25 * 1024 * 1024
+# 2026-11-16
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
+# 2026-11-23
+# "Replace getElementById with querySelector in read-only CDP registry and verify on live headless Chromium":
+# https://github.com/dmitry-ai/harness/issues/130
 _PAGE_STATE_EXPR = UPWORK_PAGE_STATE_EXPR
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def upwork_host(url):
 	parsed = urlsplit(url)
 	r = 'https' == parsed.scheme and (not parsed.username) and (not parsed.password) and (parsed.port in (None, 443)) and ('upwork.com' == parsed.hostname or (parsed.hostname or '').endswith('.upwork.com'))
@@ -128,6 +132,9 @@ def select_tab(tabs, job_id, tab_id=None):
 	if 1 != len(candidates):
 		raise ValueError('Select one exact Upwork job tab with --tab-id; no arbitrary account fallback')
 	return candidates[0]
+# 2026-11-16
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 def _eval_session(mux, session_id, expression, *, await_promise=False, read_only=False, timeout_ms=25000):
 	params = {'expression': expression, 'returnByValue': True}
 	if await_promise:
@@ -138,6 +145,9 @@ def _eval_session(mux, session_id, expression, *, await_promise=False, read_only
 	if not isinstance(result, dict) or result.get('exceptionDetails'):
 		raise RuntimeError(f"Browser evaluation failed: {(result or {}).get('exceptionDetails')}")
 	return result.get('result', {}).get('value')
+# 2026-11-16
+# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+# https://github.com/dmitry-ai/harness/issues/80
 def extract_upwork_job(url_or_id, cdp_port=9222, fetch_related=True, attachments_dir=None, tab_id=None, *, session_id=None, config=None, http_get=None, cdp_call=None):
 	from .text_browser import CDPSession, GuardedCDP, _checked_ws, _query_target_infos, discover_cdp_browser, preflight
 	job_id = normalize_job_id(url_or_id)
@@ -210,6 +220,9 @@ def extract_upwork_job(url_or_id, cdp_port=9222, fetch_related=True, attachments
 						for ident in sorted(ids - {None, job_id}):
 							ident = normalize_job_id(ident)
 							rel_url = canonical_job_url(ident).replace('https://upwork.com', 'https://www.upwork.com')
+							# 2026-11-23
+							# "Replace getElementById with querySelector in read-only CDP registry and verify on live headless Chromium":
+							# https://github.com/dmitry-ai/harness/issues/130
 							expression = f'(async()=>{{const r=await fetch({json.dumps(rel_url)},{{credentials:"include",signal:AbortSignal.timeout(20000)}});if(!r.ok)throw new Error("HTTP "+r.status);const d=new DOMParser().parseFromString(await r.text(),"text/html");return d.querySelector("#__NUXT_DATA__")?.textContent||"";}})()'
 							try:
 								text = _eval_session(mux, page_sid, expression, await_promise=True, timeout_ms=25000)
@@ -223,6 +236,9 @@ def extract_upwork_job(url_or_id, cdp_port=9222, fetch_related=True, attachments
 					if None is not attachments_dir and job.get('attachments'):
 						cookies_res = mux.send('Network.getCookies', {'urls': ['https://www.upwork.com']}, session_id=page_sid)
 						cookies = cookies_res.get('cookies', []) if isinstance(cookies_res, dict) else []
+						# 2026-11-23
+						# "Replace getElementById with querySelector in read-only CDP registry and verify on live headless Chromium":
+						# https://github.com/dmitry-ai/harness/issues/130
 						ua = _eval_session(mux, page_sid, USER_AGENT_EXPR, read_only=True) or 'UpworkOnboarding/2'
 						for attachment in job['attachments']:
 							try:

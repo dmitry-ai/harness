@@ -1,21 +1,4 @@
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace getElementById with querySelector in read-only CDP registry and verify on live headless Chromium":
-# https://github.com/dmitry-ai/harness/issues/130
-# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
-# https://github.com/dmitry-ai/harness/issues/80
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
-# https://github.com/dmitry-ai/harness/issues/66
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce browser CDP DOM collection for JS/anti-bot pages, block search-snippet citation substitution, and extract universal harness.py CLI":
-# https://github.com/dmitry-ai/harness/issues/27
 from copy import deepcopy
 import json
 from pathlib import Path
@@ -26,6 +9,12 @@ import time
 import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from agent_tools.text_browser import GuardedCDP, operation, preflight
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class NativeFixture:
 	def __init__(self):
 		self.calls = []
@@ -50,6 +39,9 @@ class NativeFixture:
 		elif 'Target.createTarget' == method:
 			self.targets.append({'id': 'owned', 'type': 'page', 'url': params['url'], 'title': 'New', 'webSocketDebuggerUrl': 'ws://127.0.0.1:9222/devtools/page/owned'})
 			r = {'targetId': 'owned'}
+		# 2026-10-31
+		# "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
+		# https://github.com/dmitry-ai/harness/issues/27
 		elif 'Target.closeTarget' == method:
 			tid = params.get('targetId')
 			self.targets = [t for t in self.targets if t.get('id') != tid]
@@ -73,6 +65,12 @@ def dom_fixture(root, url, tab_id, html):
 		return r
 	guard = GuardedCDP(root, {'session_id': 'offline-dom', 'target_id': tab_id}, config=config, http_get=native.get, cdp_call=call)
 	return (guard, native)
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class TextBrowserTests(unittest.TestCase):
 	def setUp(self):
 		self.temp = tempfile.TemporaryDirectory()
@@ -276,6 +274,12 @@ class TextBrowserTests(unittest.TestCase):
 		self.assertFalse(errors)
 		self.assertEqual(maximum, 1)
 		self.assertEqual([method for _, method, _ in self.native.calls], ['Browser.getBrowserCommandLine', 'DOM.getDocument'] * 2)
+	# 2026-10-31
+	# "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
+	# https://github.com/dmitry-ai/harness/issues/27
+	# 2026-11-16
+	# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+	# https://github.com/dmitry-ai/harness/issues/80
 	def test_collect_browser_never_hijacks_open_user_tab_without_tab_id_and_uses_hidden_target(self):
 		from agent_tools.research import collect_browser
 		native = NativeFixture()
@@ -304,6 +308,9 @@ class TextBrowserTests(unittest.TestCase):
 		self.assertEqual(obs_user['kind'], 'dom')
 		self.assertTrue(any(('Target.createTarget' == m and p.get('hidden') for _, m, p in native.calls)))
 		self.assertFalse(any(('ws://127.0.0.1:9222/devtools/page/selected' == ep and 'Runtime.evaluate' == m for ep, m, _ in native.calls)))
+	# 2026-10-31
+	# "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
+	# https://github.com/dmitry-ai/harness/issues/27
 	def test_collect_http_auto_fallback_to_browser_on_reddit_js_challenge_shell(self):
 		from agent_tools.research import Response, collect_http
 		native = NativeFixture()
@@ -324,6 +331,9 @@ class TextBrowserTests(unittest.TestCase):
 		self.assertTrue(obs_auto.get('browser_fallback_from_http'))
 		self.assertFalse(obs_auto.get('browser_check_required'))
 		self.assertGreater(obs_auto.get('word_count', 0), 0)
+	# 2026-11-13
+	# "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
+	# https://github.com/dmitry-ai/harness/issues/66
 	def test_collect_plan_delegates_to_collect_http_and_shared_cdp_primitives(self):
 		from agent_tools.research import Response, collect_plan, extract_file
 		from agent_tools.text_browser import discover_cdp_browser, probe_cdp_arguments, save_cdp_identity
@@ -365,6 +375,9 @@ class TextBrowserTests(unittest.TestCase):
 		self.assertEqual('document', batch['results'][0]['profile'])
 		self.assertEqual('dom', batch['results'][1]['kind'])
 		self.assertTrue(batch['results'][1]['browser_fallback_from_http'])
+	# 2026-11-16
+	# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+	# https://github.com/dmitry-ai/harness/issues/80
 	def test_m2a_extension_manifest_key_and_multi_profile_tab_broker_isolation(self):
 		import base64
 		import hashlib as _hl
@@ -450,6 +463,9 @@ class TextBrowserTests(unittest.TestCase):
 		state['no_default_windows'] = True
 		with self.assertRaises(PermissionError):
 			collect_browser(self.root, 'https://portal.example.invalid/other', session_id='chrome-default', config=cfg, http_get=get, cdp_call=call)
+	# 2026-11-16
+	# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+	# https://github.com/dmitry-ai/harness/issues/80
 	def test_m2b_zero_extension_sentinel_skips_discarded_tabs_never_enumerates_cookies_and_guards_upwork_extract(self):
 		from agent_tools.upwork_extract import extract_upwork_job
 		cfg = {'workspace_root': str(self.root), 'platforms': {'antigravity': {'browser': {'cdp_port': 9222}}}, 'text': {'browser': {'primary_session_id': 'chrome-default', 'sessions': {'chrome-default': {'surface': 'browser', 'endpoint': 'http://127.0.0.1:9222', 'profile': {'path': str(self.root), 'argument': '--user-data-dir', 'sentinel_origin': 'https://harness-profile.invalid', 'sentinel_cookie_name': '__harness_primary_profile'}, 'target_url_patterns': ['https://*', 'http://*'], 'allowed_operations': ['read', 'screenshot', 'create', 'navigate', 'write', 'close']}}}}}
@@ -491,6 +507,9 @@ class TextBrowserTests(unittest.TestCase):
 		self.assertEqual(captured['coverage']['cdp_profile']['status'], 'verified')
 		self.assertEqual(captured['coverage']['cdp_profile']['evidence_method'], 'M-2B:sentinel-origin')
 		self.assertNotIn('Storage.getCookies', {m for _, m, _ in called_methods})
+	# 2026-11-16
+	# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+	# https://github.com/dmitry-ai/harness/issues/80
 	def test_m1_live_headless_shell_public_isolation_and_h_chs_6_static_skip(self):
 		from http.server import BaseHTTPRequestHandler, HTTPServer
 		from agent_tools.research import Response, collect_browser, collect_http, collect_plan
@@ -532,6 +551,9 @@ class TextBrowserTests(unittest.TestCase):
 		finally:
 			server.shutdown()
 			server.server_close()
+	# 2026-11-16
+	# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+	# https://github.com/dmitry-ai/harness/issues/80
 	def test_m4_cdp_bypass_gate_and_m5_browser_mcp_gate(self):
 		from check_rules_and_server_gate import check_browser_mcp_gate, check_cdp_bypass_gate
 		from agent_tools.shell_audit import prohibited_cdp_bypass_commands, unpersisted_http_fetch_commands
@@ -564,6 +586,9 @@ class TextBrowserTests(unittest.TestCase):
 		transcript.write_text(json.dumps({'type': 'USER_INPUT', 'content': 'go'}) + '\n' + json.dumps({'type': 'PLANNER_RESPONSE', 'tool_calls': [{'name': 'mcp_chrome-devtools_new_page', 'args': {'url': 'about:blank', 'background': True}}]}) + '\n', encoding='utf-8')
 		self.assertIsNone(check_browser_mcp_gate('mcp_chrome-devtools_navigate_page', {'url': 'https://example.com'}, {'transcriptPath': str(transcript)}))
 		self.assertIsNotNone(check_browser_mcp_gate('write_file', {'Path': str(self.root / 'mcp_config.json'), 'Content': '{"mcpServers":{"chrome-devtools":{"args":["--autoConnect"]}}}'}, {}))
+	# 2026-11-23
+	# "Replace getElementById with querySelector in read-only CDP registry and verify on live headless Chromium":
+	# https://github.com/dmitry-ai/harness/issues/130
 	def test_read_only_cdp_expressions_live_headless_shell_contract(self):
 		import ast
 		from http.server import BaseHTTPRequestHandler, HTTPServer

@@ -1,5 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/238
 from __future__ import annotations
 from pathlib import Path
 from .classifier import _GIT_HOOK_SCRIPT_NAMES, _has_shebang
@@ -144,6 +143,9 @@ def detect_comment_language(path: str | Path, *, content: str | None=None) -> st
 	else:
 		r = None
 	return r
+# 2026-11-25
+# "Add comment-only diff lexer exemption for top 20 repository languages":
+# https://github.com/dmitry-ai/harness/issues/238
 def is_comment_only_diff(path: str | Path, old_text: str | None, new_text: str | None) -> bool:
 	if None is old_text or None is new_text:
 		r = False

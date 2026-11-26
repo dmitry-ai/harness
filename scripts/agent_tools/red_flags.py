@@ -1,21 +1,19 @@
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks":
-# https://github.com/dmitry-ai/harness/issues/5
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from pathlib import Path
 import json
 from .diagnostics import problem
 from .storage import create_bytes, locked, replace_bytes
+# 2026-10-15
+# "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks":
+# https://github.com/dmitry-ai/harness/issues/5
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 FLAGS = {'RF-CLIENT-INTERMEDIARY': ('Client is an intermediary', ('confirmed', 'suspected')), 'RF-WEBSITE-UNIDENTIFIED': ('Target website is unidentified', ('unresolved',))}
 STATUSES = {'confirmed': 'confirmed', 'suspected': 'hypothesis', 'unresolved': 'unresolved from available data'}
 START = b'<!-- upwork-init:red-flags:start -->'
 END = b'<!-- upwork-init:red-flags:end -->'
-# 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-15
 # "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks":
 # https://github.com/dmitry-ai/harness/issues/5
 def red_flag_issues(value, claims):
@@ -46,9 +44,15 @@ def red_flag_issues(value, claims):
 					issues.append(problem('red_flags.basis', field + '/basis_ids', 'Reference existing identity claims with evidence'))
 			r = issues
 	return r
-# 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-15
 # "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks":
 # https://github.com/dmitry-ai/harness/issues/5
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-19
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 def render_red_flags(value, *, project_card=False, analysis_rel='ꘖ/KB/Analysis.json'):
 	flags = value.get('red_flags', [])
 	if not flags:
@@ -67,8 +71,14 @@ def render_red_flags(value, *, project_card=False, analysis_rel='ꘖ/KB/Analysis
 			lines += [f"- **{FLAGS[ident][0]}.** Status: {STATUSES[flag['status']]}.", '  ' + flag['summary'].strip().replace('\n', '\n  '), '  Basis: ' + ', '.join((f"[{ref}](<{(pointers[ref] if project_card else '#' + ref.lower())}>)" for ref in flag['basis_ids'])) + '.', '']
 		r = '\n'.join(lines) + '\n'
 	return r
+# 2026-10-15
+# "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks":
+# https://github.com/dmitry-ai/harness/issues/5
 def sync_project_red_flags(root, value):
 	from .analysis import digest, validate_analysis
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	validate_analysis(value)
 	pp = project_paths(root, exact_root=True)

@@ -1,12 +1,4 @@
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
-# https://github.com/dmitry-ai/harness/issues/72
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
-# https://github.com/dmitry-ai/harness/issues/10
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from copy import deepcopy
 from datetime import datetime, timezone
 import json
@@ -21,6 +13,12 @@ SCRIPTS = Path(__file__).resolve().parents[1] / 'scripts'
 sys.path.insert(0, str(SCRIPTS))
 from agent_tools import experiments as exp, research
 from agent_tools.platforms import codex
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class ExperimentTests(unittest.TestCase):
 	def setUp(self):
 		self.temp = tempfile.TemporaryDirectory()
@@ -128,6 +126,9 @@ class ExperimentTests(unittest.TestCase):
 			keys.add(research.request_key('https://example.invalid/de-de', headers, 'public', {**base, **changed})[1])
 		self.assertEqual(len(keys), 5)
 		self.assertEqual(research.request_key('https://example.invalid/de-de', headers, 'public', base)[1], research.request_key('https://example.invalid/de-de', headers, 'public', dict(reversed(list(base.items()))))[1])
+	# 2026-10-20
+	# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+	# https://github.com/dmitry-ai/harness/issues/13
 	def test_dom_is_fresh_and_never_proves_click(self):
 		from test_text_browser import dom_fixture
 		guard, native = dom_fixture(self.root, 'https://example.invalid/de-de', 'tab-A', '<p>EUR</p>')
@@ -312,6 +313,9 @@ class ExperimentTests(unittest.TestCase):
 			commit = next((event for event in saved['native_trace']['events'] if 'plan-commit' == event['id']))
 			self.assertEqual(commit['name'], 'exec')
 			self.assertIn('tools.exec_command', commit['arguments']['code'])
+	# 2026-11-14
+	# "Decompose experiments.py into ExperimentPlanStore, BrowserTraceInspector, and ExperimentRunValidator classes and unify raw_decode JSON object scanning":
+	# https://github.com/dmitry-ai/harness/issues/72
 	def test_canonical_harness_cli_plan_commit_receipt_is_supported(self):
 		plan = self.plan(self.browser_requirement())
 		states, trace = self.native_fixture()

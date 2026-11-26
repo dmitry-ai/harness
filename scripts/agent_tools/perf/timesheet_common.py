@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add harness perf-timesheet CLI for deterministic turn chronometry":
-# https://github.com/dmitry-ai/harness/issues/191
 from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
@@ -132,6 +130,9 @@ def resolve_journal_step_meta(project_root: Path, step_num: int) -> dict[str, An
 	tpath = Path(raw_tr) if isinstance(raw_tr, str) and raw_tr.strip() else None
 	s_step = turn.get('Start Step') if isinstance(turn.get('Start Step'), int) else None
 	return {'conversation_id': trace.get('Conversation ID'), 'trace_path': tpath, 'start_step': s_step}
+# 2026-11-24
+# "Add harness perf-timesheet CLI for deterministic turn chronometry":
+# https://github.com/dmitry-ai/harness/issues/191
 def resolve_trace_source(*, trace: Path | None=None, conversation: str | None=None, project: Path | None=None, journal_step: int | None=None, instance: str | None=None, platform: str | None=None, summary_db: Path | None=None, turn_start_step: int | None=None) -> dict[str, Any]:
 	cid, tpath, s_step, sdb = (conversation, trace, turn_start_step, summary_db)
 	if None is not project and None is not journal_step:

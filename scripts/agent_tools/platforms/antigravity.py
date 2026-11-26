@@ -1,114 +1,4 @@
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract ask_question clarification metadata and prohibit Stop Gate bypass via ask_question":
-# https://github.com/dmitry-ai/harness/issues/234
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
-# https://github.com/dmitry-ai/harness/issues/212
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Use canonical native inputs and strip USER_REQUEST in native_review_proof":
-# https://github.com/dmitry-ai/harness/issues/210
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
-# https://github.com/dmitry-ai/harness/issues/166
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prepend JSON metadata headers to new journal responses":
-# https://github.com/dmitry-ai/harness/issues/151
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
-# https://github.com/dmitry-ai/harness/issues/146
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
-# https://github.com/dmitry-ai/harness/issues/138
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
-# https://github.com/dmitry-ai/harness/issues/133
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Use native workspace priority and AST command parsing in request binding":
-# https://github.com/dmitry-ai/harness/issues/129
-# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Auto-name Antigravity conversations from project journal step numbers":
-# https://github.com/dmitry-ai/harness/issues/120
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
-# https://github.com/dmitry-ai/harness/issues/113
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove text-based explicit-project-root override from request binding":
-# https://github.com/dmitry-ai/harness/issues/112
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
-# https://github.com/dmitry-ai/harness/issues/109
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
-# https://github.com/dmitry-ai/harness/issues/101
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix runtime instance path derivation and store validation":
-# https://github.com/dmitry-ai/harness/issues/89
-# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Externalize agent environments and per-instance system paths into runtime.json":
-# https://github.com/dmitry-ai/harness/issues/86
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
-# https://github.com/dmitry-ai/harness/issues/75
-# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Externalize agent environments and per-instance system paths into runtime.json":
-# https://github.com/dmitry-ai/harness/issues/86
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
-# https://github.com/dmitry-ai/harness/issues/67
-# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Externalize agent environments and per-instance system paths into runtime.json":
-# https://github.com/dmitry-ai/harness/issues/86
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
-# https://github.com/dmitry-ai/harness/issues/60
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
-# https://github.com/dmitry-ai/harness/issues/64
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
-# https://github.com/dmitry-ai/harness/issues/57
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deduplicate turn compaction/delegation reducers, shell/path tool normalization, and request/metadata wrappers across Antigravity and Codex adapters":
-# https://github.com/dmitry-ai/harness/issues/58
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract AntigravityTurnScanner class from native_answers in platforms/antigravity.py":
-# https://github.com/dmitry-ai/harness/issues/55
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify A.A reviewer isolation, prompt-bias checks, and review-proof helpers across Antigravity and Codex adapters into platforms/trace_common.py":
-# https://github.com/dmitry-ai/harness/issues/52
-# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
-# https://github.com/dmitry-ai/harness/issues/51
-# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce local_source_grounding_issues across touched client deliverables, require post-compaction re-read of evicted tool outputs, and close A.A review bypass":
-# https://github.com/dmitry-ai/harness/issues/50
-# 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
-# https://github.com/dmitry-ai/harness/issues/6
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prevent intermediate subagent status replies from polluting the journal, enforce TEXT-1 language gate in completion, and codify background task timeouts":
-# https://github.com/dmitry-ai/harness/issues/30
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
-# https://github.com/dmitry-ai/harness/issues/31
-# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
-# https://github.com/dmitry-ai/harness/issues/34
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
-# https://github.com/dmitry-ai/harness/issues/36
-# 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
-# https://github.com/dmitry-ai/harness/issues/47
-# 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
-# https://github.com/dmitry-ai/harness/issues/48
+# 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from pathlib import Path
 from datetime import date
 import ctypes
@@ -122,11 +12,29 @@ import sys
 import urllib.error
 import urllib.request
 import uuid
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
 from ..runtime import platform_instances, platform_key_for_adapter, platform_settings, request_day, resolve_antigravity_backend, resolve_antigravity_paths, settings
 from ..knowledge import json_bytes
+# 2026-11-14
+# "Decompose git_gate.py into shell_audit.py, GitRepoGate, and single-pass pre-commit validation":
+# https://github.com/dmitry-ai/harness/issues/67
 from ..shell_audit import extract_issue_actions_from_outputs
 from ..storage import create_bytes, replace_bytes, locked
+# 2026-11-13
+# "Unify A.A reviewer isolation, prompt-bias checks, and review-proof helpers across Antigravity and Codex adapters into platforms/trace_common.py":
+# https://github.com/dmitry-ai/harness/issues/52
+# 2026-11-14
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
 from .trace_common import UUID_PATTERN, build_native_review_proof, collect_prompt_bias_issues, collect_subagent_bfs, current_turn_requests, extract_resource_uri, finalize_executor_checks, init_turn_accumulator, is_waiting_status_stub, iter_antigravity_subagents, local_uri_to_path, make_tool_trace_event, merge_turn_accumulators, open_readonly_sqlite, parse_tool_args, partial_candidate_read_issues as _partial_candidate_read_issues, persist_review_proof, prompt_bias_issues, read_jsonl_objects, record_normalized_tool_effects, require_turn_binding, reviewer_isolation_issues, verify_review_proof_core
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
+# 2026-11-18
+# "Fix runtime instance path derivation and store validation":
+# https://github.com/dmitry-ai/harness/issues/89
 def _default_folders_json():
 	cfg_all = settings()
 	ag_key = platform_key_for_adapter('antigravity', cfg_all) or 'antigravity'
@@ -137,6 +45,9 @@ def _default_folders_json():
 		if inst['system_paths'].get('folders_json'):
 			return Path(inst['system_paths']['folders_json'])
 	raise ValueError('Antigravity folders_json is not configured in runtime.json')
+# 2026-11-19
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 from ..path_registry import default_platform_paths as _default_platform_paths
 ANTIGRAVITY_PROJECTS_DIR = Path(_default_platform_paths('antigravity')['projects_dir'])
 try:
@@ -147,6 +58,9 @@ try:
 except (OSError, ValueError, KeyError, TypeError):
 	ANTIGRAVITY_FOLDERS_JSON = None
 _INITIAL_ANTIGRAVITY_FOLDERS_JSON = ANTIGRAVITY_FOLDERS_JSON
+# 2026-11-18
+# "Fix runtime instance path derivation and store validation":
+# https://github.com/dmitry-ai/harness/issues/89
 def _resolve_folders_json(folders_json_path=None, sp=None):
 	if None is not folders_json_path:
 		return Path(folders_json_path)
@@ -160,11 +74,29 @@ def _resolve_folders_json(folders_json_path=None, sp=None):
 		if None is not ANTIGRAVITY_FOLDERS_JSON:
 			return Path(ANTIGRAVITY_FOLDERS_JSON)
 		raise
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 COMPLETED_STEP_STATUSES = (3, 5)
+# 2026-11-23
+# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
+# https://github.com/dmitry-ai/harness/issues/133
 _ANTIGRAVITY_MODEL_TIERS = ('flash_lite', 'flash', 'pro')
+# 2026-11-14
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
+# 2026-11-23
+# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+# https://github.com/dmitry-ai/harness/issues/138
+# 2026-11-23
+# "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
+# https://github.com/dmitry-ai/harness/issues/166
 _SEGMENT_TRANSIENT_KEYS = {'spawned_subagents', 'completed_subagents', 'answer_prepared_in_segment', 'bg_tdd_index', 'active_bg_tasks'}
 _BG_TASK_ENDED_RE = re.compile(r'Task\s+id\s+"([^"]+)"\s+(?:finished|canceled|cancelled|terminated|killed)\b', re.IGNORECASE)
 _BG_TASK_SENDER_RE = re.compile(r'\bsender=([A-Za-z0-9_./:-]+/task-\d+)\b', re.IGNORECASE)
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
 def _antigravity_paths(backend=None, *, instance=None, conversation_id=None):
 	try:
 		cfg = settings()
@@ -176,6 +108,9 @@ def _transcript_path(brain_dir, conversation_id):
 	full_trace = logs_dir / 'transcript_full.jsonl'
 	compact_trace = logs_dir / 'transcript.jsonl'
 	return full_trace if full_trace.is_file() else compact_trace if compact_trace.is_file() else full_trace
+# 2026-11-13
+# "Extract AntigravityTurnScanner class from native_answers in platforms/antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/55
 class AntigravityTurnScanner:
 	def __init__(self, root, conversation_id, *, backend=None, instance=None):
 		self.root = root
@@ -210,9 +145,18 @@ class AntigravityTurnScanner:
 				c_str = str(cand.get('content'))
 				r.append(c_str[:4000])
 				if None is not file_reads and None is not step_idx:
+					# 2026-11-10
+					# "Enforce source grounding and review.authorize across external client deliverables, edit_file calls, and post-compaction tool outputs":
+					# https://github.com/dmitry-ai/harness/issues/50
 					for m_step_out in re.finditer('file:///+([A-Za-z]:/[^\\s"\\\'<>`]+?/\\.system_generated/steps/\\d+/output\\.txt)', c_str):
 						file_reads.append((step_idx, m_step_out.group(1).replace('\\', '/')))
 		return r
+	# 2026-11-06
+	# "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
+	# https://github.com/dmitry-ai/harness/issues/47
+	# 2026-11-13
+	# "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
+	# https://github.com/dmitry-ai/harness/issues/64
 	def _collect_subagent_bfs(self, position, segment, seg):
 		r = {self.conversation_id}
 		if seg['subagent_steps']:
@@ -230,17 +174,38 @@ class AntigravityTurnScanner:
 		last = segment[-1] if segment else {}
 		final_step = last.get('step_index')
 		final = 'PLANNER_RESPONSE' == last.get('type') and (not last.get('tool_calls')) and bool(last.get('content', '').strip()) and (self.statuses.get(final_step) in ((15, 3), (15, 5)))
+		# 2026-10-30
+		# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+		# https://github.com/dmitry-ai/harness/issues/21
 		last_user_idx = self.summary.get('last_user_input_step_index')
 		last_db_user = max((idx for idx, (stype, _) in self.statuses.items() if 14 == stype), default=start)
 		idle = 'CASCADE_RUN_STATUS_IDLE' == self.summary.get('status') and 0 == self.summary.get('not_fully_idle') and (not self.summary.get('killed')) and (last_user_idx == start or (0 == start and -1 == last_user_idx)) and (last_db_user == start) and (final_step == max(self.statuses, default=-1))
+		# 2026-10-27
+		# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+		# https://github.com/dmitry-ai/harness/issues/17
 		req_id = f'{self.conversation_id}-{start}'
 		j_entry = self.journal_groups.get(req_id)
 		has_single_journal_group = None is not j_entry and 1 == len(j_entry[0].get('request_ids', []))
 		last_text = str(last.get('content') or '')
+		# 2026-10-31
+		# "Prevent intermediate subagent status replies from polluting the journal, enforce TEXT-1 language gate in completion, and codify background task timeouts":
+		# https://github.com/dmitry-ai/harness/issues/30
+		# 2026-11-02
+		# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+		# https://github.com/dmitry-ai/harness/issues/36
+		# 2026-11-23
+		# "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
+		# https://github.com/dmitry-ai/harness/issues/166
 		intermediate_wait = None is not end and (not seg['answer_prepared_in_segment']) and (not has_single_journal_group) and (seg['completed_subagents'] < seg['spawned_subagents'] or bool(seg.get('active_bg_tasks')) or is_waiting_status_stub(last_text))
 		if intermediate_wait:
 			completed, resp_text = (False, None)
 		elif None is not j_entry and (not final or 1 < len(j_entry[0].get('request_ids', []))):
+			# 2026-11-20
+			# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+			# https://github.com/dmitry-ai/harness/issues/101
+			# 2026-11-21
+			# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+			# https://github.com/dmitry-ai/harness/issues/109
 			from ..journal import journal_pair_dirs, step_file
 			completed = req_id == j_entry[0]['request_ids'][-1] and (None is not end or idle)
 			_, res_dir = journal_pair_dirs(self.jdir)
@@ -249,15 +214,27 @@ class AntigravityTurnScanner:
 		else:
 			completed = bool(final and (None is not end or idle))
 			resp_text = last.get('content') if completed else None
+		# 2026-11-23
+		# "Prepend JSON metadata headers to new journal responses":
+		# https://github.com/dmitry-ai/harness/issues/151
 		start_row = self.row_by_step.get(start)
 		req_ts = start_row.get('created_at') if isinstance(start_row, dict) and isinstance(start_row.get('created_at'), str) and start_row['created_at'].strip() else None
 		resp_ts = last.get('created_at') if completed and isinstance(last.get('created_at'), str) and last['created_at'].strip() else None
+		# 2026-11-25
+		# "Extract ask_question clarification metadata and prohibit Stop Gate bypass via ask_question":
+		# https://github.com/dmitry-ai/harness/issues/234
 		from .clarifications import build_segment_metadata
 		seg_meta = build_segment_metadata(segment, seg_models, _configuration)
 		self.completed_turn_cids.update(visited_cids - {self.conversation_id})
 		return {'turn_id': f'ag-{self.conversation_id}-{start}', 'requests': [self.requests[start]] if start in self.requests else [], 'owned': start in self.requests, 'completed': completed, 'aborted': False, 'response': resp_text, 'start_step': start, 'final_step': final_step if completed else None, 'completion_step': final_step if completed else None, 'request_timestamp': req_ts, 'response_timestamp': resp_ts, **seg_meta, **{k: v for k, v in seg.items() if k not in _SEGMENT_TRANSIENT_KEYS}}
 	def _load_context(self):
 		from .request_binding import completion_project_id
+		# 2026-11-13
+		# "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
+		# https://github.com/dmitry-ai/harness/issues/57
+		# 2026-11-14
+		# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+		# https://github.com/dmitry-ai/harness/issues/60
 		from ..journal import completed_request_group_index, resolve_journal_dir
 		if not re.fullmatch('[a-f0-9-]{36}', self.conversation_id):
 			raise ValueError('Exact native Antigravity conversation UUID required')
@@ -269,6 +246,9 @@ class AntigravityTurnScanner:
 		self.path = _transcript_path(self.paths['brain_dir'], self.conversation_id)
 		self.rows = read_jsonl_objects(self.path, partial_error='Native Antigravity trace has a partial record; retry after flush')
 		self.row_by_step = {row.get('step_index'): row for row in self.rows if isinstance(row, dict) and isinstance(row.get('step_index'), int)}
+		# 2026-11-23
+		# "Use native workspace priority and AST command parsing in request binding":
+		# https://github.com/dmitry-ai/harness/issues/129
 		raw_inputs = _native_inputs(self.backend, self.conversation_id, paths=self.paths, include_meta=True)
 		self.inputs = [(index, text) for index, text, _ in raw_inputs]
 		self.expected_job_id = completion_project_id(self.root)
@@ -282,9 +262,18 @@ class AntigravityTurnScanner:
 		self.jdir = resolve_journal_dir(self.root_p)
 		self.journal_groups = completed_request_group_index(self.jdir)
 		self.boundaries = sorted((index for index, _ in self.inputs))
+	# 2026-11-13
+	# "Unify cross-platform subagent BFS traversal, tool-call effect classifier, turn accumulator, and invoke_subagent parser in platforms/trace_common.py":
+	# https://github.com/dmitry-ai/harness/issues/64
+	# 2026-11-25
+	# "Extract ask_question clarification metadata and prohibit Stop Gate bypass via ask_question":
+	# https://github.com/dmitry-ai/harness/issues/234
 	def _merge_pending(self, items):
 		from .clarifications import merge_segment_metadata
 		return merge_segment_metadata(merge_turn_accumulators(items, allow_step_output_recovery=True), items)
+	# 2026-11-07
+	# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
+	# https://github.com/dmitry-ai/harness/issues/48
 	def _query_child_summary(self, child_cid, expected_parent):
 		child_agent_name, db_grandchildren, parent_mismatch = (None, [], False)
 		try:
@@ -300,6 +289,12 @@ class AntigravityTurnScanner:
 		except Exception:
 			pass
 		return (parent_mismatch, child_agent_name, db_grandchildren)
+	# 2026-11-23
+	# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+	# https://github.com/dmitry-ai/harness/issues/138
+	# 2026-11-23
+	# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+	# https://github.com/dmitry-ai/harness/issues/146
 	def _record_subagent_calls(self, child_cid, c_rows, anchor_step, seg):
 		from ..tdd_gate import _BG_TASK_FINISHED_RE, parse_command_outcome
 		sub_bg: dict[str, dict] = {}
@@ -320,13 +315,16 @@ class AntigravityTurnScanner:
 						if cev and cev.get('outcome', {}).get('background_task_id'):
 							sub_bg[cev['outcome']['background_task_id']] = cev
 		return ()
-	# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-	# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
-	# https://github.com/dmitry-ai/harness/issues/224
 	def _record_tool_calls(self, step_idx, calls, outputs, seg):
+		# 2026-11-24
+		# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
+		# https://github.com/dmitry-ai/harness/issues/224
 		from ..tdd.outcomes import extract_bg_task_ids
 		seg['tool_steps'].append(step_idx)
 		seg['tool_records'].append({'step': step_idx, 'tools': [c.get('name', '') for c in calls], 'outputs': outputs})
+		# 2026-10-31
+		# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+		# https://github.com/dmitry-ai/harness/issues/31
 		for act_item in extract_issue_actions_from_outputs(outputs):
 			seg['issue_actions'].append({**act_item, 'step': step_idx})
 		for c_idx, call in enumerate(calls):
@@ -335,6 +333,12 @@ class AntigravityTurnScanner:
 			args = parse_tool_args(raw_args)
 			args_text = json.dumps(args, ensure_ascii=False) if args or isinstance(raw_args, dict) else str(raw_args)
 			matched = [outputs[c_idx]] if c_idx < len(outputs) else outputs
+			# 2026-11-23
+			# "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
+			# https://github.com/dmitry-ai/harness/issues/166
+			# 2026-11-24
+			# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
+			# https://github.com/dmitry-ai/harness/issues/224
 			if 'run_command' == cname and 'active_bg_tasks' in seg:
 				for out_s in matched:
 					seg['active_bg_tasks'].update(extract_bg_task_ids(out_s))
@@ -387,6 +391,9 @@ class AntigravityTurnScanner:
 							seg['bg_tdd_index'][fin_id]['outcome'] = parse_command_outcome(m_fin.group(2))
 				calls = [c for c in row.get('tool_calls') or [] if isinstance(c, dict)]
 				if calls and isinstance(step_idx, int):
+					# 2026-11-01
+					# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+					# https://github.com/dmitry-ai/harness/issues/34
 					self._record_tool_calls(step_idx, calls, self._collect_outputs(segment, pos, step_idx=step_idx, file_reads=seg['file_reads']), seg)
 		return self._finalize_segment(start, end, segment, seg, self._collect_subagent_bfs(position, segment, seg), seg_models)
 	def scan(self):
@@ -410,13 +417,19 @@ class AntigravityTurnScanner:
 		if self.workspace_root:
 			out['workspace_root'] = self.workspace_root
 		return out
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-31
 # "Canonicalize relocated Codex, Antigravity, and Harness project roots and support v2Migrated gitFolder project resources":
 # https://github.com/dmitry-ai/harness/issues/29
+# 2026-11-14
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
 def resource_uri(res):
 	return extract_resource_uri(res)
 def folder_path(uri):
 	return local_uri_to_path(uri)
+# 2026-11-21
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
 def _project_item_matches_root(item, root: Path) -> tuple[bool, bool]:
 	from ..path_registry import same_project_root
 	resources = (item.get('projectResources') or {}).get('resources') or []
@@ -426,7 +439,7 @@ def _project_item_matches_root(item, root: Path) -> tuple[bool, bool]:
 	if 1 == len(paths_in_item) and None is not paths_in_item[0] and (not paths_in_item[0].exists()) and same_project_root(paths_in_item[0], root):
 		return (True, True)
 	return (False, False)
-# 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-14
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
 def register_antigravity_project(project_dir, domain_or_topic, date_str=None, projects_dir=ANTIGRAVITY_PROJECTS_DIR, folders_json_path=None, preferred_id=None):
@@ -518,6 +531,9 @@ def _configuration(value):
 		match = re.fullmatch('(.+)-(minimal|low|medium|high|xhigh|max|ultra)', value)
 		r = {'model': match[1], 'effort': match[2]} if match else {'model': value, 'effort': None}
 	return r
+# 2026-11-23
+# "Use native workspace priority and AST command parsing in request binding":
+# https://github.com/dmitry-ai/harness/issues/129
 def _extract_user_step_meta(msg_fields):
 	has_items = False
 	seen_non_ws = False
@@ -567,6 +583,9 @@ def _decode_user_step_entry(payload, status, index, load_transcript):
 			if texts:
 				r = texts[0]
 			else:
+				# 2026-10-28
+				# "Add authenticated portal access contract (EXEC-6) and prevent PowerShell OEM/ASCII pipe corruption of UTF-8 journals":
+				# https://github.com/dmitry-ai/harness/issues/18
 				medias = []
 				for field, kind, val in msg_fields:
 					if 9 == field and 2 == kind:
@@ -605,6 +624,9 @@ def _find_subagent_invocations(parent_rows, child_id, agent_name, initial_prompt
 	matches, extra_messages = ([], [])
 	for i, event in enumerate(parent_rows):
 		for call in event.get('tool_calls', []):
+			# 2026-10-19
+			# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+			# https://github.com/dmitry-ai/harness/issues/12
 			if 'send_message' == call.get('name'):
 				args = parse_tool_args(call.get('args', {}))
 				if args.get('Recipient') == child_id and isinstance(args.get('Message'), str):
@@ -617,6 +639,9 @@ def _find_subagent_invocations(parent_rows, child_id, agent_name, initial_prompt
 						raise ValueError(require_inherit_error)
 					matches.append((event.get('step_index'), sub, i + 1 < len(parent_rows) and child_id in parent_rows[i + 1].get('content', '')))
 	return (matches, extra_messages)
+# 2026-11-10
+# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
+# https://github.com/dmitry-ai/harness/issues/51
 def _generation_matches_executor(generation_model, executor_model):
 	r = False
 	if isinstance(generation_model, str) and generation_model.strip() and isinstance(executor_model, str) and executor_model.strip():
@@ -644,6 +669,9 @@ def _query_step_model_ids(backend, cid, *, step=None, paths=None):
 					r = set()
 					break
 	return r
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
 def _model_metadata(backend, conversation_id, *, paths=None):
 	path = _conversation_db_path(backend, conversation_id, paths=paths)
 	history, sources = ({'generations': [], 'configurations': [], 'model_ids': []}, [])
@@ -679,9 +707,15 @@ def _native_invocation(backend, parent_id, conversation_id, role, *, paths=None)
 	matches, _ = _find_subagent_invocations(read_jsonl_objects(parent_log), conversation_id, row[1], initial)
 	if not matches:
 		raise ValueError('Matching native child invocation not established')
+	# 2026-10-30
+	# "Consolidate 15 historical AI journals into unified chronological journal and purge obsolete 2026/ scratch artifacts":
+	# https://github.com/dmitry-ai/harness/issues/19
 	exact_matches = [m for m in matches if m[2]]
 	index, invocation = exact_matches[-1][:2] if exact_matches else matches[-1][:2]
 	return (invocation, {'native_file': str(parent_log), 'step': index, 'kind': 'invoke_subagent'})
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
 def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, backend=None, instance=None):
 	if role not in ('primary', 'AA', 'AF'):
 		raise ValueError('Unknown executor role')
@@ -709,7 +743,13 @@ def native_executor_metadata(root, conversation_id, *, role='primary', parent_id
 		else:
 			_apply_requested_config(requested, observed, selection, 'explicit-parent-invocation', source)
 	force_mismatch = ('inherit' == requested.get('selection') and bool(requested.get('executor_model') and observed.get('executor_model') and (requested['executor_model'] != observed['executor_model']))) or bool(observed['configuration'] and observed['model'] and (not _generation_matches_executor(observed['model'], _configuration(observed['configuration'])['model'])))
+	# 2026-11-13
+	# "Deduplicate turn compaction/delegation reducers, shell/path tool normalization, and request/metadata wrappers across Antigravity and Codex adapters":
+	# https://github.com/dmitry-ai/harness/issues/58
 	return finalize_executor_checks('antigravity-ui', role, conversation_id, parent_id, requested, observed, history, sources, 'Native generation model and executor configuration fields; exact API execution internals and missing modes are not inferred from runtime', force_model_mismatch=force_mismatch)
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
 def native_tool_trace(root, request):
 	conversation_id = request.get('conversation_id', '')
 	if request.get('native_profile_home'):
@@ -757,10 +797,13 @@ def native_tool_trace(root, request):
 		arguments = parse_tool_args(call.get('args', {})) if isinstance(call.get('args', {}), (dict, str)) else {}
 		events.append(make_tool_trace_event(str(index), index, output['step_index'], call.get('name', ''), arguments, output.get('content', ''), True, row.get('created_at'), output.get('created_at'), {'call': call, 'output': {'step_index': output.get('step_index'), 'content': output.get('content'), 'created_at': output.get('created_at')}}))
 	return {'surface': 'antigravity-ui', 'conversation_id': conversation_id, 'step_indices': selected, 'native_database': str(database), 'native_log': str(path), 'native_log_sha256': hashlib.sha256(raw).hexdigest(), 'events': events}
-# 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
 def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=None, write=True, wait_timeout=0.0):
+	# 2026-10-21
+	# "Enforce CommonMark two-space hard line breaks (DOC-4), ban unsolicited bullet lists, and add PreToolUse hook check_markdown_slop.py":
+	# https://github.com/dmitry-ai/harness/issues/14
 	root = Path(root).resolve()
 	paths = _antigravity_paths(backend=backend, instance=instance, conversation_id=reviewer_id or parent_id)
 	backend = Path(paths['backend_dir'])
@@ -770,6 +813,9 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 		child = conn.execute('SELECT parent_conversation_id,agent_name FROM conversation_summaries WHERE conversation_id=?', (reviewer_id,)).fetchone()
 	if None is child or child['parent_conversation_id'] != parent_id or 'self' != child['agent_name']:
 		raise ValueError('Native trace does not establish an independent self/A.A child of this parent')
+	# 2026-11-24
+	# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
+	# https://github.com/dmitry-ai/harness/issues/212
 	from .antigravity_review_helpers import resolve_parent_binding_inputs, wait_for_reviewer_final_step
 	log, raw, rows, last = wait_for_reviewer_final_step(paths, backend, reviewer_id, wait_timeout=wait_timeout, transcript_path_fn=_transcript_path, db_path_fn=_conversation_db_path, completed_statuses=COMPLETED_STEP_STATUSES)
 	parent_log = _transcript_path(paths['brain_dir'], parent_id)
@@ -785,6 +831,9 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 	is_inherit = 'inherit' == requested_model.lower()
 	resolved_inst = paths['instance'] or instance
 	def _extra():
+		# 2026-11-24
+		# "Use canonical native inputs and strip USER_REQUEST in native_review_proof":
+		# https://github.com/dmitry-ai/harness/issues/210
 		require_current_binding(root, parent_id, backend=backend, instance=resolved_inst, inputs=resolve_parent_binding_inputs(backend, parent_id, parent_inputs, paths=paths, native_inputs_fn=_native_inputs, extract_transcript_fn=_extract_transcript_user_input), until=invocation)
 		parent_models, child_models = (_query_step_model_ids(backend, parent_id, step=invocation, paths=paths), _query_step_model_ids(backend, reviewer_id, paths=paths))
 		if is_inherit and parent_models and child_models and (not child_models.issubset(parent_models)):
@@ -797,6 +846,12 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 			model_selection['tier'] = executor_metadata['requested']['tier']
 		return {'model_verification': executor_metadata['verification']['status'] + ': native generation/executor fields', 'model_selection': model_selection, 'executor_metadata': executor_metadata, 'observed_model_ids': sorted(child_models), 'invocation_step': invocation}
 	return build_native_review_proof(root, 'antigravity-ui', parent_id, reviewer_id, 'self', log, parent_log, raw, last['step_index'], last['content'], [initial_prompt, *extra_msgs, *(m[1]['Prompt'] for m in matches)], rows, extra_fields_fn=_extra, write=write)
+# 2026-10-15
+# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
+# https://github.com/dmitry-ai/harness/issues/6
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def wire_fields(data):
 	def number(offset):
 		value, shift = (0, 0)
@@ -843,6 +898,9 @@ def _native_inputs(backend, conversation_id, *, paths=None, include_meta=False):
 		text, meta = _decode_user_step_entry(payload, status, index, lambda: cache.setdefault('rows', _load_transcript_inputs(backend, conversation_id, paths=paths)))
 		r.append((index, text, meta) if include_meta else (index, text))
 	return r
+# 2026-10-31
+# "Canonicalize relocated Codex, Antigravity, and Harness project roots and support v2Migrated gitFolder project resources":
+# https://github.com/dmitry-ai/harness/issues/29
 def _project_roots(backend, project_id, *, paths=None):
 	r = []
 	if isinstance(project_id, str) and project_id.strip() and project_id not in ('outside-of-project', 'default-cli-project'):
@@ -881,6 +939,9 @@ def _workspace_context(backend, conversation_id, *, paths=None):
 				target = p_roots[0] if not w_path.exists() and 1 == len(p_roots) and p_roots[0].exists() else w_path
 				r = [(-1, str(target), 'antigravity-project-id' if target != w_path else 'antigravity-workspace-uris')]
 	return r
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
 def _request_scope(root, conversation_id, backend, *, inputs=None, until=None, identifier=None, paths=None, contexts=None):
 	from .request_binding import native_project_id, scoped_inputs
 	job_id = identifier if None is not identifier else native_project_id(root)
@@ -888,6 +949,9 @@ def _request_scope(root, conversation_id, backend, *, inputs=None, until=None, i
 	eff_inputs = _native_inputs(backend, conversation_id, paths=resolved, include_meta=True) if None is inputs else inputs
 	eff_contexts = _workspace_context(backend, conversation_id, paths=resolved) if None is contexts else contexts
 	return scoped_inputs(root, job_id, eff_inputs, eff_contexts, until=until)
+# 2026-11-21
+# "Remove text-based explicit-project-root override from request binding":
+# https://github.com/dmitry-ai/harness/issues/112
 def native_requests(root, conversation_id, *, backend=None, instance=None):
 	paths = _antigravity_paths(backend=backend, instance=instance, conversation_id=conversation_id)
 	backend = Path(paths['backend_dir'])
@@ -901,6 +965,9 @@ def require_current_binding(root, conversation_id, *, backend=None, instance=Non
 	selected, active, binding = _request_scope(root, conversation_id, backend, inputs=inputs, until=until, identifier=job_id, paths=paths)
 	diag = format_binding_diagnostic(str(Path(root).resolve()), binding, expected_job_id=job_id)
 	return require_turn_binding(selected, active, binding, f'Native Antigravity conversation is currently bound to another project or no exact project root ({diag})')
+# 2026-11-07
+# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
+# https://github.com/dmitry-ai/harness/issues/48
 def _extract_subagent_uuids(rows_slice: list) -> list[str]:
 	r: list[str] = []
 	rows_list = rows_slice if isinstance(rows_slice, list) else []
@@ -937,11 +1004,17 @@ def _extract_subagent_uuids(rows_slice: list) -> list[str]:
 							if m_u.lower() not in r:
 								r.append(m_u.lower())
 	return r
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-11-13
+# "Extract AntigravityTurnScanner class from native_answers in platforms/antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/55
 def native_answers(root, conversation_id, *, backend=None, instance=None):
 	return AntigravityTurnScanner(root, conversation_id, backend=backend, instance=instance).scan()
-# 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
-# https://github.com/dmitry-ai/harness/issues/10
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
 def _proof_paths(native):
 	if not isinstance(native, dict):
 		raise ValueError('Native review proof must be a JSON object')
@@ -964,7 +1037,10 @@ def _proof_paths(native):
 	return _antigravity_paths(conversation_id=cid)
 def _proof_backend(native):
 	return Path(_proof_paths(native)['backend_dir'])
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
+# 2026-11-24
 # "Verify reused reviewer package assignments and tolerate volatile executor metadata":
 # https://github.com/dmitry-ai/harness/issues/222
 def verify_native_proof(root, native, package=None):
@@ -974,6 +1050,9 @@ def verify_native_proof(root, native, package=None):
 	if package and (not reviewer_assigned_package(r['native_log'], package, parent_id=r.get('parent_id'), final_step=r.get('final_step'))):
 		raise ValueError('Native reviewer was not assigned this immutable KB review package')
 	return r
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
 def register(project_dir, domain_or_topic, date_str=None, *, projects_dir=None, folders_json_path=None):
 	if None is not projects_dir or None is not folders_json_path:
 		return register_antigravity_project(project_dir, domain_or_topic, date_str, projects_dir=projects_dir or ANTIGRAVITY_PROJECTS_DIR, folders_json_path=_resolve_folders_json(folders_json_path))
@@ -1004,7 +1083,7 @@ def register(project_dir, domain_or_topic, date_str=None, *, projects_dir=None, 
 		if None is primary_receipt:
 			primary_receipt = receipt
 	return {**primary_receipt, 'instances': per_instance}
-# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-11-22
 # "Auto-name Antigravity conversations from project journal step numbers":
 # https://github.com/dmitry-ai/harness/issues/120
 _PBTXT_TITLE_RE = re.compile('(?:^|\\s)title\\s*:\\s*"((?:\\\\.|[^"\\\\])*)"')

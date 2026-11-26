@@ -1,9 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
-# https://github.com/dmitry-ai/harness/issues/205
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enable parallel pytest-xdist full-suite execution and outcome parsing":
-# https://github.com/dmitry-ai/harness/issues/178
 from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
@@ -18,6 +13,9 @@ for _p in (str(TESTS_DIR), str(SCRIPTS_DIR)):
 	if _p not in sys.path:
 		sys.path.insert(0, _p)
 from agent_tools import failfast_gate, tdd_gate
+# 2026-11-24
+# "Enable parallel pytest-xdist full-suite execution and outcome parsing":
+# https://github.com/dmitry-ai/harness/issues/178
 class PytestXdistRunnerTests(unittest.TestCase):
 	def test_classify_pytest_xdist_full_suite_and_filtered(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
@@ -31,6 +29,9 @@ class PytestXdistRunnerTests(unittest.TestCase):
 			self.assertTrue(info_full['is_full_suite'])
 			deny, overwrite = failfast_gate.evaluate_pre_tool_use_test_failfast('run_command', {'CommandLine': full_cmd, 'WaitMsBeforeAsync': 10000})
 			self.assertIsNone(deny)
+			# 2026-11-24
+			# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+			# https://github.com/dmitry-ai/harness/issues/205
 			self.assertIn('test-watchdog', (overwrite or {}).get('CommandLine', ''))
 			bounded_cmd = f'{full_cmd} --timeout=120'
 			b_deny, b_overwrite = failfast_gate.evaluate_pre_tool_use_test_failfast('run_command', {'CommandLine': bounded_cmd, 'WaitMsBeforeAsync': 10000})

@@ -1,9 +1,4 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prepend structured JSON metadata header to new GitHub issues in df_github_issue.py":
-# https://github.com/dmitry-ai/harness/issues/150
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add fetch subcommand and Issue-First pre-flight guards to df_github_issue.py":
-# https://github.com/dmitry-ai/harness/issues/144
 from __future__ import annotations
 
 import io
@@ -37,6 +32,9 @@ def _init_github_code_repo(proj: Path, slug: str) -> Path:
 	return code
 
 
+# 2026-11-23
+# "Add fetch subcommand and Issue-First pre-flight guards to df_github_issue.py":
+# https://github.com/dmitry-ai/harness/issues/144
 class IssueFirstGitHubCliTests(unittest.TestCase):
 	def test_fetch_persists_open_issue_and_parent_evidence_and_rejects_pull_requests(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
@@ -164,6 +162,9 @@ class IssueFirstGitHubCliTests(unittest.TestCase):
 					return issues_db[num]
 				if 'POST' == method and endpoint.endswith('/sub_issues'):
 					return {'linked': True}
+				# 2026-11-23
+				# "Prepend structured JSON metadata header to new GitHub issues in df_github_issue.py":
+				# https://github.com/dmitry-ai/harness/issues/150
 				if 'PATCH' == method and '/issues/' in endpoint:
 					num = int(endpoint.rsplit('/', 1)[-1])
 					issues_db[num].update(payload)

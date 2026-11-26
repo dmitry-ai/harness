@@ -1,177 +1,4 @@
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs":
-# https://github.com/dmitry-ai/harness/issues/264
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Harden follow-up launcher handoff and journal reservation integrity":
-# https://github.com/dmitry-ai/harness/issues/269
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Exempt service finalization calls from EXEC-2-TDD-GATE and add journal-sync --all-open":
-# https://github.com/dmitry-ai/harness/issues/256
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
-# https://github.com/dmitry-ai/harness/issues/255
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
-# https://github.com/dmitry-ai/harness/issues/251
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/239
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/238
-# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
-# https://github.com/dmitry-ai/harness/issues/237
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Ensure atomic answer-prepare workflow alignment and safe open-turn reconciliation":
-# https://github.com/dmitry-ai/harness/issues/232
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
-# https://github.com/dmitry-ai/harness/issues/230
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
-# https://github.com/dmitry-ai/harness/issues/213
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add deterministic reactive wait primitive for transient repository and journal contention":
-# https://github.com/dmitry-ai/harness/issues/199
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract PreToolUse and completion gates into priority plugin registry":
-# https://github.com/dmitry-ai/harness/issues/167
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
-# https://github.com/dmitry-ai/harness/issues/166
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prepend JSON metadata headers to new journal responses":
-# https://github.com/dmitry-ai/harness/issues/151
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
-# https://github.com/dmitry-ai/harness/issues/146
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Preserve historical delivered turn bytes when tdd_check is absent":
-# https://github.com/dmitry-ai/harness/issues/140
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
-# https://github.com/dmitry-ai/harness/issues/138
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
-# https://github.com/dmitry-ai/harness/issues/132
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
-# https://github.com/dmitry-ai/harness/issues/131
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Use native workspace priority and AST command parsing in request binding":
-# https://github.com/dmitry-ai/harness/issues/129
-# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce similar_projects parity gate, hooks, and documented CLI contract across turn completion and issue lifecycle":
-# https://github.com/dmitry-ai/harness/issues/123
-# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Auto-name Antigravity conversations from project journal step numbers":
-# https://github.com/dmitry-ai/harness/issues/120
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
-# https://github.com/dmitry-ai/harness/issues/113
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
-# https://github.com/dmitry-ai/harness/issues/119
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add read-only answer-check pre-flight validation command to harness CLI":
-# https://github.com/dmitry-ai/harness/issues/117
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
-# https://github.com/dmitry-ai/harness/issues/116
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove text-based explicit-project-root override from request binding":
-# https://github.com/dmitry-ai/harness/issues/112
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
-# https://github.com/dmitry-ai/harness/issues/109
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
-# https://github.com/dmitry-ai/harness/issues/105
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
-# https://github.com/dmitry-ai/harness/issues/101
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix runtime instance path derivation and store validation":
-# https://github.com/dmitry-ai/harness/issues/89
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
-# https://github.com/dmitry-ai/harness/issues/60
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
-# https://github.com/dmitry-ai/harness/issues/69
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
-# https://github.com/dmitry-ai/harness/issues/63
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
-# https://github.com/dmitry-ai/harness/issues/57
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
-# https://github.com/dmitry-ai/harness/issues/59
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract ResponseEvidenceAuditor class into response_grounding.py from response_source_and_kb_issues and helpers in completion.py":
-# https://github.com/dmitry-ai/harness/issues/56
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract issue_lifecycle.py from completion.py, fix open backlog-issue lifecycle gating, and consolidate Git/issue helpers in git_gate.py":
-# https://github.com/dmitry-ai/harness/issues/53
-# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
-# https://github.com/dmitry-ai/harness/issues/51
-# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce local_source_grounding_issues across touched client deliverables, require post-compaction re-read of evicted tool outputs, and close A.A review bypass":
-# https://github.com/dmitry-ai/harness/issues/50
-# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Isolate turn scratch answer files, decouple turn/journal locks, allow pre-delivery re-preparation, and add preemptive step/compaction budget gate":
-# https://github.com/dmitry-ai/harness/issues/49
-# 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
-# https://github.com/dmitry-ai/harness/issues/45
-# 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
-# https://github.com/dmitry-ai/harness/issues/48
-# 2026-11-04 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
-# https://github.com/dmitry-ai/harness/issues/44
-# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
-# https://github.com/dmitry-ai/harness/issues/43
 # 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
-# https://github.com/dmitry-ai/harness/issues/16
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
-# https://github.com/dmitry-ai/harness/issues/27
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prevent rogue ꘖ directory outside harness meta repo, remove mirror logic, and recognize GIT_OPTIONAL_LOCKS in git gate":
-# https://github.com/dmitry-ai/harness/issues/28
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prevent intermediate subagent status replies from polluting the journal, enforce TEXT-1 language gate in completion, and codify background task timeouts":
-# https://github.com/dmitry-ai/harness/issues/30
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
-# https://github.com/dmitry-ai/harness/issues/31
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
-# https://github.com/dmitry-ai/harness/issues/36
-# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
-# https://github.com/dmitry-ai/harness/issues/34
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
-# https://github.com/dmitry-ai/harness/issues/37
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
-# https://github.com/dmitry-ai/harness/issues/38
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate flashing Git console windows on Windows via CREATE_NO_WINDOW and journal-watch lifecycle skip":
-# https://github.com/dmitry-ai/harness/issues/40
-# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
-# https://github.com/dmitry-ai/harness/issues/41
 from copy import deepcopy
 from datetime import datetime, timezone
 import hashlib
@@ -181,20 +8,59 @@ from pathlib import Path
 import re
 import sqlite3
 from . import journal
+# 2026-11-13
+# "Extract issue_lifecycle.py from completion.py, fix open backlog-issue lifecycle gating, and consolidate Git/issue helpers in git_gate.py":
+# https://github.com/dmitry-ai/harness/issues/53
+# 2026-11-13
+# "Extract ResponseEvidenceAuditor class into response_grounding.py from response_source_and_kb_issues and helpers in completion.py":
+# https://github.com/dmitry-ai/harness/issues/56
 from .issue_lifecycle import code_and_issue_lifecycle_status as _code_and_issue_lifecycle_status, evidence_issue_files as _evidence_issue_files, evidence_issue_state as _evidence_issue_state, origin_repo_slug as _origin_repo_slug
+# 2026-11-26
+# "Exempt service finalization calls from PreToolUse TDD gate and add journal-sync --all-open":
+# https://github.com/dmitry-ai/harness/issues/256
 from .journal_sync_all import reconcile_before_begin, resolve_sync_provenance, sync_all_open
 from .platforms import adapter
+# 2026-11-13
+# "Extract ResponseEvidenceAuditor class into response_grounding.py from response_source_and_kb_issues and helpers in completion.py":
+# https://github.com/dmitry-ai/harness/issues/56
 from .response_grounding import ResponseEvidenceAuditor, response_source_and_kb_issues
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-11-24
 # "Cache runtime settings and deduplicate evidence validation in hot paths":
 # https://github.com/dmitry-ai/harness/issues/227
 from .runtime import PRIMARY, platform_adapter_name, platform_name, settings, skip_shell_violations
+# 2026-11-13
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
 from .storage import create_bytes, data_dir_for, locked, replace_bytes, write_immutable_bytes
+# 2026-11-23
+# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+# https://github.com/dmitry-ai/harness/issues/146
 COMMANDS = ('turn-begin', 'answer-check', 'answer-prepare', 'recover-checkpoint', 'recover-turn-violation', 'similar-project-exempt', 'ratchet-ok', 'tdd-check', 'issue-first-check', 'journal-sync', 'reconcile-unprepared-delivery', 'sync-conversation-title')
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 RULES = {'FILE-3': ('rules/01-file-boundaries.md', 'file-3'), 'EXEC-5': ('rules/08-execution-and-tools.md', 'exec-5'), 'DOC-2': ('rules/04-statement-structure.md', 'doc-2')}
+# 2026-10-24
+# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+# https://github.com/dmitry-ai/harness/issues/17
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 RULE_REQUIREMENTS = {'FILE-3': 'Before publication, the primary agent saves the exact request and complete final response via answer-prepare.', 'EXEC-5': 'Run read-only Git checks with `--no-optional-locks` to avoid updating the index as a side effect.', 'DOC-2': 'Frame any unknown or unproven explanation as a hypothesis with arguments for/against and an expert score in %.'}
+# 2026-11-13
+# "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
+# https://github.com/dmitry-ai/harness/issues/57
 class AnswerPreparationRunner:
+	# 2026-11-24
+	# "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
+	# https://github.com/dmitry-ai/harness/issues/213
 	def __init__(self, root, response, result, native, turn, *, blocked_report=False):
+		# 2026-11-19
+		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+		# https://github.com/dmitry-ai/harness/issues/96
 		from .path_registry import project_paths
 		self.pp = project_paths(root, exact_root=True)
 		self.root, self.response, self.blocked_report = (self.pp.root, response, bool(blocked_report))
@@ -217,15 +83,30 @@ class AnswerPreparationRunner:
 			self.wf_state = load(self.root)
 			self.wf_identifiers = {req['id'] for req in self.turn['requests']}
 			self.wf_covered = {req['id'] for req in self.wf_state['requests']} & self.wf_identifiers
+			# 2026-11-03
+			# "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
+			# https://github.com/dmitry-ai/harness/issues/43
 			self.is_finalized = 'complete' == self.wf_state.get('stages', {}).get('finalize', {}).get('status')
+		# 2026-11-24
+		# "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
+		# https://github.com/dmitry-ai/harness/issues/213
 		from .blocked_report import audit_runner_workflow_scope
 		audit_runner_workflow_scope(self, factual_kb_fn=_factual_kb_note_issues, is_deliv_fn=_is_client_deliverable_path)
+	# 2026-11-14
+	# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+	# https://github.com/dmitry-ai/harness/issues/60
 	def _authorize_and_sync_workflow(self):
+		# 2026-11-24
+		# "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
+		# https://github.com/dmitry-ai/harness/issues/213
 		if self.blocked_report:
 			from .blocked_report import record_blocked_report_entry
 			record_blocked_report_entry(self)
 		elif None is self.wf_state or not self.wf_covered:
 			self._record_journal_entry()
+		# 2026-11-03
+		# "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
+		# https://github.com/dmitry-ai/harness/issues/43
 		elif self.is_finalized and (not self.has_substantive_hm):
 			self._record_journal_entry()
 			from .workflow import update
@@ -240,8 +121,14 @@ class AnswerPreparationRunner:
 				approval = authorize(self.root, self.wf_state, response=self.response, request_ids=self.wf_identifiers)
 			except (OSError, ValueError) as exc:
 				self._fail_gate('review_authorize', str(exc), cause=exc)
+			# 2026-11-25
+			# "Ensure atomic answer-prepare workflow alignment and safe open-turn reconciliation":
+			# https://github.com/dmitry-ai/harness/issues/232
 			from .blocked_report import prepare_and_sync_authorized_workflow
 			prepare_and_sync_authorized_workflow(self, approval, _now)
+	# 2026-11-21
+	# "Add read-only answer-check pre-flight validation command to harness CLI":
+	# https://github.com/dmitry-ai/harness/issues/117
 	def _check_evicted_citations(self):
 		unreread_cited = _find_evicted_cited_files(self.root, self.pp, self.result['turn_key'], self.value['compaction_check'], self.response)
 		if unreread_cited:
@@ -271,7 +158,7 @@ class AnswerPreparationRunner:
 			dc = self.value['delegation_check']
 			detail = f"REVIEW-1 / KB-3 violation in active turn: bulk primary-agent research (tool_steps={dc['tool_step_count']}, max_streak={dc.get('max_unpersisted_step_streak', 0)} > {dc['max_unpersisted_steps']}, or unpersisted_source_reads={dc.get('max_unpersisted_source_reads', 0)} >= {dc.get('max_allowed_unpersisted_source_reads', 10)}) executed without A.F/A.A subagent delegation or incremental \ua616/KB persistence"
 			self._fail_gate('delegation', detail)
-		# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+		# 2026-11-24
 		# "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility":
 		# https://github.com/dmitry-ai/harness/issues/225
 		from .blocked_report import evaluate_runner_code_hygiene
@@ -280,6 +167,9 @@ class AnswerPreparationRunner:
 		self.value['language_and_stub_check'] = {'verified': not lang_issues, 'issues': lang_issues}
 		if lang_issues:
 			self._fail_gate('language_and_stub', '; '.join(lang_issues))
+		# 2026-11-23
+		# "Prepend JSON metadata headers to new journal responses":
+		# https://github.com/dmitry-ai/harness/issues/151
 		if self.value['prepared'] and (not _matches_recorded_response(self.value['prepared'], self.response, self.sha)):
 			if None is not self.value.get('delivery') or 'delivered' == self.value.get('status') or self.turn.get('completed'):
 				raise ValueError('Prepared response bytes are immutable after delivery; preserve the earlier version and reconcile before a corrective turn')
@@ -314,6 +204,9 @@ class AnswerPreparationRunner:
 			r = None
 		else:
 			recorded = _recorded(self.value)
+			# 2026-11-23
+			# "Prepend JSON metadata headers to new journal responses":
+			# https://github.com/dmitry-ai/harness/issues/151
 			if not recorded or (not _matches_recorded_response(recorded, self.response, self.sha)):
 				raise ValueError('Delivered response bytes are immutable; preserve the completed turn')
 			if not self.turn.get('completed') or self.value['delivery'].get('native_response_sha256') != _hash(self.turn['response'].encode('utf-8')):
@@ -335,22 +228,40 @@ class AnswerPreparationRunner:
 			except (OSError, ValueError, sqlite3.Error) as exc:
 				self._fail_gate('turn_unchanged', str(exc), status='preparation_unverified', cause=exc)
 			self.value['status'] = 'prepared'
+			# 2026-11-22
+			# "Auto-name Antigravity conversations from project journal step numbers":
+			# https://github.com/dmitry-ai/harness/issues/120
 			self.value.pop('reserved_journal_steps', None)
 			if not self.value.get('readiness_check', {}).get('verified'):
 				self.value['readiness_check'] = {'verified': True, 'checked_at': _now()}
+			# 2026-11-21
+			# "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
+			# https://github.com/dmitry-ai/harness/issues/119
 			if self.value.get('compaction_check', {}).get('occurred') and (not self.turn.get('completed')):
 				idx_rel = _write_compaction_index_file(self.root, self.value['key'], self.turn, self.value['compaction_check'])
 				self.value['compaction_check']['index_file'] = idx_rel
 			_persist(self.path, self.value)
+			# 2026-11-22
+			# "Auto-name Antigravity conversations from project journal step numbers":
+			# https://github.com/dmitry-ai/harness/issues/120
 			title_sync = _sync_antigravity_conversation_title(self.root, self.native, self.value['journal'])
+			# 2026-11-21
+			# "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
+			# https://github.com/dmitry-ai/harness/issues/119
 			r = {**self.result, 'compaction_check': _compact_compaction_check(self.value['compaction_check']), **self.value['prepared'], 'ready': True, 'status': 'prepared', 'delivery_verified': False, 'admission_verification': self.admission_check}
 			if None is not title_sync:
 				r['conversation_title_sync'] = title_sync
 		return r
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 class TurnJournalReconciler:
 	def __init__(self, root, conversation=None, *, platform=None, backend=None, from_step=0, journal_directory=None, adopt_conflict=False, preloaded_native=None):
 		if int is not type(from_step) or 0 > from_step:
 			raise ValueError('Native from-step must be a nonnegative integer')
+		# 2026-11-19
+		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+		# https://github.com/dmitry-ai/harness/issues/96
 		from .path_registry import canonicalize_root_dir
 		self.root = canonicalize_root_dir(root)
 		self.native = preloaded_native if None is not preloaded_native else _native(self.root, conversation, platform=platform, backend=backend)
@@ -371,7 +282,13 @@ class TurnJournalReconciler:
 		return r
 	def _cleanup_adopted_conflict(self, value):
 		value.pop('admission_failure', None)
+		# 2026-11-03
+		# "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
+		# https://github.com/dmitry-ai/harness/issues/43
 		if (value.get('delivery') or {}).get('conflict_evidence'):
+			# 2026-11-19
+			# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+			# https://github.com/dmitry-ai/harness/issues/96
 			raw_ce = Path(value['delivery']['conflict_evidence'])
 			conflict_file = raw_ce if raw_ce.is_absolute() else (self.root / raw_ce)
 			if conflict_file.is_file():
@@ -381,6 +298,9 @@ class TurnJournalReconciler:
 					pass
 	def _reconcile_turn(self, turn):
 		path, value = _state(self.root, self.native, turn, recovered=True, allow_extended=True, journal_directory=self.journal_directory)
+		# 2026-11-23
+		# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+		# https://github.com/dmitry-ai/harness/issues/132
 		if 'handed_off' == value.get('status'):
 			return {'turn_key': value['key'], 'status': 'handed_off', 'handed_off_to': value.get('handed_off_to'), 'delivery_verified': False, 'journal_steps': [], 'recovered_after_delivery': False}
 		response = turn['response']
@@ -391,6 +311,9 @@ class TurnJournalReconciler:
 			r = self._record_conflict(path, value, turn, response, 'A prior preparation/admission gate failed; recovery cannot grant publication approval')
 		else:
 			conflict_res = None
+			# 2026-11-20
+			# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
+			# https://github.com/dmitry-ai/harness/issues/105
 			try:
 				effective_response, conflict_detail = self._resolve_effective_response(value, turn, response, sha)
 				if None is not conflict_detail:
@@ -410,21 +333,36 @@ class TurnJournalReconciler:
 					value['recovered_after_delivery'] = not bool(value['prepared']) and (not recorded['reused_complete_journal_group'])
 				if self.adopt_conflict:
 					value['recovered_after_delivery'] = True
+				# 2026-11-26
+				# "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
+				# https://github.com/dmitry-ai/harness/issues/255
 				provenance = resolve_sync_provenance(value, adopt_conflict=self.adopt_conflict)
 				preparation_verified = bool(value['prepared']) and value.get('readiness_check', {}).get('verified', True) and (not self.adopt_conflict)
 				value['journal_record'] = recorded
 				delivery = self._build_delivery(value, turn, recorded, sha, provenance, preparation_verified)
 				value.pop('prior_verified_delivery', None)
+				# 2026-11-22
+				# "Auto-name Antigravity conversations from project journal step numbers":
+				# https://github.com/dmitry-ai/harness/issues/120
 				value.pop('reserved_journal_steps', None)
 				value['delivery'] = delivery
 				value['status'] = 'delivered'
 				if self.adopt_conflict:
 					value['readiness_check'] = {'verified': True, 'checked_at': _now(), 'detail': 'Adopted into journal via --adopt-conflict'}
 				_persist(path, value)
+				# 2026-11-22
+				# "Auto-name Antigravity conversations from project journal step numbers":
+				# https://github.com/dmitry-ai/harness/issues/120
 				journal.release_turn_steps(_directory(self.root, value['journal']), value['key'], request_ids=[req['id'] for req in turn['requests']])
+				# 2026-11-20
+				# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
+				# https://github.com/dmitry-ai/harness/issues/105
 				self._prune_delivered_checkpoint_recovery(value['key'])
 				r = {'turn_key': value['key'], 'status': 'delivered', 'delivery_verified': True, 'journal_steps': recorded['journal_steps'], 'completion_provenance': provenance, 'preparation_verified': preparation_verified, 'recovered_after_delivery': value['recovered_after_delivery'], 'exec5_check': value['exec5_check'], 'admission_verification': admission_check}
 		return r
+	# 2026-11-20
+	# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
+	# https://github.com/dmitry-ai/harness/issues/105
 	def _prune_delivered_checkpoint_recovery(self, key: str) -> None:
 		import shutil
 		folder = _folder(self.root)
@@ -446,9 +384,15 @@ class TurnJournalReconciler:
 			if None is not matched:
 				effective_response = matched
 		elif value['prepared']['response_sha256'] != sha:
+			# 2026-11-21
+			# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+			# https://github.com/dmitry-ai/harness/issues/113
 			raw_prep = value['prepared'].get('response_file') or ''
 			prep_file = journal.resolve_migrated_step_file(raw_prep) if raw_prep else Path()
 			prep_text = prep_file.read_bytes().decode('utf-8') if prep_file.is_file() else ''
+			# 2026-11-23
+			# "Prepend JSON metadata headers to new journal responses":
+			# https://github.com/dmitry-ai/harness/issues/151
 			if prep_text and _norm_journal_response_text(prep_text) == _norm_journal_response_text(response):
 				effective_response = prep_text
 			elif not self.adopt_conflict:
@@ -459,6 +403,9 @@ class TurnJournalReconciler:
 			raise ValueError('A child executor has no primary user journal to synchronize')
 		if not any((turn['owned'] for turn in self.native['turns'])):
 			raise ValueError('Native conversation has no user turns owned by this project')
+		# 2026-11-21
+		# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+		# https://github.com/dmitry-ai/harness/issues/109
 		journal.ensure_project_journal_upgraded(self.root, selected=self.journal_directory)
 		eligible = [turn for turn in self.native['turns'] if turn['owned'] and turn['completed'] and (not turn['aborted']) and (turn['start_step'] >= self.from_step)]
 		if not eligible:
@@ -469,6 +416,9 @@ class TurnJournalReconciler:
 				for turn in eligible:
 					with locked(_turn_lock(self.root, _key(self.native, turn))):
 						results.append(self._reconcile_turn(turn))
+			# 2026-11-22
+			# "Auto-name Antigravity conversations from project journal step numbers":
+			# https://github.com/dmitry-ai/harness/issues/120
 			if any(('delivered' == item.get('status') for item in results)):
 				j_hint = self.journal_directory
 				if None is j_hint:
@@ -484,6 +434,12 @@ class TurnJournalReconciler:
 				_sync_antigravity_conversation_title(self.root, self.native, j_hint)
 			r = {'valid': not any(('conflict' == item['status'] for item in results)), 'conversation_id': self.native['conversation_id'], 'source_file': self.native['source_file'], 'turns': results, 'retryable': any((item.get('retryable') for item in results)), 'pending_native_turn': self.native['active_turn_id'], 'private_reasoning_retained': False}
 		return r
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def _now():
 	return datetime.now(timezone.utc).isoformat()
 def _hash(value):
@@ -494,28 +450,82 @@ def _read(path):
 	value = json.loads(path.read_bytes().decode('utf-8'))
 	if not isinstance(value, dict):
 		raise ValueError('Completion metadata must be a JSON object: ' + str(path))
+	# 2026-11-24
+	# "Add deterministic reactive wait primitive for transient repository and journal contention":
+	# https://github.com/dmitry-ai/harness/issues/199
 	return value
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
 def _folder(root):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	pp = project_paths(root, exact_root=True)
+	# 2026-11-25
+	# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
+	# https://github.com/dmitry-ai/harness/issues/237
 	return pp.turns_dir if pp.has_explicit_path('turns_dir') else (pp.data_dir / 'turns')
+# 2026-11-10
+# "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop":
+# https://github.com/dmitry-ai/harness/issues/49
 def _turn_lock(root, key):
 	return _folder(root) / f'turn-{key}.lock'
+# 2026-11-10
+# "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop":
+# https://github.com/dmitry-ai/harness/issues/49
 def _journal_lock(root):
 	return _folder(root) / 'journal.lock'
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-11-13
+# "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
+# https://github.com/dmitry-ai/harness/issues/57
 def _directory(root, selected=None):
 	return journal.resolve_journal_dir(root, selected)
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def _key(native, turn):
 	identity = [native['platform'], native['native_backend'], native['conversation_id'], turn['turn_id']]
+	# 2026-11-24
+	# "Add deterministic reactive wait primitive for transient repository and journal contention":
+	# https://github.com/dmitry-ai/harness/issues/199
 	return _hash(_json(identity))[:40]
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def _native(root, conversation=None, *, platform=None, backend=None):
 	platform = platform_name(platform)
 	conversation = conversation or (os.environ.get('CODEX_THREAD_ID') if 'codex' == platform else None)
 	if not conversation:
 		raise ValueError('Select the actual current native conversation; no summary or neighbouring chat fallback')
+	# 2026-11-24
+	# "Add deterministic reactive wait primitive for transient repository and journal contention":
+	# https://github.com/dmitry-ai/harness/issues/199
 	return adapter(platform).native_answers(Path(root).resolve(), conversation, backend=backend)
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-24
+# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+# https://github.com/dmitry-ai/harness/issues/17
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def _policy():
 	return {ident: {'source': relative, 'anchor': anchor, 'sha256': _hash((PRIMARY / relative).read_bytes()), 'requirement': RULE_REQUIREMENTS[ident]} for ident, (relative, anchor) in RULES.items()}
+# 2026-11-02
+# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+# https://github.com/dmitry-ai/harness/issues/36
 def _violation_recovery(root, key):
 	if None is root or not key:
 		return {}
@@ -526,10 +536,25 @@ def _violation_recovery(root, key):
 		return _read(path)
 	except (OSError, ValueError):
 		return {}
+# 2026-10-24
+# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+# https://github.com/dmitry-ai/harness/issues/17
+# 2026-11-02
+# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+# https://github.com/dmitry-ai/harness/issues/36
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 def _exec5_status(turn, root=None, key=None):
 	return _recoverable_step_status(turn, 'exec5_violations', 'covered_exec5_steps', root, key)
+# 2026-11-13
+# "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
+# https://github.com/dmitry-ai/harness/issues/57
 def _factual_kb_note_issues(root, turn):
 	from .knowledge import validate_kb_factual_note
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	pp = project_paths(root, exact_root=True)
 	kb_prefix = pp.kb_dir.as_posix().lower().rstrip('/') + '/'
@@ -555,25 +580,58 @@ def _factual_kb_note_issues(root, turn):
 				except OSError:
 					pass
 	return r
+# 2026-11-23
+# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+# https://github.com/dmitry-ai/harness/issues/146
 def _issue_first_status(root, turn):
 	from .issue_first_gate import evaluate_issue_first_events
 	return evaluate_issue_first_events(list(turn.get('issue_first_events') or []), requests=list(turn.get('requests') or []), project_root=root)
+# 2026-11-23
+# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+# https://github.com/dmitry-ai/harness/issues/138
 def _tdd_status(root, turn):
 	from .tdd_gate import evaluate_tdd_events
+	# 2026-11-25
+	# "Add comment-only diff lexer exemption for top 20 repository languages":
+	# https://github.com/dmitry-ai/harness/issues/238
 	return evaluate_tdd_events(list(turn.get('tdd_events') or []), require_final_full_green=True, project_root=root)
+# 2026-11-25
+# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
+# https://github.com/dmitry-ai/harness/issues/251
 def _hook_crash_status(root, native, turn, value, response):
 	from .hook_crash_audit import evaluate_hook_crash_check
 	return evaluate_hook_crash_check(root, native, turn, value, response)
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
+# 2026-11-25
+# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
+# https://github.com/dmitry-ai/harness/issues/251
 VERIFIED_CHECK_KEYS = ('exec5_check', 'hook_crash_check', 'http_fetch_check', 'compaction_check', 'delegation_check', 'issue_first_check', 'code_lifecycle_check', 'tdd_check', 'language_and_stub_check', 'source_kb_check')
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 GATE_SPECS = (
 	('exec5', ('EXEC-5 violation in active turn (git read',), lambda root_p, turn, value, rc: bool(value.get('exec5_check', {}).get('verified'))),
+	# 2026-11-25
+	# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
+	# https://github.com/dmitry-ai/harness/issues/251
 	('hook_crash', ('DOC-5 / EXEC-5 hook_crash_check',), lambda root_p, turn, value, rc: bool(value.get('hook_crash_check', {}).get('verified', True))),
 	('http_fetch', ('KB-3 / EXEC-1 violation',), lambda root_p, turn, value, rc: bool(value.get('http_fetch_check', {}).get('verified'))),
 	('compaction', (), lambda root_p, turn, value, rc: bool(value.get('compaction_check', {}).get('verified'))),
 	('evicted_citations', (), lambda root_p, turn, value, rc: bool(value.get('compaction_check', {}).get('verified')) and (not ((set(rc.get('cited_files') or ()) & set(value.get('compaction_check', {}).get('evicted_unreread_files') or ())) if rc.get('cited_files') else set(value.get('compaction_check', {}).get('evicted_unreread_files') or ())))),
 	('delegation', ('REVIEW-1 / KB-3 violation',), lambda root_p, turn, value, rc: bool(value.get('delegation_check', {}).get('verified'))),
+	# 2026-11-23
+	# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+	# https://github.com/dmitry-ai/harness/issues/146
 	('issue_first', ('EXEC-5 ISSUE-FIRST-GATE',), lambda root_p, turn, value, rc: bool(value.get('issue_first_check', {}).get('verified'))),
+	# 2026-10-31
+	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+	# https://github.com/dmitry-ai/harness/issues/31
 	('code_lifecycle', ('EXEC-5 violation in active turn (code/issue',), lambda root_p, turn, value, rc: bool(value.get('code_lifecycle_check', {}).get('verified'))),
+	# 2026-11-23
+	# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+	# https://github.com/dmitry-ai/harness/issues/138
 	('tdd', ('EXEC-2 TDD-',), lambda root_p, turn, value, rc: bool(value.get('tdd_check', {}).get('verified'))),
 	('language_and_stub', ('TEXT-1:', 'FILE-3 / REVIEW-1:'), lambda root_p, turn, value, rc: bool(value.get('language_and_stub_check', {}).get('verified'))),
 	('aa_partial_read', ('REVIEW-3 / REVIEW-4: Independent A.A reviewer',), lambda root_p, turn, value, rc: not bool(value.get('delegation_check', {}).get('aa_partial_read_violations'))),
@@ -582,7 +640,16 @@ GATE_SPECS = (
 	('review_authorize', (), lambda root_p, turn, value, rc: _workflow_gate_resolved(root_p, turn, 'review_authorize')),
 	('source_grounding', ('VERIFY-1', 'LINK-', 'KB-1 / KB-3:', 'DOC-1 / VERIFY-'), lambda root_p, turn, value, rc: bool(value.get('source_kb_check', {}).get('verified'))),
 )
+# 2026-11-13
+# "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
+# https://github.com/dmitry-ai/harness/issues/57
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 def _gate_resolved(root, turn, value):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import canonicalize_root_dir
 	rc = value.get('readiness_check') or {}
 	gid = str(rc.get('gate_id') or '')
@@ -592,9 +659,21 @@ def _gate_resolved(root, turn, value):
 	root_p = canonicalize_root_dir(root)
 	specific = next((pred(root_p, turn, value, rc) for spec_id, prefixes, pred in GATE_SPECS if spec_id == gid or ('' == gid and prefixes and rc_detail.startswith(prefixes))), False)
 	return bool(specific and all((value.get(k, {}).get('verified', True) for k in VERIFIED_CHECK_KEYS)))
+# 2026-11-02
+# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+# https://github.com/dmitry-ai/harness/issues/36
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 def _http_fetch_status(turn, root=None, key=None):
 	return _recoverable_step_status(turn, 'http_fetch_violations', 'covered_http_fetch_steps', root, key)
+# 2026-10-30
+# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+# https://github.com/dmitry-ai/harness/issues/21
 def _compaction_status(root, key, turn):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	pp = project_paths(root, exact_root=True)
 	ev_prefix = pp.evidence_dir.as_posix().lower().rstrip('/') + '/'
@@ -603,12 +682,18 @@ def _compaction_status(root, key, turn):
 	last_cp = comp.get('last_checkpoint_step')
 	pre_steps = list(comp.get('pre_checkpoint_tool_steps') or [])
 	post_rec = list(comp.get('post_checkpoint_recovery_steps') or [])
+	# 2026-11-01
+	# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+	# https://github.com/dmitry-ai/harness/issues/34
 	pre_reads = list(comp.get('pre_checkpoint_read_files') or [])
 	post_reads = list(comp.get('post_checkpoint_read_files') or [])
 	post_writes = list(comp.get('post_checkpoint_written_files') or [])
 	evicted_unreread = list(comp.get('evicted_unreread_files') or [])
 	evicted_lower = {p.replace('\\', '/').lower(): p for p in evicted_unreread}
 	unreread_analysis_sources = []
+	# 2026-11-10
+	# "Enforce source grounding and review.authorize across external client deliverables, edit_file calls, and post-compaction tool outputs":
+	# https://github.com/dmitry-ai/harness/issues/50
 	writes_client_deliverable = False
 	for w in post_writes:
 		wnorm = w.replace('\\', '/')
@@ -619,6 +704,9 @@ def _compaction_status(root, key, turn):
 				unreread_analysis_sources.append(evicted_lower[sib.lower()])
 		elif _is_client_deliverable_path(wlow, root):
 			writes_client_deliverable = True
+	# 2026-11-10
+	# "Enforce source grounding and review.authorize across external client deliverables, edit_file calls, and post-compaction tool outputs":
+	# https://github.com/dmitry-ai/harness/issues/50
 	if writes_client_deliverable:
 		for ev_l, ev_orig in evicted_lower.items():
 			if ('/.system_generated/steps/' in ev_l or ev_l.endswith('/kb/source.md') or '/source/' in ev_l or '/\ua616/kb/evidence/' in ev_l or ev_l.startswith(ev_prefix)) and ev_orig not in unreread_analysis_sources:
@@ -635,10 +723,16 @@ def _compaction_status(root, key, turn):
 		except (OSError, ValueError):
 			pass
 	verified = bool((not occurred or not pre_steps or recovered_in_trace or recovered_via_receipt) and (not unreread_analysis_sources))
+	# 2026-11-21
+	# "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
+	# https://github.com/dmitry-ai/harness/issues/119
 	idx_path = (_folder(root) / f'{key}-recovery/index.json') if key else None
 	idx_rel = (idx_path.relative_to(root).as_posix() if idx_path.is_relative_to(root) else str(idx_path)) if None is not idx_path and occurred and idx_path.is_file() else None
 	r = {'verified': verified, 'occurred': occurred, 'checkpoint_steps': list(comp.get('checkpoint_steps') or []), 'last_checkpoint_step': last_cp, 'pre_checkpoint_tool_steps': pre_steps, 'post_checkpoint_recovery_steps': post_rec, 'recovered_in_trace': recovered_in_trace, 'recovered_via_receipt': recovered_via_receipt, 'pre_checkpoint_read_files': pre_reads, 'post_checkpoint_read_files': post_reads, 'post_checkpoint_written_files': post_writes, 'evicted_unreread_files': evicted_unreread, 'unreread_analysis_sources': unreread_analysis_sources, 'index_file': idx_rel}
 	return r
+# 2026-11-21
+# "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
+# https://github.com/dmitry-ai/harness/issues/119
 def _build_compaction_file_index(root: Path, pre_reads: list[str], post_reads: list[str], evicted_unreread: list[str]) -> list[dict]:
 	ev_set = {str(p).replace('\\', '/').lower() for p in (evicted_unreread or ())}
 	post_set = {str(p).replace('\\', '/').lower() for p in (post_reads or ())}
@@ -676,6 +770,9 @@ def _build_compaction_file_index(root: Path, pre_reads: list[str], post_reads: l
 		rel_p = p_obj.relative_to(root).as_posix() if p_obj.is_relative_to(root) else p_obj.as_posix()
 		items.append({'path': rel_p, 'exists': exists, 'sha256': sha, 'bytes': byte_len, 'lines': line_cnt, 'evicted_unreread': is_ev, 'reread_after_checkpoint': pk in post_set, 'reread_required_if_cited': reread_req})
 	return items
+# 2026-11-21
+# "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
+# https://github.com/dmitry-ai/harness/issues/119
 def _write_compaction_index_file(root: Path, key: str, turn: dict, comp_check: dict, *, step_records: list[dict] | None = None) -> str:
 	rec_dir = _folder(root) / f'{key}-recovery'
 	rec_dir.mkdir(parents=True, exist_ok=True)
@@ -714,6 +811,9 @@ def _write_compaction_index_file(root: Path, key: str, turn: dict, comp_check: d
 	}
 	replace_bytes(idx_path, _json(payload))
 	return idx_path.relative_to(root).as_posix() if idx_path.is_relative_to(root) else str(idx_path)
+# 2026-11-21
+# "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
+# https://github.com/dmitry-ai/harness/issues/119
 def _compact_compaction_check(comp_check: dict, *, index_file: str | None = None) -> dict:
 	occurred = bool(comp_check.get('occurred'))
 	eff_idx = (index_file if None is not index_file else comp_check.get('index_file')) if occurred else None
@@ -732,30 +832,66 @@ def _compact_compaction_check(comp_check: dict, *, index_file: str | None = None
 		'index_file': eff_idx,
 		'unreread_analysis_sources': list(comp_check.get('unreread_analysis_sources') or []),
 	}
+# 2026-10-30
+# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+# https://github.com/dmitry-ai/harness/issues/21
 DEL_MAX_UNPERSISTED_STEPS = 40
+# 2026-11-01
+# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+# https://github.com/dmitry-ai/harness/issues/34
 DEL_MAX_UNPERSISTED_SOURCE_READS = 10
+# 2026-11-02
+# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+# https://github.com/dmitry-ai/harness/issues/37
 DEL_MAX_TOTAL_STEPS_WITHOUT_SUBAGENTS = 60
 DEL_MAX_ISSUE_ACTIONS_WITHOUT_SUBAGENTS = 3
+# 2026-10-30
+# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+# https://github.com/dmitry-ai/harness/issues/21
 def _delegation_status(root, turn):
 	del_info = dict(turn.get('delegation') or {})
 	tool_steps = int(del_info.get('tool_step_count') or 0)
 	sub_steps = int(del_info.get('subagent_step_count') or 0)
+	# 2026-11-01
+	# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+	# https://github.com/dmitry-ai/harness/issues/34
 	aa_steps = int(del_info.get('aa_subagent_step_count') if 'aa_subagent_step_count' in del_info else sub_steps)
 	af_steps = int(del_info.get('af_subagent_step_count') or 0)
 	kb_steps = int(del_info.get('kb_persistence_step_count') or 0)
 	cur_streak = int(del_info.get('unpersisted_step_streak') if 'unpersisted_step_streak' in del_info else tool_steps if 0 == sub_steps and 0 == kb_steps else 0)
 	max_streak = int(del_info.get('max_unpersisted_step_streak') if 'max_unpersisted_step_streak' in del_info else cur_streak)
 	max_src_reads = int(del_info.get('max_unpersisted_source_reads') or 0)
+	# 2026-11-02
+	# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+	# https://github.com/dmitry-ai/harness/issues/37
 	issue_actions_count = len(turn.get('issue_actions') or [])
+	# 2026-11-06
+	# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
+	# https://github.com/dmitry-ai/harness/issues/48
 	aa_part_errs = list(del_info.get('aa_partial_read_violations') or [])
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	is_upwork_project = project_paths(root, exact_root=True).project_json.is_file()
+	# 2026-11-02
+	# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+	# https://github.com/dmitry-ai/harness/issues/37
 	unpersisted_bulk = bool(is_upwork_project and ((tool_steps > DEL_MAX_UNPERSISTED_STEPS and 0 == sub_steps and 0 == kb_steps) or cur_streak > DEL_MAX_UNPERSISTED_STEPS or (max_src_reads >= DEL_MAX_UNPERSISTED_SOURCE_READS and 0 == sub_steps) or (tool_steps > DEL_MAX_TOTAL_STEPS_WITHOUT_SUBAGENTS and 0 == sub_steps) or (issue_actions_count > DEL_MAX_ISSUE_ACTIONS_WITHOUT_SUBAGENTS and 0 == sub_steps)))
+	# 2026-11-06
+	# "Enforce defect-to-issue filing gate in code repository audits, open-issue lifecycle separation, and recursive subagent trace aggregation":
+	# https://github.com/dmitry-ai/harness/issues/48
 	r = {'verified': not unpersisted_bulk, 'tool_step_count': tool_steps, 'subagent_step_count': sub_steps, 'aa_subagent_step_count': aa_steps, 'aa_partial_read_violations': aa_part_errs, 'af_subagent_step_count': af_steps, 'kb_persistence_step_count': kb_steps, 'issue_actions_count': issue_actions_count, 'max_unpersisted_steps': DEL_MAX_UNPERSISTED_STEPS, 'unpersisted_step_streak': cur_streak, 'max_unpersisted_step_streak': max_streak, 'max_unpersisted_source_reads': max_src_reads, 'max_allowed_unpersisted_source_reads': DEL_MAX_UNPERSISTED_SOURCE_READS}
 	return r
+# 2026-11-10
+# "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop":
+# https://github.com/dmitry-ai/harness/issues/49
 BUDGET_MAX_CHECKPOINTS = 2
 BUDGET_MAX_TOOL_STEPS = 120
 BUDGET_WINDOW_5H_MAX_STEPS = 400
+# 2026-11-10
+# "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop":
+# https://github.com/dmitry-ai/harness/issues/49
 def _budget_status(root, turn):
 	comp = dict(turn.get('compaction') or {})
 	del_info = dict(turn.get('delegation') or {})
@@ -776,6 +912,9 @@ def _budget_status(root, turn):
 						window_5h_steps += int((td.get('delegation_check') or {}).get('tool_step_count') or 0)
 			except (OSError, ValueError):
 				pass
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	pp = project_paths(root, exact_root=True)
 	cont_low = pp.continuation_md.as_posix().lower()
@@ -786,20 +925,38 @@ def _budget_status(root, turn):
 	exceeded = bool(cp_count >= BUDGET_MAX_CHECKPOINTS or tool_steps >= BUDGET_MAX_TOOL_STEPS or window_5h_steps >= BUDGET_WINDOW_5H_MAX_STEPS)
 	r = {'verified': True, 'checkpoint_count': cp_count, 'max_checkpoints': BUDGET_MAX_CHECKPOINTS, 'tool_step_count': tool_steps, 'max_tool_steps': BUDGET_MAX_TOOL_STEPS, 'window_5h_tool_steps': window_5h_steps, 'max_window_5h_tool_steps': BUDGET_WINDOW_5H_MAX_STEPS, 'graceful_checkpoint_required': exceeded, 'continuation_saved': continuation_saved, 'kb_saved': kb_saved}
 	return r
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def _instruction_snapshot(root, native, *, stage):
 	from .configuration import _project_rule_paths
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	pp = project_paths(root, exact_root=True)
 	root = pp.root
+	# 2026-11-18
+	# "Fix runtime instance path derivation and store validation":
+	# https://github.com/dmitry-ai/harness/issues/89
 	plat_id = native['platform']
 	plat_cfg = (settings().get('platforms') or {}).get(plat_id)
 	adapter_kind = platform_adapter_name(plat_id, plat_cfg)
 	sources = {path: 'canonical' for path in sorted((PRIMARY / 'rules').glob('*.md'))}
 	sources[PRIMARY / 'runtime.json'] = 'runtime'
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	if (PRIMARY / 'paths.json').is_file():
 		sources[PRIMARY / 'paths.json'] = 'paths-registry'
 	if None is not pp.overlay_file and pp.overlay_file.is_file():
 		sources[pp.overlay_file] = 'project-paths-overlay'
+	# 2026-11-18
+	# "Fix runtime instance path derivation and store validation":
+	# https://github.com/dmitry-ai/harness/issues/89
 	adapter_doc = PRIMARY / 'platforms' / (adapter_kind + '.md')
 	if adapter_doc.is_file():
 		sources[adapter_doc] = 'adapter'
@@ -812,6 +969,9 @@ def _instruction_snapshot(root, native, *, stage):
 		sources.update({path: 'project-rule' for path in _project_rule_paths(root, PRIMARY)})
 	except (OSError, ValueError) as exc:
 		errors.append(str(exc))
+	# 2026-11-18
+	# "Fix runtime instance path derivation and store validation":
+	# https://github.com/dmitry-ai/harness/issues/89
 	if 'codex' == adapter_kind:
 		workspace = Path(settings()['workspace_root']).resolve()
 		folders = [root]
@@ -832,6 +992,12 @@ def _instruction_snapshot(root, native, *, stage):
 			errors.append(str(exc))
 	r = {'captured_at': _now(), 'capture_stage': stage, 'sources': files, 'errors': errors, 'selection_verified': False, 'delivery_to_model_verified': False}
 	return r
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
+# 2026-11-19
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 def _is_client_deliverable_path(path_text, root=None) -> bool:
 	norm = str(path_text).replace('\\', '/').lower()
 	if '/\ua616/' in norm or '/\ua66e/' in norm:
@@ -850,6 +1016,9 @@ def _is_client_deliverable_path(path_text, root=None) -> bool:
 			if None is not sp and norm.startswith(sp.as_posix().lower().rstrip('/') + '/'):
 				return True
 	return any((seg in norm for seg in segs))
+# 2026-11-22
+# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
+# https://github.com/dmitry-ai/harness/issues/123
 def _similar_projects_metadata(root: Path) -> tuple[list[str], list[str]]:
 	from .issue_lifecycle import similar_project_repo_slugs
 	from .path_registry import canonicalize_root_dir, load_registry, project_paths
@@ -897,26 +1066,68 @@ def _similar_projects_metadata(root: Path) -> tuple[list[str], list[str]]:
 				seen_repos.add(slug.lower())
 				peer_repos.append(slug)
 	return (peer_paths, peer_repos)
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def _new(root, native, turn, *, recovered=False, journal_directory=None):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import canonicalize_root_dir
 	canon_root = canonicalize_root_dir(root)
 	key = _key(native, turn)
+	# 2026-11-22
+	# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
+	# https://github.com/dmitry-ai/harness/issues/123
 	sim_paths, sim_repos = _similar_projects_metadata(canon_root)
+	# 2026-10-31
+	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+	# https://github.com/dmitry-ai/harness/issues/31
+	# 2026-11-22
+	# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
+	# https://github.com/dmitry-ai/harness/issues/123
 	lifecycle = {'verified': True, 'touched_repos': {}, 'issues': [], 'similar_projects': {'verified': True, 'peers': []}, 'violations': []} if recovered else _code_and_issue_lifecycle_status(canon_root, turn)
+	# 2026-11-23
+	# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+	# https://github.com/dmitry-ai/harness/issues/146
 	issue_first_chk = {'verified': True, 'repos': {}, 'violations': []} if recovered else _issue_first_status(canon_root, turn)
+	# 2026-11-23
+	# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+	# https://github.com/dmitry-ai/harness/issues/138
 	tdd_chk = {'verified': True, 'scopes': {}, 'violations': []} if recovered else _tdd_status(canon_root, turn)
+	# 2026-10-24
+	# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+	# https://github.com/dmitry-ai/harness/issues/17
+	# 2026-11-23
+	# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+	# https://github.com/dmitry-ai/harness/issues/146
 	r = {'schema_version': 1, 'key': key, 'project_root': str(canon_root), 'platform': native['platform'], 'native_backend': native['native_backend'], 'conversation_id': native['conversation_id'], 'native_turn_id': turn['turn_id'], 'native_start_step': turn['start_step'], 'requests': turn['requests'], 'role': 'primary', 'journal_required': True, 'journal': str(_directory(canon_root, journal_directory)), 'applicable_rules': _policy(), 'git_optional_locks_env': os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0'), 'exec5_check': _exec5_status(turn, canon_root, key), 'http_fetch_check': _http_fetch_status(turn, canon_root, key), 'compaction_check': _compaction_status(canon_root, key, turn), 'delegation_check': _delegation_status(canon_root, turn), 'budget_check': _budget_status(canon_root, turn), 'issue_first_check': issue_first_chk, 'code_lifecycle_check': lifecycle, 'tdd_check': tdd_chk, 'instruction_snapshot': _instruction_snapshot(canon_root, native, stage='recovery' if recovered else 'turn-begin'), 'format_independent': True, 'rule_comprehension_verified': False, 'required_completion': ['answer-prepare', 'native-delivery-check'], 'status': 'open', 'prepared': None, 'delivery': None, 'recovered_after_delivery': recovered, 'created_at': _now()}
+	# 2026-11-22
+	# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
+	# https://github.com/dmitry-ai/harness/issues/123
 	if sim_paths:
 		r['similar_projects'] = sim_paths
 	if sim_repos:
 		r['similar_project_repos'] = sim_repos
 	return r
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 def _persist(path, value):
 	if path.exists() and _read(path) == value:
 		return
 	value['updated_at'] = _now()
 	replace_bytes(path, _json(value))
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 def _persist_turn_recovery(root, conversation, suffix, build_receipt, *, platform=None, backend=None, clear_admission=False):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import canonicalize_root_dir
 	root = canonicalize_root_dir(root)
 	native = _native(root, conversation, platform=platform, backend=backend)
@@ -924,6 +1135,9 @@ def _persist_turn_recovery(root, conversation, suffix, build_receipt, *, platfor
 	if None is turn:
 		raise ValueError('No active primary native turn to recover')
 	key = _key(native, turn)
+	# 2026-11-25
+	# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
+	# https://github.com/dmitry-ai/harness/issues/251
 	receipt, extra = build_receipt(root, key, turn, native)
 	receipt_path = _folder(root) / f'{key}-{suffix}.json'
 	with locked(_turn_lock(root, key)):
@@ -934,6 +1148,9 @@ def _persist_turn_recovery(root, conversation, suffix, build_receipt, *, platfor
 		_persist(path, value)
 	rel_file = receipt_path.relative_to(root).as_posix() if receipt_path.is_relative_to(root) else str(receipt_path)
 	return {**receipt, **extra(value), 'recovery_file': rel_file}
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 def _recoverable_step_status(turn, violations_key, covered_key, root=None, key=None):
 	violations = list(turn.get(violations_key) or [])
 	rec = _violation_recovery(root, key) if violations else {}
@@ -943,6 +1160,9 @@ def _recoverable_step_status(turn, violations_key, covered_key, root=None, key=N
 	if violations and (not unrecovered):
 		r['recovered_via_receipt'] = True
 	return r
+# 2026-11-21
+# "Remove text-based explicit-project-root override from request binding":
+# https://github.com/dmitry-ai/harness/issues/112
 def _same_saved_request(old_req, cur_req, root):
 	if old_req == cur_req:
 		return True
@@ -953,6 +1173,9 @@ def _same_saved_request(old_req, cur_req, root):
 	old_b, cur_b = (old_req.get('project_binding'), cur_req.get('project_binding'))
 	if not isinstance(old_b, dict) or not isinstance(cur_b, dict):
 		return False
+	# 2026-11-21
+	# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+	# https://github.com/dmitry-ai/harness/issues/113
 	from .path_registry import same_project_root
 	old_kind, cur_kind = (old_b.get('kind'), cur_b.get('kind'))
 	if 'explicit-project-root' != old_kind:
@@ -961,23 +1184,56 @@ def _same_saved_request(old_req, cur_req, root):
 		if {k: v for k, v in old_b.items() if k not in ('root', 'kind')} != {k: v for k, v in cur_b.items() if k not in ('root', 'kind')}:
 			return False
 	return same_project_root(old_b.get('root'), root) and same_project_root(cur_b.get('root'), root)
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def _state(root, native, turn, *, recovered=False, allow_extended=False, journal_directory=None, strict_journal=False):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
+	# 2026-11-21
+	# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+	# https://github.com/dmitry-ai/harness/issues/113
 	from .path_registry import canonicalize_root_dir, same_project_root
 	root = canonicalize_root_dir(root)
 	key = _key(native, turn)
 	path = _folder(root) / (key + '.json')
 	value = _read(path) if path.exists() else _new(root, native, turn, recovered=recovered, journal_directory=journal_directory)
+	# 2026-11-23
+	# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+	# https://github.com/dmitry-ai/harness/issues/132
 	historical_done = bool('handed_off' == value.get('status') or (turn.get('completed') and value.get('status') in ('delivered', 'conflict')))
+	# 2026-11-21
+	# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+	# https://github.com/dmitry-ai/harness/issues/113
 	active_validation = not recovered and not historical_done
+	# 2026-11-03
+	# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+	# https://github.com/dmitry-ai/harness/issues/41
 	if 'instruction_snapshot' not in value and active_validation:
 		value['instruction_snapshot'] = _instruction_snapshot(root, native, stage='existing-state-upgrade')
 	if 'applicable_rules' not in value:
 		value['applicable_rules'] = _policy()
+	# 2026-10-24
+	# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+	# https://github.com/dmitry-ai/harness/issues/17
+	# 2026-11-03
+	# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+	# https://github.com/dmitry-ai/harness/issues/41
 	if 'git_optional_locks_env' not in value:
 		value['git_optional_locks_env'] = os.environ.setdefault('GIT_OPTIONAL_LOCKS', '0')
+	# 2026-11-10
+	# "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop":
+	# https://github.com/dmitry-ai/harness/issues/49
 	for name, check in (('exec5_check', lambda: _exec5_status(turn, root, key)), ('http_fetch_check', lambda: _http_fetch_status(turn, root, key)), ('compaction_check', lambda: _compaction_status(root, key, turn)), ('delegation_check', lambda: _delegation_status(root, turn)), ('budget_check', lambda: _budget_status(root, turn))):
 		if active_validation or name not in value:
 			value[name] = check()
+	# 2026-11-22
+	# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
+	# https://github.com/dmitry-ai/harness/issues/123
 	ex_file = _folder(root) / f'{key}-similar-exemptions.json'
 	if ex_file.is_file():
 		try:
@@ -987,7 +1243,13 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 				value['similar_project_exemptions'] = [it for it in ex_list if isinstance(it, dict)]
 		except (OSError, ValueError):
 			pass
+	# 2026-11-03
+	# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+	# https://github.com/dmitry-ai/harness/issues/41
 	if active_validation:
+		# 2026-11-22
+		# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
+		# https://github.com/dmitry-ai/harness/issues/123
 		sim_paths, sim_repos = _similar_projects_metadata(root)
 		if sim_paths:
 			value['similar_projects'] = sim_paths
@@ -997,36 +1259,87 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 			value['similar_project_repos'] = sim_repos
 		else:
 			value.pop('similar_project_repos', None)
+		# 2026-11-23
+		# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+		# https://github.com/dmitry-ai/harness/issues/146
 		value['issue_first_check'] = _issue_first_status(root, turn)
+		# 2026-10-31
+		# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+		# https://github.com/dmitry-ai/harness/issues/31
+		# 2026-11-02
+		# "Eliminate flashing Git console windows on Windows by enforcing CREATE_NO_WINDOW and skipping redundant Git subprocesses in journal-watch":
+		# https://github.com/dmitry-ai/harness/issues/40
 		value['code_lifecycle_check'] = _code_and_issue_lifecycle_status(root, turn, value)
+		# 2026-11-23
+		# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+		# https://github.com/dmitry-ai/harness/issues/138
 		value['tdd_check'] = _tdd_status(root, turn)
 	else:
+		# 2026-10-31
+		# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
+		# https://github.com/dmitry-ai/harness/issues/31
+		# 2026-11-23
+		# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+		# https://github.com/dmitry-ai/harness/issues/138
 		if 'code_lifecycle_check' not in value:
 			value['code_lifecycle_check'] = {'verified': True, 'touched_repos': {}, 'issues': [], 'similar_projects': {'verified': True, 'peers': []}, 'violations': []}
+		# 2026-11-23
+		# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+		# https://github.com/dmitry-ai/harness/issues/146
 		if not historical_done and 'issue_first_check' not in value:
 			value['issue_first_check'] = {'verified': True, 'repos': {}, 'violations': []}
+		# 2026-11-23
+		# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+		# https://github.com/dmitry-ai/harness/issues/138
+		# 2026-11-23
+		# "Preserve historical delivered turn bytes when tdd_check is absent":
+		# https://github.com/dmitry-ai/harness/issues/140
 		if not historical_done and 'tdd_check' not in value:
 			value['tdd_check'] = {'verified': True, 'scopes': {}, 'violations': []}
+	# 2026-11-10
+	# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
+	# https://github.com/dmitry-ai/harness/issues/51
+	# 2026-11-13
+	# "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
+	# https://github.com/dmitry-ai/harness/issues/57
+	# 2026-11-14
+	# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+	# https://github.com/dmitry-ai/harness/issues/60
 	if False is value.get('readiness_check', {}).get('verified') and (not value.get('admission_failure')):
 		if _gate_resolved(root, turn, value):
 			value.pop('readiness_check', None)
+	# 2026-11-19
+	# "Remove Antigravity addons runtime health probing from Harness":
+	# https://github.com/dmitry-ai/harness/issues/93
 	if 'open' == value.get('status'):
 		value.pop('addons_health', None)
 	saved_directory = _directory(root, value['journal'])
 	if strict_journal and None is not journal_directory and (saved_directory != _directory(root, journal_directory)):
 		raise ValueError('The native turn already has a different journal; preserve its original binding')
+	# 2026-11-21
+	# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+	# https://github.com/dmitry-ai/harness/issues/113
 	if not same_project_root(value.get('project_root'), root):
 		raise ValueError('Completion state has a different native owner; preserved')
 	for name, expected in [('platform', native['platform']), ('native_backend', native['native_backend']), ('conversation_id', native['conversation_id']), ('native_turn_id', turn['turn_id'])]:
 		if value.get(name) != expected:
 			raise ValueError('Completion state has a different native owner; preserved')
+	# 2026-11-21
+	# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+	# https://github.com/dmitry-ai/harness/issues/113
 	if not (historical_done and journal.same_journal_identity(value.get('journal'), saved_directory)):
 		value['journal'] = str(saved_directory)
 	if not historical_done:
 		value['project_root'] = str(root)
+	# 2026-11-25
+	# "Ensure atomic answer-prepare workflow alignment and safe open-turn reconciliation":
+	# https://github.com/dmitry-ai/harness/issues/232
 	from .reconcile_helpers import resolve_saved_turn_requests
 	old, current = (value['requests'], turn['requests'])
 	merged_requests = resolve_saved_turn_requests(root, native, turn, value, recovered=recovered, same_req_fn=_same_saved_request, journal_dir_fn=_directory)
+	# 2026-11-21
+	# "Remove text-based explicit-project-root override from request binding":
+	# https://github.com/dmitry-ai/harness/issues/112
 	if not (value.get('prepared') and len(current) > len(old)):
 		value['requests'] = merged_requests
 		r = (path, value)
@@ -1036,12 +1349,21 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 		value['uncovered_requests'] = current[len(old):]
 		r = (path, value)
 	return r
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def _active(native):
 	if not native['primary']:
 		r = None
 	else:
 		turn = next((turn for turn in native['turns'] if turn['turn_id'] == native['active_turn_id']), None)
 		if None is turn or not turn['owned'] or turn['aborted']:
+			# 2026-11-23
+			# "Use native workspace priority and AST command parsing in request binding":
+			# https://github.com/dmitry-ai/harness/issues/129
 			from .platforms.request_binding import format_binding_diagnostic
 			diag = native.get('binding_diagnostic') if isinstance(native.get('binding_diagnostic'), dict) else {}
 			detail = format_binding_diagnostic(diag.get('expected_root'), diag.get('binding'), expected_job_id=diag.get('expected_job_id'))
@@ -1049,18 +1371,18 @@ def _active(native):
 			raise ValueError(f'No active native user turn belonging entirely to this project{suffix}')
 		r = turn
 	return r
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove Antigravity addons runtime health probing from Harness":
-# https://github.com/dmitry-ai/harness/issues/93
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Integrate declarative Antigravity addons health and sanctioning into Harness":
-# https://github.com/dmitry-ai/harness/issues/92
-# 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
+# 2026-11-22
+# "Auto-name Antigravity conversations from project journal step numbers":
+# https://github.com/dmitry-ai/harness/issues/120
 def format_conversation_journal_title(steps) -> str:
 	ordered = sorted({st for st in (steps or ()) if int is type(st) and 1 <= st})
 	return ', '.join((str(st) for st in ordered))
+# 2026-11-22
+# "Auto-name Antigravity conversations from project journal step numbers":
+# https://github.com/dmitry-ai/harness/issues/120
+# 2026-11-26
+# "Harden follow-up launcher handoff and journal reservation integrity":
+# https://github.com/dmitry-ai/harness/issues/269
 def conversation_journal_steps(root, journal_directory, conversation_id: str) -> list[int]:
 	from .journal_integrity import collect_conversation_journal_steps
 	from .path_registry import canonicalize_root_dir
@@ -1071,6 +1393,9 @@ def conversation_journal_steps(root, journal_directory, conversation_id: str) ->
 		root_p = canonicalize_root_dir(root)
 		r = collect_conversation_journal_steps(_folder(root_p), _directory(root_p, journal_directory), cid, iter_groups_fn=journal.iter_answer_group_records, iter_res_fn=journal.iter_turn_reservations, read_fn=_read, same_j_fn=journal.same_journal_identity)
 	return r
+# 2026-11-22
+# "Auto-name Antigravity conversations from project journal step numbers":
+# https://github.com/dmitry-ai/harness/issues/120
 def _sync_antigravity_conversation_title(root, native: dict, journal_directory=None, *, dry_run: bool=False) -> dict | None:
 	if not isinstance(native, dict) or (not native.get('primary')):
 		return None
@@ -1091,6 +1416,9 @@ def _sync_antigravity_conversation_title(root, native: dict, journal_directory=N
 		return {**res, 'steps': steps}
 	except Exception as exc:
 		return {'synced': False, 'changed': False, 'title': title, 'steps': steps, 'conversation_id': cid, 'reason': 'sync_error', 'error': str(exc)}
+# 2026-11-22
+# "Auto-name Antigravity conversations from project journal step numbers":
+# https://github.com/dmitry-ai/harness/issues/120
 def sync_conversation_title(root, conversation=None, *, platform=None, backend=None, journal_directory=None, dry_run: bool=False) -> dict:
 	from .path_registry import canonicalize_root_dir
 	root_p = canonicalize_root_dir(root)
@@ -1103,6 +1431,9 @@ def sync_conversation_title(root, conversation=None, *, platform=None, backend=N
 		cid_low = str(native.get('conversation_id') or '').strip().lower()
 		if t_dir.is_dir():
 			for sf in sorted(t_dir.glob('*.json'), key=lambda p: p.stat().st_mtime_ns, reverse=True):
+				# 2026-11-25
+				# "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
+				# https://github.com/dmitry-ai/harness/issues/239
 				if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json')):
 					continue
 				try:
@@ -1118,6 +1449,12 @@ def sync_conversation_title(root, conversation=None, *, platform=None, backend=N
 		steps = conversation_journal_steps(root_p, jdir, native.get('conversation_id') or '')
 		res = {'synced': False, 'changed': False, 'title': format_conversation_journal_title(steps), 'steps': steps, 'conversation_id': native.get('conversation_id'), 'reason': 'unsupported_platform'}
 	return {**res, 'platform': native['platform'], 'journal': str(jdir)}
+# 2026-11-23
+# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+# https://github.com/dmitry-ai/harness/issues/132
+# 2026-11-26
+# "Harden follow-up launcher handoff and journal reservation integrity":
+# https://github.com/dmitry-ai/harness/issues/269
 def handoff_launcher_turn(launcher_root, target_root, job_id, *, conversation_id=None) -> list[dict]:
 	from .journal_integrity import collect_handed_off_conversations, turn_matches_handoff
 	from .path_registry import canonicalize_root_dir, same_project_root
@@ -1138,6 +1475,9 @@ def handoff_launcher_turn(launcher_root, target_root, job_id, *, conversation_id
 	prior_cids = collect_handed_off_conversations(t_dir, target_p, read_fn=_read, same_root_fn=same_project_root)
 	handed_off: list[dict] = []
 	for sf in sorted(t_dir.glob('*.json')):
+		# 2026-11-25
+		# "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
+		# https://github.com/dmitry-ai/harness/issues/239
 		if sf.name.endswith(('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json')):
 			continue
 		try:
@@ -1173,25 +1513,52 @@ def handoff_launcher_turn(launcher_root, target_root, job_id, *, conversation_id
 			_persist(sf, cur)
 			handed_off.append({'turn_key': key, 'conversation_id': cur.get('conversation_id'), 'launcher_root': str(launcher_p), 'target_root': str(target_p), 'job_id': job_str, 'status': 'handed_off'})
 	return handed_off
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-21
+# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
+# https://github.com/dmitry-ai/harness/issues/116
 def begin(root, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None, dry_run=False):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import canonicalize_root_dir
 	root = canonicalize_root_dir(root)
 	native = _native(root, conversation, platform=platform, backend=backend)
 	turn = _active(native)
 	if None is turn:
 		r = {'role': 'child', 'journal_required': False, 'reason': 'The primary conversation owns the user journal'}
+		# 2026-11-21
+		# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
+		# https://github.com/dmitry-ai/harness/issues/116
 		if dry_run:
 			r['dry_run'] = True
 	elif dry_run:
+		# 2026-11-21
+		# "Add read-only answer-check pre-flight validation command to harness CLI":
+		# https://github.com/dmitry-ai/harness/issues/117
 		from .source_grounding import read_only_grounding
 		with read_only_grounding():
 			path, value = _state(root, native, turn, journal_directory=journal_directory, strict_journal=True)
+		# 2026-11-23
+		# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+		# https://github.com/dmitry-ai/harness/issues/146
 		r = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'dry_run': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'issue_first_check': value.get('issue_first_check', {'verified': True, 'repos': {}, 'violations': []}), 'code_lifecycle_check': value['code_lifecycle_check'], 'tdd_check': value.get('tdd_check', {'verified': True, 'scopes': {}, 'violations': []}), 'rule_comprehension_verified': False, 'required_completion': value['required_completion'], 'execution_mode': 'foreground-only'}
+		# 2026-11-22
+		# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
+		# https://github.com/dmitry-ai/harness/issues/123
 		if value.get('similar_projects'):
 			r['similar_projects'] = list(value['similar_projects'])
 		if value.get('similar_project_repos'):
 			r['similar_project_repos'] = list(value['similar_project_repos'])
 	else:
+		# 2026-11-23
+		# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+		# https://github.com/dmitry-ai/harness/issues/132
 		launcher_handoff: list[dict] = []
 		ws_origin = native.get('workspace_root')
 		if ws_origin:
@@ -1203,44 +1570,89 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 					launcher_handoff = handoff_launcher_turn(ws_origin, root, job_id, conversation_id=native['conversation_id'])
 				except (OSError, ValueError):
 					launcher_handoff = []
+		# 2026-11-21
+		# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+		# https://github.com/dmitry-ai/harness/issues/109
 		journal.ensure_project_journal_upgraded(root, selected=journal_directory)
 		key = _key(native, turn)
+		# 2026-11-26
+		# "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
+		# https://github.com/dmitry-ai/harness/issues/255
 		native_reconciliation, foreign_reconciliation = reconcile_before_begin(root, native, turn, key, journal_directory, folder_fn=_folder, dir_fn=_directory, read_fn=_read, sync_fn=sync, key_fn=_key)
 		with locked(_turn_lock(root, key)):
 			path, value = _state(root, native, turn, journal_directory=journal_directory, strict_journal=True)
+			# 2026-11-23
+			# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+			# https://github.com/dmitry-ai/harness/issues/132
 			if 'handed_off' != value.get('status'):
+				# 2026-11-26
+				# "Harden follow-up launcher handoff and journal reservation integrity":
+				# https://github.com/dmitry-ai/harness/issues/269
 				from .journal_integrity import sync_begin_turn_state
 				sync_begin_turn_state(root, value, native, turn, native_reconciliation, dir_fn=_directory, recorded_fn=_recorded, reserve_fn=journal.reserve_turn_steps)
 				if value['compaction_check'].get('occurred') and (not turn.get('completed')) and (value.get('status') not in ('delivered', 'conflict')):
 					value['compaction_check']['index_file'] = _write_compaction_index_file(root, value['key'], turn, value['compaction_check'])
 				_persist(path, value)
+		# 2026-11-23
+		# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+		# https://github.com/dmitry-ai/harness/issues/146
 		result = {'turn_key': value['key'], 'state': path.relative_to(root).as_posix() if path.is_relative_to(root) else str(path), 'role': 'primary', 'journal_required': True, 'status': value['status'], 'native_requests_sha256': _hash(_json(turn['requests'])), 'applicable_rules': value['applicable_rules'], 'git_optional_locks_env': value['git_optional_locks_env'], 'exec5_check': value['exec5_check'], 'http_fetch_check': value['http_fetch_check'], 'compaction_check': _compact_compaction_check(value['compaction_check']), 'delegation_check': value['delegation_check'], 'budget_check': value['budget_check'], 'issue_first_check': value.get('issue_first_check', {'verified': True, 'repos': {}, 'violations': []}), 'code_lifecycle_check': value['code_lifecycle_check'], 'tdd_check': value.get('tdd_check', {'verified': True, 'scopes': {}, 'violations': []}), 'rule_comprehension_verified': False, 'required_completion': value['required_completion']}
+		# 2026-11-22
+		# "Auto-name Antigravity conversations from project journal step numbers":
+		# https://github.com/dmitry-ai/harness/issues/120
 		if value.get('reserved_journal_steps'):
 			result['reserved_journal_steps'] = list(value['reserved_journal_steps'])
+		# 2026-11-23
+		# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+		# https://github.com/dmitry-ai/harness/issues/132
 		if value.get('handed_off_to'):
 			result['handed_off_to'] = value['handed_off_to']
 		if launcher_handoff:
 			result['launcher_handoff'] = launcher_handoff
+		# 2026-11-22
+		# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
+		# https://github.com/dmitry-ai/harness/issues/123
 		if value.get('similar_projects'):
 			result['similar_projects'] = list(value['similar_projects'])
 		if value.get('similar_project_repos'):
 			result['similar_project_repos'] = list(value['similar_project_repos'])
+		# 2026-11-03
+		# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+		# https://github.com/dmitry-ai/harness/issues/41
 		result['execution_mode'] = 'foreground-only'
+		# 2026-11-26
+		# "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
+		# https://github.com/dmitry-ai/harness/issues/255
 		if foreign_reconciliation:
 			result['foreign_reconciliation'] = foreign_reconciliation
+		# 2026-11-22
+		# "Auto-name Antigravity conversations from project journal step numbers":
+		# https://github.com/dmitry-ai/harness/issues/120
 		if None is not native_reconciliation:
 			result['native_reconciliation'] = native_reconciliation
 			current = next((item for item in (native_reconciliation.get('turns') or ()) if item.get('turn_key') == value['key']), None)
 			if current:
 				result['status'] = current['status']
+		# 2026-11-22
+		# "Auto-name Antigravity conversations from project journal step numbers":
+		# https://github.com/dmitry-ai/harness/issues/120
+		# 2026-11-23
+		# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+		# https://github.com/dmitry-ai/harness/issues/132
 		title_sync = None if 'handed_off' == value.get('status') else _sync_antigravity_conversation_title(root, native, value['journal'])
 		if None is not title_sync:
 			result['conversation_title_sync'] = title_sync
 		r = result
 	return r
-# 2026-10-30 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-30
 # "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 # https://github.com/dmitry-ai/harness/issues/21
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
+# 2026-11-21
+# "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
+# https://github.com/dmitry-ai/harness/issues/119
 def recover_checkpoint(root, conversation=None, *, platform=None, backend=None, dry_run=False):
 	if dry_run:
 		from .path_registry import canonicalize_root_dir
@@ -1304,6 +1716,9 @@ def recover_checkpoint(root, conversation=None, *, platform=None, backend=None, 
 		receipt = {'turn_key': key, 'recovered_at': _now(), 'compact_mode': compact_mode, 'covered_checkpoint_step': comp.get('last_checkpoint_step'), 'checkpoint_steps': list(comp.get('checkpoint_steps') or []), 'pre_checkpoint_tool_steps': list(comp.get('pre_checkpoint_tool_steps') or []), 'pre_checkpoint_read_files': list(comp.get('pre_checkpoint_read_files') or []), 'post_checkpoint_read_files': list(comp.get('post_checkpoint_read_files') or []), 'evicted_unreread_files': list(comp.get('evicted_unreread_files') or []), 'recovery_dir': rel_dir}
 		replace_bytes(receipt_path, _json(receipt))
 		path, value = _state(root_p, native, turn)
+		# 2026-11-03
+		# "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
+		# https://github.com/dmitry-ai/harness/issues/43
 		value.pop('admission_failure', None)
 		idx_rel = _write_compaction_index_file(root_p, key, turn, value['compaction_check'], step_records=indexed_records)
 		value['compaction_check']['index_file'] = idx_rel
@@ -1326,9 +1741,18 @@ def recover_checkpoint(root, conversation=None, *, platform=None, backend=None, 
 	else:
 		out['pre_checkpoint_records_preview'] = indexed_records[-5:]
 	return out
+# 2026-11-02
+# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+# https://github.com/dmitry-ai/harness/issues/36
 def recover_turn_violation(root, conversation=None, *, reason=None, platform=None, backend=None):
+	# 2026-11-25
+	# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
+	# https://github.com/dmitry-ai/harness/issues/251
 	from .hook_crash_audit import build_violation_recovery_receipt
 	return _persist_turn_recovery(root, conversation, 'violation-recovery', lambda rp, k, t, nat: build_violation_recovery_receipt(rp, k, t, reason, _now, native=nat), platform=platform, backend=backend)
+# 2026-11-22
+# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
+# https://github.com/dmitry-ai/harness/issues/123
 def similar_project_exempt(root, peer, reason, conversation=None, *, platform=None, backend=None):
 	from .issue_lifecycle import similar_project_repo_slugs
 	from .path_registry import canonicalize_root_dir, load_registry, project_paths
@@ -1398,6 +1822,9 @@ def similar_project_exempt(root, peer, reason, conversation=None, *, platform=No
 		_persist(path, value)
 	rel_file = ex_path.relative_to(root_p).as_posix() if ex_path.is_relative_to(root_p) else str(ex_path)
 	return {'turn_key': key, 'peer_root': matched_peer.as_posix(), 'peer_repos': matched_slugs, 'reason': reason_clean, 'exemption_file': rel_file, 'code_lifecycle_check': value['code_lifecycle_check']}
+# 2026-11-23
+# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+# https://github.com/dmitry-ai/harness/issues/138
 def ratchet_ok(root, file_path, reason, conversation=None, *, platform=None, backend=None):
 	from .path_registry import canonicalize_root_dir
 	from .tdd_gate import validate_ratchet_reason
@@ -1430,12 +1857,18 @@ def ratchet_ok(root, file_path, reason, conversation=None, *, platform=None, bac
 		replace_bytes(rc_path, _json({'turn_key': key, 'approvals': existing_items}))
 	rel_file = rc_path.relative_to(root_p).as_posix() if rc_path.is_relative_to(root_p) else str(rc_path)
 	return {'turn_key': key, 'file': file_clean, 'reason': reason_clean, 'receipt_file': rel_file, 'approvals': existing_items}
+# 2026-11-23
+# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+# https://github.com/dmitry-ai/harness/issues/138
 def tdd_check_turn(root, conversation=None, *, platform=None, backend=None):
 	from .path_registry import canonicalize_root_dir
 	from .source_grounding import read_only_grounding
 	root_p = canonicalize_root_dir(root)
 	eff_plat = platform_name(platform)
 	eff_conv = conversation or (os.environ.get('CODEX_THREAD_ID') if 'codex' == eff_plat else None)
+	# 2026-11-24
+	# "Cache runtime settings and deduplicate evidence validation in hot paths":
+	# https://github.com/dmitry-ai/harness/issues/227
 	with read_only_grounding(), skip_shell_violations():
 		native = _native(root_p, eff_conv, platform=eff_plat, backend=backend)
 		if native['primary']:
@@ -1447,12 +1880,18 @@ def tdd_check_turn(root, conversation=None, *, platform=None, backend=None):
 		turn_key = _key(native, turn_obj)
 		tdd_chk = _tdd_status(root_p, turn_obj)
 	return {'valid': bool(tdd_chk.get('verified', True)), 'read_only': True, 'role': role, 'turn_key': turn_key, 'tdd_check': tdd_chk, 'event_count': len(turn_obj.get('tdd_events') or [])}
+# 2026-11-23
+# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+# https://github.com/dmitry-ai/harness/issues/146
 def issue_first_check_turn(root, conversation=None, *, platform=None, backend=None):
 	from .path_registry import canonicalize_root_dir
 	from .source_grounding import read_only_grounding
 	root_p = canonicalize_root_dir(root)
 	eff_plat = platform_name(platform)
 	eff_conv = conversation or (os.environ.get('CODEX_THREAD_ID') if 'codex' == eff_plat else None)
+	# 2026-11-24
+	# "Cache runtime settings and deduplicate evidence validation in hot paths":
+	# https://github.com/dmitry-ai/harness/issues/227
 	with read_only_grounding(), skip_shell_violations():
 		native = _native(root_p, eff_conv, platform=eff_plat, backend=backend)
 		if native['primary']:
@@ -1464,9 +1903,21 @@ def issue_first_check_turn(root, conversation=None, *, platform=None, backend=No
 		turn_key = _key(native, turn_obj)
 		if_chk = _issue_first_status(root_p, turn_obj)
 	return {'valid': bool(if_chk.get('verified', True)), 'read_only': True, 'role': role, 'turn_key': turn_key, 'issue_first_check': if_chk, 'event_count': len(turn_obj.get('issue_first_events') or [])}
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 _norm_journal_text = journal.norm_journal_text
+# 2026-11-23
+# "Prepend JSON metadata headers to new journal responses":
+# https://github.com/dmitry-ai/harness/issues/151
 _norm_journal_response_text = journal.norm_journal_response_text
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 _find_orphan_or_overwritten_steps = journal.find_orphan_or_overwritten_steps
+# 2026-11-23
+# "Prepend JSON metadata headers to new journal responses":
+# https://github.com/dmitry-ai/harness/issues/151
 def _matches_recorded_response(recorded, raw_response: str, raw_sha: str) -> bool:
 	if not isinstance(recorded, dict):
 		return False
@@ -1485,25 +1936,52 @@ def _matches_recorded_response(recorded, raw_response: str, raw_sha: str) -> boo
 			except (OSError, UnicodeDecodeError):
 				pass
 	return False
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-10
+# "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop":
+# https://github.com/dmitry-ai/harness/issues/49
 def _group(root, native, turn, response, directory, *, allow_reprepare=False):
 	key = 'native-' + _key(native, turn)
 	legacy = turn['turn_id']
 	groups = journal.state_dir(directory) / 'answer-groups'
 	native_ids = [req['id'] for req in turn['requests']]
 	norm_turn_reqs = [_norm_journal_text(req['text']) for req in turn['requests']]
+	# 2026-11-23
+	# "Prepend JSON metadata headers to new journal responses":
+	# https://github.com/dmitry-ai/harness/issues/151
 	norm_turn_resp = _norm_journal_response_text(response)
+	# 2026-11-20
+	# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+	# https://github.com/dmitry-ai/harness/issues/101
 	_, res_dir = journal.journal_pair_dirs(directory)
 	matches = []
+	# 2026-11-14
+	# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+	# https://github.com/dmitry-ai/harness/issues/60
 	for _, old in journal.iter_answer_group_records(directory):
 		if old.get('request_ids') == native_ids:
+			# 2026-11-02
+			# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+			# https://github.com/dmitry-ai/harness/issues/36
 			old_reqs = old.get('requests') or []
 			reqs_ok = old_reqs == [req['text'] for req in turn['requests']] or [_norm_journal_text(x) for x in old_reqs] == norm_turn_reqs
 			resp_ok = old.get('response_sha256') == _hash(response.encode('utf-8'))
 			if not resp_ok and old.get('steps'):
+				# 2026-11-21
+				# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+				# https://github.com/dmitry-ai/harness/issues/109
 				res_p = journal.step_file(res_dir, old['steps'][0], directory=directory)
 				if res_p.is_file():
 					try:
 						disk_r = res_p.read_bytes().decode('utf-8')
+						# 2026-11-23
+						# "Prepend JSON metadata headers to new journal responses":
+						# https://github.com/dmitry-ai/harness/issues/151
 						resp_ok = _hash(disk_r.encode('utf-8')) == old.get('response_sha256') and _norm_journal_response_text(disk_r) == norm_turn_resp
 					except (OSError, UnicodeDecodeError):
 						pass
@@ -1518,6 +1996,9 @@ def _group(root, native, turn, response, directory, *, allow_reprepare=False):
 		old = _read(groups / (legacy + '.json'))
 		old_reqs = old.get('requests') or []
 		reqs_ok = old_reqs == [req['text'] for req in turn['requests']] or [_norm_journal_text(x) for x in old_reqs] == norm_turn_reqs
+		# 2026-11-23
+		# "Prepend JSON metadata headers to new journal responses":
+		# https://github.com/dmitry-ai/harness/issues/151
 		resp_ok = old.get('response_sha256') == _hash(response.encode('utf-8'))
 		if not resp_ok and old.get('steps'):
 			res_p = journal.step_file(res_dir, old['steps'][0], directory=directory)
@@ -1533,10 +2014,28 @@ def _group(root, native, turn, response, directory, *, allow_reprepare=False):
 	else:
 		r = (key, native_ids)
 	return r
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def _recorded(value):
 	return next((receipt for receipt in (value.get('prepared'), value.get('journal_record'), value.get('delivery')) if isinstance(receipt, dict) and 'journal_steps' in receipt), None)
+# 2026-10-31
+# "Prevent intermediate subagent status replies from polluting the journal, enforce TEXT-1 language gate in completion, and codify background task timeouts":
+# https://github.com/dmitry-ai/harness/issues/30
+# 2026-11-13
+# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
+# https://github.com/dmitry-ai/harness/issues/59
 def _intermediate_or_language_issues(requests, response: str) -> list[str]:
+	# 2026-11-23
+	# "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
+	# https://github.com/dmitry-ai/harness/issues/166
 	from .platforms.trace_common import is_waiting_status_stub
+	# 2026-11-23
+	# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
+	# https://github.com/dmitry-ai/harness/issues/131
 	from .runtime import default_user_locale
 	from .source_grounding import verify_target_locale
 	r = []
@@ -1546,6 +2045,9 @@ def _intermediate_or_language_issues(requests, response: str) -> list[str]:
 	for err in verify_target_locale(response or '', target_locale='und', container_text=req_raw, allow_explicit_english_request=True, min_target_ratio=0.01, min_alpha=20, default_locale=default_user_locale()):
 		r.append(err['message'])
 	return r
+# 2026-11-20
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 def _same_turn_artifact_path(root: Path, saved_str: str | None, current_str: str, *, kind: str) -> bool:
 	if saved_str == current_str:
 		return True
@@ -1554,26 +2056,56 @@ def _same_turn_artifact_path(root: Path, saved_str: str | None, current_str: str
 	saved_p, cur_p = (Path(saved_str), Path(current_str))
 	if saved_p.exists() or saved_p.name != cur_p.name:
 		return False
+	# 2026-11-21
+	# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+	# https://github.com/dmitry-ai/harness/issues/113
 	from .path_registry import canonicalize_root_dir, same_project_root
 	canon_root = canonicalize_root_dir(root)
 	if 'response' == kind:
+		# 2026-11-21
+		# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+		# https://github.com/dmitry-ai/harness/issues/109
 		s_info, c_info = (journal.parse_step_file_path(saved_p), journal.parse_step_file_path(cur_p))
 		return None is not s_info and None is not c_info and s_info[1] in ('res', '\u227a') and c_info[1] in ('res', '\u227a') and (s_info[2] == c_info[2]) and journal.same_journal_identity(s_info[0], c_info[0])
+	# 2026-11-21
+	# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+	# https://github.com/dmitry-ai/harness/issues/113
 	if 'group' == kind and 'answer-groups' == saved_p.parent.name and 4 <= len(saved_p.parents) and 4 <= len(cur_p.parents) and ('.journal' == saved_p.parents[2].name):
 		return any((same_project_root(anc, canon_root) for anc in saved_p.parents[3:7])) and any((same_project_root(anc, canon_root) for anc in cur_p.parents[3:7]))
 	return False
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-03
+# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+# https://github.com/dmitry-ai/harness/issues/41
+# 2026-11-10
+# "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop":
+# https://github.com/dmitry-ai/harness/issues/49
 def _record(root, native, turn, response, directory, *, existing=None, purpose='publication', allow_reprepare=False):
 	if purpose not in ('publication', 'observation'):
 		raise ValueError('Choose publication admission or historical observation')
 	directory = _directory(root, directory)
+	# 2026-11-20
+	# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+	# https://github.com/dmitry-ai/harness/issues/101
 	req_dir, res_dir = journal.journal_pair_dirs(directory)
 	from . import admission
+	# 2026-11-23
+	# "Prepend JSON metadata headers to new journal responses":
+	# https://github.com/dmitry-ai/harness/issues/151
 	from .metadata import build_journal_metadata, extract_leading_metadata_header, prepend_metadata_header, strip_leading_metadata_header
 	clean_body_sha = _hash(strip_leading_metadata_header(response).encode('utf-8'))
 	token, request_ids = _group(root, native, turn, response, directory, allow_reprepare=allow_reprepare)
 	group_file = journal.state_dir(directory) / 'answer-groups' / (token + '.json')
 	already_complete = group_file.exists() and 'complete' == _read(group_file).get('status')
 	if not already_complete or allow_reprepare:
+		# 2026-10-31
+		# "Prevent intermediate subagent status replies from polluting the journal, enforce TEXT-1 language gate in completion, and codify background task timeouts":
+		# https://github.com/dmitry-ai/harness/issues/30
 		lang_issues = _intermediate_or_language_issues(turn['requests'], response)
 		if lang_issues:
 			raise ValueError('; '.join(lang_issues))
@@ -1582,6 +2114,9 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 			raise ValueError('Recorded answer-group receipt is missing or incomplete; preserve journal history')
 		if _read(group_file).get('steps') != existing['journal_steps']:
 			raise ValueError('Recorded answer-group steps changed; preserve journal history')
+	# 2026-11-02
+	# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+	# https://github.com/dmitry-ai/harness/issues/36
 	effective_requests = [r['text'] for r in turn['requests']]
 	effective_response = response
 	adopt_steps = None
@@ -1594,14 +2129,23 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 		if [_norm_journal_text(x) for x in g_reqs] == [_norm_journal_text(x) for x in effective_requests]:
 			effective_requests = list(g_reqs)
 		if g_data.get('steps') and _hash(effective_response.encode('utf-8')) != g_data.get('response_sha256'):
+			# 2026-11-21
+			# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+			# https://github.com/dmitry-ai/harness/issues/109
 			res_p = journal.step_file(res_dir, g_data['steps'][0], directory=directory)
 			if res_p.is_file():
 				try:
 					disk_r = res_p.read_bytes().decode('utf-8')
+					# 2026-11-23
+					# "Prepend JSON metadata headers to new journal responses":
+					# https://github.com/dmitry-ai/harness/issues/151
 					if _hash(disk_r.encode('utf-8')) == g_data.get('response_sha256') and _norm_journal_response_text(disk_r) == _norm_journal_response_text(effective_response):
 						effective_response = disk_r
 				except (OSError, UnicodeDecodeError):
 					pass
+			# 2026-11-10
+			# "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop":
+			# https://github.com/dmitry-ai/harness/issues/49
 			if _hash(effective_response.encode('utf-8')) != g_data.get('response_sha256') and allow_reprepare:
 				reprepared_before_delivery = True
 	elif None is existing:
@@ -1610,6 +2154,9 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 			effective_requests = disk_reqs
 			effective_response = disk_resp
 			adopted_existing = True
+	# 2026-11-23
+	# "Prepend JSON metadata headers to new journal responses":
+	# https://github.com/dmitry-ai/harness/issues/151
 	if ((not already_complete and (not adopted_existing)) or reprepared_before_delivery) and None is extract_leading_metadata_header(effective_response)[0]:
 		turn_key = _key(native, turn)
 		target_steps = list(g_data['steps']) if reprepared_before_delivery and isinstance(g_data, dict) and g_data.get('steps') else journal.reserve_turn_steps(directory, turn_key, native['conversation_id'], request_ids)
@@ -1632,6 +2179,9 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 			from .text_workflow import gate_requests
 			gate_requests([root, directory], effective_requests, effective_response)
 		steps = journal.verify_answer(directory, effective_requests, effective_response, token, request_ids)
+		# 2026-11-22
+		# "Auto-name Antigravity conversations from project journal step numbers":
+		# https://github.com/dmitry-ai/harness/issues/120
 		journal.release_turn_steps(directory, _key(native, turn), request_ids=request_ids)
 		proof = _read(group_file).get('admission')
 		if existing and existing.get('admission') != proof:
@@ -1639,16 +2189,28 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 		verification = admission.verify(proof, identity) if proof else {'status': 'legacy_proof_gap', 'scope': 'journal_and_native_identity_only'}
 	else:
 		capability = admission.capture([root, directory], effective_requests, effective_response, identity)
+		# 2026-11-22
+		# "Auto-name Antigravity conversations from project journal step numbers":
+		# https://github.com/dmitry-ai/harness/issues/120
 		steps = journal.record_answer(directory, effective_requests, effective_response, token, request_ids, adopt_steps=adopt_steps, admission=capability, allow_reprepare=reprepared_before_delivery, reserved_turn_key=_key(native, turn))
 		proof = capability.reference
 		verification = {'status': 'verified', 'scope': 'original_publication_admission' if purpose == 'observation' else 'current_publication_readiness'}
 	for step, request in zip(steps, effective_requests):
+		# 2026-11-21
+		# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+		# https://github.com/dmitry-ai/harness/issues/109
 		if journal.step_file(req_dir, step, directory=directory).read_bytes() != request.encode('utf-8'):
 			raise ValueError('Recorded request read-back differs from native text')
 		if journal.step_file(res_dir, step, directory=directory).read_bytes() != effective_response.encode('utf-8'):
 			raise ValueError('Recorded response read-back differs from prepared text')
+	# 2026-11-23
+	# "Prepend JSON metadata headers to new journal responses":
+	# https://github.com/dmitry-ai/harness/issues/151
 	recorded = {'journal_steps': steps, 'response_sha256': _hash(effective_response.encode('utf-8')), 'body_sha256': clean_body_sha, 'response_file': str(journal.step_file(res_dir, steps[0], directory=directory)), 'group_file': str(group_file)}
 	if existing:
+		# 2026-11-20
+		# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+		# https://github.com/dmitry-ai/harness/issues/101
 		if existing.get('journal_steps') != recorded['journal_steps'] or existing.get('response_sha256') != recorded['response_sha256'] or (not _same_turn_artifact_path(root, existing.get('response_file'), recorded['response_file'], kind='response')) or (not _same_turn_artifact_path(root, existing.get('group_file'), recorded['group_file'], kind='group')):
 			raise ValueError('Recorded answer receipt differs from its verified journal identity; preserve history')
 		if existing.get('group_sha256') and existing['group_sha256'] != _hash(group_file.read_bytes()):
@@ -1658,12 +2220,24 @@ def _record(root, native, turn, response, directory, *, existing=None, purpose='
 	if reprepared_before_delivery:
 		res_receipt['reprepared_before_delivery'] = True
 	return res_receipt, verification
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def _unchanged(root, native, turn):
 	latest = _native(root, native['conversation_id'], platform=native['platform'], backend=native['native_backend'])
 	current = _active(latest)
 	if None is current or _key(latest, current) != _key(native, turn) or current['requests'] != turn['requests']:
 		raise ValueError('The active native turn or requests changed during preparation; readiness was not granted')
+# 2026-11-13
+# "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
+# https://github.com/dmitry-ai/harness/issues/57
 def _workflow_gate_resolved(root_p, turn, kind):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	wf_file = project_paths(root_p, exact_root=True).workflow_json
 	if not wf_file.is_file():
@@ -1676,6 +2250,12 @@ def _workflow_gate_resolved(root_p, turn, kind):
 		from .workflow import load
 		r = bool(approval_current(root_p, load(root_p)))
 	return r
+# 2026-11-01
+# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+# https://github.com/dmitry-ai/harness/issues/34
+# 2026-11-21
+# "Add read-only answer-check pre-flight validation command to harness CLI":
+# https://github.com/dmitry-ai/harness/issues/117
 def _find_evicted_cited_files(root: Path, pp, turn_key: str | None, compaction_check: dict, response: str) -> list[str]:
 	unreread_cited: list[str] = []
 	if compaction_check.get('occurred') and compaction_check.get('evicted_unreread_files'):
@@ -1703,6 +2283,9 @@ def _find_evicted_cited_files(root: Path, pp, turn_key: str | None, compaction_c
 				if m_res and re.search(f'(?:\\bres|\\u227a)/(?:\\d+[-\\u2013]\\d+/)?{re.escape(m_res.group(1))}\\b', response, re.I) and (ev_orig not in unreread_cited):
 					unreread_cited.append(ev_orig)
 	return unreread_cited
+# 2026-11-21
+# "Add read-only answer-check pre-flight validation command to harness CLI":
+# https://github.com/dmitry-ai/harness/issues/117
 def _authored_nonquote_hrefs(content: str) -> list[str]:
 	from .links import HTMLReferences, _bare_urls
 	from .source_grounding import markdown_parser
@@ -1730,9 +2313,18 @@ def _authored_nonquote_hrefs(content: str) -> list[str]:
 				elif 'text' == token.type and 0 == depth:
 					hrefs.extend(_bare_urls(token.content))
 	return [*hrefs, *html.links]
+# 2026-11-21
+# "Add read-only answer-check pre-flight validation command to harness CLI":
+# https://github.com/dmitry-ai/harness/issues/117
 def _response_link_issues(root_p: Path, response: str, *, response_path: Path | None = None, scratch_dir: Path | None = None) -> list[str]:
 	from urllib.parse import unquote, urldefrag, urlsplit
+	# 2026-11-25
+	# "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
+	# https://github.com/dmitry-ai/harness/issues/230
 	from .links import chat_reply_link_issues, heading_anchors, references
+	# 2026-11-26
+	# "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs":
+	# https://github.com/dmitry-ai/harness/issues/264
 	errors: list[str] = list(chat_reply_link_issues(response, root=root_p))
 	available_self = set(references(response)[1]) | heading_anchors(response)
 	base_dirs = [root_p]
@@ -1818,6 +2410,9 @@ def _response_link_issues(root_p: Path, response: str, *, response_path: Path | 
 			except (OSError, KeyError, ValueError, IndexError, TypeError):
 				errors.append(f'LINK-4: Missing JSON pointer: {href}')
 	return errors
+# 2026-11-21
+# "Add read-only answer-check pre-flight validation command to harness CLI":
+# https://github.com/dmitry-ai/harness/issues/117
 def _scan_child_trace_turn(root_p: Path, eff_conv: str, native: dict) -> dict:
 	if native.get('turns'):
 		return native['turns'][-1]
@@ -1831,9 +2426,15 @@ def _scan_child_trace_turn(root_p: Path, eff_conv: str, native: dict) -> dict:
 			rows = read_jsonl_objects(src_file)
 		except (OSError, ValueError):
 			rows = []
+		# 2026-11-23
+		# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+		# https://github.com/dmitry-ai/harness/issues/138
 		from .tdd_gate import _BG_TASK_FINISHED_RE, parse_command_outcome
 		child_bg: dict[str, dict] = {}
 		child_pending_tdd: dict[str, dict] = {}
+		# 2026-11-23
+		# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+		# https://github.com/dmitry-ai/harness/issues/146
 		child_pending_issue: dict[str, tuple[int, str]] = {}
 		for pos, row in enumerate(rows):
 			if not isinstance(row, dict):
@@ -1841,6 +2442,9 @@ def _scan_child_trace_turn(root_p: Path, eff_conv: str, native: dict) -> dict:
 			step_idx = row.get('step_index') if isinstance(row.get('step_index'), int) else pos
 			if 'CHECKPOINT' == row.get('type') or ('event_msg' == row.get('type') and 'context_compacted' == (row.get('payload') or {}).get('type')):
 				seg['checkpoint_steps'].append(step_idx)
+			# 2026-11-23
+			# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+			# https://github.com/dmitry-ai/harness/issues/138
 			if row.get('type') in ('EPHEMERAL_MESSAGE', 'SYSTEM_MESSAGE', 'GENERIC') and row.get('content'):
 				m_fin = _BG_TASK_FINISHED_RE.search(str(row.get('content')))
 				if m_fin and m_fin.group(1).strip() in child_bg:
@@ -1876,8 +2480,14 @@ def _scan_child_trace_turn(root_p: Path, eff_conv: str, native: dict) -> dict:
 					c_id = pay.get('call_id')
 					out_val = pay.get('output')
 					out_str = out_val if isinstance(out_val, str) else json.dumps(out_val, ensure_ascii=False)
+					# 2026-11-23
+					# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+					# https://github.com/dmitry-ai/harness/issues/138
 					if c_id in child_pending_tdd:
 						child_pending_tdd[c_id]['outcome'] = parse_command_outcome(out_str)
+					# 2026-11-23
+					# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+					# https://github.com/dmitry-ai/harness/issues/146
 					if c_id in child_pending_issue:
 						from .issue_first_gate import build_issue_action_events
 						ci_step, ci_cmd = child_pending_issue.pop(c_id)
@@ -1889,8 +2499,14 @@ def _scan_child_trace_turn(root_p: Path, eff_conv: str, native: dict) -> dict:
 					p_name = str(pay.get('name') or '')
 					seg['tool_records'].append({'step': step_idx, 'tools': [p_name], 'outputs': []})
 					cev = record_normalized_tool_effects(root_p, step_idx, p_name, raw_in, raw_cmd, seg, track_turn_steps=True)
+					# 2026-11-23
+					# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+					# https://github.com/dmitry-ai/harness/issues/138
 					if cev and pay.get('call_id'):
 						child_pending_tdd[pay['call_id']] = cev
+					# 2026-11-23
+					# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+					# https://github.com/dmitry-ai/harness/issues/146
 					if pay.get('call_id') and ('exec' == p_name or p_name.endswith(('exec_command', 'run_command'))):
 						from .issue_first_gate import is_df_github_issue_command
 						cp_args = parse_tool_args(raw_in)
@@ -1898,6 +2514,12 @@ def _scan_child_trace_turn(root_p: Path, eff_conv: str, native: dict) -> dict:
 						if is_df_github_issue_command(ceff_cmd):
 							child_pending_issue[pay['call_id']] = (step_idx, ceff_cmd)
 	return merge_turn_accumulators([seg], allow_step_output_recovery=True)
+# 2026-11-21
+# "Add read-only answer-check pre-flight validation command to harness CLI":
+# https://github.com/dmitry-ai/harness/issues/117
+# 2026-11-24
+# "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
+# https://github.com/dmitry-ai/harness/issues/213
 def check_answer(root, response, conversation=None, *, response_path=None, platform=None, backend=None, journal_directory=None, blocked_report=False):
 	if not isinstance(response, str) or not response.strip():
 		raise ValueError('An exact nonempty UTF-8 candidate response is required')
@@ -1942,20 +2564,47 @@ def check_answer(root, response, conversation=None, *, response_path=None, platf
 		comp_chk = value_obj['compaction_check']
 		evicted_cited = _find_evicted_cited_files(root_p, pp, turn_key, comp_chk, response) if role in ('primary', 'child') else []
 		del_chk = value_obj['delegation_check']
+		# 2026-11-23
+		# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+		# https://github.com/dmitry-ai/harness/issues/146
 		issue_first_chk = _issue_first_status(root_p, turn_obj) if role in ('primary', 'child') else {'verified': True, 'repos': {}, 'violations': []}
 		lifecycle_chk = _code_and_issue_lifecycle_status(root_p, turn_obj, value_obj if 'primary' == role else None, response=response)
+		# 2026-11-23
+		# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+		# https://github.com/dmitry-ai/harness/issues/138
 		tdd_chk = _tdd_status(root_p, turn_obj) if role in ('primary', 'child') else {'verified': True, 'scopes': {}, 'violations': []}
+		# 2026-11-24
+		# "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
+		# https://github.com/dmitry-ai/harness/issues/213
 		from .blocked_report import evaluate_check_workflow_errors
 		wf_errs = evaluate_check_workflow_errors(root_p, pp, role, response, requests_list, turn_obj, value_obj, del_chk, blocked_report=bool(blocked_report), journal_directory=journal_directory, factual_kb_fn=_factual_kb_note_issues, is_deliv_fn=_is_client_deliverable_path, dir_fn=_directory)
+		# 2026-11-23
+		# "Extract PreToolUse and completion gates into priority plugin registry":
+		# https://github.com/dmitry-ai/harness/issues/167
 		from .gates import run_answer_gates
+		# 2026-11-25
+		# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
+		# https://github.com/dmitry-ai/harness/issues/251
 		all_issues, checks = run_answer_gates({'role': role, 'blocked_report': bool(blocked_report), 'doc4_errs': doc4_errs, 'link_errs': link_errs, 'prob_errs': prob_errs, 'source_errs': source_errs, 'lang_errs': lang_errs, 'exec5_chk': exec5_chk, 'hook_crash_chk': _hook_crash_status(root_p, native, turn_obj, value_obj, response), 'http_chk': http_chk, 'comp_chk': comp_chk, 'evicted_cited': evicted_cited, 'del_chk': del_chk, 'issue_first_chk': issue_first_chk, 'lifecycle_chk': lifecycle_chk, 'tdd_chk': tdd_chk, 'wf_errs': wf_errs})
 		return {'valid': not all_issues, 'read_only': True, 'role': role, 'turn_key': turn_key, 'response_sha256': sha, 'issue_count': len(all_issues), 'issues': all_issues, 'checks': checks}
-# 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
-# https://github.com/dmitry-ai/harness/issues/12
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
+# 2026-11-13
+# "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
+# https://github.com/dmitry-ai/harness/issues/57
+# 2026-11-24
+# "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
+# https://github.com/dmitry-ai/harness/issues/213
 def _prepare_once(root, response, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None, blocked_report=False):
 	if not isinstance(response, str) or not response.strip():
 		raise ValueError('An exact nonempty UTF-8 final response is required')
+	# 2026-10-19
+	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+	# https://github.com/dmitry-ai/harness/issues/12
 	from .causal_checks import unsupported_probability_claims
 	issues = unsupported_probability_claims(response)
 	if issues:
@@ -1963,6 +2612,9 @@ def _prepare_once(root, response, conversation=None, *, platform=None, backend=N
 	result = begin(root, conversation, platform=platform, backend=backend, watch=watch, watch_dir=watch_dir, journal_directory=journal_directory)
 	if not result['journal_required']:
 		raise ValueError('A child executor cannot prepare the primary user journal')
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import canonicalize_root_dir
 	root_p = canonicalize_root_dir(root)
 	with locked(_turn_lock(root_p, result['turn_key'])):
@@ -1971,16 +2623,34 @@ def _prepare_once(root, response, conversation=None, *, platform=None, backend=N
 		if None is turn or _key(native, turn) != result['turn_key'] or _hash(_json(turn['requests'])) != result['native_requests_sha256']:
 			raise ValueError('The active native turn changed during preparation; no answer was recorded')
 		return AnswerPreparationRunner(root_p, response, result, native, turn, blocked_report=blocked_report).run()
+# 2026-11-24
+# "Add deterministic reactive wait primitive for transient repository and journal contention":
+# https://github.com/dmitry-ai/harness/issues/199
+# 2026-11-24
+# "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
+# https://github.com/dmitry-ai/harness/issues/213
 def prepare(root, response, conversation=None, *, platform=None, backend=None, watch=False, watch_dir=None, journal_directory=None, wait_timeout: float=0.0, wait_poll: float=1.0, blocked_report: bool=False):
 	from .repo_wait import run_with_transient_wait
 	return run_with_transient_wait(Path(root), lambda: _prepare_once(root, response, conversation, platform=platform, backend=backend, watch=watch, watch_dir=watch_dir, journal_directory=journal_directory, blocked_report=blocked_report), wait_timeout=wait_timeout, poll_interval=wait_poll)
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def _conflict(root, path, value, native, turn, response, detail, *, retryable=False):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import canonicalize_root_dir
 	root_p = canonicalize_root_dir(root)
 	payload = response.encode('utf-8')
 	evidence = write_immutable_bytes(_folder(root_p) / 'conflicts' / (value['key'] + '-' + _hash(payload) + '.txt'), payload, diff_error='Immutable native conflict evidence changed')
 	if _recorded(value):
 		value['journal_record'] = _recorded(value)
+	# 2026-11-03
+	# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+	# https://github.com/dmitry-ai/harness/issues/41
 	prior_verified = value.get('delivery') if (value.get('delivery') or {}).get('verified') else value.get('prior_verified_delivery')
 	if prior_verified:
 		value['prior_verified_delivery'] = deepcopy(prior_verified)
@@ -1990,73 +2660,172 @@ def _conflict(root, path, value, native, turn, response, detail, *, retryable=Fa
 	_persist(path, value)
 	r = {'turn_key': value['key'], 'status': 'conflict', 'detail': detail, 'evidence': rel_evidence, 'retryable': retryable}
 	return r
+# 2026-10-30
+# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+# https://github.com/dmitry-ai/harness/issues/21
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 _strip_local_file_scheme = journal.strip_local_file_scheme
-# 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-23
 # "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
 # https://github.com/dmitry-ai/harness/issues/16
+# 2026-11-26
+# "Exempt service finalization calls from PreToolUse TDD gate and add journal-sync --all-open":
+# https://github.com/dmitry-ai/harness/issues/256
 def sync(root, conversation=None, *, platform=None, backend=None, from_step=0, journal_directory=None, adopt_conflict=False, all_open=False, _preloaded_native=None):
 	return sync_all_open(root, journal_directory=journal_directory, adopt_conflict=adopt_conflict, from_step=from_step, folder_fn=_folder, dir_fn=_directory, read_fn=_read, sync_fn=sync) if all_open else TurnJournalReconciler(root, conversation, platform=platform, backend=backend, from_step=from_step, journal_directory=journal_directory, adopt_conflict=adopt_conflict, preloaded_native=_preloaded_native).run()
-# 2026-11-04 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-11-04
 # "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
 # https://github.com/dmitry-ai/harness/issues/44
 def reconcile_unprepared_delivery(root, conversation=None, *, platform=None, backend=None, from_step=0, journal_directory=None):
 	return sync(root, conversation, platform=platform, backend=backend, from_step=from_step, journal_directory=journal_directory, adopt_conflict=True)
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-11-14
+# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
+# https://github.com/dmitry-ai/harness/issues/69
+# 2026-11-20
+# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
+# https://github.com/dmitry-ai/harness/issues/105
 def add_parser_arguments(parser, command):
 	from .cli_common import add_arg_specs
 	specs = [('project', {'type': Path}), ('--conversation', {'help': 'Actual current native conversation UUID; Codex can use CODEX_THREAD_ID'})]
 	if 'recover-turn-violation' == command:
 		specs.append(('--reason', {'help': 'Audit note for retrospective turn violation recovery'}))
+	# 2026-11-22
+	# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
+	# https://github.com/dmitry-ai/harness/issues/123
 	if 'similar-project-exempt' == command:
 		specs.extend((('--peer', {'required': True, 'help': 'Declared similar project root or GitHub owner/repo slug'}), ('--reason', {'required': True, 'help': 'Technical justification (>= 30 chars) why peer changes do not apply'})))
+	# 2026-11-23
+	# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+	# https://github.com/dmitry-ai/harness/issues/138
 	if 'ratchet-ok' == command:
 		specs.extend((('--file', {'required': True, 'help': 'Relative path or filename of the tracked test file whose expectation is intentionally changing'}), ('--reason', {'required': True, 'help': 'Audited justification (>= 30 chars) citing the requirement/user decision behind the test change'})))
+	# 2026-11-23
+	# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+	# https://github.com/dmitry-ai/harness/issues/146
 	if command not in ('recover-checkpoint', 'recover-turn-violation', 'similar-project-exempt', 'ratchet-ok', 'tdd-check', 'issue-first-check'):
 		specs.append(('--journal', {'type': Path, 'help': 'User-selected journal; otherwise preserve the turn binding or use \ua66e/1 - Analysis'}))
 	if command in ('turn-begin', 'answer-prepare'):
 		specs.append(('--no-watch', {'action': 'store_true', 'help': 'Compatibility option; all completion operations are foreground-only'}))
+	# 2026-11-21
+	# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
+	# https://github.com/dmitry-ai/harness/issues/116
 	if 'turn-begin' == command:
 		specs.append(('--dry-run', {'action': 'store_true', 'help': 'Validate native turn ownership and hygiene checks without writing receipts or upgrading journals'}))
+	# 2026-11-22
+	# "Auto-name Antigravity conversations from project journal step numbers":
+	# https://github.com/dmitry-ai/harness/issues/120
 	if 'sync-conversation-title' == command:
 		specs.append(('--dry-run', {'action': 'store_true', 'help': 'Compute target journal-numbered conversation title without calling Antigravity UpdateConversationAnnotations'}))
+	# 2026-11-21
+	# "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
+	# https://github.com/dmitry-ai/harness/issues/119
 	if 'recover-checkpoint' == command:
 		specs.append(('--dry-run', {'action': 'store_true', 'help': 'Inspect read-only pre-checkpoint file SHA-256/line index and step summary without writing receipts or bypassing COMPACT-1'}))
+	# 2026-11-21
+	# "Add read-only answer-check pre-flight validation command to harness CLI":
+	# https://github.com/dmitry-ai/harness/issues/117
+	# 2026-11-24
+	# "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
+	# https://github.com/dmitry-ai/harness/issues/213
 	if 'answer-check' == command:
 		specs.extend((('--response-file', {'type': Path, 'required': True, 'help': 'Candidate UTF-8 response file to validate, or - for stdin'}), ('--expected-sha256', {'help': 'Optional expected SHA-256 hex digest of response file'}), ('--blocked-report', {'action': 'store_true', 'help': 'Validate as a pre-finalize blocker report requiring continuation.md and forbidding H-*/M-* claims'})))
+	# 2026-11-20
+	# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
+	# https://github.com/dmitry-ai/harness/issues/105
+	# 2026-11-24
+	# "Add deterministic reactive wait primitive for transient repository and journal contention":
+	# https://github.com/dmitry-ai/harness/issues/199
+	# 2026-11-24
+	# "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
+	# https://github.com/dmitry-ai/harness/issues/213
 	if 'answer-prepare' == command:
 		specs.extend((('--response-file', {'type': Path, 'required': True, 'help': 'Exact UTF-8 final response, or - for stdin'}), ('--consume-input', {'action': 'store_true'}), ('--expected-sha256', {'help': 'Optional expected SHA-256 hex digest of response file'}), ('--wait-timeout', {'type': float, 'default': 180.0, 'help': 'Seconds to wait reactively on transient repo/journal contention (default: 180)'}), ('--blocked-report', {'action': 'store_true', 'help': 'Record a pre-finalize blocker report in the journal without closing workflow review/finalize gates'})))
 	if command in ('journal-sync', 'reconcile-unprepared-delivery'):
 		specs.append(('--from-step', {'type': int, 'default': 0}))
 	if 'journal-sync' == command:
+		# 2026-11-26
+		# "Exempt service finalization calls from PreToolUse TDD gate and add journal-sync --all-open":
+		# https://github.com/dmitry-ai/harness/issues/256
 		specs.extend((('--adopt-conflict', {'action': 'store_true', 'help': 'Adopt turns that experienced preparation or admission failures into the journal as recovered deliveries'}), ('--all-open', {'action': 'store_true', 'help': 'Reconcile all eligible idle open turn reservations across conversations in this project'})))
 	add_arg_specs(parser, specs)
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def execute(args):
 	if 'turn-begin' == args.command:
+		# 2026-11-21
+		# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
+		# https://github.com/dmitry-ai/harness/issues/116
 		r = begin(args.project, args.conversation, watch=not args.no_watch, journal_directory=args.journal, dry_run=bool(getattr(args, 'dry_run', False)))
 	elif 'recover-checkpoint' == args.command:
+		# 2026-11-21
+		# "Offload bulky compaction arrays to recovery index and add recover-checkpoint dry-run mode":
+		# https://github.com/dmitry-ai/harness/issues/119
 		r = recover_checkpoint(args.project, args.conversation, dry_run=bool(getattr(args, 'dry_run', False)))
+	# 2026-11-02
+	# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+	# https://github.com/dmitry-ai/harness/issues/36
 	elif 'recover-turn-violation' == args.command:
 		r = recover_turn_violation(args.project, args.conversation, reason=args.reason)
+	# 2026-11-22
+	# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
+	# https://github.com/dmitry-ai/harness/issues/123
 	elif 'similar-project-exempt' == args.command:
 		r = similar_project_exempt(args.project, args.peer, args.reason, args.conversation)
+	# 2026-11-23
+	# "Enforce cross-platform TDD lifecycle gate across turn completion and CLI":
+	# https://github.com/dmitry-ai/harness/issues/138
 	elif 'ratchet-ok' == args.command:
 		r = ratchet_ok(args.project, args.file, args.reason, args.conversation)
 	elif 'tdd-check' == args.command:
 		r = tdd_check_turn(args.project, args.conversation)
+	# 2026-11-23
+	# "Enforce cross-platform Issue-First gate across turn completion and Git validation":
+	# https://github.com/dmitry-ai/harness/issues/146
 	elif 'issue-first-check' == args.command:
 		r = issue_first_check_turn(args.project, args.conversation)
+	# 2026-11-21
+	# "Add read-only answer-check pre-flight validation command to harness CLI":
+	# https://github.com/dmitry-ai/harness/issues/117
+	# 2026-11-24
+	# "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
+	# https://github.com/dmitry-ai/harness/issues/213
 	elif 'answer-check' == args.command:
 		from .cli_common import load_operation_input
 		payload = load_operation_input(args, args.response_file)
 		r = check_answer(args.project, payload.decode('utf-8'), args.conversation, response_path=args.response_file, journal_directory=args.journal, blocked_report=bool(getattr(args, 'blocked_report', False)))
 	elif 'answer-prepare' == args.command:
+		# 2026-11-14
+		# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
+		# https://github.com/dmitry-ai/harness/issues/69
+		# 2026-11-24
+		# "Add blocked-report mode to answer-prepare for pre-finalize workflow blockers":
+		# https://github.com/dmitry-ai/harness/issues/213
 		from .cli_common import consume_scratch_input, load_operation_input
 		payload = load_operation_input(args, args.response_file)
 		result = prepare(args.project, payload.decode('utf-8'), args.conversation, watch=not args.no_watch, journal_directory=args.journal, wait_timeout=float(getattr(args, 'wait_timeout', 180.0)), blocked_report=bool(getattr(args, 'blocked_report', False)))
 		r = consume_scratch_input(args, args.response_file, payload, result)
+	# 2026-11-04
+	# "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
+	# https://github.com/dmitry-ai/harness/issues/44
 	elif 'reconcile-unprepared-delivery' == args.command:
 		r = reconcile_unprepared_delivery(args.project, args.conversation, from_step=args.from_step, journal_directory=args.journal)
 	elif 'journal-sync' == args.command:
+		# 2026-11-26
+		# "Exempt service finalization calls from PreToolUse TDD gate and add journal-sync --all-open":
+		# https://github.com/dmitry-ai/harness/issues/256
 		r = sync(args.project, args.conversation, from_step=args.from_step, journal_directory=args.journal, adopt_conflict=getattr(args, 'adopt_conflict', False), all_open=bool(getattr(args, 'all_open', False)))
+	# 2026-11-22
+	# "Auto-name Antigravity conversations from project journal step numbers":
+	# https://github.com/dmitry-ai/harness/issues/120
 	elif 'sync-conversation-title' == args.command:
 		r = sync_conversation_title(args.project, args.conversation, journal_directory=args.journal, dry_run=bool(getattr(args, 'dry_run', False)))
 	else:

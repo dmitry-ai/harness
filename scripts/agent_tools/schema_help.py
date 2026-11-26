@@ -1,8 +1,9 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add schema-help CLI, validator hints, save-analysis --merge, and af-worker file handoff":
-# https://github.com/dmitry-ai/harness/issues/217
 from __future__ import annotations
 import json
+# 2026-11-24
+# "Prevent context compaction with schema-help CLI and staged analysis merge":
+# https://github.com/dmitry-ai/harness/issues/217
 _CLAIM_HINTS = {
 	'analysis.empty': 'Add at least one claim to the section or record a non-empty explanation under notes.<section>. Run: harness.py schema-help analysis.',
 	'argument.competing_reference': 'Remove inline source/quote prose when referencing claim_id or evidence_id. Run: harness.py schema-help analysis.',

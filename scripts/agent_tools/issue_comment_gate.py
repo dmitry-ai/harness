@@ -1,6 +1,4 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add PreToolUse and pre-commit gate for issue-comment placement":
-# https://github.com/dmitry-ai/harness/issues/273
 from __future__ import annotations
 from pathlib import Path
 import ast
@@ -261,6 +259,9 @@ def _xml_span(lines: list[str], start_line: int) -> tuple[int, int, str]:
 					end_line = idx + 1
 					break
 	return (start_line, end_line, kind)
+# 2026-11-26
+# "Add PreToolUse and pre-commit gate for issue-comment placement":
+# https://github.com/dmitry-ai/harness/issues/273
 def check_issue_comment_violations(path: str | Path, source: str, *, baseline_source: str | None=None) -> list[str]:
 	p = Path(path)
 	suffix = p.suffix.lower()

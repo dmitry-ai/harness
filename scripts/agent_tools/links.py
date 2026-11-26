@@ -1,21 +1,4 @@
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs":
-# https://github.com/dmitry-ai/harness/issues/264
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
-# https://github.com/dmitry-ai/harness/issues/230
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
-# https://github.com/dmitry-ai/harness/issues/109
-# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
-# https://github.com/dmitry-ai/harness/issues/81
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
-# https://github.com/dmitry-ai/harness/issues/2
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from collections import Counter
 from dataclasses import dataclass
 import html as html_lib
@@ -26,6 +9,9 @@ import json
 from urllib.parse import unquote, urldefrag, urlsplit
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
+# 2026-10-17
+# "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
+# https://github.com/dmitry-ai/harness/issues/9
 def _readable_escapes(value: str) -> str:
 	def decode(match):
 		encoded = match.group()
@@ -40,9 +26,6 @@ def _readable_escapes(value: str) -> str:
 			result.append(char if safe_ascii or safe_unicode else original)
 		return ''.join(result)
 	return re.sub('(?:%[0-9a-fA-F]{2})+', decode, value)
-# 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
-# https://github.com/dmitry-ai/harness/issues/9
 def readable_reference(value: str | Path) -> str:
 	value = value.as_posix() if isinstance(value, Path) else value
 	base, fragment_sep, fragment = value.partition('#')
@@ -55,9 +38,6 @@ def readable_reference(value: str | Path) -> str:
 		elif re.match('^/[A-Za-z]:/', path):
 			path = path[1:]
 	return _readable_escapes(path) + query_sep + query + fragment_sep + _readable_escapes(fragment)
-# 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
-# https://github.com/dmitry-ai/harness/issues/9
 def markdown_link(label: str | None, target: str | Path) -> str:
 	target = readable_reference(target)
 	if any((char in target for char in '\r\n<>')):
@@ -66,17 +46,22 @@ def markdown_link(label: str | None, target: str | Path) -> str:
 	text = text.replace('\\', '\\\\').replace('[', '\\[').replace(']', '\\]')
 	destination = f'<{target}>' if any((char.isspace() or char in '()' for char in target)) else target
 	return f'[{text}]({destination})'
-# 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
-# https://github.com/dmitry-ai/harness/issues/9
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/76
+# 2026-11-25
+# "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
+# https://github.com/dmitry-ai/harness/issues/230
+# 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
 def chat_reply_link_issues(content: str, *, root: Path | None=None) -> list[str]:
 	from .repo_link_gate import chat_repo_link_issues
 	return readable_link_issues(content, allow_unencoded_file_uri=True) + chat_repo_link_issues(content, root=root)
+# 2026-11-23
+# "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
+# https://github.com/dmitry-ai/harness/issues/76
 def decode_file_uri(reference: str, *, reject_remote: bool=False) -> str:
 	from .markdown_links import decode_file_uri as _decode
 	return _decode(reference, reject_remote=reject_remote)
+# 2026-10-17
+# "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
+# https://github.com/dmitry-ai/harness/issues/9
 def readable_link_issues(content: str, *, allow_unencoded_file_uri: bool=False) -> list[str]:
 	from .markdown_links import parser as md_parser
 	parser = md_parser(preserve_links=True)
@@ -102,6 +87,9 @@ def readable_link_issues(content: str, *, allow_unencoded_file_uri: bool=False) 
 				targets.extend(_document_urls(token.content))
 	errors = []
 	for target in dict.fromkeys(targets + html.links):
+		# 2026-10-30
+		# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+		# https://github.com/dmitry-ai/harness/issues/21
 		if allow_unencoded_file_uri and target.lower().startswith('file:///') and ('%' not in target):
 			target_check = re.sub('^file:///+(?=[A-Za-z]:/)', '', target, flags=re.IGNORECASE)
 			if readable_reference(target_check) == target_check:
@@ -198,6 +186,9 @@ def validate_content(content: str, *, local_anchors: bool=False, unique_urls: bo
 		errors.extend(readable_link_issues(content))
 	r = errors
 	return r
+# 2026-11-16
+# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+# https://github.com/dmitry-ai/harness/issues/81
 def parse_markdown_headings(content: str) -> tuple[list[dict], set[str], set[str], str]:
 	from .markdown_links import parser as md_parser
 	raw_lines = content.splitlines(keepends=True)
@@ -257,15 +248,22 @@ def parse_markdown_headings(content: str) -> tuple[list[dict], set[str], set[str
 	ambiguous = {aid for aid, cnt in explicit_counts.items() if 1 < cnt}
 	doc_title = fm_title or next((h['text'] for h in headings if 1 == h['level'] and h['text']), '') or next((h['text'] for h in headings if h['text']), '')
 	return (headings, all_anchors, ambiguous, doc_title)
+# 2026-10-14
+# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
+# https://github.com/dmitry-ai/harness/issues/3
 def heading_anchors(content: str) -> set[str]:
 	return parse_markdown_headings(content)[1]
-# 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-11
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def validate_file(file_path: Path, **options) -> list[str]:
 	try:
 		file_path = Path(file_path).resolve()
 		content = file_path.read_text(encoding='utf-8')
+		# 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
 		from .repo_link_gate import file_repo_link_issues
 		errors = validate_content(content, **options) + file_repo_link_issues(file_path, content)
 		for href in references(content, options.get('include_code', False))[0]:
@@ -282,6 +280,9 @@ def validate_file(file_path: Path, **options) -> list[str]:
 			if not path_text:
 				continue
 			target = (file_path.parent / path_text).resolve()
+			# 2026-11-21
+			# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+			# https://github.com/dmitry-ai/harness/issues/109
 			if not target.exists():
 				from .journal import resolve_migrated_step_file
 				migrated = resolve_migrated_step_file(target)
@@ -302,6 +303,9 @@ def validate_file(file_path: Path, **options) -> list[str]:
 			elif fragment and '.json' == target.suffix.lower():
 				value = json.loads(target.read_text(encoding='utf-8'))
 				try:
+					# 2026-10-15
+					# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+					# https://github.com/dmitry-ai/harness/issues/4
 					from .evidence import resolve_pointer
 					resolve_pointer(value, fragment)
 				except (KeyError, ValueError, IndexError, TypeError):

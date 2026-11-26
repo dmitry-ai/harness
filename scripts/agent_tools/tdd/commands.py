@@ -1,11 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Strip PowerShell here-strings before shell redirect write-target scanning":
-# https://github.com/dmitry-ai/harness/issues/221
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
-# https://github.com/dmitry-ai/harness/issues/205
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/169
 from __future__ import annotations
 from pathlib import Path
 from ..shell_audit import _split_shell_segments, normalize_host_path
@@ -159,10 +152,16 @@ def _single_test_file_in_args(seg: str) -> bool:
 			r = True
 			break
 	return r
+# 2026-11-24
+# "Strip PowerShell here-strings before shell redirect write-target scanning":
+# https://github.com/dmitry-ai/harness/issues/221
 def _strip_shell_herestrings(cmd: str) -> str:
 	r = _PS_HERESTRING_RE.sub('""', cmd)
 	r = _BASH_HEREDOC_RE.sub(r'\1', r)
 	return _INLINE_SCRIPT_RE.sub(r'\1""', r)
+# 2026-11-24
+# "Decompose tdd_gate.py into modular TDD verification package":
+# https://github.com/dmitry-ai/harness/issues/169
 def classify_test_command(cmd: str, *, scope_root: Path | None=None) -> dict:
 	if not isinstance(cmd, str) or not cmd.strip():
 		r = {'is_full_suite': False, 'is_test_cmd': False, 'rigged_failure': False, 'target_paths': []}
@@ -208,6 +207,9 @@ def shell_write_targets(cmd: str, *, cwd: Path | None=None, classifications: tup
 				seen.add(key)
 				r.append(full)
 	return r
+# 2026-11-24
+# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+# https://github.com/dmitry-ai/harness/issues/205
 def unwrap_watchdog_prefix(seg: str) -> str:
 	m = _HARNESS_WATCHDOG_PREFIX_RE.match(seg or '')
 	return seg[m.end():] if m else (seg or '')

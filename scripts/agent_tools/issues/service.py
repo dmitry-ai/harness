@@ -1,8 +1,4 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Isolate per-conversation github_issues recording and turn-state filtering":
-# https://github.com/dmitry-ai/harness/issues/195
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/77
 from __future__ import annotations
 import argparse
 import json
@@ -14,7 +10,13 @@ from .linter import IssueMarkdownLinter
 from .repo_commands import run_audit_repo, run_transfer_repo
 from .service_helpers import build_create_payload, dirty_issue_first_files, gh_api_call, pending_similar_peer_slugs, resolve_metadata_project_root, resolve_title
 from .workspace import IssueEvidenceWorkspace
+# 2026-11-24
+# "Decompose github_issue.py and issue_lifecycle.py into IssueMarkdownLinter, IssueEvidenceWorkspace, GitHubIssueService, and TurnIssueLifecycleAuditor with locked turn updates":
+# https://github.com/dmitry-ai/harness/issues/77
 class GitHubIssueService:
+	# 2026-11-24
+	# "Isolate per-conversation github_issues recording and turn-state filtering":
+	# https://github.com/dmitry-ai/harness/issues/195
 	def __init__(self, *, api_fn=None, linter: IssueMarkdownLinter | None=None, workspace: IssueEvidenceWorkspace | None=None, conversation_id: str | None=None) -> None:
 		self._api = api_fn if None is not api_fn else gh_api_call
 		self.linter = linter if None is not linter else IssueMarkdownLinter()
@@ -51,6 +53,9 @@ class GitHubIssueService:
 		else:
 			self.verify_and_persist_parent_issue(consumable, repo, parent_num, self_number=number, project_root=project_root)
 			linked = self.try_link_sub_issue(repo, parent_num, fetched.get('id'))
+			# 2026-11-24
+			# "Isolate per-conversation github_issues recording and turn-state filtering":
+			# https://github.com/dmitry-ai/harness/issues/195
 			self.workspace.persist_issue_evidence(consumable, repo, fetched, kind='issue', action='edit', project_root=project_root, parent_number=parent_num, conversation_id=self._conversation_id)
 			dump_json({'ok': True, 'action': 'edit', 'repo': repo, 'number': number, 'html_url': fetched.get('html_url'), 'verified': True, 'parent_number': int(parent_num), 'parent_url': f'https://github.com/{repo}/issues/{int(parent_num)}', 'sub_issue_linked': linked, 'body_chars': len(remote_body), 'consumed_files': []})
 			r = 0
@@ -98,6 +103,9 @@ class GitHubIssueService:
 			dump_json({'ok': False, 'action': 'close', 'stage': 'post_flight_state_check', 'repo': repo, 'number': number, 'state': fetched.get('state')})
 			r = 2
 		else:
+			# 2026-11-24
+			# "Isolate per-conversation github_issues recording and turn-state filtering":
+			# https://github.com/dmitry-ai/harness/issues/195
 			self.workspace.persist_issue_evidence(consumable, repo, fetched, kind='issue', action='close', project_root=project_root, conversation_id=getattr(args, 'conversation', None) or self._conversation_id)
 			removed = consume_unchanged_files(consumable) if args.consume_input else []
 			close_repo = code_repo if 'completed' == getattr(args, 'reason', 'completed') else self.workspace.find_local_code_repo(repo, project_root=project_root, source_files=consumable)
@@ -143,6 +151,9 @@ class GitHubIssueService:
 		remote_c = fetched.get('body') or ''
 		ok = self.linter.normalize_newlines(remote_c) == self.linter.normalize_newlines(comment_body) and (not self.linter.lint(remote_c, is_title=False, target_locale=target_locale, container_text=container_text, check_structure_policy=False))
 		if ok:
+			# 2026-11-24
+			# "Isolate per-conversation github_issues recording and turn-state filtering":
+			# https://github.com/dmitry-ai/harness/issues/195
 			self.workspace.persist_issue_evidence(consumable, repo, fetched, kind='comment', action='comment', project_root=project_root, conversation_id=self._conversation_id)
 		else:
 			dump_json({'ok': False, 'action': 'close', 'stage': 'post_flight_comment_readback', 'repo': repo, 'number': number, 'comment_id': comment_id})
@@ -178,6 +189,9 @@ class GitHubIssueService:
 		exact, pt_errs, pb_errs = self._mutation_readback_check(remote_title, remote_body, expected_title, eff_expected_body, target_locale, container_text, eff_struct, parent_number, repo, eff_self)
 		if exact and (not pt_errs) and (not pb_errs):
 			extra = post_write_fn(ident, fetched) if None is not post_write_fn else None
+			# 2026-11-24
+			# "Isolate per-conversation github_issues recording and turn-state filtering":
+			# https://github.com/dmitry-ai/harness/issues/195
 			self.workspace.persist_issue_evidence(consumable, repo, fetched, kind=kind, action=action, project_root=project_root, parent_number=parent_number, conversation_id=self._conversation_id)
 			removed = consume_unchanged_files(consumable) if consume_input else []
 			dump_json(self._build_mutation_success_payload(action, repo, id_key, ident, kind, fetched, remote_body, removed, parent_number, extra))
@@ -290,6 +304,9 @@ class GitHubIssueService:
 			fetched = self._api(f'repos/{repo}/issues/{pnum}', method='GET')
 			if not isinstance(fetched, dict) or 'pull_request' in fetched:
 				raise ValueError(f'Parent target #{pnum} in {repo} is not a valid GitHub issue')
+			# 2026-11-24
+			# "Isolate per-conversation github_issues recording and turn-state filtering":
+			# https://github.com/dmitry-ai/harness/issues/195
 			self.workspace.persist_issue_evidence(source_files, repo, fetched, kind='issue', action=None, project_root=project_root, conversation_id=self._conversation_id)
 			existing = fetched
 		if require_open and 'closed' == str((existing or {}).get('state') or '').strip().lower():

@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add schema-help CLI, validator hints, save-analysis --merge, and af-worker file handoff":
-# https://github.com/dmitry-ai/harness/issues/217
 from __future__ import annotations
 import json
 from pathlib import Path
@@ -77,6 +75,9 @@ def merge_analysis_candidate(base: dict, patch: dict) -> dict:
 	_merge_extra_fields(base, patch, merged)
 	merged.setdefault('schema_version', 3)
 	return merged
+# 2026-11-24
+# "Prevent context compaction with schema-help CLI and staged analysis merge":
+# https://github.com/dmitry-ai/harness/issues/217
 def save_merged_analysis(root: Path | str, patch: dict, expected_sha256: str | None=None, *, partial: bool=False) -> dict:
 	pp = project_paths(root, exact_root=True)
 	draft = pp.data_dir / 'analysis-draft.json'

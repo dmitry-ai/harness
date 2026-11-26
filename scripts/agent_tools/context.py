@@ -1,34 +1,20 @@
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate wall-clock race in context.generate and pre-lock flush race in storage.locked":
-# https://github.com/dmitry-ai/harness/issues/158
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
-# https://github.com/dmitry-ai/harness/issues/109
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
-# https://github.com/dmitry-ai/harness/issues/101
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
-# https://github.com/dmitry-ai/harness/issues/2
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
-# https://github.com/dmitry-ai/harness/issues/42
 from datetime import datetime, timezone
 import json
 from pathlib import Path
 import re
 from .storage import data_dir_for, locked, replace_bytes
 from .journal import canonicalize_journal_dir_identity, get_existing_step_ids, journal_pair_dirs, step_errors, step_file, answer_groups
+# 2026-11-03
+# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
+# https://github.com/dmitry-ai/harness/issues/42
 def default_context_config(root: Path | str | None=None) -> dict:
 	out_rel = 'ꙮ/0/Context.md'
 	kb_glob = 'ꘖ/KB/**/*.md'
 	ev_excl = 'ꘖ/KB/Evidence/**'
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	if None is not root:
 		from .path_registry import project_paths
 		pp = project_paths(root, exact_root=True)
@@ -50,6 +36,9 @@ def default_context_config(root: Path | str | None=None) -> dict:
 			}
 		],
 	}
+# 2026-11-03
+# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
+# https://github.com/dmitry-ai/harness/issues/42
 def _is_excluded(rel_path: Path, patterns: list[str]) -> bool:
 	rel_str = rel_path.as_posix()
 	for pat in patterns:
@@ -65,12 +54,21 @@ def _is_excluded(rel_path: Path, patterns: list[str]) -> bool:
 		elif rel_path.match(pat) or rel_str == pat_norm or rel_str.startswith(pat_norm + '/'):
 			return True
 	return False
+# 2026-10-11
+# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+# https://github.com/dmitry-ai/harness/issues/2
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def inside(root: Path, path: str | Path) -> Path:
 	target = (root / path).resolve()
 	if not target.is_relative_to(root.resolve()):
 		raise ValueError(f'Path escapes project root: {path}')
 	r = target
 	return r
+# 2026-11-19
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 def _inside_allowed(root: Path, path: str | Path, allowed_roots: tuple[Path, ...]=()) -> Path:
 	p = Path(path)
 	target = p.resolve() if p.is_absolute() else (root / p).resolve()
@@ -78,6 +76,9 @@ def _inside_allowed(root: Path, path: str | Path, allowed_roots: tuple[Path, ...
 		if target.is_relative_to(base):
 			return target
 	raise ValueError(f'Path escapes project root: {path}')
+# 2026-11-19
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 def _expand_entry(pp, raw: str | Path) -> str:
 	text = str(raw)
 	return pp.expand(text) if ('${' in text or '%' in text) else text
@@ -119,13 +120,13 @@ def discover_letters(root: Path, languages=('EN', 'RU')) -> list[Path]:
 	return r
 def _fence(text: str) -> str:
 	return '`' * max(3, max((len(m.group()) + 1 for m in re.finditer('`+', text)), default=3))
-# 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-11
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
-# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
-# https://github.com/dmitry-ai/harness/issues/42
 def assemble(root: Path, manifest: dict | None=None, now: datetime | None=None) -> tuple[str, list[Path]]:
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import canonicalize_root_dir, project_paths
 	import glob as glob_mod
 	root = canonicalize_root_dir(root)
@@ -136,6 +137,9 @@ def assemble(root: Path, manifest: dict | None=None, now: datetime | None=None) 
 	if 1 != manifest.get('version') or not manifest.get('sections'):
 		raise ValueError('Context manifest requires version=1 and nonempty sections')
 	timestamp = (now or datetime.now(timezone.utc)).isoformat(timespec='seconds')
+	# 2026-11-03
+	# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
+	# https://github.com/dmitry-ai/harness/issues/42
 	blocks = [f'# Context\n\nGenerated: {timestamp}\n']
 	selected = []
 	seen = set()
@@ -155,6 +159,9 @@ def assemble(root: Path, manifest: dict | None=None, now: datetime | None=None) 
 			if not matches and (not section.get('optional', False)):
 				raise FileNotFoundError(f'No sources match {raw_pattern}')
 			items.extend(((_inside_allowed(root, p, allowed_roots), None) for p in matches))
+		# 2026-10-16
+		# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
+		# https://github.com/dmitry-ai/harness/issues/6
 		for raw_rel in section.get('drafts', []):
 			relative = _expand_entry(pp, raw_rel)
 			directory = _inside_allowed(root, relative, allowed_roots)
@@ -167,9 +174,15 @@ def assemble(root: Path, manifest: dict | None=None, now: datetime | None=None) 
 				chosen = resolve_letter_file(group)
 				if chosen:
 					items.append((_inside_allowed(root, chosen, allowed_roots), None))
+		# 2026-10-14
+		# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
+		# https://github.com/dmitry-ai/harness/issues/3
 		for raw_jrel in section.get('journals', []):
 			journal_rel = _expand_entry(pp, raw_jrel)
 			jdir = _inside_allowed(root, journal_rel, allowed_roots)
+			# 2026-11-21
+			# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+			# https://github.com/dmitry-ai/harness/issues/109
 			if not jdir.is_dir():
 				canon_j = canonicalize_journal_dir_identity(jdir)
 				if canon_j.is_dir():
@@ -183,7 +196,13 @@ def assemble(root: Path, manifest: dict | None=None, now: datetime | None=None) 
 					continue
 				raise FileNotFoundError(f'Missing journal directory: {raw_jrel}')
 			step_ids = sorted(get_existing_step_ids(jdir))
+			# 2026-11-20
+			# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+			# https://github.com/dmitry-ai/harness/issues/101
 			req_dir, res_dir = journal_pair_dirs(jdir)
+			# 2026-10-15
+			# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+			# https://github.com/dmitry-ai/harness/issues/4
 			groups = answer_groups(jdir)
 			group_by_step = {step: group for group in groups for step in group['steps']}
 			added_groups = set()
@@ -202,6 +221,9 @@ def assemble(root: Path, manifest: dict | None=None, now: datetime | None=None) 
 						items.append((_inside_allowed(root, step_file(res_dir, member, directory=jdir), allowed_roots), 'Agent (one final answer shared across requests; group ' + group['turn'] + ')'))
 					continue
 				for folder_dir, role in ((req_dir, 'User (req)'), (res_dir, 'Agent (res)')):
+					# 2026-11-21
+					# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+					# https://github.com/dmitry-ai/harness/issues/109
 					candidate = step_file(folder_dir, step_id, directory=jdir)
 					if candidate.is_file() and candidate.read_text(encoding='utf-8').strip():
 						items.append((_inside_allowed(root, candidate, allowed_roots), role))
@@ -241,19 +263,22 @@ def assemble(root: Path, manifest: dict | None=None, now: datetime | None=None) 
 		raise ValueError('No sources selected')
 	r = (''.join(blocks), selected)
 	return r
-# 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-11
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
-# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
-# https://github.com/dmitry-ai/harness/issues/42
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-11-23
 # "Eliminate wall-clock race in context.generate and pre-lock flush race in storage.locked":
 # https://github.com/dmitry-ai/harness/issues/158
 def generate(root: Path, config: Path | dict | None=None, output: Path | None=None, dry_run=False, now: datetime | None=None):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import canonicalize_root_dir, project_paths
 	root = canonicalize_root_dir(root)
 	pp = project_paths(root, exact_root=True)
+	# 2026-11-03
+	# "Refactor generate_context.py to export only current timestamp and Agent KB excluding Evidence":
+	# https://github.com/dmitry-ai/harness/issues/42
 	if None is config:
 		manifest = default_context_config(root)
 	elif isinstance(config, dict):
@@ -264,6 +289,9 @@ def generate(root: Path, config: Path | dict | None=None, output: Path | None=No
 			raise FileNotFoundError(config_path)
 		manifest = json.loads(config_path.read_text(encoding='utf-8-sig'))
 	default_out = pp.context_output.relative_to(root).as_posix() if pp.context_output.is_relative_to(root) else 'ꙮ/0/Context.md'
+	# 2026-10-14
+	# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
+	# https://github.com/dmitry-ai/harness/issues/3
 	def build():
 		content, sources = assemble(root, manifest, now=now)
 		raw_out = output if None is not output else _expand_entry(pp, manifest.get('output', default_out))

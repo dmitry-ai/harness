@@ -1,11 +1,8 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce project.domain_drift invariant in check-project and finalize":
-# https://github.com/dmitry-ai/harness/issues/268
-# "Add transactional rename-project command with automatic domain promotion":
-# https://github.com/dmitry-ai/harness/issues/267
 from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
+# 2026-11-26 "Enforce project.domain_drift invariant in check-project and finalize": https://github.com/dmitry-ai/harness/issues/268
 import hashlib
 import json
 import os
@@ -13,6 +10,7 @@ import re
 from .journal import _raw_state_dir, resolve_journal_dir
 from .path_registry import project_paths
 from .storage import replace_bytes
+# 2026-11-26 "Add transactional rename-project command with automatic domain promotion": https://github.com/dmitry-ai/harness/issues/267
 _FOLDER_RULE_RE = re.compile(r'(?m)^Folder name:\s*`[^`]+`;')
 def _is_under_journal_root(path: Path) -> Path | None:
 	r = None
@@ -63,6 +61,8 @@ def _update_folder_rule(new_root: Path, new_label: str) -> None:
 		updated = _FOLDER_RULE_RE.sub(lambda _m: f'Folder name: `{new_label}`;', orig)
 		if updated != orig:
 			replace_bytes(rule_f, updated.encode('utf-8'))
+# 2026-11-26 "Add transactional rename-project command with automatic domain promotion": https://github.com/dmitry-ai/harness/issues/267
+# 2026-11-26 "Enforce project.domain_drift invariant in check-project and finalize": https://github.com/dmitry-ai/harness/issues/268
 def _update_project_json(old_root: Path, new_root: Path, new_label: str, new_label_kind: str) -> tuple[dict, str, str]:
 	pj_path = project_paths(new_root, exact_root=True).project_json
 	old_raw = pj_path.read_bytes()
@@ -75,6 +75,7 @@ def _update_project_json(old_root: Path, new_root: Path, new_label: str, new_lab
 	new_raw = (json.dumps(state, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
 	replace_bytes(pj_path, new_raw)
 	return (state, hashlib.sha256(old_raw).hexdigest(), hashlib.sha256(new_raw).hexdigest())
+# 2026-11-26 "Add transactional rename-project command with automatic domain promotion": https://github.com/dmitry-ai/harness/issues/267
 def migrate_journal_state(old_root: Path, new_root: Path) -> tuple[Path, Path]:
 	new_pp = project_paths(new_root, exact_root=True)
 	new_jdir = resolve_journal_dir(new_root)
@@ -92,6 +93,7 @@ def migrate_journal_state(old_root: Path, new_root: Path) -> tuple[Path, Path]:
 		for item in sorted(new_state.rglob('*.json')):
 			_rewrite_json_file(item, pairs)
 	return (old_state, new_state)
+# 2026-11-26 "Add transactional rename-project command with automatic domain promotion": https://github.com/dmitry-ai/harness/issues/267
 def rewrite_launcher_handoffs(launcher_root: Path, old_root: Path, new_root: Path) -> int:
 	turns_dir = project_paths(Path(launcher_root).resolve(), exact_root=True).turns_dir
 	pairs = _path_pairs(old_root, new_root, None, None)
@@ -104,12 +106,15 @@ def rewrite_launcher_handoffs(launcher_root: Path, old_root: Path, new_root: Pat
 				replace_bytes(sf, updated.encode('utf-8'))
 				count += 1
 	return count
+# 2026-11-26 "Add transactional rename-project command with automatic domain promotion": https://github.com/dmitry-ai/harness/issues/267
 def rewrite_project_internal_state(old_root: Path, new_root: Path, new_label: str, new_label_kind: str) -> dict:
 	old_state, new_state = migrate_journal_state(old_root, new_root)
 	pairs = _path_pairs(old_root, new_root, old_state, new_state)
+	# 2026-11-26 "Enforce project.domain_drift invariant in check-project and finalize": https://github.com/dmitry-ai/harness/issues/268
 	state, old_pj_sha, new_pj_sha = _update_project_json(old_root, new_root, new_label, new_label_kind)
 	_update_folder_rule(new_root, new_label)
 	pp = project_paths(new_root, exact_root=True)
+	# 2026-11-26 "Enforce project.domain_drift invariant in check-project and finalize": https://github.com/dmitry-ai/harness/issues/268
 	_rewrite_json_file(pp.data_dir / 'workflow.json', [*pairs, (old_pj_sha, new_pj_sha)])
 	_rewrite_json_file(pp.data_dir / 'rendered.json', pairs)
 	if pp.turns_dir.is_dir():
@@ -133,6 +138,7 @@ def _has_rename_lineage(existing_root: Path, missing_root: Path) -> bool:
 		target_key = missing_root.as_posix().casefold()
 		r = any((isinstance(h, dict) and Path(str(h.get('from') or '')).resolve().as_posix().casefold() == target_key for h in history if h.get('from')))
 	return r
+# 2026-11-26 "Add transactional rename-project command with automatic domain promotion": https://github.com/dmitry-ai/harness/issues/267
 def same_journal_identity_with_rename(first: str | Path | None, second: str | Path | None, canon_fn) -> bool:
 	r = False
 	if isinstance(first, (str, Path)) and isinstance(second, (str, Path)) and str(first).strip() and str(second).strip():

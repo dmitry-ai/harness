@@ -1,19 +1,11 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add deterministic reactive wait primitive for transient repository and journal contention":
-# https://github.com/dmitry-ai/harness/issues/199
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
-# https://github.com/dmitry-ai/harness/issues/75
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
-# https://github.com/dmitry-ai/harness/issues/69
 import hashlib
 import json
 from pathlib import Path
 import sys
+# 2026-11-14
+# "Unify declarative CLI routers, scratch-verified --consume-input/stdin loading, and read-back mutations in cli_common.py":
+# https://github.com/dmitry-ai/harness/issues/69
 def add_arg_specs(parser, specs: tuple | list) -> None:
 	for flags, kwargs in specs:
 		names = flags if isinstance(flags, tuple) else (flags,)
@@ -66,9 +58,15 @@ def load_operation_input(args, path) -> bytes:
 		if actual_sha != str(expected_sha).strip().lower():
 			raise ValueError(f'Input SHA-256 mismatch against --expected-sha256: expected {expected_sha}, got {actual_sha}')
 	return r
+# 2026-11-24
+# "Add deterministic reactive wait primitive for transient repository and journal contention":
+# https://github.com/dmitry-ai/harness/issues/199
 def operation_error_payload(exc: BaseException) -> dict:
 	from .repo_wait import is_transient_contention_error
 	return {'valid': False, 'retryable': is_transient_contention_error(exc), 'issues': [{'code': 'operation.input', 'field': '/', 'message': str(exc)}]}
+# 2026-11-14
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
 def read_input_bytes(path) -> bytes:
 	if '-' != str(path):
 		r = Path(path).read_bytes()
@@ -84,6 +82,9 @@ def result_exit_code(result: dict, *, extra_failures: tuple=()) -> int:
 	failed = False is result.get('valid') or False is result.get('complete') or 'conflict' == result.get('status') or any(extra_failures)
 	return 2 if failed else 0
 def verify_scratch_input_path(project, path) -> Path:
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	from .storage import data_dir_for
 	r = Path(path).resolve()

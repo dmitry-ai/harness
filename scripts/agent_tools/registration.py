@@ -1,20 +1,20 @@
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# https://github.com/dmitry-ai/harness/issues/86
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
-# https://github.com/dmitry-ai/harness/issues/6
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from copy import deepcopy
 from datetime import datetime, timezone
 import json
 from pathlib import Path
 import uuid
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
 from .runtime import platform_active, platform_name, request_day, settings
 from .storage import locked, replace_bytes
+# 2026-10-16
+# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
+# https://github.com/dmitry-ai/harness/issues/6
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class RegistrationConflict(ValueError):
 	def __init__(self, message, *, expected, actual, issues):
 		super().__init__(message)
@@ -22,6 +22,9 @@ class RegistrationConflict(ValueError):
 def _now():
 	return datetime.now(timezone.utc).isoformat(timespec='microseconds')
 def _expected(project, label=None, day=None):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	root = Path(project).resolve()
 	if not root.is_dir():
@@ -50,6 +53,8 @@ def validate_registration(project, label, day, platform, result):
 	roots = value.get('root_paths')
 	if 'antigravity' == platform and value.get('project_file'):
 		native = json.loads(Path(value['project_file']).read_text(encoding='utf-8-sig'))
+		# 2026-10-31
+		# "Canonicalize relocated Codex, Antigravity, and Harness project roots and support v2Migrated gitFolder project resources":
 		# https://github.com/dmitry-ai/harness/issues/29
 		from .platforms.antigravity import folder_path, resource_uri
 		roots = [str(folder_path(resource_uri(item))) for item in native.get('projectResources', {}).get('resources', []) if resource_uri(item)]
@@ -85,6 +90,9 @@ def validate_registration(project, label, day, platform, result):
 	r = value
 	return r
 def _read(root):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	path = project_paths(root, exact_root=True).registrations_json
 	data = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
@@ -103,6 +111,9 @@ def _success(previous):
 		r = {key: deepcopy(value) for key, value in previous.items() if key not in ('intent', 'attempt', 'attempts', 'attempt_history', 'last_success')}
 	return r
 def _begin(root, platform, intent):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	with locked(project_paths(root, exact_root=True).data_dir / 'registration.lock'):
 		path, data = _read(root)
@@ -121,6 +132,9 @@ def _begin(root, platform, intent):
 		r = deepcopy(entry)
 	return r
 def save_registration(root, platform, result):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	pp = project_paths(root, exact_root=True)
 	root = pp.root
@@ -177,12 +191,11 @@ def register_project(project, label=None, day=None, *, platform=None):
 		raise error
 	r = result
 	return r
-# https://github.com/dmitry-ai/harness/issues/86
-# 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
-# https://github.com/dmitry-ai/harness/issues/6
 def register_projects(project, label=None, day=None, *, platform=None, targets=None, registrars=None):
 	active, config = (platform_name(platform), settings())
+	# 2026-11-18
+	# "Externalize agent environments and per-instance system paths into runtime.json":
+	# https://github.com/dmitry-ai/harness/issues/86
 	if None is not targets:
 		chosen = list(dict.fromkeys(targets))
 	else:

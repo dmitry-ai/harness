@@ -1,9 +1,4 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
-# https://github.com/dmitry-ai/harness/issues/175
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce live TDD PreToolUse gate in check_rules_and_server_gate.py":
-# https://github.com/dmitry-ai/harness/issues/136
 from __future__ import annotations
 
 from contextlib import redirect_stdout
@@ -24,6 +19,9 @@ if str(SCRIPT_DIR) not in sys.path:
 import check_rules_and_server_gate as gate
 
 
+# 2026-11-24
+# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+# https://github.com/dmitry-ai/harness/issues/175
 def _run_hook(payload: dict) -> dict:
 	buf = io.StringIO()
 	with patch.object(sys, 'stdin', io.StringIO(json.dumps(payload, ensure_ascii=False))), redirect_stdout(buf):
@@ -33,6 +31,9 @@ def _run_hook(payload: dict) -> dict:
 
 def _init_git_repo(repo: Path) -> None:
 	repo.mkdir(parents=True, exist_ok=True)
+	# 2026-11-24
+	# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+	# https://github.com/dmitry-ai/harness/issues/175
 	subprocess.run(['git', 'init', '-b', 'main', str(repo)], check=True, capture_output=True)
 	cfg = repo / '.git/config'
 	cfg.write_text(cfg.read_text(encoding='utf-8') + '[user]\n\temail = test@example.com\n\tname = Test User\n', encoding='utf-8')
@@ -43,6 +44,9 @@ def _write_transcript(path: Path, rows: list[dict]) -> Path:
 	return path
 
 
+# 2026-11-23
+# "Enforce live TDD PreToolUse gate in check_rules_and_server_gate.py":
+# https://github.com/dmitry-ai/harness/issues/136
 class TddPreToolUseGateTests(unittest.TestCase):
 	def test_blocks_production_code_across_languages_before_red_test(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
@@ -358,6 +362,9 @@ class TddPreToolUseGateTests(unittest.TestCase):
 				gate.check_tdd_gate('write_file', {'Path': str(repo / 'src/untested.py'), 'Content': 'a = 1\n'}, {'cwd': str(repo), 'transcriptPath': str(tx)})
 			)
 
+	# 2026-11-24
+	# "Reduce subprocess overhead in PreToolUse tests and Git lifecycle checks":
+	# https://github.com/dmitry-ai/harness/issues/175
 	def test_cli_subprocess_smoke(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			base = Path(tmp).resolve()

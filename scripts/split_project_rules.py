@@ -1,9 +1,4 @@
 # 2026-10-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
-# https://github.com/dmitry-ai/harness/issues/17
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from pathlib import Path
 import re
 import sys
@@ -18,6 +13,9 @@ def slugify(title: str) -> str:
 			r = v
 			break
 	return r
+# 2026-10-26
+# "Enforce Git --no-optional-locks read gate, add git_shim.py wrapper, and add PreToolUse rules budget and server hygiene gates":
+# https://github.com/dmitry-ai/harness/issues/17
 def split_rules(rules_dir: Path, max_bytes: int=4000) -> bool:
 	r = False
 	map_file = rules_dir / '90-project.md'
@@ -32,6 +30,9 @@ def split_rules(rules_dir: Path, max_bytes: int=4000) -> bool:
 			sections = re.split('(?m)(?=^# )', body)
 			preserved_sections = []
 			extracted_sections = []
+			# 2026-10-31
+			# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+			# https://github.com/dmitry-ai/harness/issues/26
 			keep_headings = ('passport', 'map', 'no backups', 'autosplit', 'project', '\u043f\u0430\u0441\u043f\u043e\u0440\u0442', '\u043a\u0430\u0440\u0442\u0430', '\u0437\u0430\u043f\u0440\u0435\u0442 \u0431\u044d\u043a\u0430\u043f\u043e\u0432', '\u0430\u0432\u0442\u043e\u0440\u0430\u0437\u0431\u0438\u0435\u043d\u0438\u0435')
 			for sec in sections:
 				stripped = sec.strip()

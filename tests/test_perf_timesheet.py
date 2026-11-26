@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add harness perf-timesheet CLI for deterministic turn chronometry":
-# https://github.com/dmitry-ai/harness/issues/191
 from __future__ import annotations
 from pathlib import Path
 import json
@@ -54,6 +52,9 @@ def _sample_codex_rows() -> list[dict]:
 		{'timestamp': '2026-11-23T12:00:49Z', 'type': 'response_item', 'payload': {'type': 'function_call_output', 'call_id': 'c2', 'output': '{"ready": true}'}},
 		{'timestamp': '2026-11-23T12:00:50Z', 'type': 'event_msg', 'payload': {'type': 'task_complete', 'turn_id': 'turn-1'}},
 	]
+# 2026-11-24
+# "Add harness perf-timesheet CLI for deterministic turn chronometry":
+# https://github.com/dmitry-ai/harness/issues/191
 class PerfTimesheetTests(unittest.TestCase):
 	def test_antigravity_timesheet_computes_chronometry_switches_checkpoints_and_bg_waits(self) -> None:
 		from agent_tools.perf.timesheet import build_timesheet

@@ -1,8 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add structured problem metadata builder and CLI command":
-# https://github.com/dmitry-ai/harness/issues/180
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/170
 from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
@@ -12,7 +8,13 @@ from .blocks import _build_agent_block, _build_journal_block, _build_journal_tra
 from .formatting import _UUID_RE, _split_model_and_effort, format_local_timestamp, parse_timestamp
 import os
 import re
+# 2026-11-24
+# "Add structured problem metadata builder and CLI command":
+# https://github.com/dmitry-ai/harness/issues/180
 _GITHUB_ISSUE_URL_RE = re.compile(r'^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/issues/\d+$')
+# 2026-11-24
+# "Decompose metadata.py into modular metadata collection package":
+# https://github.com/dmitry-ai/harness/issues/170
 _HOOKS: dict[str, tuple[Any, Any]] = {
 	'_ag_transcript_file': (transcripts, transcripts._ag_transcript_file),
 	'_extract_ag_transcript_info': (transcripts, transcripts._extract_ag_transcript_info),
@@ -139,6 +141,9 @@ def _merge_transcript_fields(state: dict[str, Any], info: dict[str, Any], *, inc
 	if include_model:
 		state['model'] = state['model'] or info.get('model')
 		state['effort'] = state['effort'] or info.get('effort')
+# 2026-11-24
+# "Add structured problem metadata builder and CLI command":
+# https://github.com/dmitry-ai/harness/issues/180
 def _normalize_problem_issue_url(issue_url: str | None, *, allow_no_issue: bool) -> str | None:
 	raw = str(issue_url or '').strip().rstrip('/')
 	if not raw:
@@ -224,6 +229,9 @@ def build_journal_metadata(root: str | Path, native: dict[str, Any], turn: dict[
 	trace_block = _build_trace_block(cid=cid, turn_trace=turn_trace, journal_trace=journal_trace, transcript_path=native.get('source_file'))
 	extras = (('Journal', _build_journal_block(steps, conv_label)), ('Agent', _build_agent_block(platform, instance_id, state['model'], state['effort'])), ('Trace', trace_block))
 	return _assemble_optional_blocks({'Time': time_block, 'Project': project_info}, extras)
+# 2026-11-24
+# "Add structured problem metadata builder and CLI command":
+# https://github.com/dmitry-ai/harness/issues/180
 def build_problem_metadata(*, issue_url: str | None=None, project_root: str | Path | None=None, source_project_root: str | Path | None=None, allow_no_issue: bool=False, env: dict[str, str] | None=None, now: datetime | str | None=None, tz=None) -> dict[str, Any]:
 	from ..path_registry import canonicalize_root_dir
 	clean_url = _normalize_problem_issue_url(issue_url, allow_no_issue=allow_no_issue)

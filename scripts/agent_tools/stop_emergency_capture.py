@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
-# https://github.com/dmitry-ai/harness/issues/255
 from __future__ import annotations
 from pathlib import Path
 from typing import Any
@@ -63,6 +61,9 @@ def _record_emergency_locked(root: Path, native: dict[str, Any], turn: dict[str,
 		if None is not written:
 			r = _persist_emergency_state(completion_mod, path, value, written[0], reason=reason, jdir=jdir, request_ids=written[1])
 	return r
+# 2026-11-26
+# "Persist emergency journal capture on Stop Gate fail-open and sync idle foreign reservations in turn-begin":
+# https://github.com/dmitry-ai/harness/issues/255
 def maybe_emergency_capture_journal(root_or_data: Path, session_id: str, last_user_step: int, matched_state: dict | None, decision: dict, emergency_ctx: dict[str, Any] | None) -> dict[str, Any] | None:
 	r: dict[str, Any] | None = None
 	raw_text = str((emergency_ctx or {}).get('last_planner_text') or '')

@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Verify reused reviewer package assignments and tolerate volatile executor metadata":
-# https://github.com/dmitry-ai/harness/issues/222
 from __future__ import annotations
 import hashlib
 import json
@@ -54,6 +52,9 @@ def _make_proof(log_path: Path, final_text: str, exec_meta: dict) -> dict:
 		'final_response': final_text,
 		'executor_metadata': exec_meta,
 	}
+# 2026-11-24
+# "Verify reused reviewer package assignments and tolerate volatile executor metadata":
+# https://github.com/dmitry-ai/harness/issues/222
 class ReusedReviewerAndMetadataDriftM5Tests(unittest.TestCase):
 	def test_verify_native_proof_accepts_reused_reviewer_send_message_and_rejects_self_mention(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

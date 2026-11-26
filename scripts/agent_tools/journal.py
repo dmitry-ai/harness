@@ -1,50 +1,4 @@
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Harden follow-up launcher handoff and journal reservation integrity":
-# https://github.com/dmitry-ai/harness/issues/269
-# "Add transactional rename-project command with automatic domain promotion":
-# https://github.com/dmitry-ai/harness/issues/267
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Accelerate project_paths and overlay link resolution with fast-path caching":
-# https://github.com/dmitry-ai/harness/issues/174
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prepend JSON metadata headers to new journal responses":
-# https://github.com/dmitry-ai/harness/issues/151
-# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Auto-name Antigravity conversations from project journal step numbers":
-# https://github.com/dmitry-ai/harness/issues/120
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
-# https://github.com/dmitry-ai/harness/issues/113
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
-# https://github.com/dmitry-ai/harness/issues/108
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
-# https://github.com/dmitry-ai/harness/issues/101
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
-# https://github.com/dmitry-ai/harness/issues/60
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
-# https://github.com/dmitry-ai/harness/issues/57
-# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Isolate turn scratch answer files, decouple turn/journal locks, allow pre-delivery re-preparation, and add preemptive step/compaction budget gate":
-# https://github.com/dmitry-ai/harness/issues/49
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
-# https://github.com/dmitry-ai/harness/issues/2
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
-# https://github.com/dmitry-ai/harness/issues/36
-# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
-# https://github.com/dmitry-ai/harness/issues/41
 import hashlib
 import json
 import os
@@ -52,15 +6,36 @@ from pathlib import Path
 import re
 import uuid
 from .storage import create_bytes, data_dir_for, journal_data_dir_for, locked, replace_bytes
+# 2026-11-20
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 V1_PAIR = ('req', 'res')
 V2_PAIR = ('\u227b', '\u227a')
+# 2026-11-21
+# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+# https://github.com/dmitry-ai/harness/issues/108
 JOURNAL_BUCKET_SIZE = 20
 JOURNAL_RANGE_SEP = '\u2013'
+# 2026-11-22
+# "Auto-name Antigravity conversations from project journal step numbers":
+# https://github.com/dmitry-ai/harness/issues/120
 TURN_RESERVATIONS_FILE = 'turn-reservations.json'
+# 2026-11-21
+# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+# https://github.com/dmitry-ai/harness/issues/108
 _BUCKET_DIR_RE = re.compile('^(\\d+)[-\\u2013](\\d+)$')
 _LEGACY_ANALYSIS_NAMES = ('1 - Analysis', '1 - \u0410\u043d\u0430\u043b\u0438\u0437')
+# 2026-10-11
+# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+# https://github.com/dmitry-ai/harness/issues/2
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def digest(data: bytes) -> str:
 	return hashlib.sha256(data).hexdigest()
+# 2026-11-21
+# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+# https://github.com/dmitry-ai/harness/issues/108
 def is_bucket_dir_name(name: str) -> bool:
 	return bool(_BUCKET_DIR_RE.fullmatch(str(name or '')))
 def journal_bucket_bounds(step: int, bucket_size: int=JOURNAL_BUCKET_SIZE) -> tuple[int, int]:
@@ -110,12 +85,21 @@ def find_step_file(side_dir: Path, step: int) -> Path | None:
 			if cand.is_file():
 				return cand
 	return None
+# 2026-11-20
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 def canonicalize_journal_dir_identity(journal_path: str | Path) -> Path:
 	p = Path(journal_path).resolve()
 	if p.is_dir():
 		return p
+	# 2026-11-21
+	# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+	# https://github.com/dmitry-ai/harness/issues/108
 	if '\ua66e' == p.parent.name and p.name in _LEGACY_ANALYSIS_NAMES and ((p.parent / V2_PAIR[0]).is_dir() or (p.parent / V2_PAIR[1]).is_dir()):
 		return p.parent.resolve()
+	# 2026-11-21
+	# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+	# https://github.com/dmitry-ai/harness/issues/113
 	cand_proj_root = None
 	if '\ua66e' == p.parent.name and p.name in _LEGACY_ANALYSIS_NAMES:
 		cand_proj_root = p.parent.parent
@@ -135,14 +119,24 @@ def canonicalize_journal_dir_identity(journal_path: str | Path) -> Path:
 		except (OSError, ValueError):
 			pass
 	return p
+# 2026-11-20
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
+# 2026-11-26 "Add transactional rename-project command with automatic domain promotion": https://github.com/dmitry-ai/harness/issues/267
 def same_journal_identity(first: str | Path | None, second: str | Path | None) -> bool:
 	from .project_rename_state import same_journal_identity_with_rename
 	return same_journal_identity_with_rename(first, second, canonicalize_journal_dir_identity)
+# 2026-11-20
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 def journal_pair_names(directory: Path) -> tuple[str, str]:
 	directory = Path(directory)
 	has_v2 = (directory / V2_PAIR[0]).is_dir() or (directory / V2_PAIR[1]).is_dir()
 	has_v1 = (directory / V1_PAIR[0]).is_dir() or (directory / V1_PAIR[1]).is_dir()
 	if has_v2 and has_v1:
+		# 2026-11-21
+		# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+		# https://github.com/dmitry-ai/harness/issues/108
 		v2_files = any((bool(iter_side_step_files(directory / sub)) for sub in V2_PAIR if (directory / sub).is_dir()))
 		v1_files = any((bool(iter_side_step_files(directory / sub)) for sub in V1_PAIR if (directory / sub).is_dir()))
 		if v2_files and v1_files:
@@ -162,6 +156,9 @@ def journal_pair_names(directory: Path) -> tuple[str, str]:
 	except (OSError, ValueError):
 		pass
 	return V1_PAIR
+# 2026-11-21
+# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+# https://github.com/dmitry-ai/harness/issues/108
 def detect_journal_version(directory: Path) -> int:
 	d = Path(directory)
 	pair = journal_pair_names(d)
@@ -179,10 +176,16 @@ def detect_journal_version(directory: Path) -> int:
 				if not b_steps or any((child.name != journal_bucket_name(st) for st in b_steps)):
 					return 2
 	return 3
+# 2026-11-20
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 def journal_pair_dirs(directory: Path) -> tuple[Path, Path]:
 	d = Path(directory)
 	req_name, res_name = journal_pair_names(d)
 	return (d / req_name, d / res_name)
+# 2026-11-21
+# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+# https://github.com/dmitry-ai/harness/issues/108
 def step_file(side_dir: Path, step: int, *, directory: Path | None=None) -> Path:
 	side_p = Path(side_dir)
 	found = find_step_file(side_p, step)
@@ -223,25 +226,55 @@ def resolve_migrated_step_file(path: str | Path) -> Path:
 	target_side = req_dir if old_side in ('req', '\u227b') else res_dir
 	found = find_step_file(target_side, step)
 	return found.resolve() if None is not found else p
+# 2026-10-14
+# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
+# https://github.com/dmitry-ai/harness/issues/3
+# 2026-11-21
+# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+# https://github.com/dmitry-ai/harness/issues/108
 def _raw_state_dir(eff: Path, *, data_root: Path | None=None) -> Path:
 	identity = str(eff.resolve()).casefold()
+	# 2026-11-24
+	# "Accelerate project_paths and overlay link resolution with fast-path caching":
+	# https://github.com/dmitry-ai/harness/issues/174
 	base = Path(data_root) if None is not data_root else journal_data_dir_for(eff)
 	return base / '.journal' / digest(identity.encode('utf-8'))[:24]
+# 2026-10-14
+# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+# https://github.com/dmitry-ai/harness/issues/2
+# 2026-11-20
+# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+# https://github.com/dmitry-ai/harness/issues/101
 def state_dir(directory: Path) -> Path:
 	eff = canonicalize_journal_dir_identity(directory)
 	return _raw_state_dir(eff)
+# 2026-10-11
+# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+# https://github.com/dmitry-ai/harness/issues/2
 def get_existing_step_ids(directory: Path) -> set[int]:
 	directory = Path(directory)
+	# 2026-11-20
+	# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+	# https://github.com/dmitry-ai/harness/issues/101
 	req_dir, res_dir = journal_pair_dirs(directory)
 	ids = {st for side in (req_dir, res_dir) for st, _ in iter_side_step_files(side)}
 	s_dir = state_dir(directory)
 	if s_dir.exists():
 		ids.update((int(p.stem) for p in s_dir.glob('*.json') if p.stem.isascii() and p.stem.isdigit()))
+	# 2026-10-15
+	# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+	# https://github.com/dmitry-ai/harness/issues/4
+	# 2026-11-14
+	# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+	# https://github.com/dmitry-ai/harness/issues/60
 	for _, group in iter_answer_group_records(directory):
 		if not same_journal_identity(group.get('journal'), directory.resolve()) or not isinstance(group.get('steps'), list) or any((int is not type(x) or 1 > x for x in group['steps'])):
 			raise ValueError('Damaged answer-group reservation')
 		ids.update(group['steps'])
 	return ids
+# 2026-11-22
+# "Auto-name Antigravity conversations from project journal step numbers":
+# https://github.com/dmitry-ai/harness/issues/120
 def _read_turn_reservations(directory: Path) -> dict[str, dict]:
 	res_file = state_dir(Path(directory).resolve()) / TURN_RESERVATIONS_FILE
 	if not res_file.is_file():
@@ -332,22 +365,38 @@ def release_turn_steps(directory: Path, turn_key: str, *, request_ids: list[str]
 	if not (journal_state / TURN_RESERVATIONS_FILE).is_file():
 		return False
 	with locked(journal_state / 'writer.lock'):
+		# 2026-11-26 "Harden follow-up launcher handoff and journal reservation integrity": https://github.com/dmitry-ai/harness/issues/269
 		from .journal_integrity import prune_overlapping_reservations
 		reservations = _read_turn_reservations(eff)
 		removed = prune_overlapping_reservations(reservations, turn_key, set(request_ids or ()), set())
 		if removed:
 			_write_turn_reservations(eff, reservations)
 		return removed
+# 2026-10-11
+# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+# https://github.com/dmitry-ai/harness/issues/2
 def _payload(request: str, response: str):
 	for label, text in [('request', request), ('response', response)]:
 		if not isinstance(text, str) or not text.strip():
 			raise ValueError(f'Empty {label}')
 		text.encode('utf-8')
+		# 2026-10-28
+		# "Add authenticated portal access contract (EXEC-6) and prevent PowerShell OEM/ASCII pipe corruption of UTF-8 journals":
+		# https://github.com/dmitry-ai/harness/issues/18
 		if '\ufffd' in text or '/?/KB/' in text or '/?/data/' in text or ('\\?\\KB\\' in text) or ('\\?\\data\\' in text) or re.search('(?:^|[\\s*#(])(?:\\?{2,}\\s+){2,}\\?{2,}', text):
 			raise ValueError(f'Corrupted UTF-8 {label} detected (PowerShell pipe OEM/ASCII "?" substitution or U+FFFD); write UTF-8 directly to \ua616/data/scratch/answer.md via write_file or UTF8Encoding($false) and pass --response-file <path> --consume-input')
+# 2026-10-11
+# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+# https://github.com/dmitry-ai/harness/issues/2
 def _publish(directory: Path, step: int, state: dict, *, recovering=False):
+	# 2026-11-20
+	# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+	# https://github.com/dmitry-ai/harness/issues/101
 	req_dir, res_dir = journal_pair_dirs(directory)
 	for folder_dir, key in [(req_dir, 'request'), (res_dir, 'response')]:
+		# 2026-11-21
+		# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+		# https://github.com/dmitry-ai/harness/issues/108
 		path = step_file(folder_dir, step, directory=directory)
 		data = state[key].encode('utf-8')
 		path.parent.mkdir(parents=True, exist_ok=True)
@@ -357,7 +406,13 @@ def _publish(directory: Path, step: int, state: dict, *, recovering=False):
 			raise FileExistsError(f'Conflicting file; preserved without changes: {path}')
 		if path.read_bytes() != data:
 			raise OSError(f'Read-back mismatch: {path}')
+	# 2026-10-14
+	# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+	# https://github.com/dmitry-ai/harness/issues/2
 	(state_dir(directory) / f'{step}.json').unlink(missing_ok=True)
+# 2026-10-11
+# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+# https://github.com/dmitry-ai/harness/issues/2
 def record_step(journal_dir: Path, req_content: str, res_content: str, target_step: int | None=None, allow_overwrite: bool=False) -> int:
 	_payload(req_content, res_content)
 	if allow_overwrite:
@@ -365,6 +420,9 @@ def record_step(journal_dir: Path, req_content: str, res_content: str, target_st
 	if None is not target_step and (type(target_step) is not int or target_step < 1):
 		raise ValueError('Step must be a positive integer')
 	directory = Path(journal_dir).resolve()
+	# 2026-10-20
+	# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+	# https://github.com/dmitry-ai/harness/issues/13
 	from .text_workflow import gate_requests
 	gate_requests([directory], [req_content], res_content)
 	journal_state = state_dir(directory)
@@ -372,10 +430,16 @@ def record_step(journal_dir: Path, req_content: str, res_content: str, target_st
 	for folder in (req_dir, res_dir, journal_state):
 		folder.mkdir(parents=True, exist_ok=True)
 	with locked(journal_state / 'writer.lock'):
+		# 2026-11-22
+		# "Auto-name Antigravity conversations from project journal step numbers":
+		# https://github.com/dmitry-ai/harness/issues/120
 		used = get_existing_step_ids(directory) | reserved_step_ids(directory)
 		step = target_step if None is not target_step else max(used, default=0) + 1
 		if step in used:
 			raise FileExistsError(f'Step {step} is occupied or reserved')
+		# 2026-10-14
+		# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
+		# https://github.com/dmitry-ai/harness/issues/3
 		state = {'version': 2, 'journal': str(directory), 'step': step, 'token': uuid.uuid4().hex, 'status': 'pending', 'request': req_content, 'response': res_content, 'request_sha256': digest(req_content.encode('utf-8')), 'response_sha256': digest(res_content.encode('utf-8'))}
 		receipt = journal_state / f'{step}.json'
 		create_bytes(receipt, json.dumps(state, ensure_ascii=False, indent=2).encode('utf-8'))
@@ -385,6 +449,9 @@ def record_step(journal_dir: Path, req_content: str, res_content: str, target_st
 			raise RuntimeError(f"Step {step} pending; recover with token {state['token']}: {exc}") from exc
 		r = step
 	return r
+# 2026-10-11
+# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+# https://github.com/dmitry-ai/harness/issues/2
 def recover_step(directory: Path, step: int, token: str):
 	if step < 1:
 		raise ValueError('Step must be positive')
@@ -393,6 +460,12 @@ def recover_step(directory: Path, step: int, token: str):
 	with locked(journal_state / 'writer.lock'):
 		receipt = journal_state / f'{step}.json'
 		state = json.loads(receipt.read_text(encoding='utf-8'))
+		# 2026-10-14
+		# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
+		# https://github.com/dmitry-ai/harness/issues/3
+		# 2026-11-20
+		# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+		# https://github.com/dmitry-ai/harness/issues/101
 		if not same_journal_identity(state.get('journal'), directory) or state['token'] != token or state['step'] != step:
 			raise ValueError('Reservation journal, token or step mismatch')
 		_payload(state['request'], state['response'])
@@ -400,16 +473,31 @@ def recover_step(directory: Path, step: int, token: str):
 			if digest(state[key].encode('utf-8')) != state[key + '_sha256']:
 				raise ValueError(f'Damaged reservation: {key}')
 		_publish(directory, step, state, recovering=True)
+# 2026-11-13
+# "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
+# https://github.com/dmitry-ai/harness/issues/57
 def resolve_journal_dir(root: Path, selected=None) -> Path:
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	root_p = Path(root).resolve()
 	pp = project_paths(root_p, exact_root=True)
 	if selected:
 		sel_str = pp.expand(str(selected)) if '${' in str(selected) else str(selected)
+		# 2026-11-20
+		# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+		# https://github.com/dmitry-ai/harness/issues/101
 		r = canonicalize_journal_dir_identity((pp.root / sel_str).resolve())
 	else:
 		r = pp.journal_dir.resolve()
 	return r
+# 2026-10-11
+# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+# https://github.com/dmitry-ai/harness/issues/2
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def step_errors(directory: Path, step: int) -> list[str]:
 	directory = Path(directory)
 	if type(step) is not int or step < 1:
@@ -436,12 +524,18 @@ def validate_step(journal_dir, step_num) -> bool:
 		print(error)
 	r = not errors
 	return r
+# 2026-11-03
+# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+# https://github.com/dmitry-ai/harness/issues/41
 def verify_answer(directory, requests, response, turn, request_ids=None):
 	if not re.fullmatch('[A-Za-z0-9_-]{1,100}', turn):
 		raise ValueError('Stable answer-group identity required')
 	directory = Path(directory).resolve()
 	file = state_dir(directory) / 'answer-groups' / (turn + '.json')
 	group = json.loads(file.read_text(encoding='utf-8'))
+	# 2026-11-20
+	# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+	# https://github.com/dmitry-ai/harness/issues/101
 	if 'complete' != group.get('status') or (not same_journal_identity(group.get('journal'), directory)) or group.get('turn') != turn or group.get('requests') != requests or group.get('request_ids') != request_ids or group.get('response_sha256') != digest(response.encode('utf-8')):
 		raise ValueError('Historical answer-group identity changed; preserve it')
 	steps = group.get('steps')
@@ -457,6 +551,12 @@ def verify_answer(directory, requests, response, turn, request_ids=None):
 			if step_file(folder_dir, step, directory=directory).read_bytes() != expected.encode('utf-8'):
 				raise ValueError('Historical journal bytes changed; preserve them')
 	return steps
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def record_answer(directory, requests, response, turn, request_ids=None, *, adopt_steps=None, admission=None, admission_roots=None, allow_reprepare=False, reserved_turn_key=None):
 	if not re.fullmatch('[A-Za-z0-9_-]{1,100}', turn) or not isinstance(requests, list) or (not requests):
 		raise ValueError('Stable turn ID and nonempty exact request list required')
@@ -465,23 +565,38 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 	if None is not request_ids and (len(request_ids) != len(requests) or any((not isinstance(x, str) or not x for x in request_ids))):
 		raise ValueError('Request IDs must match the exact request list')
 	directory = Path(directory).resolve()
+	# 2026-11-03
+	# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+	# https://github.com/dmitry-ai/harness/issues/41
 	from .admission import binding, capture, require_current
 	identity = binding(directory, requests, response, turn, request_ids)
+	# 2026-11-14
+	# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+	# https://github.com/dmitry-ai/harness/issues/60
 	roots = [Path(p).resolve() for p in (admission_roots or (directory,))]
 	capability = capture(roots, requests, response, identity) if None is admission else admission
 	proof = require_current(capability, identity)
 	journal_state = state_dir(directory)
 	groups = journal_state / 'answer-groups'
+	# 2026-11-20
+	# "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
+	# https://github.com/dmitry-ai/harness/issues/101
 	req_dir, res_dir = journal_pair_dirs(directory)
 	for path in (req_dir, res_dir, groups):
 		path.mkdir(parents=True, exist_ok=True)
 	file = groups / (turn + '.json')
+	# 2026-11-22
+	# "Auto-name Antigravity conversations from project journal step numbers":
+	# https://github.com/dmitry-ai/harness/issues/120
 	eff_res_key = reserved_turn_key if None is not reserved_turn_key else (turn[7:] if turn.startswith('native-') else turn)
 	with locked(journal_state / 'writer.lock'):
 		if file.exists():
 			group = json.loads(file.read_text(encoding='utf-8'))
 			if not same_journal_identity(group.get('journal'), directory) or group.get('requests') != requests or group.get('request_ids') != request_ids:
 				raise ValueError('Answer group differs from its original journal/requests/response; preserve it')
+			# 2026-11-10
+			# "Isolate turn scratch answer files, allow pre-delivery response re-preparation, and enforce preemptive step/compaction budget stop":
+			# https://github.com/dmitry-ai/harness/issues/49
 			if group.get('response_sha256') != digest(response.encode()):
 				if not allow_reprepare:
 					raise ValueError('Answer group differs from its original journal/requests/response; preserve it')
@@ -493,11 +608,17 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 					if res_file.exists():
 						replace_bytes(res_file, response.encode('utf-8'))
 		else:
+			# 2026-11-02
+			# "Prevent journal-watch duplicate pairs on orphan steps, block direct journal writes bypassing answer-prepare, add recover-turn-violation, and harden watcher lifecycle":
+			# https://github.com/dmitry-ai/harness/issues/36
 			if None is not adopt_steps:
 				if not isinstance(adopt_steps, list) or len(adopt_steps) != len(requests) or any((int is not type(x) or 1 > x for x in adopt_steps)):
 					raise ValueError('Adopted journal steps must match the exact request list')
 				steps_to_use = list(adopt_steps)
 			else:
+				# 2026-11-22
+				# "Auto-name Antigravity conversations from project journal step numbers":
+				# https://github.com/dmitry-ai/harness/issues/120
 				existing_ids = get_existing_step_ids(directory)
 				reservations = _read_turn_reservations(directory)
 				cand_entry = reservations.get(eff_res_key)
@@ -533,19 +654,35 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 					raise ValueError('Answer-group step is occupied; preserved')
 				create_bytes(receipt, json.dumps(state, ensure_ascii=False, indent=2).encode())
 			_publish(directory, step, state, recovering=True)
+		# 2026-11-03
+		# "Replace persistent journal daemon with foreground-only idempotent reconciliation":
+		# https://github.com/dmitry-ai/harness/issues/41
 		if 'complete' != group['status']:
 			group['status'] = 'complete'
 			replace_bytes(file, json.dumps(group, ensure_ascii=False, indent=2).encode())
+		# 2026-11-22
+		# "Auto-name Antigravity conversations from project journal step numbers":
+		# https://github.com/dmitry-ai/harness/issues/120
 		if (journal_state / TURN_RESERVATIONS_FILE).is_file():
+			# 2026-11-26 "Harden follow-up launcher handoff and journal reservation integrity": https://github.com/dmitry-ai/harness/issues/269
 			from .journal_integrity import prune_overlapping_reservations
 			reservations = _read_turn_reservations(directory)
 			if prune_overlapping_reservations(reservations, eff_res_key, set(request_ids or ()), set(group.get('steps') or ())):
 				_write_turn_reservations(directory, reservations)
 	r = group['steps']
 	return r
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def answer_groups(directory, *, request_ids=None):
 	directory = Path(directory).resolve()
 	req_dir, res_dir = journal_pair_dirs(directory)
+	# 2026-10-30
+	# "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
+	# https://github.com/dmitry-ai/harness/issues/21
 	filter_ids = set(request_ids) if None is not request_ids else None
 	groups = []
 	for _, group in iter_answer_group_records(directory):
@@ -564,6 +701,9 @@ def answer_groups(directory, *, request_ids=None):
 			groups.append(group)
 	r = groups
 	return r
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 def completed_request_group_index(directory: Path) -> dict[str, tuple[dict, int]]:
 	r: dict[str, tuple[dict, int]] = {}
 	for _, group in iter_answer_group_records(directory, ignore_errors=True):
@@ -578,8 +718,14 @@ def find_orphan_or_overwritten_steps(directory: Path, requests: list[str], respo
 	r = (None, None, None)
 	if 0 < n and req_dir.is_dir() and res_dir.is_dir():
 		norm_reqs = [norm_journal_text(req) for req in requests]
+		# 2026-11-23
+		# "Prepend JSON metadata headers to new journal responses":
+		# https://github.com/dmitry-ai/harness/issues/151
 		norm_resp = norm_journal_response_text(response)
 		claimed_by_step = {st: g_val for _, g_val in iter_answer_group_records(directory, ignore_errors=True) for st in (g_val.get('steps') or ()) if int is type(st)}
+		# 2026-11-21
+		# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+		# https://github.com/dmitry-ai/harness/issues/108
 		req_map = dict(iter_side_step_files(req_dir))
 		res_map = dict(iter_side_step_files(res_dir))
 		pair_ids = sorted(set(req_map) & set(res_map))
@@ -595,6 +741,9 @@ def find_orphan_or_overwritten_steps(directory: Path, requests: list[str], respo
 				disk_resps = [res_map[st].read_bytes().decode('utf-8') for st in cand_steps]
 			except (OSError, UnicodeDecodeError):
 				continue
+			# 2026-11-23
+			# "Prepend JSON metadata headers to new journal responses":
+			# https://github.com/dmitry-ai/harness/issues/151
 			if 1 != len(set(disk_resps)) or [norm_journal_text(x) for x in disk_reqs] != norm_reqs or norm_journal_response_text(disk_resps[0]) != norm_resp:
 				continue
 			if all((st not in claimed_by_step and (not (j_state / f'{st}.json').exists()) for st in cand_steps)):
@@ -638,17 +787,29 @@ def matching_group_response(directory: Path, req_ids: list[str], response: str) 
 		if group.get('request_ids') == req_ids and group.get('steps'):
 			res_path = step_file(res_dir, group['steps'][0], directory=directory)
 			res_text = res_path.read_bytes().decode('utf-8') if res_path.is_file() else ''
+			# 2026-11-23
+			# "Prepend JSON metadata headers to new journal responses":
+			# https://github.com/dmitry-ai/harness/issues/151
 			if res_text and norm_journal_response_text(res_text) == norm_journal_response_text(response):
 				r = res_text
 			break
 	return r
 def norm_journal_text(text: str) -> str:
 	return strip_local_file_scheme((text or '').replace('\r\n', '\n'))
+# 2026-11-23
+# "Prepend JSON metadata headers to new journal responses":
+# https://github.com/dmitry-ai/harness/issues/151
 def norm_journal_response_text(text: str) -> str:
 	from .metadata import strip_leading_metadata_header
 	return norm_journal_text(strip_leading_metadata_header(text or ''))
+# 2026-11-14
+# "Decompose completion.py into declarative turn-hygiene gates, TurnJournalReconciler, and unified answer-groups/authorize flow across completion.py, workflow.py, journal.py, text_workflow.py, and antigravity.py":
+# https://github.com/dmitry-ai/harness/issues/60
 def strip_local_file_scheme(text: str) -> str:
 	return re.sub('file:///+(?=[A-Za-z]:/)', '', text or '', flags=re.IGNORECASE).rstrip('\r\n ')
+# 2026-11-21
+# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+# https://github.com/dmitry-ai/harness/issues/108
 def _assert_not_linked_tree(path: Path) -> None:
 	for cur in (path, *path.parents):
 		try:
@@ -779,6 +940,9 @@ def _unit_needs_upgrade(src_jdir: Path, dst_jdir: Path) -> bool:
 		if '{req,res}' in txt or re.search('\\((?:req|res|\\u227b|\\u227a)/\\d+\\.md\\)', txt):
 			return True
 	return False
+# 2026-11-21
+# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+# https://github.com/dmitry-ai/harness/issues/108
 def upgrade_journal(journal_root: str | Path, *, project_root: str | Path | None=None, dry_run: bool=False) -> dict:
 	from .path_registry import clear_registry_cache, discover_overlay_file, project_paths
 	j_root = Path(journal_root).resolve()

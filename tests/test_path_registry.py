@@ -1,30 +1,4 @@
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
-# https://github.com/dmitry-ai/harness/issues/132
-# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Register df-servers V2 root and relocation in paths.json":
-# https://github.com/dmitry-ai/harness/issues/125
-# 2026-11-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add declarative similar_projects registry groups and project overlay resolution":
-# https://github.com/dmitry-ai/harness/issues/122
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Separate OS user home from instance USERPROFILE and auto-detect active Antigravity instance":
-# https://github.com/dmitry-ai/harness/issues/115
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
-# https://github.com/dmitry-ai/harness/issues/113
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
-# https://github.com/dmitry-ai/harness/issues/108
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
-# https://github.com/dmitry-ai/harness/issues/103
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
-# https://github.com/dmitry-ai/harness/issues/100
 # 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
 from contextlib import redirect_stdout
 from copy import deepcopy
 import hashlib
@@ -43,6 +17,9 @@ from test_agent_tools import TemporaryCase
 from agent_tools import admission, context as ctx_mod, git_gate, github_issue, journal, path_registry as pr, runtime, source_grounding, storage, upwork_project as up
 import check_markdown_slop
 import check_stop_gate
+# 2026-11-19
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 class PathRegistryTests(TemporaryCase):
 	def tearDown(self):
 		pr.clear_registry_cache()
@@ -56,12 +33,24 @@ class PathRegistryTests(TemporaryCase):
 		self.assertTrue(rep['valid'], rep['issues'])
 		self.assertEqual(rep['issues'], [])
 		by_root = {item['project_root']: item for item in rep['discovered_overlays']}
+		# 2026-11-20
+		# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+		# https://github.com/dmitry-ai/harness/issues/103
 		addons_root = 'C:/work/research/provision/code/AI/products/Google/Antigravity/Addons'
 		expected_projects = {
+			# 2026-11-20
+			# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
+			# https://github.com/dmitry-ai/harness/issues/100
 			'C:/work/research/provision/code/AI/harness': 'v2_software',
+			# 2026-11-21
+			# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+			# https://github.com/dmitry-ai/harness/issues/113
 			'C:/work/clients/smokeday.com': 'v2',
 			addons_root: 'dual_repo' if (Path(addons_root) / '_').is_dir() else 'v2_software',
 			'C:/work/research/provision/code/AI/products/OpenAI/ChatGPT/Desktop/Addons': 'dual_repo',
+			# 2026-11-22
+			# "Register df-servers V2 root and relocation in paths.json":
+			# https://github.com/dmitry-ai/harness/issues/125
 			'C:/work/p/df-servers': 'v2',
 		}
 		for root_str, expected_profile in expected_projects.items():
@@ -187,11 +176,17 @@ class PathRegistryTests(TemporaryCase):
 			tuple((p.name for p in journal.journal_pair_dirs(journal.resolve_journal_dir(harness_pp.root)))),
 			('\u227b', '\u227a'),
 		)
+		# 2026-11-20
+		# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+		# https://github.com/dmitry-ai/harness/issues/103
 		expected_harness_code = Path('C:/work/research/provision/code/AI/harness/\u2c0f/\u227b/\u2655/\u26ef') if Path('C:/work/research/provision/code/AI/harness/\u2c0f').is_dir() else Path('C:/work/research/provision/code/AI/harness/Artifacts/\u227b/Deliverables/\u26ef')
 		self.assertEqual(
 			harness_pp.code_repos,
 			(expected_harness_code.resolve(),),
 		)
+		# 2026-11-21
+		# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+		# https://github.com/dmitry-ai/harness/issues/113
 		smokeday_root = Path('C:/work/clients/smokeday.com')
 		smokeday_legacy_su = Path('C:/work/upwork/code/proposals/daily/2026/10/26/1 - smokeday.com')
 		smokeday_legacy_sc = Path('C:/work/clients/smokeday.com/m/2026-10-26/code')
@@ -226,6 +221,9 @@ class PathRegistryTests(TemporaryCase):
 		self.assertEqual(github_issue.find_local_code_repo('smokeday-com/s'), smokeday_server_code.resolve())
 		self.assertEqual(github_issue.find_local_code_repo('smokeday-com/core'), smokeday_core_mod.resolve())
 		self.assertEqual(github_issue.find_local_code_repo('smokeday-com/meta'), smokeday_root.resolve())
+		# 2026-11-22
+		# "Register df-servers V2 root and relocation in paths.json":
+		# https://github.com/dmitry-ai/harness/issues/125
 		df_servers_root = Path('C:/work/p/df-servers')
 		df_srv_code = df_servers_root / '\u2c0f/\u227b/\u2655/\u26ef/\U0001d412/5.9.188.84'
 		self.assertEqual(pr.canonicalize_root_dir(Path('C:/work/git/dmitrii-fediuk/code/5.9.188.84')), df_servers_root.resolve())
@@ -415,6 +413,12 @@ class PathRegistryTests(TemporaryCase):
 			)
 			self.assertFalse((ws_fake / '\ua616').exists())
 			self.assertTrue(Path(saved_ev).resolve().is_relative_to(gh_ev.resolve()))
+	# 2026-11-20
+	# "Add versioned V1 and V2 path registry profiles and relocated native profile migration":
+	# https://github.com/dmitry-ai/harness/issues/100
+	# 2026-11-20
+	# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+	# https://github.com/dmitry-ai/harness/issues/103
 	def test_v2_filesystem_auto_detection_journals_context_provenance_and_migration(self):
 		os_demo = Path('C:/work/clients/smokeday.com--new')
 		if os_demo.is_dir():
@@ -443,6 +447,9 @@ class PathRegistryTests(TemporaryCase):
 		self.assertEqual(v2_pp.path('website_deliverables_dir'), (v2_proj / '\u2c0f/\u227b/\u2655/\u26ef/\U0001d416').resolve())
 		self.assertIn('/\u2c3f/\u227b/\u2655/', v2_pp.deliverable_segments)
 		self.assertTrue(git_gate.GitRepoGate(v2_proj / '\u2c0f/\u227b/\u2655/\u26ef').is_issue_tracked())
+		# 2026-11-21
+		# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+		# https://github.com/dmitry-ai/harness/issues/113
 		v2_multi = self.root / 'v2_multi'
 		(v2_multi / '\U0001f56e').mkdir(parents=True)
 		(v2_multi / '.git').mkdir(parents=True)
@@ -468,6 +475,9 @@ class PathRegistryTests(TemporaryCase):
 		self.assertIsNone(check_markdown_slop._check_turn_budget_gate(v2_proj, v2_proj / '\u2c0f/\u227b/\u2655/\u26ef/rules/00-scope.md'))
 		j_dir = journal.resolve_journal_dir(v2_proj)
 		self.assertEqual(j_dir, (v2_proj / '\ua66e').resolve())
+		# 2026-11-21
+		# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+		# https://github.com/dmitry-ai/harness/issues/108
 		self.assertEqual(v2_pp.journal_version, 3)
 		self.assertEqual(tuple((p.name for p in journal.journal_pair_dirs(j_dir))), ('\u227b', '\u227a'))
 		rec = journal.record_step(j_dir, 'First V2 request', 'First V2 response.  \n')
@@ -562,6 +572,9 @@ class PathRegistryTests(TemporaryCase):
 		self.assertFalse(up.check_configuration(v1_job)['valid'])
 		up.configure_project(v1_job)
 		self.assertTrue(up.check_configuration(v1_job)['valid'])
+	# 2026-11-21
+	# "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
+	# https://github.com/dmitry-ai/harness/issues/108
 	def test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts(self):
 		v1_upw = self.root / 'v1_upwork_legacy'
 		self.put('v1_upwork_legacy/\ua616/project.json', json.dumps({'job_id': '~012345'}))
@@ -615,6 +628,9 @@ class PathRegistryTests(TemporaryCase):
 		readme_txt = (dual / '_/\ua66e/README.md').read_text(encoding='utf-8')
 		self.assertIn('(\u227b/1\u201320/1.md)', readme_txt)
 		self.assertIn('(\u227a/21\u201340/25.md)', readme_txt)
+	# 2026-11-21
+	# "Separate OS user home from instance USERPROFILE and auto-detect active Antigravity instance":
+	# https://github.com/dmitry-ai/harness/issues/115
 	def test_redirected_userprofile_separates_os_user_home_preserves_sandboxes_and_auto_detects_a6(self):
 		from contextlib import closing
 		import sqlite3
@@ -685,6 +701,9 @@ class PathRegistryTests(TemporaryCase):
 			doc_out = json.loads(proc.stdout)
 			self.assertTrue(doc_out['valid'], doc_out)
 			self.assertNotEqual(doc_out['instances']['A0']['home'], doc_out['instances']['A6']['home'])
+	# 2026-11-21
+	# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+	# https://github.com/dmitry-ai/harness/issues/113
 	def test_cross_root_relocation_workflow_completion_review_and_antigravity_registration(self):
 		from agent_tools import completion, metrics, research, review, text_workflow, workflow
 		from agent_tools.platforms import antigravity, codex, request_binding
@@ -904,6 +923,9 @@ class PathRegistryTests(TemporaryCase):
 			updated_rec = json.loads(rec_file.read_text(encoding='utf-8'))
 			self.assertEqual(updated_rec['settings'], {'keepUserSetting': 42})
 			self.assertEqual(updated_rec['projectResources']['resources'], [{'folderUri': new_m.as_uri()}])
+	# 2026-11-22
+	# "Add declarative similar_projects registry groups and project overlay resolution":
+	# https://github.com/dmitry-ai/harness/issues/122
 	def test_similar_projects_groups_symmetric_overlays_affiliated_paths_and_validation(self):
 		rep = pr.paths_report(check=True)
 		self.assertTrue(rep['valid'], rep['issues'])
@@ -975,6 +997,9 @@ class PathRegistryTests(TemporaryCase):
 		miss_rep = pr.paths_report(check=True, registry=reg_miss)
 		self.assertFalse(miss_rep['valid'])
 		self.assertTrue(any(('Missing similar_projects member directory' in item['message'] for item in miss_rep['issues'])), miss_rep['issues'])
+	# 2026-11-22
+	# "Register df-servers V2 root and relocation in paths.json":
+	# https://github.com/dmitry-ai/harness/issues/125
 	def test_df_servers_relocation_and_nested_server_artifact_root(self):
 		old_root = Path(pr.var_value('DF_GIT_CODE_ROOT')) / '5.9.188.84'
 		new_root = Path(pr.var_value('DF_SERVERS_ROOT')).resolve()
@@ -985,6 +1010,9 @@ class PathRegistryTests(TemporaryCase):
 		(sim_meta / '\ua616').mkdir(parents=True)
 		(sim_srv / '.git').mkdir(parents=True)
 		self.assertEqual(pr.canonicalize_root_dir(sim_srv), sim_meta)
+	# 2026-11-23
+	# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
+	# https://github.com/dmitry-ai/harness/issues/132
 	def test_is_tracked_workspace_supports_registered_single_projects_and_declarative_opt_outs(self):
 		proj_dir = (self.root / 'ag_projects').resolve()
 		proj_dir.mkdir(parents=True)

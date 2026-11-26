@@ -1,37 +1,22 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
-# https://github.com/dmitry-ai/harness/issues/212
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
-# https://github.com/dmitry-ai/harness/issues/113
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# https://github.com/dmitry-ai/harness/issues/86
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
-# https://github.com/dmitry-ai/harness/issues/75
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
-# https://github.com/dmitry-ai/harness/issues/63
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
-# https://github.com/dmitry-ai/harness/issues/4
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from collections import Counter
 from pathlib import Path
 import json
 import os
 import re
 from .platforms.trace_common import parse_tool_args, summarize_token_records
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
 def summarize(paths, bindings=None):
 	formats = []
 	for path in paths:
 		with Path(path).open(encoding='utf-8') as stream:
 			first = next((json.loads(line) for line in stream if line.strip()), {})
 		formats.append('session_meta' == first.get('type'))
+	# 2026-10-15
+	# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
+	# https://github.com/dmitry-ai/harness/issues/6
 	if any(formats):
 		if not all(formats):
 			raise ValueError('Summarize native Codex and Antigravity traces separately; their accounting formats differ')
@@ -67,23 +52,44 @@ def summarize(paths, bindings=None):
 							queries[' '.join(query.casefold().split())] += 1
 				if 'PLANNER_RESPONSE' == record.get('type'):
 					events.append(('generation', cid, record['step_index'], record))
+		# 2026-11-14
+		# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+		# https://github.com/dmitry-ai/harness/issues/75
 		r = summarize_token_records(events, bindings, tools=tools, extra={'observed_error_results': error_results, 'repeated_read_url_calls': sum((n - 1 for n in urls.values())), 'repeated_exact_search_queries': sum((n - 1 for n in queries.values())), 'interpretation': 'Observed native log counters; not quota percentage, currency or proof of content quality'})
 	return r
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def project_metrics(root):
 	from .path_registry import project_paths
 	from .workflow import load, stage_statuses
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	pp = project_paths(root, exact_root=True)
 	root = pp.root
 	state = load(root)
 	path = pp.metrics_json
 	uses = json.loads(path.read_text(encoding='utf-8')) if path.exists() else None
 	from .research import bounded_metrics, inside
+	# 2026-10-17
+	# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+	# https://github.com/dmitry-ai/harness/issues/7
 	collector = None if None is uses else {**bounded_metrics(uses)['totals'], 'scope': 'Only recorded collector operations since instrumentation; earlier requests unknown'}
 	questions = [{'id': q['id'], 'status': q['status'], 'searches': len(q.get('searches', [])), 'unsuccessful_searches': sum((not s['useful'] for s in q.get('searches', []))), 'method_changes': sum((bool(s.get('method_change')) for s in q.get('searches', []))), 'gap': q.get('gap')} for q in state['questions'].values()]
 	reviews = []
 	for review in state['reviews']:
+		# 2026-11-22
+		# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+		# https://github.com/dmitry-ai/harness/issues/113
 		report = json.loads(inside(root, review['report']).read_text(encoding='utf-8'))
 		reviews.append({'reviewer_id': review['reviewer_id'], 'independent': review.get('independent', True), 'risk': review['risk'], 'result': report.get('result'), 'findings': dict(Counter((f.get('status', 'unknown') for f in report.get('findings', []))))})
+	# 2026-10-18
+	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+	# https://github.com/dmitry-ai/harness/issues/10
 	executors, executor_issues = ([], [])
 	registry = pp.executors_json
 	if registry.exists():
@@ -99,6 +105,9 @@ def project_metrics(root):
 		except (OSError, ValueError, KeyError, TypeError):
 			executor_issues.append('Executor registry/snapshot is missing, invalid or changed; preserve and inspect')
 	return {'collector': collector, 'questions': questions, 'reviews': reviews, 'executors': executors, 'executor_issues': executor_issues, 'stages': stage_statuses(root, state), 'semantic_quality_verified': False, 'unrecorded_activity': 'unknown'}
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
 def summarize_instance(conversation_id, *, instance=None, platform=None, bindings=None):
 	from .runtime import find_conversation_instance, instance_entry, platform_name as resolve_platform
 	if instance:
@@ -121,6 +130,9 @@ def summarize_instance(conversation_id, *, instance=None, platform=None, binding
 	r = summarize([Path(trace_file)], bindings)
 	r['instance'] = {'id': found['id'], 'platform': found['platform'], 'enabled': found['enabled'], 'backend_dir': found['backend_dir'], 'trace_file': trace_file, 'system_paths': found['system_paths']}
 	return r
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
 def _resolve_target(platform, backend, instance, conversation_id=None):
 	from .runtime import _platform, find_conversation_instance, instance_entry
 	resolved_instance = instance
@@ -142,14 +154,20 @@ def _resolve_target(platform, backend, instance, conversation_id=None):
 	return (platform, backend, resolved_instance)
 def _resolve_platform_and_backend(platform, backend, instance, conversation_id=None):
 	return _resolve_target(platform, backend, instance, conversation_id=conversation_id)[:2]
+# 2026-10-15
+# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
+# https://github.com/dmitry-ai/harness/issues/6
 def native_requests(root, conversation_id, *, backend=None, platform=None, instance=None):
 	from .platforms import adapter
+	# 2026-11-18
+	# "Externalize agent environments and per-instance system paths into runtime.json":
+	# https://github.com/dmitry-ai/harness/issues/86
 	platform, backend, resolved_instance = _resolve_target(platform, backend, instance, conversation_id=conversation_id)
 	kw = {'backend': backend}
 	if None is not resolved_instance:
 		kw['instance'] = resolved_instance
 	return adapter(platform).native_requests(root, conversation_id, **kw)
-# 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
 def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=True, platform=None, instance=None, wait_timeout=0.0):
@@ -158,10 +176,13 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=Tru
 	kw = {'backend': backend, 'write': write}
 	if None is not resolved_instance:
 		kw['instance'] = resolved_instance
+	# 2026-11-24
+	# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
+	# https://github.com/dmitry-ai/harness/issues/212
 	if 0.0 < float(wait_timeout or 0.0):
 		kw['wait_timeout'] = float(wait_timeout)
 	return adapter(platform).native_review_proof(root, parent_id, reviewer_id, **kw)
-# 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
 def verify_native_proof(root, native, package=None):
@@ -169,6 +190,9 @@ def verify_native_proof(root, native, package=None):
 	if not isinstance(native, dict) or not native.get('surface'):
 		raise ValueError('Native review proof must declare its actual surface')
 	return adapter(surface=native.get('surface')).verify_native_proof(root, native, package=package)
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
 def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, platform=None, backend=None, instance=None, write=False):
 	from .platforms import adapter
 	if role not in ('primary', 'AA', 'AF'):
@@ -179,15 +203,24 @@ def native_executor_metadata(root, conversation_id, *, role='primary', parent_id
 		kw['instance'] = resolved_instance
 	result = adapter(platform).native_executor_metadata(root, conversation_id, **kw)
 	return _save_executor_metadata(root, result) if write else result
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
 def _save_executor_metadata(root, result):
 	import hashlib
 	from .path_registry import project_paths
 	from .research import json_data
 	from .storage import locked, replace_bytes, write_immutable_bytes
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	pp = project_paths(root, exact_root=True)
 	root = pp.root
 	payload = json_data(result)
 	sha = hashlib.sha256(payload).hexdigest()
+	# 2026-11-13
+	# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+	# https://github.com/dmitry-ai/harness/issues/63
 	target = write_immutable_bytes(pp.evidence_dir / 'Executors' / f"{result['conversation_id']}-{sha}.json", payload, diff_error='Immutable executor metadata changed')
 	receipt = {'proof': target.relative_to(root).as_posix() if target.is_relative_to(root) else target.as_posix(), 'sha256': sha, 'conversation_id': result['conversation_id'], 'role': result['role'], 'surface': result['surface'], 'verification': result['verification']}
 	index_file = pp.executors_json
@@ -201,10 +234,16 @@ def _save_executor_metadata(root, result):
 	return {**result, **receipt}
 def record_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, platform=None, backend=None, instance=None):
 	return native_executor_metadata(root, conversation_id, role=role, parent_id=parent_id, platform=platform, backend=backend, instance=instance, write=True)
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
 def native_tool_trace(root, request):
 	from .platforms import adapter
 	if not isinstance(request, dict) or not request.get('surface') or 'events' in request:
 		raise ValueError('Native trace needs a surface/session/selection; supplied events are not evidence')
+	# 2026-11-18
+	# "Externalize agent environments and per-instance system paths into runtime.json":
+	# https://github.com/dmitry-ai/harness/issues/86
 	if set(request) - {'surface', 'conversation_id', 'call_ids', 'step_indices', 'native_profile_home', 'instance'}:
 		raise ValueError('Native trace accepts only exact native source selectors')
 	return adapter(surface=request['surface']).native_tool_trace(root, request)

@@ -1,48 +1,4 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce single falsifier review default and block duplicate send_message reports":
-# https://github.com/dmitry-ai/harness/issues/226
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
-# https://github.com/dmitry-ai/harness/issues/223
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add schema-help CLI, validator hints, save-analysis --merge, and af-worker file handoff":
-# https://github.com/dmitry-ai/harness/issues/217
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
-# https://github.com/dmitry-ai/harness/issues/212
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Prepend JSON metadata headers to new journal responses":
-# https://github.com/dmitry-ai/harness/issues/151
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
-# https://github.com/dmitry-ai/harness/issues/113
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
-# https://github.com/dmitry-ai/harness/issues/73
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
-# https://github.com/dmitry-ai/harness/issues/62
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
-# https://github.com/dmitry-ai/harness/issues/63
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
-# https://github.com/dmitry-ai/harness/issues/59
-# 2026-11-10 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
-# https://github.com/dmitry-ai/harness/issues/51
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
-# https://github.com/dmitry-ai/harness/issues/10
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
-# https://github.com/dmitry-ai/harness/issues/47
 import hashlib
 import importlib
 import json
@@ -51,11 +7,32 @@ from pathlib import Path
 from .research import inside, json_data
 from .review_alignment import TARGET_CLAIM_RULE, alignment_issues, bind_contract_envelope, build_claim_targets, envelope_issues, resolve_package_review_mode
 from .storage import read_addressed_json, replace_bytes, write_immutable_bytes
+# 2026-11-14
+# "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
+# https://github.com/dmitry-ai/harness/issues/73
 PACKAGE_HANDLERS = {}
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 REVIEW_SCHEMA = 2
 SCOPES = ('identity', 'concerns', 'misconceptions', 'causes', 'methods', 'kb_consistency', 'response')
 TASK_FLAGS = {'new_causal_analysis', 'architecture_change', 'pricing_change', 'admin_configuration', 'business_impact', 'material_analysis'}
+# 2026-10-19
+# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+# https://github.com/dmitry-ai/harness/issues/12
+# 2026-11-24
+# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
+# https://github.com/dmitry-ai/harness/issues/212
+# 2026-11-24
+# "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
+# https://github.com/dmitry-ai/harness/issues/223
 REPORT_CONTRACT = {'schema_version': REVIEW_SCHEMA, 'required_top_level_fields': ['schema_version', 'package', 'package_sha256', 'result', 'scope', 'summary', 'claim_reviews', 'findings'], 'falsifier_required_top_level_fields': ['schema_version', 'review_mode', 'package', 'package_sha256', 'result', 'scope', 'summary', 'disproved_claims', 'findings'], 'result_options': ['approved', 'needs_changes'], 'required_scope': list(SCOPES), 'claim_review_fields': ['claim_id', 'observed', 'inferred', 'method', 'alternatives', 'limits', 'falsification', 'raw_vs_criteria', 'test_alignment', 'outcome'], 'test_alignment_fields': ['target_claim', 'tested_claim', 'relationship', 'rationale', 'counterexample'], 'target_claim_rule': TARGET_CLAIM_RULE, 'relationship_options': ['direct', 'proxy', 'irrelevant'], 'outcome_options': ['supported', 'qualified', 'unsupported'], 'finding_fields': ['id', 'claim_ids', 'severity', 'description', 'status'], 'severity_options': ['minor', 'significant', 'critical'], 'claim_review_required': {'fields': ['claim_id', 'observed', 'inferred', 'method', 'alternatives', 'limits', 'falsification', 'raw_vs_criteria', 'test_alignment', 'outcome'], 'outcome_options': ['supported', 'qualified', 'unsupported'], 'test_alignment_required': {'fields': ['target_claim', 'tested_claim', 'relationship', 'rationale', 'counterexample'], 'target_claim_rule': TARGET_CLAIM_RULE, 'relationship_options': ['direct', 'proxy', 'irrelevant']}}, 'finding_required': {'fields': ['id', 'claim_ids', 'severity', 'description', 'status'], 'severity_options': ['minor', 'significant', 'critical'], 'status_options': ['open', 'resolved', 'rejected']}, 'falsifier_fields': ['disproved_claims'], 'disproved_claim_fields': ['claim_id', 'excerpt_from_answer', 'contradicting_tier0_source', 'verbatim_quote_from_source', 'falsification_reason']}
+# 2026-11-14
+# "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
+# https://github.com/dmitry-ai/harness/issues/73
 class ReviewClassifier:
 	def __init__(self, root, state, value, *, exclude_package=None):
 		self.exclude_package = exclude_package
@@ -63,6 +40,9 @@ class ReviewClassifier:
 		self.root = root
 		self.state = state
 		self.value = value
+	# 2026-10-19
+	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+	# https://github.com/dmitry-ai/harness/issues/12
 	def _check_omitted_stage_claims(self, seen, previously_approved, risk):
 		from .claims import claim_digest
 		if not self.is_finalized:
@@ -85,6 +65,9 @@ class ReviewClassifier:
 				if claim.get('category') == category or prop in properties:
 					required_flags.add(flag)
 			required_flags.update(properties & {'admin_configuration', 'business_impact'})
+	# 2026-11-10
+	# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
+	# https://github.com/dmitry-ai/harness/issues/51
 	def _resolve_claim(self, item, risk, index, section_by_id):
 		from .claims import claim_digest, grounded_numbers_for_claim, standalone_numbers
 		ident = item['claim_id']
@@ -148,6 +131,9 @@ class ReviewClassifier:
 	@staticmethod
 	def has_significant_flags(claims, flags):
 		return any(('significant' == c.get('materiality') for c in claims)) or bool(set(flags) & TASK_FLAGS)
+# 2026-11-14
+# "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
+# https://github.com/dmitry-ai/harness/issues/73
 class ReviewQuorumEvaluator:
 	def __init__(self, root, state):
 		self.root = Path(root).resolve()
@@ -168,6 +154,9 @@ class ReviewQuorumEvaluator:
 			except (ValueError, OSError, KeyError, TypeError):
 				r = False
 		return r
+	# 2026-11-10
+	# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
+	# https://github.com/dmitry-ai/harness/issues/51
 	def approved_claim_digests(self, *, exclude_package=None):
 		from .claims import claim_index
 		from .workflow import evidence_paths, hashes
@@ -238,6 +227,9 @@ class ReviewQuorumEvaluator:
 			if REVIEW_SCHEMA == entry.get('schema_version') and entry.get('subject_sha256') == package['subject_sha256']:
 				r[entry['reviewer_id']] = entry
 		return r
+	# 2026-11-06
+	# "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
+	# https://github.com/dmitry-ai/harness/issues/47
 	def quorum_satisfied(self, package, latest, eligible, *, allow_falsifier_or_cached=True) -> bool:
 		required = 1
 		if 'significant' == package['risk']:
@@ -246,6 +238,9 @@ class ReviewQuorumEvaluator:
 				has_escalation = self.significant_findings(package['subject_sha256']) or any(('approved' != item.get('result') for item in latest.values()))
 				merkle_delta = package.get('merkle_delta') or {}
 				all_merkle_cached = bool(merkle_delta.get('cached_claim_ids')) and (not bool(merkle_delta.get('unverified_claim_ids')))
+				# 2026-11-24
+				# "Enforce single falsifier review default and block duplicate send_message reports":
+				# https://github.com/dmitry-ai/harness/issues/226
 				if not has_escalation and (any(('falsifier' == item.get('review_mode') for item in eligible)) or all_merkle_cached):
 					required = 1
 		return len({item['reviewer_id'] for item in eligible}) >= required
@@ -269,6 +264,9 @@ class ReviewQuorumEvaluator:
 					r = True
 					break
 		return r
+# 2026-11-14
+# "Decompose review.py and text_review.py into ReviewReportValidator, ReviewClassifier, and ReviewQuorumEvaluator classes":
+# https://github.com/dmitry-ai/harness/issues/73
 class ReviewReportValidator:
 	def __init__(self, package, *, candidate=None, text_checks=(), source_reviewer=None, require_envelope=False):
 		from .path_registry import canonicalize_root_dir
@@ -276,14 +274,23 @@ class ReviewReportValidator:
 		self.expected = {c['claim_id'] for c in package['claims']}
 		self.package = package
 		self.package_claims = {c['claim_id']: c for c in package['claims']}
+		# 2026-11-21
+		# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+		# https://github.com/dmitry-ai/harness/issues/113
 		self.pkg_root = canonicalize_root_dir(package['project_root']) if is_nonempty_text(package.get('project_root')) else None
 		self.require_envelope = require_envelope
 		self.source_reviewer = source_reviewer
 		self.targets = {c['claim_id']: c['essence'] for c in package['claims']}
 		self.text_checks = tuple(text_checks)
+	# 2026-11-13
+	# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
+	# https://github.com/dmitry-ai/harness/issues/59
 	def _check_alignment_and_outcome(self, ident, item, result, issues):
 		from .claims import source_numeric_tokens, standalone_numbers
 		alignment = item.get('test_alignment')
+		# 2026-11-24
+		# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
+		# https://github.com/dmitry-ai/harness/issues/212
 		if (align_errs := alignment_issues(ident, alignment, self.targets.get(ident))):
 			issues.extend(align_errs)
 		elif 'proxy' == alignment['relationship'] and 'supported' == item.get('outcome'):
@@ -330,6 +337,12 @@ class ReviewReportValidator:
 			merkle_unverified = set((self.package.get('merkle_delta') or {}).get('unverified_claim_ids') or [])
 			if covered != self.expected and (not (data.get('use_merkle_delta') and covered == merkle_unverified)):
 				issues.append('Every response claim requires an authored evidence assessment')
+	# 2026-11-07
+	# "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
+	# https://github.com/dmitry-ai/harness/issues/47
+	# 2026-11-13
+	# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
+	# https://github.com/dmitry-ai/harness/issues/59
 	def _check_disproved_claim(self, dc, issues):
 		from .source_grounding import classify_provenance_tier, norm_quote_text, quote_segments_present
 		cid_val = dc.get('claim_id')
@@ -353,8 +366,14 @@ class ReviewReportValidator:
 						issues.append(f"disproved_claims[{cid_val or '?'}]: verbatim_quote_from_source is absent from Tier 0 source {src_str}")
 				except OSError:
 					pass
+	# 2026-11-24
+	# "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
+	# https://github.com/dmitry-ai/harness/issues/223
 	def _check_envelope(self, data, issues):
 		issues.extend(envelope_issues(data, self.package, review_schema=REVIEW_SCHEMA, scopes=SCOPES, require_envelope=self.require_envelope))
+	# 2026-11-06
+	# "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
+	# https://github.com/dmitry-ai/harness/issues/47
 	def _check_falsifier(self, data, issues):
 		disproved = data.get('disproved_claims')
 		if not isinstance(disproved, list):
@@ -420,6 +439,9 @@ class ReviewReportValidator:
 				self.source_reviewer(data, self.package)
 			except (OSError, ValueError, KeyError, TypeError) as exc:
 				r.append(str(exc))
+		# 2026-11-24
+		# "Prevent context compaction with schema-help CLI and staged analysis merge":
+		# https://github.com/dmitry-ai/harness/issues/217
 		from .schema_help import annotate_review_issues
 		return annotate_review_issues(r)
 def digest(payload):
@@ -436,6 +458,12 @@ _findings_closed = findings_closed
 _latest_for_subject = latest_for_subject
 _text = is_nonempty_text
 _unhandled_verdicts = has_unhandled_verdicts
+# 2026-11-06
+# "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
+# https://github.com/dmitry-ai/harness/issues/47
+# 2026-11-19
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 def load_verified_claims_cache(root) -> dict:
 	from .path_registry import project_paths
 	path = project_paths(root, exact_root=True).verified_claims_json
@@ -448,6 +476,12 @@ def load_verified_claims_cache(root) -> dict:
 		except (OSError, ValueError):
 			pass
 	return r
+# 2026-11-07
+# "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
+# https://github.com/dmitry-ai/harness/issues/47
+# 2026-11-13
+# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
+# https://github.com/dmitry-ai/harness/issues/62
 def _claim_evidence_pairs(claim_id: str, index: dict, evidence_inputs: dict | None = None, _visited: set | None = None) -> list[tuple[str, str]]:
 	from .claims import collect_claim_closure
 	visited = set() if None is _visited else _visited
@@ -474,6 +508,9 @@ def _claim_evidence_pairs(claim_id: str, index: dict, evidence_inputs: dict | No
 	return r
 def _claim_evidence_sources(claim_id: str, index: dict) -> list[str]:
 	return [s for s, _ in _claim_evidence_pairs(claim_id, index, {})]
+# 2026-11-06
+# "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
+# https://github.com/dmitry-ai/harness/issues/47
 def claim_merkle_hash(claim_entry: dict, index: dict, evidence_inputs: dict) -> str:
 	ident = claim_entry.get('claim_id', '')
 	claim_obj = index.get(ident) or {}
@@ -488,6 +525,12 @@ def claim_merkle_hash(claim_entry: dict, index: dict, evidence_inputs: dict) -> 
 		'evidence_hashes': ev_pairs,
 	})
 	return digest(payload)
+# 2026-11-06
+# "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
+# https://github.com/dmitry-ai/harness/issues/47
+# 2026-11-13
+# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
+# https://github.com/dmitry-ai/harness/issues/62
 def compute_claim_merkle_delta(root, manifest: list[dict], value: dict, evidence_inputs: dict) -> dict:
 	from .claims import claim_index
 	index = claim_index(value)
@@ -509,6 +552,12 @@ def compute_claim_merkle_delta(root, manifest: list[dict], value: dict, evidence
 		'unverified_claim_ids': unverified_ids,
 		'merkle_hashes': merkle_hashes,
 	}
+# 2026-11-13
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
+# 2026-11-21
+# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+# https://github.com/dmitry-ai/harness/issues/113
 def read_package_envelope(root, reference, *, expected_kind=None, error_msg='Invalid immutable review package'):
 	from .path_registry import canonicalize_root_dir, same_project_root
 	root_p = canonicalize_root_dir(root)
@@ -522,6 +571,9 @@ def read_package_envelope(root, reference, *, expected_kind=None, error_msg='Inv
 	if None is cand_bytes or digest(cand_bytes) != resp.get('sha256') or (None is not resp.get('bytes') and len(cand_bytes) != resp.get('bytes')):
 		raise ValueError('Reviewed candidate response bytes differ or are missing')
 	return (root_p, raw, data, cand_bytes)
+# 2026-11-13
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
 def resolve_addressed_reviews(root, data, package, independent, existing_reviews):
 	addresses = data.get('addresses_reviews', [])
 	if not isinstance(addresses, list):
@@ -540,6 +592,9 @@ def resolve_addressed_reviews(root, data, package, independent, existing_reviews
 		if len(set(addressed)) != len(addressed):
 			raise ValueError('Duplicate addressed review verdict')
 	return (addressed, extra_proofs)
+# 2026-11-06
+# "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
+# https://github.com/dmitry-ai/harness/issues/47
 def update_verified_claims_cache(root, package: dict, value: dict | None = None) -> dict:
 	from .claims import claim_index
 	root_p = Path(root).resolve()
@@ -565,6 +620,9 @@ def update_verified_claims_cache(root, package: dict, value: dict | None = None)
 	if path.parent.is_dir() or pp.agent_dir.is_dir():
 		replace_bytes(path, json_data(r))
 	return r
+# 2026-11-06
+# "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
+# https://github.com/dmitry-ai/harness/issues/47
 def build_blind_verification_predicates(manifest: list[dict], value: dict) -> list[dict]:
 	from .claims import claim_index
 	index = claim_index(value)
@@ -589,6 +647,12 @@ def _package_handler(kind):
 	return PACKAGE_HANDLERS.get(kind)
 def request_snapshot(state):
 	return [{'id': item['id'], 'text': item['text']} for item in state['requests']]
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
+# 2026-11-19
+# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+# https://github.com/dmitry-ai/harness/issues/96
 def _analysis(root):
 	from .analysis import analysis_issues
 	from .evidence import evidence_issues
@@ -620,7 +684,10 @@ def parse_report_object(text):
 		raise ValueError('Reviewer report must be a JSON object')
 	return result
 _report_object = parse_report_object
-# 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
+# 2026-10-19
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
 def prepare(root, parent_id, spec, response):
@@ -641,6 +708,9 @@ def prepare(root, parent_id, spec, response):
 	doc4_issues = doc4_sentence_issues(response)
 	if doc4_issues:
 		raise ValueError('\n'.join(doc4_issues))
+	# 2026-11-07
+	# "Implement claim-level Merkle cache, blind entailment predicates, single adversarial falsifier, and full-read reviewer verification":
+	# https://github.com/dmitry-ai/harness/issues/47
 	sync_fact_ledger(root)
 	grounding_issues = local_source_grounding_issues(root, response)
 	if grounding_issues:
@@ -656,6 +726,9 @@ def prepare(root, parent_id, spec, response):
 	extra_pkg = {'auto_tier0_evidence': discover_entity_tier0_sources(root, response), 'merkle_delta': compute_claim_merkle_delta(root, classified['claims'], value, ev_inputs), 'blind_verification_predicates': build_blind_verification_predicates(classified['claims'], value)}
 	data = {'schema_version': REVIEW_SCHEMA, 'project_root': str(root), 'job_id': state['job_id'], 'parent_id': parent_id, **classified, 'requests': requests, 'response': {'file': candidate.relative_to(root).as_posix(), 'sha256': response_sha, 'bytes': len(payload)}, 'kb_inputs': hashes(root, kb_paths(root)), 'evidence_inputs': ev_inputs, 'scope': list(SCOPES), 'knowledge_source': 'agent KB, primary evidence, current requests and exact response; no Context.md', **extra_pkg}
 	data['subject_sha256'] = subject_digest(data)
+	# 2026-11-24
+	# "Enforce single falsifier review default and block duplicate send_message reports":
+	# https://github.com/dmitry-ai/harness/issues/226
 	if (mode := resolve_package_review_mode(spec, data, ReviewQuorumEvaluator(root, state))):
 		data['review_mode'] = mode
 	if 'routine' == data['risk'] and ReviewQuorumEvaluator(root, state).significant_findings(data['subject_sha256']):
@@ -664,6 +737,9 @@ def prepare(root, parent_id, spec, response):
 	path = pp.evidence_dir / 'Reviews' / (digest(package_bytes) + '-inputs.json')
 	_immutable(path, package_bytes)
 	return {'package': path.relative_to(root).as_posix(), 'package_sha256': digest(package_bytes), **data}
+# 2026-11-13
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
 def prepare_verdict_record(root, report, *, parent_id, reviewer_id, native_evidence=None, allow_self=True, expected_risk=None, package_reader=None, issue_checker=None, reviews_dir_fn=None, artifact_prefix_fn=None, diff_error='Immutable review artifact differs; preserve the original and create a new attempt'):
 	root_p = Path(root).resolve()
 	if not is_nonempty_text(parent_id) or (not is_nonempty_text(reviewer_id)):
@@ -702,12 +778,21 @@ def prepare_verdict_record(root, report, *, parent_id, reviewer_id, native_evide
 	return {'root': root_p, 'data': data, 'package': package, 'package_path': package_path, 'package_sha': package_sha, 'candidate': candidate, 'independent': independent, 'proof_paths': proof_paths, 'native': native, 'review_id': review_id, 'report_rel': report_rel, 'authored_rel': authored_rel}
 def quorum_satisfied(root, state, package, latest, eligible, *, allow_falsifier_or_cached=True) -> bool:
 	return ReviewQuorumEvaluator(root, state).quorum_satisfied(package, latest, eligible, allow_falsifier_or_cached=allow_falsifier_or_cached)
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-11-24
+# "Prevent context compaction with schema-help CLI and staged analysis merge":
+# https://github.com/dmitry-ai/harness/issues/217
 def subject_digest(package):
 	fields = ('project_root', 'job_id', 'requests', 'response', 'kb_inputs', 'evidence_inputs') if 'client_text' != package.get('kind') else ('project_root', 'job_id', 'requests', 'target', 'kb_inputs', 'evidence_inputs')
 	extra = {} if 'client_text' != package.get('kind') else {'response_sha256': package['response']['sha256'], 'baseline_sha256': package['baseline']['sha256']}
 	return digest(json_data({k: package[k] for k in fields} | extra))
 def significant_findings(root, state, subject):
 	return ReviewQuorumEvaluator(root, state).significant_findings(subject)
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
 def read_package(root, package, *, state=None, require_current=True):
 	from .claims import claim_digest, claim_index
 	from .workflow import evidence_paths, hashes, kb_paths, load
@@ -727,6 +812,9 @@ def read_package(root, package, *, state=None, require_current=True):
 				raise ValueError('Review package does not cover the exact current requests')
 			value = _analysis(root_p)
 			index = claim_index(value)
+			# 2026-11-10
+			# "Fix Antigravity executor/generation model mismatch in native-review-proof, decouple post-finalize deliverable reviews from initial Analysis.json, cache source grounding, and preserve journal recording on gate failure":
+			# https://github.com/dmitry-ai/harness/issues/51
 			is_finalized = 'complete' == cur_state.get('stages', {}).get('finalize', {}).get('status')
 			if any(((c['claim_id'] not in index and (not is_finalized)) or (c['claim_id'] in index and c['claim_sha256'] != claim_digest(index[c['claim_id']])) for c in data['claims'])):
 				raise ValueError('Reviewed response claim version changed')
@@ -735,6 +823,12 @@ def read_package(root, package, *, state=None, require_current=True):
 				raise ValueError('A significant/critical finding requires a significant package and two independent A.A')
 		r = data
 	return r
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
+# 2026-11-24
+# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
+# https://github.com/dmitry-ai/harness/issues/212
 def input_receipt(root, package):
 	import os
 	from .runtime import platform_name
@@ -750,8 +844,14 @@ def input_receipt(root, package):
 	return {'upwork_review_input': 1, 'review_schema_version': REVIEW_SCHEMA, 'verified': True, 'project_root': str(Path(root).resolve()), 'job_id': data['job_id'], **{k: data[k] for k in ('project_id', 'project_kind') if k in data}, 'parent_id': data['parent_id'], 'reviewer_id': reviewer, 'package': package, 'package_sha256': pkg_sha, 'kb_inputs': data['kb_inputs'], 'evidence_inputs': data['evidence_inputs'], 'requests': data['requests'], 'response': data['response'], 'claims': data['claims'], 'claim_targets': build_claim_targets(data.get('claims')), 'risk': data['risk'], 'report_contract': contract, **{k: data[k] for k in ('kind', 'goal', 'diff', 'operation', 'check', 'manifest', 'source_checks', 'auto_tier0_evidence', 'merkle_delta', 'blind_verification_predicates', 'review_mode') if k in data}}
 def register_package_handler(kind, *, package_reader, contract_factory=None):
 	PACKAGE_HANDLERS[kind] = {'package_reader': package_reader, 'contract_factory': contract_factory}
+# 2026-11-24
+# "Include required package keys in REPORT_CONTRACT and resolve record-review paths":
+# https://github.com/dmitry-ai/harness/issues/223
 def report_issues(data, package, *, candidate=None, require_envelope=False):
 	return ReviewReportValidator(package, candidate=candidate, require_envelope=require_envelope).validate(data)
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
 def authenticate_report(root, package, package_path, data, source_payload, *, parent_id, reviewer_id, native_evidence=None, allow_self=True):
 	independent = reviewer_id != parent_id
 	proof_paths = [package_path, package['response']['file']]
@@ -780,7 +880,7 @@ def authenticate_report(root, package, package_path, data, source_payload, *, pa
 		raw_payload = final_response.encode('utf-8')
 		proof_paths.append(native_evidence)
 	return (independent, proof_paths, native, raw_payload)
-# 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-19
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
 def record(root, report, *, parent_id, reviewer_id, role='AA', native_evidence=None, risk=None):
@@ -792,13 +892,16 @@ def record(root, report, *, parent_id, reviewer_id, role='AA', native_evidence=N
 	existing = load(root_p)['reviews'] if isinstance(data.get('addresses_reviews'), list) and data.get('addresses_reviews') else []
 	addressed_ids, extra_proofs = resolve_addressed_reviews(root_p, data, package, prepared['independent'], existing)
 	proof_paths = prepared['proof_paths'] + extra_proofs
+	# 2026-11-24
+	# "Enforce single falsifier review default and block duplicate send_message reports":
+	# https://github.com/dmitry-ai/harness/issues/226
 	report_mode = 'falsifier' if ReviewReportValidator.is_falsifier_report(data) else 'standard'
 	def change(state):
 		read_package(root_p, prepared['package_path'], state=state)
 		if not any((item.get('id') == review_id for item in state['reviews'])):
 			state['reviews'].append({'schema_version': REVIEW_SCHEMA, 'id': review_id, 'parent_id': parent_id, 'reviewer_id': reviewer_id, 'role': role, 'risk': package['risk'], 'review_mode': report_mode, 'package': prepared['package_path'], 'package_sha256': prepared['package_sha'], 'result': data['result'], 'subject_sha256': package['subject_sha256'], 'report': prepared['report_rel'], 'authored_response': prepared['authored_rel'], 'proof': hashes(root_p, proof_paths), 'independent': prepared['independent'], 'kb_inputs': package['kb_inputs'], 'evidence_inputs': package['evidence_inputs'], 'response_sha256': package['response']['sha256'], 'requests': package['requests'], 'native_evidence': native_evidence, 'dispositions': [], 'addresses_reviews': addressed_ids, 'model_verification': prepared['native'].get('model_verification', 'unverified'), 'time': now()})
 	return update(root_p, {'action': 'review', 'reviewer_id': reviewer_id, 'result': data['result'], 'review_id': review_id}, change)
-# 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-19
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
 def disposition(root, review_id, finding_id, status, basis, evidence, parent_id):
@@ -824,20 +927,20 @@ def disposition(root, review_id, finding_id, status, basis, evidence, parent_id)
 		saved = next((r for r in current['reviews'] if r.get('id') == review_id))
 		saved.setdefault('dispositions', []).append({'file': relative, 'proof': hashes(root, [relative, *payload['evidence']])})
 	return update(root, {'action': 'review_disposition', 'review_id': review_id, 'finding_id': finding_id}, change)
-# 2026-10-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-19
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
-# 2026-11-03 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-11-03
 # "Isolate post-finalize turns from authorize gate, reset readiness state, and enable conflict journal recovery":
 # https://github.com/dmitry-ai/harness/issues/43
-# 2026-11-04 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-11-04
 # "Scope research questions to active turn, distinguish factual KB notes from hypotheses, and reconcile unprepared chat deliveries":
 # https://github.com/dmitry-ai/harness/issues/44
 def authorize(root, state, *, response=None, package_path=None, request_ids=None):
 	from .workflow import check_project, questions_current
 	value = _analysis(root)
 	is_finalized = 'complete' == state.get('stages', {}).get('finalize', {}).get('status')
-	# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+	# 2026-11-24
 	# "Cache runtime settings and deduplicate evidence validation in hot paths":
 	# https://github.com/dmitry-ai/harness/issues/227
 	if not is_finalized:
@@ -855,6 +958,9 @@ def authorize(root, state, *, response=None, package_path=None, request_ids=None
 		if relevant_qs and (not questions_current(root, {**state, 'questions': relevant_qs})):
 			raise ValueError('Complete current research questions/gaps before publication')
 	evaluator = ReviewQuorumEvaluator(root, state)
+	# 2026-11-23
+	# "Prepend JSON metadata headers to new journal responses":
+	# https://github.com/dmitry-ai/harness/issues/151
 	response_shas = None
 	if None is not response:
 		from .metadata import strip_leading_metadata_header
@@ -885,6 +991,9 @@ def authorize(root, state, *, response=None, package_path=None, request_ids=None
 	return {'package': path, 'package_sha256': digest(inside(root, path).read_bytes()), 'response_sha256': package['response']['sha256'], 'risk': package['risk'], 'review_ids': [item['id'] for item in eligible]}
 def approval_current(root, state, approval):
 	return ReviewQuorumEvaluator(root, state).approval_current(approval)
+# 2026-11-13
+# "Consolidate review package reading, verdict recording, quorum checks, and content-addressed immutable receipts across review.py, text_review.py, text_workflow.py, text_sources.py, and storage.py":
+# https://github.com/dmitry-ai/harness/issues/63
 def verify_entry_native_proof(root, entry, *, error_msg='Saved report differs from the actual native authored final response'):
 	from .metrics import verify_native_proof
 	native = json.loads(inside(root, entry['native_evidence']).read_text(encoding='utf-8'))

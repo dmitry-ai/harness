@@ -1,17 +1,15 @@
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
-# https://github.com/dmitry-ai/harness/issues/2
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 import hashlib
 import json
 from pathlib import Path
 import re
 from .storage import create_bytes, data_dir_for, locked, replace_bytes
-# 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-11
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def snapshot_draft(source: Path, turn: str) -> Path:
 	source = Path(source).resolve(strict=True)
 	if 'draft.md' != source.name:
@@ -19,6 +17,9 @@ def snapshot_draft(source: Path, turn: str) -> Path:
 	if not re.fullmatch('[A-Za-z0-9_-]{1,80}', turn):
 		raise ValueError('Turn ID must contain 1..80 ASCII letters, digits, _ or -')
 	snapshots = data_dir_for(source) / '.draft-snapshots'
+	# 2026-10-14
+	# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
+	# https://github.com/dmitry-ai/harness/issues/3
 	source_id = hashlib.sha256(str(source).casefold().encode('utf-8')).hexdigest()[:24]
 	archive = snapshots / turn / source_id
 	archive.mkdir(parents=True, exist_ok=True)
@@ -27,6 +28,9 @@ def snapshot_draft(source: Path, turn: str) -> Path:
 	with locked(snapshots / 'writer.lock'):
 		if saved.exists():
 			receipt = json.loads((archive / 'snapshot.json').read_text(encoding='utf-8'))
+			# 2026-10-14
+			# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
+			# https://github.com/dmitry-ai/harness/issues/3
 			if receipt['source'] != str(source):
 				raise ValueError('Snapshot belongs to a different source')
 			if hashlib.sha256(saved.read_bytes()).hexdigest() != receipt['sha256']:

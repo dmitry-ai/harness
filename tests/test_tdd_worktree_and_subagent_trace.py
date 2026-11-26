@@ -1,5 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/173
 import json
 import sys
 import tempfile
@@ -8,6 +7,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from agent_tools import tdd_gate
 from agent_tools.platforms.trace_common import init_turn_accumulator, record_normalized_tool_effects
+# 2026-11-24
+# "Fix EXEC-2 TDD trace scoping for deleted worktrees and subagent steps":
+# https://github.com/dmitry-ai/harness/issues/173
 class TddWorktreeAndSubagentTraceTests(unittest.TestCase):
 	def test_combined_git_commit_and_full_test_command_updates_full_green(self):
 		with tempfile.TemporaryDirectory() as tmp:

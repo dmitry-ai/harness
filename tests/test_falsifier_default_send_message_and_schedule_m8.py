@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce single falsifier review default and block duplicate send_message reports":
-# https://github.com/dmitry-ai/harness/issues/226
 from __future__ import annotations
 import hashlib
 import json
@@ -25,6 +23,9 @@ from agent_tools.stop_subagent_check import extract_segment_subagent_state
 from test_analysis_workflow import ProjectCase
 PARENT_CID = 'be6873ea-5b72-4a7f-82bd-420b873f13f9'
 CHILD_CID = '8ec25783-99cc-40fa-99ff-a557eb04dde3'
+# 2026-11-24
+# "Enforce single falsifier review default and block duplicate send_message reports":
+# https://github.com/dmitry-ai/harness/issues/226
 class FalsifierDefaultSendMessageAndScheduleM8Tests(ProjectCase):
 	def setUp(self) -> None:
 		super().setUp()

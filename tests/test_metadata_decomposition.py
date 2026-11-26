@@ -1,5 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/170
 from __future__ import annotations
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
@@ -38,6 +37,9 @@ def _make_ag_fixture(base: Path) -> dict:
 		conn.commit()
 	ag_paths = {'instance': 'A6', 'backend_dir': ag_backend, 'brain_dir': ag_backend / 'brain', 'conversations_db': ag_backend / 'conversation_summaries.db', 'conversations_dir': ag_backend / 'conversations', 'projects_dir': ag_cfg}
 	return {'ag_backend': ag_backend, 'ag_paths': ag_paths, 'cid': cid, 'pid': pid, 'proj': proj, 't_log': t_log}
+# 2026-11-24
+# "Decompose metadata.py into modular metadata collection package":
+# https://github.com/dmitry-ai/harness/issues/170
 class MetadataDecompositionTests(unittest.TestCase):
 	def test_blocks_builders_produce_step_paths_labels_and_blocks(self) -> None:
 		from agent_tools.meta import blocks

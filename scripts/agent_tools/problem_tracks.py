@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Require separate companion /df-analysis tracks for every complex problem analysis":
-# https://github.com/dmitry-ai/harness/issues/249
 from __future__ import annotations
 import re
 _COMPANION_ORDER = ('culprit', 'test_escape', 'journal_reporting')
@@ -74,6 +72,9 @@ def _start_or_continue_block(raw_blocks: list[dict], num: int, pending_header: s
 	if not raw_blocks or 0 == num or num in raw_blocks[-1]['sections'] or pending_header:
 		raw_blocks.append({'header': pending_header, 'sections': {}})
 	return raw_blocks[-1]
+# 2026-11-25
+# "Require separate companion /df-analysis tracks for every complex problem analysis":
+# https://github.com/dmitry-ai/harness/issues/249
 def companion_track_issues(blocks: list[dict]) -> list[str]:
 	matches = [_block_track_matches(blk) for blk in blocks]
 	track_indices = {name: [idx for idx, m in enumerate(matches) if name in m] for name in _COMPANION_ORDER}

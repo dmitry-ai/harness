@@ -1,6 +1,4 @@
 # 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract PdfMarkdownExtractor and DocxMarkdownExtractor classes with shared table/file pipeline in upwork_data.py":
-# https://github.com/dmitry-ai/harness/issues/65
 import io
 from pathlib import Path
 import sys
@@ -12,6 +10,9 @@ SCRIPT_DIR = Path(__file__).resolve().parents[1] / 'scripts'
 if str(SCRIPT_DIR) not in sys.path:
 	sys.path.insert(0, str(SCRIPT_DIR))
 from agent_tools.upwork_data import DocxMarkdownExtractor, PdfMarkdownExtractor, discover_pdf_ligature_repairs, extract_attachment_markdown, format_table_bullet_rows, sanitize_kb_markdown
+# 2026-11-14
+# "Extract PdfMarkdownExtractor and DocxMarkdownExtractor classes with shared table/file pipeline in upwork_data.py":
+# https://github.com/dmitry-ai/harness/issues/65
 class UpworkDataExtractorTests(unittest.TestCase):
 	def test_docx_extractor_tables_fields_numbering_and_heading_normalization(self):
 		stream = io.BytesIO()

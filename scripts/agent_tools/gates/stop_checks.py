@@ -1,6 +1,4 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract PreToolUse and completion gates into priority plugin registry":
-# https://github.com/dmitry-ai/harness/issues/167
 from __future__ import annotations
 def _check_code_lifecycle(state: dict) -> dict | None:
 	clc = state.get('code_lifecycle_check') if isinstance(state.get('code_lifecycle_check'), dict) else {}
@@ -40,6 +38,9 @@ STOP_GATES = (
 	(30, 'code_lifecycle', _check_code_lifecycle),
 	(40, 'tdd', _check_tdd),
 )
+# 2026-11-23
+# "Extract PreToolUse and completion gates into priority plugin registry":
+# https://github.com/dmitry-ai/harness/issues/167
 def run_stop_gates(state: dict) -> dict | None:
 	r = None
 	for _, _, fn in sorted(STOP_GATES, key=lambda item: item[0]):

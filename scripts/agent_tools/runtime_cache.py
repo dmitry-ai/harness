@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Cache runtime settings and deduplicate evidence validation in hot paths":
-# https://github.com/dmitry-ai/harness/issues/227
 from __future__ import annotations
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -9,6 +7,9 @@ import os
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
+# 2026-11-24
+# "Cache runtime settings and deduplicate evidence validation in hot paths":
+# https://github.com/dmitry-ai/harness/issues/227
 _SETTINGS_CACHE: dict[tuple, tuple[dict, Path | None, tuple | None]] = {}
 _DERIVED_CACHE: dict[tuple, Any] = {}
 _SKIP_SHELL_VIOLATIONS: ContextVar[bool] = ContextVar('harness_skip_shell_violations', default=False)

@@ -1,23 +1,21 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Verify reused reviewer package assignments and tolerate volatile executor metadata":
-# https://github.com/dmitry-ai/harness/issues/222
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
-# https://github.com/dmitry-ai/harness/issues/212
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Use canonical native inputs and strip USER_REQUEST in native_review_proof":
-# https://github.com/dmitry-ai/harness/issues/210
 from __future__ import annotations
 from pathlib import Path
 import sqlite3
 import time
 from .trace_common import open_readonly_sqlite, read_jsonl_objects
+# 2026-11-24
+# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
+# https://github.com/dmitry-ai/harness/issues/212
 MAX_REVIEW_WAIT_SECONDS = 300.0
 _TERMINAL_SUMMARY_STATES = frozenset({'CASCADE_RUN_STATUS_IDLE', 'IDLE', 'COMPLETED', 'FAILED', 'ERROR', 'CANCELED', 'CANCELLED', 'KILLED'})
 class RetryableReviewProofError(ValueError):
 	def __init__(self, message: str) -> None:
 		super().__init__(message)
 		self.retryable = True
+# 2026-11-24
+# "Verify reused reviewer package assignments and tolerate volatile executor metadata":
+# https://github.com/dmitry-ai/harness/issues/222
 def _is_incoming_assignment_row(idx: int, row: dict, parent_id: str | None) -> bool:
 	rtype = row.get('type')
 	content = str(row.get('content') or '')
@@ -30,6 +28,9 @@ def _is_incoming_assignment_row(idx: int, row: dict, parent_id: str | None) -> b
 	else:
 		r = False
 	return r
+# 2026-11-24
+# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
+# https://github.com/dmitry-ai/harness/issues/212
 def _is_reviewer_in_flight(conversations_db: Path, reviewer_id: str) -> bool:
 	r = False
 	if conversations_db.is_file():
@@ -45,6 +46,9 @@ def _is_reviewer_in_flight(conversations_db: Path, reviewer_id: str) -> bool:
 		except sqlite3.Error:
 			r = False
 	return r
+# 2026-11-24
+# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
+# https://github.com/dmitry-ai/harness/issues/212
 def _probe_reviewer_final(paths: dict, backend: Path, reviewer_id: str, *, transcript_path_fn, db_path_fn, completed_statuses) -> tuple[tuple | None, str, bool]:
 	log = transcript_path_fn(paths['brain_dir'], reviewer_id)
 	raw = log.read_bytes()
@@ -60,6 +64,9 @@ def _probe_reviewer_final(paths: dict, backend: Path, reviewer_id: str, *, trans
 		else:
 			r = ((log, raw, rows, last), '', False)
 	return r
+# 2026-11-24
+# "Use canonical native inputs and strip USER_REQUEST in native_review_proof":
+# https://github.com/dmitry-ai/harness/issues/210
 def resolve_parent_binding_inputs(backend, parent_id, parent_inputs, *, paths, native_inputs_fn, extract_transcript_fn):
 	try:
 		loaded = native_inputs_fn(backend, parent_id, paths=paths, include_meta=True)
@@ -70,6 +77,9 @@ def resolve_parent_binding_inputs(backend, parent_id, parent_inputs, *, paths, n
 	else:
 		r = [(item.get('step_index', idx), extract_transcript_fn(item)) for idx, item in enumerate(parent_inputs) if 'USER_INPUT' == item.get('type') and isinstance(item.get('content'), str)]
 	return r
+# 2026-11-24
+# "Verify reused reviewer package assignments and tolerate volatile executor metadata":
+# https://github.com/dmitry-ai/harness/issues/222
 def reviewer_assigned_package(native_log: str | Path, package: str, *, parent_id: str | None=None, final_step: int | None=None) -> bool:
 	rows = read_jsonl_objects(Path(native_log))
 	r = False
@@ -83,6 +93,9 @@ def reviewer_assigned_package(native_log: str | Path, package: str, *, parent_id
 			r = True
 			break
 	return r
+# 2026-11-24
+# "Clarify verbatim target_claim contract and add native-review-proof wait timeout":
+# https://github.com/dmitry-ai/harness/issues/212
 def wait_for_reviewer_final_step(paths: dict, backend: Path, reviewer_id: str, *, wait_timeout: float=0.0, poll_interval: float=0.2, transcript_path_fn, db_path_fn, completed_statuses):
 	budget = min(max(0.0, float(wait_timeout or 0.0)), MAX_REVIEW_WAIT_SECONDS)
 	deadline = time.monotonic() + budget

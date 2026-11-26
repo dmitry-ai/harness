@@ -1,24 +1,4 @@
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Initialize new Upwork projects in the V2 filesystem layout":
-# https://github.com/dmitry-ai/harness/issues/110
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove automatic Context.md generation from project initialization and finalize stage":
-# https://github.com/dmitry-ai/harness/issues/104
 # 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
-# https://github.com/dmitry-ai/harness/issues/3
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
-# https://github.com/dmitry-ai/harness/issues/33
-# 2026-11-01 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
-# https://github.com/dmitry-ai/harness/issues/34
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace per-profile Harness projections with shared native connections":
-# https://github.com/dmitry-ai/harness/issues/35
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from email.message import Message
@@ -51,11 +31,20 @@ def claim(ident, addresses=(), method=False):
 	return r
 def analysis():
 	return {'identity': [], 'concerns': [claim('H-CONCERN-1')], 'misconceptions': [], 'causes': [claim('H-CAUSE-1', ['H-CONCERN-1'])], 'methods': [claim('M-1', ['H-CAUSE-1'], method=True)], 'notes': {'identity': 'Not established.', 'misconceptions': 'No misconception established.'}}
+# 2026-10-14
+# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
+# https://github.com/dmitry-ai/harness/issues/3
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class InitializationTests(TemporaryCase):
 	def init(self, data=None, **kwargs):
 		data = source() if None is data else data
 		r = up.initialize_upwork_project(data['job_id'], domain_or_topic='Topic', date_str='2026-10-15', daily_root=self.root / 'daily', extracted_data=data, register_antigravity=False, **kwargs)
 		return r
+	# 2026-11-21
+	# "Initialize new Upwork projects in the V2 filesystem layout":
+	# https://github.com/dmitry-ai/harness/issues/110
 	def test_native_manifests_and_full_initial_port(self):
 		from check_markdown_slop import check_markdown_content
 		result = self.init()
@@ -90,6 +79,9 @@ class InitializationTests(TemporaryCase):
 		self.assertNotIn('These projects belong to the same website', (root / '\U0001f56e/Project.md').read_text(encoding='utf-8'))
 	def test_repeat_preserves_every_curated_file_and_configuration(self):
 		root = Path(self.init()['project_dir'])
+		# 2026-11-21
+		# "Initialize new Upwork projects in the V2 filesystem layout":
+		# https://github.com/dmitry-ai/harness/issues/110
 		files = [root / 'readme.md', root / '\U0001f56e/Project.md', *(root / 'ꘖ/KB').glob('*.md')]
 		for path in files:
 			path.write_bytes(path.read_bytes() + b'\nCURATED_CONTENT\n')
@@ -102,9 +94,15 @@ class InitializationTests(TemporaryCase):
 		updated = {**source(), 'description': 'A new capture must not erase previous research'}
 		self.init(updated)
 		self.assertEqual({p: p.read_bytes() for p in before}, before)
+		# 2026-11-21
+		# "Initialize new Upwork projects in the V2 filesystem layout":
+		# https://github.com/dmitry-ai/harness/issues/110
 		(root / '\U0001f56e/Project.md').unlink()
 		self.init(updated)
 		self.assertFalse((root / '\U0001f56e/Project.md').exists())
+	# 2026-11-21
+	# "Initialize new Upwork projects in the V2 filesystem layout":
+	# https://github.com/dmitry-ai/harness/issues/110
 	def test_reinit_preserves_legacy_v1_project_without_v2_migration(self):
 		data = source('~02777777')
 		legacy_dir = self.root / 'daily/2026/10/15/1 - Legacy'
@@ -123,6 +121,9 @@ class InitializationTests(TemporaryCase):
 		self.assertFalse((root / 'readme.md').exists())
 		self.assertTrue((root / '.md').is_file())
 		self.assertTrue((root / 'KB/Project.md').is_file())
+	# 2026-11-21
+	# "Initialize new Upwork projects in the V2 filesystem layout":
+	# https://github.com/dmitry-ai/harness/issues/110
 	def test_resolve_or_create_reuses_unindexed_v2_project_dir(self):
 		daily = self.root / 'daily'
 		v2_readme = daily / '2026/10/15/1 - Unindexed Readme'
@@ -174,6 +175,12 @@ class InitializationTests(TemporaryCase):
 		result = self.cli('upwork_project', 'init', source()['job_id'], '--from-json', capture, '--domain', 'Topic', '--date', '2026-10-15', '--daily-root', self.root / 'daily', '--no-register')
 		self.assertEqual(result.returncode, 0, result.stderr)
 		root = Path(json.loads(result.stdout)['project_dir'])
+		# 2026-11-20
+		# "Remove automatic Context.md generation from project initialization and finalize stage":
+		# https://github.com/dmitry-ai/harness/issues/104
+		# 2026-11-21
+		# "Initialize new Upwork projects in the V2 filesystem layout":
+		# https://github.com/dmitry-ai/harness/issues/110
 		self.assertFalse((root / '\u2c0f/\u227b/\u2659/Context/output/Context.md').exists())
 	def test_attachment_evidence_retained_with_hash(self):
 		asset = self.put('capture/attachments/proof.txt', 'primary evidence')
@@ -186,6 +193,9 @@ class InitializationTests(TemporaryCase):
 class CapturedProjectTests(TemporaryCase):
 	@unittest.skipUnless(os.environ.get('UPWORK_CAPTURE_DIR'), 'Optional real Upwork captures are not configured')
 	def test_real_captures_preserve_description_port_and_curated_work(self):
+		# 2026-10-17
+		# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+		# https://github.com/dmitry-ai/harness/issues/7
 		capture_root = Path(os.environ['UPWORK_CAPTURE_DIR'])
 		captures = [json.loads(path.read_text(encoding='utf-8')) for path in sorted(capture_root.glob('*/source.json'))]
 		for manifest in sorted(capture_root.glob('**/Evidence/Intake/*.json')):
@@ -202,6 +212,9 @@ class CapturedProjectTests(TemporaryCase):
 			with self.subTest(job_id=data['job_id']):
 				kwargs = dict(url_or_id=data['job_id'], extracted_data=data, date_str='2026-10-15', daily_root=self.root / 'daily', register_antigravity=False)
 				root = Path(up.initialize_upwork_project(**kwargs)['project_dir'])
+				# 2026-11-21
+				# "Initialize new Upwork projects in the V2 filesystem layout":
+				# https://github.com/dmitry-ai/harness/issues/110
 				self.assertEqual((root / '\U0001f56e/Project.md').read_bytes(), (root / 'ꘖ/KB/Project.md').read_bytes())
 				self.assertIn(data['description'], (root / 'ꘖ/KB/Projects.md').read_text(encoding='utf-8'))
 				paths = [root / 'readme.md', root / '\U0001f56e/Project.md', root / '.agents/context.json', *(root / 'ꘖ/KB').glob('*.md')]
@@ -297,6 +310,9 @@ class AttachmentTests(TemporaryCase):
 			with self.assertRaises(ValueError):
 				select_tab(tabs, '~02999')
 		self.assertEqual(select_tab([a, b], '~02123', 'b'), b)
+	# 2026-10-17
+	# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+	# https://github.com/dmitry-ai/harness/issues/7
 	def test_docx_and_text_attachments_saved_in_source_and_both_kbs(self):
 		import zipfile
 		from agent_tools.knowledge import sync_project_attachments_and_kb
@@ -313,6 +329,9 @@ class AttachmentTests(TemporaryCase):
 			root = Path(up.initialize_upwork_project(data['job_id'], domain_or_topic='Topic', date_str='2026-10-15', daily_root=self.root / 'daily', extracted_data=data, register_antigravity=False)['project_dir'])
 		self.assertEqual((root / 'source/Expectations.docx').read_bytes(), docx_path.read_bytes())
 		self.assertEqual((root / 'source/checkout-error.png').read_bytes(), img_path.read_bytes())
+		# 2026-11-21
+		# "Initialize new Upwork projects in the V2 filesystem layout":
+		# https://github.com/dmitry-ai/harness/issues/110
 		manual_kb = (root / '\U0001f56e/Project.md').read_text(encoding='utf-8')
 		agent_kb = (root / 'ꘖ/KB/Project.md').read_text(encoding='utf-8')
 		projects_kb = (root / 'ꘖ/KB/Projects.md').read_text(encoding='utf-8')
@@ -327,6 +346,9 @@ class AttachmentTests(TemporaryCase):
 		self.assertIn('attachment.image_incomplete', issues_before)
 		media_descriptions = {'https://www.loom.com/share/abcd1234ef567890abcd1234ef567890': '# Video:\nhttps://www.loom.com/share/abcd1234ef567890abcd1234ef567890\n\n# Key Spoken Commentary Points (Additions to Document Text):\n- **Context:** Client shows GTM container settings.\n\n# Full Audio Transcript:\n- **[00:00]** Hello, here is our current GTM setup and what needs fixing.', 'checkout-error.png': '# 1. Verbatim Text in Image\n- «Payment failed: invalid merchant configuration»\n- Button «Try Again»\n\n# 2. User Interface (UI) Elements Description\n- Checkout error modal window with red banner «Error».\n\n# 3. Relation to Client Statements\n## 3.1. Confirmations of Client Statements\n### 1\n- **Essence:** Screenshot confirms checkout payment failure.\n- **Arguments for:** Text «Payment failed: invalid merchant configuration» directly indicates a configuration error.\n- **Arguments against:** Screenshot does not show the server gateway log.\n- **Score:** `95%`\n\n## 3.2. Contradictions to Client Statements\n### 1\n- **Essence:** Error occurs at initialization step, not after 3DS.\n- **Arguments for:** Card field is not yet active on screen.\n- **Arguments against:** Client could have taken the screenshot after form reset.\n- **Score:** `70%`'}
 		sync_project_attachments_and_kb(root, media_descriptions=media_descriptions)
+		# 2026-11-21
+		# "Initialize new Upwork projects in the V2 filesystem layout":
+		# https://github.com/dmitry-ai/harness/issues/110
 		self.assertEqual((root / '\U0001f56e/Project.md').read_bytes(), (root / 'ꘖ/KB/Project.md').read_bytes())
 		self.assertEqual(attachment_issues(root), [])
 class RPCTests(unittest.IsolatedAsyncioTestCase):
@@ -400,6 +422,9 @@ class EvidenceTests(TemporaryCase):
 		document.write_text('[invalid](source.json#/missing)', encoding='utf-8')
 		self.assertTrue(validate_file(document))
 class RegistrationTests(TemporaryCase):
+	# 2026-11-02
+	# "Replace per-profile Harness projections with shared native connections":
+	# https://github.com/dmitry-ai/harness/issues/35
 	def native_primary(self):
 		primary = self.root / 'canonical'
 		if not primary.exists():
@@ -452,6 +477,9 @@ class RegistrationTests(TemporaryCase):
 			chain.insert(0, node['name'])
 			node = next((x for x in actual['folders'] if x['id'] == node['parentId']), None)
 		self.assertEqual(chain, ['upwork', 'Proposals', '2026', '10', '14'])
+	# 2026-11-02
+	# "Replace per-profile Harness projections with shared native connections":
+	# https://github.com/dmitry-ai/harness/issues/35
 	def test_global_install_preserves_other_customizations_and_is_idempotent(self):
 		primary = self.native_primary()
 		original = {'inherits': [{'path': 'other.json'}], 'entries': [{'path': 'my-skills'}]}
@@ -464,6 +492,12 @@ class RegistrationTests(TemporaryCase):
 		self.assertIn(original['inherits'][0], value['inherits'])
 		self.assertIn({'path': (primary / 'platforms/antigravity/skills.json').as_posix()}, value['inherits'])
 		self.assertIn(original['entries'][0], value['entries'])
+	# 2026-11-01
+	# "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
+	# https://github.com/dmitry-ai/harness/issues/33
+	# 2026-11-02
+	# "Replace per-profile Harness projections with shared native connections":
+	# https://github.com/dmitry-ai/harness/issues/35
 	def test_global_install_repairs_profile_without_rules_and_merges_missing_hooks(self):
 		primary = self.native_primary()
 		a0 = self.root / 'A0/.gemini/config'
@@ -485,6 +519,9 @@ class RegistrationTests(TemporaryCase):
 			result = up.install_global_customizations(primary=primary)
 			self.assertTrue(result['valid'])
 			self.assertEqual(result['profiles']['A6']['added_entries'], ['rules', 'skills', 'agents'])
+			# 2026-11-01
+			# "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
+			# https://github.com/dmitry-ai/harness/issues/34
 			self.assertEqual(result['profiles']['A6']['added_hooks'], ['rules-and-server-gate', 'final-turn-gate'])
 			self.assertEqual(result['profiles']['A0']['added_entries'], [])
 			snapshot = {p: p.read_bytes() for p in sorted(a6.glob('*.json'))}
@@ -496,6 +533,12 @@ class RegistrationTests(TemporaryCase):
 		self.assertEqual(merged['my-hook'], hooks['my-hook'])
 		self.assertIn({'path': (primary / 'platforms/antigravity/rules.json').as_posix()}, json.loads((a6 / 'rules.json').read_text(encoding='utf-8'))['inherits'])
 		self.assertNotIn({'path': (primary / 'rules').as_posix()}, json.loads((a6 / 'rules.json').read_text(encoding='utf-8')).get('entries', []))
+	# 2026-11-01
+	# "Install and verify Harness global customizations in every configured Antigravity profile (A0, A6)":
+	# https://github.com/dmitry-ai/harness/issues/33
+	# 2026-11-02
+	# "Replace per-profile Harness projections with shared native connections":
+	# https://github.com/dmitry-ai/harness/issues/35
 	def test_undeclared_current_antigravity_home_is_reported(self):
 		primary = self.native_primary()
 		declared, current = (self.root / 'declared', self.root / 'current')

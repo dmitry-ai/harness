@@ -1,71 +1,29 @@
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce pushed Git tags on issue-closing commits in lifecycle gates":
-# https://github.com/dmitry-ai/harness/issues/263
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement daily-counter Git tag engine and repo-tag CLI commands":
-# https://github.com/dmitry-ai/harness/issues/262
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add transactional rename-project command with automatic domain promotion":
-# https://github.com/dmitry-ai/harness/issues/267
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add deterministic rules-audit CLI and aggregate budget enforcement":
-# https://github.com/dmitry-ai/harness/issues/244
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/239
-# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
-# https://github.com/dmitry-ai/harness/issues/237
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add schema-help CLI, validator hints, save-analysis --merge, and af-worker file handoff":
-# https://github.com/dmitry-ai/harness/issues/217
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deploy immutable Harness runtime snapshots with LKG fallback":
-# https://github.com/dmitry-ai/harness/issues/184
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
-# https://github.com/dmitry-ai/harness/issues/205
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove landed worktrees by default and flag stale worktrees in worktree-status":
-# https://github.com/dmitry-ai/harness/issues/203
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add deterministic reactive wait primitive for transient repository and journal contention":
-# https://github.com/dmitry-ai/harness/issues/199
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add harness perf-profile-tests CLI for test suite and subprocess profiling":
-# https://github.com/dmitry-ai/harness/issues/192
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add harness perf-timesheet CLI for deterministic turn chronometry":
-# https://github.com/dmitry-ai/harness/issues/191
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce Markdown table ban and /df-analysis structural validation across response gates":
-# https://github.com/dmitry-ai/harness/issues/181
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add structured problem metadata builder and CLI command":
-# https://github.com/dmitry-ai/harness/issues/180
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace monolithic CLI router with declarative registry and modular docs":
-# https://github.com/dmitry-ai/harness/issues/168
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add isolated git worktree task workflow and worktree-scoped issue gates":
-# https://github.com/dmitry-ai/harness/issues/165
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add deterministic FIFO repository landing lease with reactive wait":
-# https://github.com/dmitry-ai/harness/issues/163
 from __future__ import annotations
 from pathlib import Path
 from typing import Callable
 import argparse
 import sys
 from .cli_common import add_arg_specs
+# 2026-11-23
+# "Add deterministic FIFO repository landing lease with reactive wait":
+# https://github.com/dmitry-ai/harness/issues/163
 _REGISTRY: dict[str, dict] = {}
 def _ensure_builtin_plugins() -> None:
 	if not _REGISTRY:
 		_register_builtins()
+# 2026-11-24
+# "Enforce Markdown table ban and /df-analysis structural validation across response gates":
+# https://github.com/dmitry-ai/harness/issues/181
 def _exec_analysis_check(args) -> dict:
 	from .cli_common import load_operation_input
 	from .statements import markdown_table_issues, validate_df_analysis
 	text = load_operation_input(args, args.response_file).decode('utf-8')
 	issues = [*markdown_table_issues(text), *validate_df_analysis(text, mode=args.mode)]
 	return {'valid': not issues, 'mode': args.mode, 'issue_count': len(issues), 'issues': issues}
+# 2026-11-23
+# "Replace monolithic CLI router with declarative registry and modular docs":
+# https://github.com/dmitry-ai/harness/issues/168
 def _exec_cli_docs(_args) -> dict:
 	return {'valid': True, 'commands': list(registered_commands()), 'markdown': render_cli_index()}
 def _exec_land_acquire(args) -> dict:
@@ -77,25 +35,39 @@ def _exec_land_release(args) -> dict:
 def _exec_land_status(args) -> dict:
 	from .landing_lease import lease_status
 	return lease_status(args.repo)
+# 2026-11-24
+# "Add harness perf-profile-tests CLI for test suite and subprocess profiling":
+# https://github.com/dmitry-ai/harness/issues/192
 def _exec_perf_profile_tests(args) -> dict:
 	from .perf.suite_profiler import run_perf_profile_cli
 	return run_perf_profile_cli(args)
+# 2026-11-24
+# "Add harness perf-timesheet CLI for deterministic turn chronometry":
+# https://github.com/dmitry-ai/harness/issues/191
 def _exec_perf_timesheet(args) -> dict:
 	from .perf.timesheet import run_perf_timesheet_cli
 	return run_perf_timesheet_cli(args)
+# 2026-11-24
+# "Add structured problem metadata builder and CLI command":
+# https://github.com/dmitry-ai/harness/issues/180
 def _exec_problem_metadata(args) -> dict:
 	from .metadata import build_problem_metadata, render_metadata_header
 	meta = build_problem_metadata(issue_url=args.issue, project_root=args.project, source_project_root=args.source_project, allow_no_issue=bool(args.no_issue))
 	return {'valid': True, 'metadata': meta, 'markdown': render_metadata_header(meta).rstrip('\n') + '\n'}
+# 2026-11-26 "Add transactional rename-project command with automatic domain promotion": https://github.com/dmitry-ai/harness/issues/267
 def _exec_rename_project(args) -> dict:
 	from .project_rename import rename_project
 	return rename_project(args.project, domain=args.domain, topic=args.topic, daily_root=args.daily_root, register_native=False if args.no_register else None, launcher_root=args.launcher_root)
+# 2026-11-26 "Implement daily-counter Git tag engine and repo-tag CLI commands": https://github.com/dmitry-ai/harness/issues/262
 def _exec_repo_tag(args) -> dict:
 	from .repo_tags import run_repo_tag_cli
 	return run_repo_tag_cli(args)
 def _exec_repo_tag_retro(args) -> dict:
 	from .repo_tags import retro_tag_repo
 	return retro_tag_repo(args.repo, apply=bool(args.apply), push=bool(args.push), include_task_groups=bool(args.include_task_groups), extra_commits=list(args.extra_commit or ()))
+# 2026-11-26
+# "Add deterministic rules-audit CLI and aggregate budget enforcement":
+# https://github.com/dmitry-ai/harness/issues/244
 def _exec_rules_audit(args) -> dict:
 	from .rules_audit import audit_rules, build_semantic_audit_brief
 	from .rules_manifest import resolve_rules_primary
@@ -108,6 +80,9 @@ def _exec_rules_audit(args) -> dict:
 def _exec_run_tests(args) -> dict:
 	from .suite_runner import run_test_suite
 	return run_test_suite(args.target, workers=args.workers, module_timeout=args.module_timeout, failfast=not args.no_failfast, pattern=args.pattern, modules=args.module)
+# 2026-11-24
+# "Deploy immutable Harness runtime snapshots with LKG fallback":
+# https://github.com/dmitry-ai/harness/issues/184
 def _exec_runtime_promote(args) -> dict:
 	from .runtime import PRIMARY
 	from .runtime_snapshot import promote_runtime_snapshot
@@ -116,21 +91,39 @@ def _exec_runtime_status(args) -> dict:
 	from .runtime import PRIMARY
 	from .runtime_snapshot import check_runtime_snapshot
 	return check_runtime_snapshot(args.primary or PRIMARY, store_dir=args.store_dir)
+# 2026-11-24
+# "Prevent context compaction with schema-help CLI and staged analysis merge":
+# https://github.com/dmitry-ai/harness/issues/217
 def _exec_schema_help(args) -> dict:
 	from .schema_help import schema_help_payload
 	return schema_help_payload(args.topic)
+# 2026-11-25
+# "Add auditable mechanical replacement recipe exemption for TDD and per-file issue gates":
+# https://github.com/dmitry-ai/harness/issues/239
 def _exec_tdd_exempt_mechanical(args) -> dict:
 	from .tdd.mechanical import record_mechanical_exemption
 	return record_mechanical_exemption(args.project, repo=args.repo, issue_url=args.issue, pattern=args.pattern, replacement=args.replacement, reason=args.reason, is_regex=bool(args.regex), ignore_case=bool(args.ignore_case), conversation=args.conversation, turn_key=args.turn_key)
+# 2026-11-25
+# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
+# https://github.com/dmitry-ai/harness/issues/237
 def _exec_shadow_replay(args) -> dict:
 	from .shadow_replay import run_shadow_replay
 	return run_shadow_replay(args.project, args.conversation, launcher=args.launcher, workspace=args.workspace, platform=args.platform or 'antigravity', backend=args.backend, response_file=args.response_file, keep=bool(args.keep))
+# 2026-11-24
+# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+# https://github.com/dmitry-ai/harness/issues/205
 def _exec_test_watchdog(args) -> dict:
 	from .watchdog_runner import run_watchdog_cli
 	return run_watchdog_cli(args)
+# 2026-11-24
+# "Add deterministic reactive wait primitive for transient repository and journal contention":
+# https://github.com/dmitry-ai/harness/issues/199
 def _exec_wait_repo(args) -> dict:
 	from .repo_wait import wait_for_repo
 	return wait_for_repo(args.repo, clean=bool(args.clean), lease_free=bool(args.lease_free), timeout=args.timeout, poll_interval=args.poll)
+# 2026-11-23
+# "Add isolated git worktree task workflow and worktree-scoped issue gates":
+# https://github.com/dmitry-ai/harness/issues/165
 def _exec_worktree_begin(args) -> dict:
 	from .worktree_flow import worktree_begin
 	return worktree_begin(args.repo, args.task, base_ref=args.base, worktrees_dir=args.worktrees_dir)
@@ -139,8 +132,12 @@ def _exec_worktree_cleanup(args) -> dict:
 	return worktree_cleanup(args.repo, args.target, force=bool(args.force))
 def _exec_worktree_land(args) -> dict:
 	from .worktree_flow import worktree_land
+	# 2026-11-24
+	# "Remove landed worktrees by default and flag stale worktrees in worktree-status":
+	# https://github.com/dmitry-ai/harness/issues/203
 	if args.keep and args.remove:
 		raise ValueError('Cannot combine --keep and --remove in worktree-land')
+	# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 	return worktree_land(args.worktree, target_branch=args.target, run_tests=not args.no_tests, push=bool(args.push), remove=not bool(args.keep), owner=args.owner, wait_timeout=args.timeout, workers=args.workers, tag=bool(args.tag))
 def _exec_worktree_status(args) -> dict:
 	from .worktree_flow import worktree_status
@@ -193,7 +190,9 @@ def _register_analysis_builtins() -> None:
 	register_command('perf-profile-tests', 'Profile unittest modules in parallel with Popen, sleep, and optional cProfile telemetry', (('target', {'nargs': '?', 'type': Path, 'help': 'Optional tests directory or repo root'}), ('--workers', {'type': int, 'help': 'Worker process count (default: half logical CPUs, 2..6)'}), ('--module-timeout', {'type': float, 'default': 300.0, 'help': 'Per-module timeout in seconds (default: 300)'}), (('-p', '--pattern'), {'default': 'test_*.py', 'help': 'Test filename glob pattern (default: test_*.py)'}), ('--module', {'action': 'append', 'default': [], 'help': 'Optional specific test module filter; repeatable'}), ('--cprofile', {'action': 'store_true', 'help': 'Collect and aggregate cProfile hotspot functions across workers'}), ('--top', {'type': int, 'default': 15, 'help': 'Number of slowest files and tests to rank (default: 15)'}), ('--cprofile-top', {'type': int, 'default': 25, 'help': 'Number of cProfile hotspots to retain (default: 25)'}), ('--output', {'type': Path, 'help': 'Optional output path to persist tab-indented JSON profile'}), ('--format', {'choices': ('json', 'text'), 'default': 'json', 'help': 'Output format (default: json)'})), _exec_perf_profile_tests, exit_code_fn=lambda res: 0 if res.get('valid') else 1, text_fn=_format_perf_profile_tests)
 	register_command('perf-timesheet', 'Build deterministic turn chronometry, cache, compaction, and wait telemetry from a trace', (('--trace', {'type': Path, 'help': 'Direct path to Antigravity transcript_full.jsonl or Codex rollout .jsonl'}), ('--conversation', {'help': 'Native conversation UUID (auto-resolved via runtime.json)'}), ('--project', {'type': Path, 'help': 'Project root for --journal-step lookup'}), ('--journal-step', {'type': int, 'help': 'Journal response step number whose Trace metadata identifies the trace'}), ('--summary-db', {'type': Path, 'help': 'Optional path to Antigravity conversation_summaries.db'}), ('--turn-start-step', {'type': int, 'help': 'Optional inclusive starting step index'}), ('--turn-end-step', {'type': int, 'help': 'Optional inclusive ending step index'}), ('--top-gaps', {'type': int, 'default': 10, 'help': 'Number of largest inter-step wall gaps to report (default: 10)'}), ('--output', {'type': Path, 'help': 'Optional output path to persist tab-indented JSON telemetry'}), ('--format', {'choices': ('json', 'text'), 'default': 'json', 'help': 'Output format (default: json)'})), _exec_perf_timesheet, text_fn=_format_perf_timesheet)
 	register_command('problem-metadata', 'Build structured # 0 problem metadata with mandatory GitHub Issue key', (('project', {'type': Path}), ('--issue', {'help': 'Verified GitHub issue URL (mandatory unless --no-issue)'}), ('--no-issue', {'action': 'store_true', 'help': 'Allow null Issue key for non-GitHub workspaces'}), ('--source-project', {'type': Path, 'help': 'Optional distinct owning project root'}), ('--format', {'choices': ('json', 'markdown'), 'default': 'json', 'help': 'Output format (default: json)'})), _exec_problem_metadata, text_fn=_format_problem_metadata)
+	# 2026-11-26 "Add transactional rename-project command with automatic domain promotion": https://github.com/dmitry-ai/harness/issues/267
 	register_command('rename-project', 'Transactionally rename an Upwork project directory and synchronize indexes, registrations, and journal state', (('project', {'type': Path}), ('--domain', {'help': 'Verified target domain hostname without scheme or www.'}), ('--topic', {'help': 'Human-readable provisional topic title'}), ('--daily-root', {'type': Path, 'help': 'Optional explicit daily proposals root'}), ('--no-register', {'action': 'store_true', 'help': 'Skip native Antigravity/Codex registration sync (testing only)'}), ('--launcher-root', {'type': Path, 'help': 'Optional launcher workspace root whose handed-off turns should be rewritten'})), _exec_rename_project)
+	# 2026-11-26 "Implement daily-counter Git tag engine and repo-tag CLI commands": https://github.com/dmitry-ai/harness/issues/262
 	register_command('repo-tag', 'Allocate or reuse a daily-counter Git tag on a commit and optionally build a verified GitHub blob URL', (('repo', {'type': Path}), ('--commit', {'default': 'HEAD', 'help': 'Commit-ish to tag (default: HEAD)'}), ('--date', {'help': 'Optional YYYY-MM-DD override'}), ('--push', {'action': 'store_true', 'help': 'Push created/existing tag to origin'}), ('--file', {'help': 'Optional repository-relative file path to build a verified GitHub URL'}), ('--lines', {'help': 'Optional line range anchor such as L19-L23'}), ('--anchor', {'help': 'Optional heading anchor for Markdown files'})), _exec_repo_tag)
 	register_command('repo-tag-retro', 'Preview or apply chronological daily-counter Git tags across historical issue-closing commits', (('repo', {'type': Path}), ('--apply', {'action': 'store_true', 'help': 'Create planned lightweight tags locally'}), ('--push', {'action': 'store_true', 'help': 'Push tags to origin after applying'}), ('--include-task-groups', {'action': 'store_true', 'help': 'Also tag final commits of reconstructed non-issue task groups'}), ('--extra-commit', {'action': 'append', 'default': [], 'help': 'Additional commit SHA to tag; repeatable'})), _exec_repo_tag_retro)
 	register_command('rules-audit', 'Run deterministic offline rules configuration smell audit and optional neutral A.A semantic brief', (('--primary', {'type': Path, 'help': 'Optional Harness code repository path (default: PRIMARY)'}), ('--workspace', {'type': Path, 'help': 'Optional workspace root to inspect auto-loaded AGENTS.md/GEMINI.md'}), ('--semantic-brief', {'action': 'store_true', 'help': 'Generate a neutral read-only A.A semantic audit brief'}), ('--format', {'choices': ('json', 'text'), 'default': 'json', 'help': 'Output format (default: json)'})), _exec_rules_audit, exit_code_fn=lambda res: 0 if res.get('valid') else 2, text_fn=_format_rules_audit)
@@ -211,6 +210,7 @@ def _register_runtime_builtins() -> None:
 	register_command('wait-repo', 'Wait reactively in foreground until a Git repository lease is free and/or working tree is clean', (('repo', {'type': Path}), ('--clean', {'action': 'store_true', 'help': 'Wait until git status --porcelain is empty'}), ('--lease-free', {'action': 'store_true', 'help': 'Wait until FIFO landing lease is free (with PID liveness checks)'}), ('--timeout', {'type': float, 'default': 180.0, 'help': 'Maximum wait seconds before timing out (default: 180)'}), ('--poll', {'type': float, 'default': 1.0, 'help': 'Polling interval in seconds (default: 1.0)'})), _exec_wait_repo)
 	register_command('worktree-begin', 'Create an isolated linked git worktree and task branch', (('repo', {'type': Path}), ('--task', {'required': True}), ('--base', {'default': 'main'}), ('--worktrees-dir', {'type': Path})), _exec_worktree_begin)
 	register_command('worktree-cleanup', 'Remove a linked git worktree and its merged task branch', (('repo', {'type': Path}), ('target', {'type': Path}), ('--force', {'action': 'store_true'})), _exec_worktree_cleanup)
+	# 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 	register_command('worktree-land', 'Rebase, test once, fast-forward merge, and remove (unless --keep) a task worktree under FIFO lease', (('worktree', {'type': Path}), ('--target', {'default': 'main'}), ('--no-tests', {'action': 'store_true'}), ('--push', {'action': 'store_true'}), ('--tag', {'action': 'store_true', 'help': 'Assign a daily-counter Git tag on the landed commit and push it when --push is set'}), ('--keep', {'action': 'store_true', 'help': 'Keep the linked worktree and task branch after landing'}), ('--remove', {'action': 'store_true', 'help': 'Remove the linked worktree after landing (default)'}), ('--owner', {}), ('--timeout', {'type': float, 'default': 600.0}), ('--workers', {'type': int})), _exec_worktree_land)
 	register_command('worktree-status', 'List linked git worktrees and dirty status for a repository', (('repo', {'type': Path}),), _exec_worktree_status)
 def add_registered_parsers(sub) -> None:

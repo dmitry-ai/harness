@@ -1,21 +1,4 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enable parallel pytest-xdist full-suite execution and outcome parsing":
-# https://github.com/dmitry-ai/harness/issues/178
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Initialize new Upwork projects in the V2 filesystem layout":
-# https://github.com/dmitry-ai/harness/issues/110
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
-# https://github.com/dmitry-ai/harness/issues/109
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove automatic Context.md generation from project initialization and finalize stage":
-# https://github.com/dmitry-ai/harness/issues/104
 # 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
-# https://github.com/dmitry-ai/harness/issues/3
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from contextlib import redirect_stdout, closing
 from copy import deepcopy
 from io import StringIO
@@ -45,6 +28,15 @@ def varint(value):
 	return r
 def message(field, payload):
 	return varint(field * 8 + 2) + varint(len(payload)) + payload
+# 2026-10-14
+# "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
+# https://github.com/dmitry-ai/harness/issues/3
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class ResumeExportTests(ProjectCase):
 	def request_database(self, texts, format_id=0):
 		cid = str(uuid.uuid4())
@@ -76,6 +68,9 @@ class ResumeExportTests(ProjectCase):
 		flow.resume(self.project, 'quota')
 		with patch.object(Path, 'home', return_value=home):
 			flow.adopt_requests(self.project, cid)
+			# 2026-10-18
+			# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+			# https://github.com/dmitry-ai/harness/issues/10
 			package = self.review_package(cid, response=answer)
 			report = self.review_report(package, self_review=True)
 			path = self.put_project('ꘖ/KB/Evidence/Reviews/self.json', json.dumps(report))
@@ -84,6 +79,9 @@ class ResumeExportTests(ProjectCase):
 			self.assertFalse(result['delivery_verified'])
 			flow.adopt_requests(self.project, cid)
 			self.assertTrue(all((x.get('response_prepared') for x in flow.load(self.project)['requests'])))
+		# 2026-11-21
+		# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+		# https://github.com/dmitry-ai/harness/issues/109
 		directory = self.project / 'ꙮ'
 		self.assertEqual(journal.get_existing_step_ids(directory), {1, 2})
 		for index, text in enumerate(texts, 1):
@@ -93,12 +91,24 @@ class ResumeExportTests(ProjectCase):
 		self.assertLess(content.index(texts[1]), content.index(answer))
 		self.assertIn('one final answer shared', content)
 	def test_group_crash_reserves_all_numbers_and_preserves_previous_context(self):
+		# 2026-11-21
+		# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+		# https://github.com/dmitry-ai/harness/issues/109
 		directory = self.project / 'ꙮ'
+		# 2026-11-21
+		# "Initialize new Upwork projects in the V2 filesystem layout":
+		# https://github.com/dmitry-ai/harness/issues/110
 		target = self.project / '\u2c0f/\u227b/\u2659/Context/output/Context.md'
+		# 2026-11-20
+		# "Remove automatic Context.md generation from project initialization and finalize stage":
+		# https://github.com/dmitry-ai/harness/issues/104
 		generate(self.project, self.project / '.agents/context.json')
 		previous = target.read_bytes()
 		real = journal.create_bytes
 		def fail_on_second_request(path, data):
+			# 2026-11-21
+			# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+			# https://github.com/dmitry-ai/harness/issues/109
 			if Path(path).resolve() == (directory / '≻/1–20/2.md').resolve():
 				raise OSError('simulated power failure')
 			r = real(path, data)
@@ -117,6 +127,9 @@ class ResumeExportTests(ProjectCase):
 			journal.record_answer(directory, ['First exact request', 'Second exact request'], 'Changed answer', 'turn-1')
 	def test_atomic_create_does_not_leave_a_partial_final_file(self):
 		target = self.project / 'ꘖ/data/new-state.json'
+		# 2026-11-24
+		# "Enable parallel pytest-xdist full-suite execution and outcome parsing":
+		# https://github.com/dmitry-ai/harness/issues/178
 		with patch.dict(os.environ, {'HARNESS_TEST_NO_FSYNC': '0'}):
 			with patch.object(storage.os, 'fsync', side_effect=OSError('power failure')), self.assertRaises(OSError):
 				storage.create_bytes(target, b'{"complete":true}')
@@ -126,6 +139,9 @@ class ResumeExportTests(ProjectCase):
 			storage.create_bytes(target, b'replacement')
 		self.assertEqual(target.read_bytes(), b'complete')
 	def test_analysis_commit_requires_current_hash_and_preserves_history(self):
+		# 2026-10-18
+		# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+		# https://github.com/dmitry-ai/harness/issues/10
 		value = self.valid_review_analysis()
 		target = self.project / 'ꘖ/KB/Analysis.json'
 		original = target.read_bytes()
@@ -144,12 +160,18 @@ class ResumeExportTests(ProjectCase):
 	def test_public_example_passes_structure_evidence_and_project_checks(self):
 		directory = up.PRIMARY_AGENTS_DIR / 'skills/upwork-init/references'
 		source = self.put_project('ꘖ/KB/Evidence/example-source.json', (directory / 'example-source.json').read_bytes())
+		# 2026-10-18
+		# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+		# https://github.com/dmitry-ai/harness/issues/10
 		self.put_project('ꘖ/KB/Evidence/Examples/response.bin', (directory / 'example-source.json').read_bytes())
 		self.put_project('ꘖ/KB/Evidence/Examples/observation.json', (directory / 'example-observation.json').read_bytes())
 		value = json.loads((directory / 'analysis.example.json').read_text(encoding='utf-8'))
 		self.put_project('ꘖ/KB/Analysis.json', json.dumps(value, ensure_ascii=False))
 		self.assertEqual(analysis_issues(value), [])
 		self.assertEqual(evidence_issues(self.project, value), [])
+		# 2026-10-17
+		# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+		# https://github.com/dmitry-ai/harness/issues/7
 		from agent_tools.analysis import publish_analysis
 		publish_analysis(self.project / 'ꘖ/KB/Analysis.json')
 		self.assertTrue(flow.check_project(self.project)['valid'])
@@ -189,6 +211,9 @@ class ResumeExportTests(ProjectCase):
 		self.assertEqual(select_dom_tab(tabs, 'https://example.invalid/a#part', 'a'), tabs[0])
 		with self.assertRaises(ValueError):
 			select_dom_tab(tabs, 'https://example.invalid/b', 'a')
+		# 2026-10-20
+		# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+		# https://github.com/dmitry-ai/harness/issues/13
 		from test_text_browser import dom_fixture
 		guard, _ = dom_fixture(self.project, 'https://example.invalid/a', 'a', '<h1 id="a">Saved DOM</h1>')
 		result = capture_dom(self.project, 'https://example.invalid/a', 'a', session_id='offline-dom', guard=guard)
@@ -230,6 +255,9 @@ class ResumeExportTests(ProjectCase):
 		self.valid_analysis()
 		home, backend, cid = self.request_database(['/upwork-init https://www.upwork.com/jobs/~021234567890'])
 		flow.resume(self.project, 'quota')
+		# 2026-10-18
+		# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+		# https://github.com/dmitry-ai/harness/issues/10
 		package = self.review_package(cid)
 		report = self.review_report(package, self_review=True)
 		self.put_project('ꘖ/KB/Evidence/Reviews/self.json', json.dumps(report))
@@ -248,6 +276,9 @@ class ResumeExportTests(ProjectCase):
 		self.assertEqual(value['embedded_json_unparsed'][0]['key'], 'wpmLoader')
 		self.assertFalse(value['execution_checked'])
 	def test_new_question_invalidates_completed_research_and_dependent_analysis(self):
+		# 2026-10-18
+		# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+		# https://github.com/dmitry-ai/harness/issues/10
 		self.valid_review_analysis()
 		flow.resume(self.project, 'quota')
 		self.put_project('ꘖ/KB/Evidence/init.json', '{}')
@@ -265,6 +296,9 @@ class ResumeExportTests(ProjectCase):
 	def test_review_package_pins_primary_evidence_and_unquoted_new_contradiction(self):
 		self.valid_analysis()
 		parent = str(uuid.uuid4())
+		# 2026-10-18
+		# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+		# https://github.com/dmitry-ai/harness/issues/10
 		package = self.review_package(parent)
 		self.assertIn('ꘖ/KB/Evidence/client.json', package['evidence_inputs'])
 		current = {'kb_inputs': package['kb_inputs'], 'evidence_inputs': package['evidence_inputs']}

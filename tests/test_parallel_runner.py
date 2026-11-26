@@ -1,6 +1,4 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add parallel fail-fast test runner and worktree-aware TDD support":
-# https://github.com/dmitry-ai/harness/issues/159
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,6 +12,9 @@ if str(SCRIPTS) not in sys.path:
 from agent_tools.context import assemble, generate
 from agent_tools.storage import locked
 from agent_tools.tdd_gate import classify_test_command
+# 2026-11-23
+# "Add parallel fail-fast test runner and worktree-aware TDD support":
+# https://github.com/dmitry-ai/harness/issues/159
 class ParallelRunnerTests(unittest.TestCase):
 	def _write_module(self, root: Path, name: str, body: str) -> Path:
 		path = root / name

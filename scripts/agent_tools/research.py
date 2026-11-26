@@ -1,36 +1,4 @@
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace getElementById with querySelector in read-only CDP registry and verify on live headless Chromium":
-# https://github.com/dmitry-ai/harness/issues/130
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
-# https://github.com/dmitry-ai/harness/issues/113
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add compact evidence-query command and unify collect-http CLI flags":
-# https://github.com/dmitry-ai/harness/issues/118
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
-# https://github.com/dmitry-ai/harness/issues/81
-# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
-# https://github.com/dmitry-ai/harness/issues/80
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
-# https://github.com/dmitry-ai/harness/issues/66
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
-# https://github.com/dmitry-ai/harness/issues/4
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce universal harness.py CLI, automatic CDP browser fallback on JS shells, and Evidence verification for external links/anchors/quotes":
-# https://github.com/dmitry-ai/harness/issues/27
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
-# https://github.com/dmitry-ai/harness/issues/38
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import html as html_lib
@@ -49,10 +17,22 @@ import uuid
 import xml.etree.ElementTree as ET
 import zipfile
 from .storage import create_bytes, locked, replace_bytes
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
 MAX_BYTES = 16 * 1024 * 1024
 PROFILES = ('html', 'shopify', 'tracking', 'document')
+# 2026-10-31
+# "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
+# https://github.com/dmitry-ai/harness/issues/27
 BROWSER_MODES = ('auto', 'always', 'never')
+# 2026-11-02
+# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+# https://github.com/dmitry-ai/harness/issues/38
 VOID_ELEMENTS = ('area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr')
+# 2026-11-16
+# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+# https://github.com/dmitry-ai/harness/issues/81
 HTTP_DEFAULT_ACCEPT = 'text/html,application/xhtml+xml,text/markdown;q=0.9,*/*;q=0.8'
 _CHALLENGE_RE = re.compile('(?i)__LS_SEQ_LOADER__|name=["\\\']?(?:js_challenge|jsc_token|cf_captcha_kind|md_challenge)\\b|id=["\\\']?(?:challenge-form|challenge-running|cf-challenge-running|challenge-error-text|trk_jschal_js)\\b|class=["\\\'][^"\\\']*\\bcf-browser-verification\\b')
 _CHALLENGE_DOM_RE = re.compile('(?is)__LS_SEQ_LOADER__|<[^>]+\\b(?:name=["\\\']?(?:js_challenge|jsc_token|cf_captcha_kind|md_challenge)\\b|id=["\\\']?(?:challenge-form|challenge-running|cf-challenge-running|challenge-error-text|trk_jschal_js)\\b|class=["\\\'][^"\\\']*\\bcf-browser-verification\\b)')
@@ -96,6 +76,12 @@ def classify_html_challenge(raw_html: str, *, parsed: dict | None=None, status: 
 	if visible_words < 160 and _CHALLENGE_COPY_RE.search(non_code_plain) and (_CHALLENGE_TOKEN_RE.search(non_code_raw) or visible_words < 60):
 		return True
 	return False
+# 2026-10-19
+# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+# https://github.com/dmitry-ai/harness/issues/12
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def classify_network_error(exc):
 	cause = exc.reason if isinstance(exc, URLError) and None is not getattr(exc, 'reason', None) else exc
 	if isinstance(cause, socket.gaierror):
@@ -111,14 +97,26 @@ def classify_network_error(exc):
 	else:
 		r = ('network_error', None)
 	return r
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
 def json_data(value):
 	return (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
 def _fingerprint(value):
 	return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':'), allow_nan=False).encode('utf-8')).hexdigest()
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
 def inside(root, relative):
 	root = Path(root).resolve()
 	target = (root / relative).resolve()
 	if not target.is_relative_to(root):
+		# 2026-11-22
+		# "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
+		# https://github.com/dmitry-ai/harness/issues/113
 		rel_p = Path(relative)
 		if rel_p.is_absolute() and (not target.exists()):
 			from .path_registry import _path_key, load_registry, same_project_root
@@ -134,6 +132,9 @@ def inside(root, relative):
 		raise ValueError(f'Path escapes project: {relative}')
 	r = target
 	return r
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
 @dataclass(frozen=True)
 class Response:
 	url: str
@@ -171,6 +172,9 @@ def fetch(url, headers, timeout):
 			raise ValueError('Response exceeds 16 MiB')
 		r = Response(response.url, response.status, response.headers.get_content_type(), data, response.headers.get_content_charset() or 'utf-8', tuple(redirects.chain))
 	return r
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
 def request_context(value=None):
 	if None is value:
 		r = {'session': {'mode': 'unknown', 'verification': 'unverified'}, 'egress': {'country': None, 'verification': 'unverified'}}
@@ -197,6 +201,12 @@ def request_context(value=None):
 				raise ValueError('Explicit context fields must be nonempty strings')
 		r = result
 	return r
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
 def request_key(url, headers, scope, context=None):
 	url = urldefrag(url)[0]
 	parsed = urlsplit(url)
@@ -206,6 +216,9 @@ def request_key(url, headers, scope, context=None):
 	normalized = {k.lower(): str(v) for k, v in headers.items()}
 	r = (url, _fingerprint({'url': url, 'method': 'GET', 'headers': normalized, 'scope': scope, 'context': request_context(context)}))
 	return r
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
 def observation_capabilities(meta):
 	if meta.get('error'):
 		r = set()
@@ -216,6 +229,9 @@ def observation_capabilities(meta):
 	else:
 		r = set()
 	return r
+# 2026-10-17
+# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+# https://github.com/dmitry-ai/harness/issues/7
 METRIC_KEYS = ('uses', 'cache_hits', 'fresh_attempts', 'failed_attempts', 'http_unavailable')
 def metric_counts(events):
 	return dict(zip(METRIC_KEYS, (len(events), sum((True is x.get('cached') for x in events)), sum((False is x.get('cached') for x in events)), sum((bool(x.get('error')) for x in events)), sum(('http' == x.get('kind') and (x.get('status') or 0) >= 400 for x in events)))))
@@ -227,7 +243,13 @@ def bounded_metrics(value):
 			raise ValueError('Unknown collector metrics format; preserve and inspect')
 		r = value
 	return r
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
 def observed_use(root, result):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	pp = project_paths(root, exact_root=True)
 	directory = pp.data_dir
@@ -235,6 +257,9 @@ def observed_use(root, result):
 	event = {k: result.get(k) for k in ('url', 'cached', 'observation', 'status', 'error', 'kind', 'request_key')}
 	event['time'] = datetime.now(timezone.utc).isoformat(timespec='microseconds')
 	with locked(directory / 'research-metrics.lock'):
+		# 2026-10-17
+		# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+		# https://github.com/dmitry-ai/harness/issues/7
 		value = bounded_metrics(json.loads(path.read_text(encoding='utf-8')) if path.exists() else [])
 		counts = metric_counts([event])
 		value['totals'] = {key: value['totals'][key] + counts[key] for key in METRIC_KEYS}
@@ -242,13 +267,19 @@ def observed_use(root, result):
 		replace_bytes(path, json_data(value))
 	r = result
 	return r
-# 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
 def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_reason=None, timeout=15, fetcher=None, observation_kind='http', context=None, extra_meta=None):
 	root = Path(root).resolve()
 	if max_age < 0 or timeout <= 0 or (not isinstance(scope, str)) or (not scope.strip()):
 		raise ValueError('Nonnegative max_age, positive timeout and explicit request scope required')
+	# 2026-11-16
+	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+	# https://github.com/dmitry-ai/harness/issues/81
 	caller_headers = dict(headers or {})
 	if not all((isinstance(k, str) and isinstance(v, str) for k, v in caller_headers.items())):
 		raise ValueError('Request headers must contain string keys and values')
@@ -262,6 +293,9 @@ def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_r
 	context = request_context(context)
 	url, key = request_key(url, headers, scope + ':' + observation_kind, context)
 	legacy_key = request_key(url, legacy_headers, scope + ':' + observation_kind, context)[1] if None is not legacy_headers else None
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	pp = project_paths(root, exact_root=True)
 	root = pp.root
@@ -279,14 +313,23 @@ def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_r
 		if None is not refresh_reason and (not refresh_reason.strip()):
 			raise ValueError('Refresh needs a reason for the new measurement')
 		when = datetime.now(timezone.utc).isoformat(timespec='microseconds')
+		# 2026-10-19
+		# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+		# https://github.com/dmitry-ai/harness/issues/12
 		error, error_kind, dns_resolved = (None, None, None)
 		try:
 			response = (fetcher or fetch)(url, headers, timeout)
 			if len(response.body) > MAX_BYTES:
 				raise ValueError('Response exceeds 16 MiB')
 			dns_resolved = True if 'http' == observation_kind and (response.status or 0) > 0 else None
+		# 2026-11-16
+		# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+		# https://github.com/dmitry-ai/harness/issues/80
 		except PermissionError:
 			raise
+		# 2026-10-31
+		# "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
+		# https://github.com/dmitry-ai/harness/issues/27
 		except (OSError, ValueError, RuntimeError) as exc:
 			response = Response(url, 0, 'application/octet-stream', b'')
 			error = type(exc).__name__
@@ -295,6 +338,9 @@ def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_r
 		folder.mkdir(parents=True, exist_ok=False)
 		create_bytes(folder / 'response.bin', response.body)
 		meta = {'schema_version': 1, 'kind': observation_kind, 'request_key': key, 'url': url, 'final_url': response.url, 'method': 'GET' if 'http' == observation_kind else 'READ_DOM', 'request_scope': scope, 'observed_at': when, 'status': response.status if 'http' == observation_kind else None, 'http_status_verified': 'http' == observation_kind and response.status > 0, 'content_type': response.content_type, 'charset': response.charset, 'redirects': list(response.redirects), 'body_sha256': hashlib.sha256(response.body).hexdigest(), 'body_bytes': len(response.body), 'refresh_reason': refresh_reason, 'error': error, 'error_kind': error_kind, 'dns_resolved': dns_resolved, 'conditions': {'header_names': sorted((k.lower() for k in headers)), 'values_fingerprint': key, 'reported_context': context, 'context_fingerprint': _fingerprint(context)}, 'collector': 'read-only-http' if 'http' == observation_kind else 'read-only-dom', 'interaction_checked': False}
+		# 2026-11-16
+		# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+		# https://github.com/dmitry-ai/harness/issues/81
 		if isinstance(extra_meta, dict):
 			for k in ('cdp_identity', 'cdp_identity_sha256'):
 				if isinstance(extra_meta.get(k), str) and extra_meta[k]:
@@ -306,7 +352,13 @@ def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_r
 			index[key] = {'observation': reference}
 			replace_bytes(index_file, json_data(index))
 		return observed_use(root, {'cached': False, 'observation': reference, **meta})
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
 def load_observation(root, reference):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	kb_dir = project_paths(root, exact_root=True).kb_dir.resolve()
 	file = inside(kb_dir, urldefrag(reference)[0])
@@ -318,18 +370,30 @@ def load_observation(root, reference):
 		raise ValueError('Observation body differs from its saved hash/size')
 	r = meta
 	return r
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
 class HTMLData(HTMLParser):
 	def __init__(self):
 		super().__init__(convert_charrefs=True)
 		self.stack, self.text, self.headings, self.anchors, self.scripts, self.json_ld = ([], [], [], [], [], [])
 		self.title, self.meta, self.meta_all, self.canonical, self.heading, self.script = ('', {}, {}, [], None, None)
+		# 2026-10-19
+		# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+		# https://github.com/dmitry-ai/harness/issues/12
 		self.links, self.link = ([], None)
 		self.images, self.embeds = ([], [])
 		self.anchor_ranges, self.section_ranges = ({}, [])
 		self.position = 0
 	def handle_starttag(self, tag, attrs):
 		attrs = dict(attrs)
+		# 2026-11-02
+		# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+		# https://github.com/dmitry-ai/harness/issues/38
 		is_void = tag in VOID_ELEMENTS
+		# 2026-11-16
+		# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+		# https://github.com/dmitry-ai/harness/issues/81
 		hidden_ctx = bool({f['tag'] for f in self.stack} & {'head', 'script', 'style', 'noscript', 'template', 'svg'}) or tag in ('head', 'script', 'style', 'noscript', 'template', 'svg')
 		parent_frame = self.stack[-1] if self.stack else None
 		anchor = attrs.get('id') or (attrs.get('name') if 'a' == tag else None)
@@ -342,6 +406,9 @@ class HTMLData(HTMLParser):
 						frame['anchors'].append(anchor)
 				if self.heading:
 					self.heading['_child_anchors'].append(anchor)
+		# 2026-10-19
+		# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+		# https://github.com/dmitry-ai/harness/issues/12
 		if 'a' == tag and attrs.get('href'):
 			self.link = {'href': attrs['href'], 'text': ''}
 		if 'img' == tag:
@@ -417,6 +484,9 @@ class HTMLData(HTMLParser):
 		plain_len = len(plain)
 		clean_text = '\n'.join((x.strip() for x in plain.splitlines() if x.strip()))
 		title_str = ' '.join(self.title.split())
+		# 2026-11-16
+		# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+		# https://github.com/dmitry-ai/harness/issues/81
 		raw_anchor_ranges = {anchor: [[x['start'], plain_len if None is x['end'] else x['end']] for x in ranges] for anchor, ranges in self.anchor_ranges.items()}
 		ambiguous_set = {anchor for anchor, ranges in raw_anchor_ranges.items() if len(ranges) > 1}
 		def _strip_glyphs(seg):
@@ -517,6 +587,9 @@ class HTMLData(HTMLParser):
 			base_h = {k: v for k, v in h.items() if not k.startswith('_')}
 			clean_headings.append({**base_h, 'end': sec_end, 'section_anchors': expanded, 'container_anchors': cont_valid})
 			sections.append({**base_h, 'end': sec_end, 'section_anchors': expanded, 'container_anchors': cont_valid, 'content': plain[h['start']:sec_end]})
+		# 2026-10-19
+		# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+		# https://github.com/dmitry-ai/harness/issues/12
 		word_count = len(re.findall('\\w+', clean_text))
 		site_name = (self.meta.get('og:site_name') or '').strip()
 		total_imgs = len(self.images)
@@ -532,6 +605,9 @@ class HTMLData(HTMLParser):
 		insecure_json_ld_img = any((isinstance(item, dict) and isinstance(item.get('image'), str) and (item['image'].startswith('http://') or item['image'].startswith('//') or item['image'].startswith('/')) for item in self.json_ld))
 		r = {'title': title_str, 'meta': self.meta, 'meta_all': self.meta_all, 'canonical': self.canonical, 'headings': clean_headings, 'anchors': sorted(all_anchors), 'links': self.links, 'scripts': self.scripts, 'images': self.images, 'image_alt_summary': {'total': total_imgs, 'empty_alt': empty_alt, 'filename_like_alt': filename_alt, 'repeated_site_name_alt': repeated_site_alt, 'descriptive_alt': descriptive_alt}, 'embeds': self.embeds, 'word_count': word_count, 'seo_diagnostics': {'h1_count': h1_count, 'missing_h1': 0 == h1_count, 'multiple_h1': h1_count > 1, 'title_length': len(title_str), 'overlong_title': len(title_str) > 65, 'meta_description_length': len(meta_desc), 'missing_meta_description': not bool(meta_desc.strip()), 'spaced_brand_name': spaced_brand, 'json_ld_types': json_ld_types, 'empty_json_ld_description': empty_json_ld_desc, 'insecure_or_relative_json_ld_image': insecure_json_ld_img}, 'json_ld': self.json_ld, 'sections': sections, 'anchor_ranges': anchor_ranges, 'anchor_content': anchor_content, 'ambiguous_anchors': sorted(ambiguous_set), 'text': clean_text}
 		return r
+# 2026-11-16
+# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+# https://github.com/dmitry-ai/harness/issues/81
 def extract_markdown(text: str) -> dict:
 	from collections import Counter
 	from markdown_it import MarkdownIt
@@ -587,6 +663,9 @@ def extract_markdown(text: str) -> dict:
 	word_count = len(re.findall('\\w+', unesc_full))
 	h1_count = sum((1 for h in clean_headings if 1 == h.get('level')))
 	return {'title': doc_title, 'meta': {}, 'meta_all': {}, 'canonical': [], 'headings': clean_headings, 'anchors': sorted(all_anchors), 'links': [{'href': u, 'text': ''} for u in doc_links], 'scripts': [], 'images': [], 'image_alt_summary': {'total': 0, 'empty_alt': 0, 'filename_like_alt': 0, 'repeated_site_name_alt': 0, 'descriptive_alt': 0}, 'embeds': [], 'word_count': word_count, 'seo_diagnostics': {'h1_count': h1_count, 'missing_h1': 0 == h1_count, 'multiple_h1': h1_count > 1, 'title_length': len(doc_title), 'overlong_title': len(doc_title) > 65, 'meta_description_length': 0, 'missing_meta_description': True, 'spaced_brand_name': False, 'json_ld_types': [], 'empty_json_ld_description': False, 'insecure_or_relative_json_ld_image': False}, 'json_ld': [], 'sections': sections, 'anchor_ranges': anchor_ranges, 'anchor_content': anchor_content, 'ambiguous_anchors': sorted(ambiguous_set), 'browser_check_required': 0 == word_count, 'text': unesc_full}
+# 2026-10-19
+# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+# https://github.com/dmitry-ai/harness/issues/12
 def _extract_sitemap(text):
 	stripped = text.lstrip()
 	if not (stripped.startswith('<?xml') or '<urlset' in stripped[:1500] or '<sitemapindex' in stripped[:1500]):
@@ -673,6 +752,9 @@ def _summarize_json_collections(value):
 		filtered_cats = {k: dict(sorted(counts.items())) for k, counts in sorted(cat_fields.items()) if len(counts) <= 50 and (1 == len(items) or len(counts) < len(items) or any((c > 1 for c in counts.values())))}
 		summary[name] = {'record_count': len(items), 'timestamp_ranges': ts_summary, 'field_counts': filtered_cats}
 	return summary
+# 2026-11-13
+# "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
+# https://github.com/dmitry-ai/harness/issues/66
 def _write_cached_extraction(target, legacy_pattern, sha_key, sha_value, build_fn):
 	version = extractor_version()
 	target.parent.mkdir(parents=True, exist_ok=True)
@@ -699,11 +781,23 @@ def _write_cached_extraction(target, legacy_pattern, sha_key, sha_value, build_f
 			except OSError:
 				pass
 	return r
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def extract_bytes(body, content_type, profile, charset='utf-8', *, status=None):
 	if profile not in PROFILES:
 		raise ValueError(f'Unknown profile: {profile}; choose {PROFILES}')
+	# 2026-11-16
+	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+	# https://github.com/dmitry-ai/harness/issues/81
 	ct_low = (content_type or '').split(';', 1)[0].strip().lower()
 	is_md = ct_low in ('text/markdown', 'text/x-markdown')
+	# 2026-10-17
+	# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+	# https://github.com/dmitry-ai/harness/issues/7
 	if 'document' == profile and body.startswith(b'%PDF-'):
 		from .upwork_data import extract_pdf_markdown
 		md = extract_pdf_markdown(body)
@@ -758,10 +852,16 @@ def extract_bytes(body, content_type, profile, charset='utf-8', *, status=None):
 				result['embedded_json'] = configs
 				result['embedded_json_unparsed'] = parse_failures
 				result['execution_checked'] = False
+			# 2026-11-16
+			# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+			# https://github.com/dmitry-ai/harness/issues/81
 			result['browser_check_required'] = classify_html_challenge(text, parsed=result, status=status)
 			r = result
 	else:
 		import io
+		# 2026-10-17
+		# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+		# https://github.com/dmitry-ai/harness/issues/7
 		from .upwork_data import extract_docx_markdown
 		with zipfile.ZipFile(io.BytesIO(body)) as doc:
 			item = doc.getinfo('word/document.xml')
@@ -777,7 +877,7 @@ def extract_bytes(body, content_type, profile, charset='utf-8', *, status=None):
 			md = '\n'.join(paragraphs)
 		r = {'paragraphs': paragraphs, 'text': '\n'.join(paragraphs), 'markdown': md, 'layout_checked': False, 'non_text_parts': non_text}
 	return r
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-11-02
 # "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
 # https://github.com/dmitry-ai/harness/issues/38
 def compact_extraction_for_disk(data):
@@ -788,7 +888,13 @@ def compact_extraction_for_disk(data):
 		del out['paragraphs']
 	r = out
 	return r
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
 def extract_observation(root, reference, profile='html'):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	kb_dir = project_paths(root, exact_root=True).kb_dir.resolve()
 	meta = load_observation(root, reference)
@@ -796,15 +902,27 @@ def extract_observation(root, reference, profile='html'):
 	if meta.get('error') or ('http' == meta.get('kind', 'http') and (not 200 <= meta['status'] < 300)):
 		raise ValueError('Observation is unavailable; preserve it and choose a different check method')
 	target = folder / f'extracted-{profile}.json'
+	# 2026-11-13
+	# "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
+	# https://github.com/dmitry-ai/harness/issues/66
 	data = _write_cached_extraction(target, f'extracted-{profile}-*.json', 'body_sha256', meta['body_sha256'], lambda version: {'profile': profile, 'extractor_version': version, 'observation': reference, 'body_sha256': meta['body_sha256'], 'observed_at': meta['observed_at'], **compact_extraction_for_disk(extract_bytes((folder / 'response.bin').read_bytes(), meta['content_type'], profile, meta.get('charset') or 'utf-8', status=meta.get('status')))})
 	r = {'extraction': target.relative_to(kb_dir).as_posix(), 'observation': reference, 'profile': profile, 'observed_at': meta['observed_at']}
+	# 2026-10-31
+	# "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
+	# https://github.com/dmitry-ai/harness/issues/27
 	if 'browser_check_required' in data:
 		r['browser_check_required'] = bool(data['browser_check_required'])
 	if 'word_count' in data:
 		r['word_count'] = data['word_count']
 	return r
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
 def extract_file(root, file, profile='document'):
 	import mimetypes
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	pp = project_paths(root, exact_root=True)
 	file = inside(pp.root, file)
@@ -814,15 +932,30 @@ def extract_file(root, file, profile='document'):
 	kind = mimetypes.guess_type(file.name)[0] or 'text/plain'
 	source_sha = hashlib.sha256(body).hexdigest()
 	target = pp.evidence_dir / 'Extracted' / source_sha / f'{profile}.json'
+	# 2026-11-13
+	# "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
+	# https://github.com/dmitry-ai/harness/issues/66
 	_write_cached_extraction(target, f'{profile}-*.json', 'source_sha256', source_sha, lambda version: {'profile': profile, 'source': file.relative_to(pp.root).as_posix(), 'source_sha256': source_sha, 'extractor_version': version, **compact_extraction_for_disk(extract_bytes(body, kind, profile))})
 	return {'extraction': target.relative_to(pp.kb_dir.resolve()).as_posix(), 'source_sha256': source_sha}
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
 def select_dom_tab(tabs, url, tab_id):
 	matches = [t for t in tabs if 'page' == t.get('type') and t.get('id') == tab_id and (urldefrag(t.get('url', ''))[0] == urldefrag(url)[0])]
 	if 1 != len(matches):
 		raise ValueError('Explicit tab ID must match the exact requested URL; no navigation or account fallback')
 	r = matches[0]
 	return r
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
 def capture_dom(root, url, tab_id, *, session_id=None, refresh_reason=None, context=None, config=None, guard=None):
+	# 2026-11-23
+	# "Replace getElementById with querySelector in read-only CDP registry and verify on live headless Chromium":
+	# https://github.com/dmitry-ai/harness/issues/130
 	from .text_browser import GuardedCDP, MINIMAL_DOM_CAPTURE_EXPR, save_cdp_identity
 	if not isinstance(session_id, str) or not session_id or (not isinstance(tab_id, str)) or (not tab_id):
 		raise ValueError('Explicit authorized CDP session_id and exact tab ID required')
@@ -835,10 +968,16 @@ def capture_dom(root, url, tab_id, *, session_id=None, refresh_reason=None, cont
 	identity = guard.inspect()
 	if urldefrag(identity['target'].get('url', ''))[0] != urldefrag(url)[0]:
 		raise ValueError('Explicit tab ID must match the requested URL; no navigation or account fallback')
+	# 2026-11-13
+	# "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
+	# https://github.com/dmitry-ai/harness/issues/66
 	identity_ref, identity_hash = save_cdp_identity(root, {'schema_version': 1, 'observed_at': datetime.now(timezone.utc).isoformat(timespec='microseconds'), 'session_id': session_id, 'target_id': tab_id, 'browser_websocket': identity['browser']['websocket_url'], 'profile': identity['profile'], 'account': identity['account']})
 	observed_context = dict(context or {})
 	observed_context.setdefault('session_id', session_id)
 	def read_dom(target, headers, timeout):
+		# 2026-11-23
+		# "Replace getElementById with querySelector in read-only CDP registry and verify on live headless Chromium":
+		# https://github.com/dmitry-ai/harness/issues/130
 		native, actual_identity = guard.call('Runtime.evaluate', {'expression': MINIMAL_DOM_CAPTURE_EXPR, 'throwOnSideEffect': True, 'returnByValue': True}, include_identity=True)
 		if actual_identity['browser']['websocket_url'] != identity['browser']['websocket_url'] or actual_identity['profile'] != identity['profile'] or actual_identity['account'] != identity['account'] or (actual_identity['target']['id'] != tab_id):
 			raise ValueError('CDP identity changed during DOM capture; no content proof is issued')
@@ -848,10 +987,19 @@ def capture_dom(root, url, tab_id, *, session_id=None, refresh_reason=None, cont
 		if not isinstance(data, dict) or not isinstance(data.get('html'), str) or urldefrag(data.get('url', ''))[0] != urldefrag(target)[0]:
 			raise ValueError('Tab navigated or DOM capture does not match the intended resource')
 		return Response(data['url'], 0, 'text/html', data['html'].encode('utf-8'))
+	# 2026-11-16
+	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+	# https://github.com/dmitry-ai/harness/issues/81
 	observation = collect(root, url, scope=f'CDP-session:{session_id}:tab:{tab_id}:identity:{identity_ref}', max_age=0, refresh_reason=refresh_reason, fetcher=read_dom, observation_kind='dom', context=observed_context, extra_meta={'cdp_identity': identity_ref, 'cdp_identity_sha256': identity_hash})
 	extra = {} if observation['error'] else extract_observation(root, observation['observation'])
 	return {**observation, **extra, 'cdp_identity': identity_ref, 'cdp_identity_sha256': identity_hash}
+# 2026-10-31
+# "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
+# https://github.com/dmitry-ai/harness/issues/27
 def collect_browser(root, url, *, profile='html', scope='public', session_id=None, refresh_reason=None, max_age=86400, cdp_port=None, timeout=15, context=None, config=None, http_get=None, cdp_call=None, cdp_fetcher=None, headless_shell=None):
+	# 2026-11-21
+	# "Add compact evidence-query command and unify collect-http CLI flags":
+	# https://github.com/dmitry-ai/harness/issues/118
 	if isinstance(url, (list, tuple)):
 		if 1 == len(url):
 			url = url[0]
@@ -861,12 +1009,18 @@ def collect_browser(root, url, *, profile='html', scope='public', session_id=Non
 	effective_profile = 'document' if 'auto' == profile else profile
 	if effective_profile not in PROFILES:
 		raise ValueError(f'Unknown extraction profile: {profile}')
+	# 2026-11-16
+	# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+	# https://github.com/dmitry-ai/harness/issues/80
 	effective_scope = f'CDP-session:{session_id.strip()}' if isinstance(session_id, str) and session_id.strip() and ('public' == scope) else scope
 	observed_context = dict(context or {})
 	if isinstance(session_id, str) and session_id.strip():
 		observed_context.setdefault('session_id', session_id.strip())
 	cdp_meta = {}
 	def read_dom(target, headers, fetch_timeout):
+		# 2026-11-16
+		# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+		# https://github.com/dmitry-ai/harness/issues/80
 		if None is not cdp_fetcher:
 			capture = cdp_fetcher(root, target, cdp_port=cdp_port, timeout=fetch_timeout, config=config, http_get=http_get, cdp_call=cdp_call)
 		else:
@@ -876,6 +1030,9 @@ def collect_browser(root, url, *, profile='html', scope='public', session_id=Non
 		cdp_meta.update(capture)
 		r = Response(capture.get('url') or target, 0, 'text/html', capture['html'].encode('utf-8'))
 		return r
+	# 2026-11-16
+	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+	# https://github.com/dmitry-ai/harness/issues/81
 	observation = collect(root, url, scope=effective_scope, max_age=max_age, refresh_reason=refresh_reason, timeout=timeout, fetcher=read_dom, observation_kind='dom', context=observed_context or None, extra_meta=cdp_meta)
 	item = {k: observation.get(k) for k in ('url', 'final_url', 'cached', 'observation', 'status', 'kind', 'collector', 'content_type', 'observed_at', 'error', 'error_kind', 'dns_resolved', 'cdp_identity', 'cdp_identity_sha256') if None is not observation.get(k) or k in ('url', 'final_url', 'cached', 'observation', 'status', 'kind', 'collector', 'content_type', 'observed_at', 'error', 'error_kind', 'dns_resolved')}
 	for key in ('cdp_identity', 'cdp_identity_sha256', 'target_id', 'target_mode', 'closed_after_capture', 'endpoint'):
@@ -889,7 +1046,13 @@ def collect_browser(root, url, *, profile='html', scope='public', session_id=Non
 			item['detail'] = 'DOM observation saved; inspect the source or choose another extraction profile'
 	r = item
 	return r
+# 2026-10-19
+# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+# https://github.com/dmitry-ai/harness/issues/12
 def compute_site_summary(root, results):
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	kb_dir = project_paths(root, exact_root=True).kb_dir
 	titles, descriptions = ({}, {})
@@ -897,6 +1060,9 @@ def compute_site_summary(root, results):
 	all_identifiers, cms_domains = (set(), set())
 	html_pages = 0
 	for item in results or []:
+		# 2026-10-31
+		# "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
+		# https://github.com/dmitry-ai/harness/issues/27
 		if not isinstance(item, dict) or item.get('error') or ('dom' != item.get('kind') and (not 200 <= (item.get('status') or 0) < 300)):
 			continue
 		url = item.get('url') or ''
@@ -937,15 +1103,21 @@ def compute_site_summary(root, results):
 		cms_domains.update(ts.get('cms_technical_domains') or [])
 	r = {'inspected_html_pages': html_pages, 'missing_h1_urls': missing_h1, 'multiple_h1_urls': multiple_h1, 'overlong_title_urls': overlong_titles, 'duplicate_titles': {k: v for k, v in titles.items() if len(v) > 1}, 'duplicate_meta_descriptions': {k: v for k, v in descriptions.items() if len(v) > 1}, 'thin_content_urls': thin_urls, 'all_tracking_identifiers': sorted(all_identifiers), 'cms_technical_domains': sorted(cms_domains)}
 	return r
-# 2026-10-30 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-30
 # "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 # https://github.com/dmitry-ai/harness/issues/21
 def collect_http(root, url, *, profile='html', scope='public', session_id=None, refresh_reason=None, max_age=86400, headers=None, context=None, fetcher=None, browser='auto', cdp_port=None, cdp_fetcher=None, http_get=None, cdp_call=None, headless_shell=None):
+	# 2026-11-21
+	# "Add compact evidence-query command and unify collect-http CLI flags":
+	# https://github.com/dmitry-ai/harness/issues/118
 	if isinstance(url, (list, tuple)):
 		if 1 == len(url):
 			url = url[0]
 		else:
 			return collect_http_batch(root, url, profile=profile, scope=scope, session_id=session_id, refresh_reason=refresh_reason, max_age=max_age, headers=headers, context=context, fetcher=fetcher, browser=browser, cdp_port=cdp_port, cdp_fetcher=cdp_fetcher, http_get=http_get, cdp_call=cdp_call)
+	# 2026-10-31
+	# "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
+	# https://github.com/dmitry-ai/harness/issues/27
 	if browser not in BROWSER_MODES:
 		raise ValueError(f'Unknown browser mode: {browser}; choose {BROWSER_MODES}')
 	effective_profile = 'document' if 'auto' == profile else profile
@@ -964,9 +1136,18 @@ def collect_http(root, url, *, profile='html', scope='public', session_id=None, 
 			except (OSError, ValueError, KeyError, TypeError, LookupError) as exc:
 				r['extraction_error'] = type(exc).__name__
 				r['detail'] = 'Response saved; inspect the source or choose another extraction profile, without fetching it again'
+		# 2026-11-16
+		# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+		# https://github.com/dmitry-ai/harness/issues/80
 		is_static_non_html = 200 <= (observation.get('status') or 0) < 300 and any((ct_low.startswith(p) for p in ('application/json', 'application/xml', 'text/xml', 'application/pdf', 'application/zip', 'application/vnd.openxmlformats')))
 		needs_browser = (not is_static_non_html) and (observation.get('status') in (401, 403, 429) or bool(r.get('browser_check_required')))
+		# 2026-10-31
+		# "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
+		# https://github.com/dmitry-ai/harness/issues/27
 		if 'auto' == browser and needs_browser and (None is fetcher or any((None is not x for x in (cdp_fetcher, http_get, cdp_call)))):
+			# 2026-11-16
+			# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+			# https://github.com/dmitry-ai/harness/issues/80
 			try:
 				dom_item = collect_browser(root, url, profile=profile, scope=scope, session_id=session_id, refresh_reason=refresh_reason or 'browser fallback after HTTP challenge or empty body', max_age=max_age, cdp_port=cdp_port, context=context, cdp_fetcher=cdp_fetcher, http_get=http_get, cdp_call=cdp_call, headless_shell=headless_shell)
 			except PermissionError as exc:
@@ -981,15 +1162,21 @@ def collect_http(root, url, *, profile='html', scope='public', session_id=None, 
 				dom_item['browser_fallback_from_http'] = True
 				r = dom_item
 	return r
-# 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
 def collect_plan(root, plan, *, fetcher=None, browser='auto', cdp_port=None, session_id=None, cdp_fetcher=None, http_get=None, cdp_call=None):
+	# 2026-10-31
+	# "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
+	# https://github.com/dmitry-ai/harness/issues/27
 	if browser not in BROWSER_MODES:
 		raise ValueError(f'Unknown browser mode: {browser}; choose {BROWSER_MODES}')
 	if not isinstance(plan, dict) or not isinstance(plan.get('requests'), list) or (not plan['requests']):
 		raise ValueError('Plan needs a nonempty requests list')
 	results = []
+	# 2026-11-16
+	# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+	# https://github.com/dmitry-ai/harness/issues/80
 	shared_shell = {'instance': None}
 	def _lazy_headless_fetcher(proj_root, target, *, cdp_port=None, timeout=15, config=None, http_get=None, cdp_call=None):
 		from .text_browser import ManagedHeadlessShell, collect_cdp_dom
@@ -1003,6 +1190,9 @@ def collect_plan(root, plan, *, fetcher=None, browser='auto', cdp_port=None, ses
 				if not isinstance(entry, dict):
 					raise ValueError('Each request must be an object')
 				profile = entry.get('profile', 'html')
+				# 2026-11-21
+				# "Add compact evidence-query command and unify collect-http CLI flags":
+				# https://github.com/dmitry-ai/harness/issues/118
 				if profile not in PROFILES and 'auto' != profile:
 					raise ValueError('Unknown extraction profile')
 				entry_sid = entry.get('session_id', session_id)
@@ -1014,6 +1204,9 @@ def collect_plan(root, plan, *, fetcher=None, browser='auto', cdp_port=None, ses
 		if None is not shared_shell['instance']:
 			shared_shell['instance'].close()
 	return {'results': results, 'site_summary': compute_site_summary(root, results), 'complete': all((not x.get('error') and ('dom' == x.get('kind') or 0 < (x.get('status') or 0)) for x in results)), 'content_available_for_all': all((not x.get('error') and (not x.get('extraction_error')) and ('dom' == x.get('kind') or 200 <= (x.get('status') or 0) < 300) and (not x.get('browser_check_required')) for x in results)), 'detail': 'A saved HTTP 403/404 is a completed observation, not a reason to repeat the same request blindly'}
+# 2026-11-21
+# "Add compact evidence-query command and unify collect-http CLI flags":
+# https://github.com/dmitry-ai/harness/issues/118
 def collect_http_batch(root, urls, *, profile='auto', scope='public', session_id=None, refresh_reason=None, max_age=86400, headers=None, context=None, fetcher=None, browser='auto', cdp_port=None, cdp_fetcher=None, http_get=None, cdp_call=None):
 	cleaned = [str(u).strip() for u in (urls or ()) if str(u).strip()]
 	if not cleaned:

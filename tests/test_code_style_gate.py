@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add CODE-1 Python style ratchet linter gate in PreToolUse and pre-commit":
-# https://github.com/dmitry-ai/harness/issues/243
 from __future__ import annotations
 from pathlib import Path
 import json
@@ -28,6 +26,9 @@ def _write_red_transcript(repo: Path) -> Path:
 	)
 	tr.write_text('\n'.join((json.dumps(r) for r in rows)) + '\n', encoding='utf-8')
 	return tr
+# 2026-11-25
+# "Add CODE-1 Python style ratchet linter gate in PreToolUse and pre-commit":
+# https://github.com/dmitry-ai/harness/issues/243
 class CodeStyleGateTests(unittest.TestCase):
 	def test_clean_code1_python_passes_all_checks(self) -> None:
 		from agent_tools.code_style_gate import check_python_style_violations

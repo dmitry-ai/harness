@@ -1,24 +1,4 @@
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
-# https://github.com/dmitry-ai/harness/issues/62
-# 2026-11-13 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
-# https://github.com/dmitry-ai/harness/issues/59
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
-# https://github.com/dmitry-ai/harness/issues/10
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
-# https://github.com/dmitry-ai/harness/issues/37
-# 2026-11-06 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement structured fact-tuple ledger (facts.json) and symbolic AST arithmetic grounding":
-# https://github.com/dmitry-ai/harness/issues/46
 import ast
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, localcontext
 from pathlib import Path
@@ -28,12 +8,21 @@ import json
 import re
 import unicodedata
 from .diagnostics import problem
+# 2026-10-18
+# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+# https://github.com/dmitry-ai/harness/issues/10
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 SECTIONS = ('identity', 'concerns', 'misconceptions', 'causes', 'methods')
 KINDS = {'observation', 'client_report', 'hypothesis', 'recommendation', 'calculation'}
 STATUSES = {'verified', 'limited', 'unverified', 'unavailable', 'stale'}
 PROPERTIES = {'content', 'markup', 'dom', 'interaction', 'currency_transition', 'ip_country', 'admin_configuration', 'serp', 'platform_capability', 'calculation', 'comparison', 'modification', 'causality', 'business_impact', 'architecture_change', 'pricing_change'}
 HASH = re.compile('^[a-f0-9]{64}$')
 ID = re.compile('^[A-Z][A-Z0-9-]*$')
+# 2026-11-13
+# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
+# https://github.com/dmitry-ai/harness/issues/62
 class ClaimGraphValidator:
 	def __init__(self, value, *, root=None):
 		self.value = value
@@ -338,6 +327,9 @@ class ClaimGraphValidator:
 				_check_comparison(claim, self.index, self.refs)
 			except (ValueError, KeyError, TypeError) as exc:
 				self._add('comparison.unconfirmed', field + '/comparison', str(exc), claim)
+	# 2026-10-19
+	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+	# https://github.com/dmitry-ai/harness/issues/12
 	def _verify_scope_coverage(self, field, claim, obs_urls):
 		observed_paths = {urlsplit(urldefrag(u)[0]).path.rstrip('/') or '/' for u in obs_urls if u}
 		sample_items = (claim.get('scope') or {}).get('sample') or []
@@ -383,6 +375,9 @@ class ClaimGraphValidator:
 			self._check_claim_dependencies_and_caps()
 			self._check_cycles()
 		return list(self.issues)
+# 2026-11-06
+# "Implement structured fact-tuple ledger (facts.json) and symbolic AST arithmetic grounding":
+# https://github.com/dmitry-ai/harness/issues/46
 def evaluate_safe_arithmetic(expr: str, env: dict[str, Decimal] | None = None) -> tuple[Decimal | None, set[str]]:
 	if not isinstance(expr, str) or not expr.strip() or len(expr) > 400:
 		return (None, set())
@@ -565,6 +560,9 @@ def extract_verified_inline_calc_numbers(text: str, grounded_nums: set[str]) -> 
 def claim_locations(value):
 	if not isinstance(value, dict):
 		return
+	# 2026-10-20
+	# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+	# https://github.com/dmitry-ai/harness/issues/13
 	for section in ('facts', 'claims', *SECTIONS):
 		for number, claim in enumerate(value.get(section, []) if isinstance(value.get(section), list) else []):
 			if isinstance(claim, dict):
@@ -573,11 +571,11 @@ def all_claims(value):
 	return [claim for _, _, claim in claim_locations(value)]
 def claim_index(value):
 	return {claim['id']: claim for claim in all_claims(value) if _text(claim.get('id'))}
-# 2026-10-22 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Ban conditional conjunctions in limited claim qualifications and isolate closed admin access from proven public storefront facts":
-# https://github.com/dmitry-ai/harness/issues/15
 def claim_digest(claim):
 	return hashlib.sha256(json.dumps(claim, ensure_ascii=False, sort_keys=True, separators=(',', ':'), allow_nan=False).encode('utf-8')).hexdigest()
+# 2026-11-13
+# "Extract ClaimGraphValidator class and unify derived_from DAG traversals, numeric grounding, and primary quote verification across claims.py, text_claims.py, review.py, and evidence.py":
+# https://github.com/dmitry-ai/harness/issues/62
 def collect_claim_closure(seed_ids, index, *, include_addresses=False, unknown_prefix=None):
 	r, seen = ([], set())
 	def visit(ident):
@@ -610,6 +608,9 @@ def _enum(value, allowed):
 	return isinstance(value, str) and value in allowed
 def _dependencies(claim):
 	return claim.get('derived_from', []) if isinstance(claim.get('derived_from'), list) else []
+# 2026-11-13
+# "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
+# https://github.com/dmitry-ai/harness/issues/59
 def source_numeric_tokens(raw_text: str) -> set[str]:
 	r: set[str] = set()
 	for sp_tok in re.findall('\\d{1,3}(?:[ \\u00a0\\u202f]\\d{3})+(?:[.,]\\d+)?', raw_text or ''):
@@ -626,10 +627,16 @@ def source_numeric_tokens(raw_text: str) -> set[str]:
 		if '.' in no_comma:
 			r.add(no_comma.rstrip('0').rstrip('.') or '0')
 	return r
+# 2026-10-19
+# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+# https://github.com/dmitry-ai/harness/issues/12
 def standalone_numbers(text):
 	if not isinstance(text, str) or not text:
 		r = set()
 	else:
+		# 2026-10-23
+		# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+		# https://github.com/dmitry-ai/harness/issues/16
 		from .markdown_links import numeric_text
 		cleaned = numeric_text(text)
 		cleaned = re.sub('https?://\\S+', ' ', cleaned)
@@ -698,6 +705,9 @@ def _calculation_structure(value, field, claim):
 			message = 'Calculation result must be an explicit decimal string'
 	r = [problem('calculation.contract', field, message, claim_id=claim.get('id'))] if message else []
 	return r
+# 2026-11-02
+# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+# https://github.com/dmitry-ai/harness/issues/37
 def _comparison_structure(value, field, claim, evidence):
 	message = None
 	own_ev_ids = {ref.get('id') for ref in (evidence if isinstance(evidence, list) else []) if isinstance(ref, dict) and _text(ref.get('id'))}
@@ -729,6 +739,9 @@ def _verify_quote(root, ref, *, observation=None):
 	return verify_saved_quote(root, _with_locator(ref['source'], locator), ref['quote'], mode=ref.get('quote_match', 'exact'), expected_hash=ref['source_sha256'], require_hash=True, observation=observation, documentation=bool(ref.get('documentation')), exception=ref.get('anchor_exception', {}), locator=locator, require_bound_observation=True, hash_error='Primary source bytes changed from source_sha256', absent_error='Exact quote is absent from the located primary source')
 def _manifest_primary(root, ref):
 	from .evidence import local_file
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import project_paths
 	from .research import inside
 	pp = project_paths(root, exact_root=True)
@@ -811,6 +824,9 @@ def _primary_capabilities(root, ref):
 	return r
 def evidence_contract_issues(root, value, *, skip_structural=False):
 	return ClaimGraphValidator(value, root=root).evidence_issues(skip_structural=skip_structural)
+# 2026-11-02
+# "Replace special-case grounding/locale regexes with universal locale, relational claim arity, standalone-number, capability, and review gates":
+# https://github.com/dmitry-ai/harness/issues/37
 def _check_comparison(claim, index, refs):
 	comp = claim.get('comparison')
 	if _comparison_structure(comp, '/', claim, claim.get('evidence')):

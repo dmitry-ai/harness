@@ -1,5 +1,4 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/77
 from __future__ import annotations
 import argparse
 import json
@@ -10,6 +9,9 @@ from ..git_gate import is_issue_tracked_code_repo, run_git_read
 from ..storage import iter_embedded_json_objects
 from .linter import IssueMarkdownLinter
 from .workspace import IssueEvidenceWorkspace, _SKIP_TURN_SUFFIXES
+# 2026-11-24
+# "Decompose github_issue.py and issue_lifecycle.py into IssueMarkdownLinter, IssueEvidenceWorkspace, GitHubIssueService, and TurnIssueLifecycleAuditor with locked turn updates":
+# https://github.com/dmitry-ai/harness/issues/77
 def build_create_payload(args: argparse.Namespace, title: str, body: str) -> dict[str, Any]:
 	payload: dict[str, Any] = {'title': title, 'body': body}
 	if getattr(args, 'label', None):

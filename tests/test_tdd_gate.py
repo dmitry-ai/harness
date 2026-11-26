@@ -1,6 +1,4 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement universal TDD verification engine in agent_tools/tdd_gate.py":
-# https://github.com/dmitry-ai/harness/issues/135
 from __future__ import annotations
 
 import json
@@ -17,6 +15,9 @@ if str(SCRIPT_DIR) not in sys.path:
 from agent_tools import tdd_gate
 
 
+# 2026-11-23
+# "Implement universal TDD verification engine in agent_tools/tdd_gate.py":
+# https://github.com/dmitry-ai/harness/issues/135
 class TddGateCoreTests(unittest.TestCase):
 	def test_universal_code_vs_test_vs_non_code_classification(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

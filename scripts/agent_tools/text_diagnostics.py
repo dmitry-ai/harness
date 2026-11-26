@@ -1,19 +1,4 @@
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract SourceDiagnosticsScanner class from diagnose_sources in text_diagnostics.py":
-# https://github.com/dmitry-ai/harness/issues/68
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# https://github.com/dmitry-ai/harness/issues/86
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
-# https://github.com/dmitry-ai/harness/issues/71
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 import hashlib
 import json
 from pathlib import Path
@@ -23,6 +8,9 @@ from .configuration import DISCOVERY_KINDS, _frontmatter, load_discovery_manifes
 from .path_registry import project_paths
 from .runtime import PRIMARY, extract_platform_instances, settings
 from .storage import data_dir_for
+# 2026-11-23
+# "Extract SourceDiagnosticsScanner class from diagnose_sources in text_diagnostics.py":
+# https://github.com/dmitry-ai/harness/issues/68
 class SourceDiagnosticsScanner:
 	def __init__(self, root, *, platform=None, profile=None, config=None, primary=PRIMARY):
 		if None is root or (not str(root).strip()):
@@ -149,6 +137,9 @@ class SourceDiagnosticsScanner:
 		values = re.findall('\\]\\(<([^>]+)>\\)', text) + re.findall('^\\s*-\\s+((?:[A-Za-z]:[/\\\\]|/)[^\\r\\n]+)', text, re.M)
 		return list(dict.fromkeys(values))
 	def _scan_ancestry_scope(self, scope: Path) -> None:
+		# 2026-11-19
+		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+		# https://github.com/dmitry-ai/harness/issues/96
 		scope_pp = project_paths(scope, exact_root=True)
 		agents = scope_pp.agents_config_dir if scope_pp.agents_config_dir.resolve() != self.primary else (scope / '.agents')
 		for path in sorted((agents / 'rules').glob('*.md')):
@@ -168,12 +159,18 @@ class SourceDiagnosticsScanner:
 			self._add_source(path, 'canonical-rule', 'runtime.PRIMARY')
 		for path in sorted((self.primary / 'skills').glob('*/SKILL.md')):
 			self._add_source(path, 'canonical-skill', 'runtime.PRIMARY')
+		# 2026-11-18
+		# "Externalize agent environments and per-instance system paths into runtime.json":
+		# https://github.com/dmitry-ai/harness/issues/86
 		plats = [(self.platform, self.config.get('platforms', {}).get(self.platform, {}))] if self.platform else self.config.get('platforms', {}).items()
 		for name, plat_cfg in plats:
 			adapter_name = plat_cfg.get('adapter') or name if isinstance(plat_cfg, dict) else name
 			adapter_file = self.primary / 'platforms' / f'{adapter_name}.md'
 			if adapter_file.is_file() or (isinstance(plat_cfg, dict) and plat_cfg.get('enabled', True)):
 				self._add_source(adapter_file, 'platform-adapter', 'runtime.platforms')
+	# 2026-11-18
+	# "Externalize agent environments and per-instance system paths into runtime.json":
+	# https://github.com/dmitry-ai/harness/issues/86
 	def _scan_codex_profiles(self) -> None:
 		codex_cfg = self.config.get('platforms', {}).get('codex', {})
 		all_insts = extract_platform_instances(codex_cfg, platform='codex', include_disabled=True)
@@ -185,6 +182,9 @@ class SourceDiagnosticsScanner:
 				inst = pool[name]
 				cfg_path = inst['system_paths'].get('config_toml') or str(Path(inst['home']).expanduser().resolve() / 'config.toml')
 				self._inspect_native_toml(Path(cfg_path).expanduser().resolve(), f'runtime.platforms.codex.instances.{name}', profile_name=name)
+	# 2026-11-14
+	# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
+	# https://github.com/dmitry-ai/harness/issues/71
 	def _scan_discovery_manifests(self, scope: Path, agents: Path) -> None:
 		for category in DISCOVERY_KINDS:
 			manifest = agents / f'{category}.json'
@@ -198,6 +198,9 @@ class SourceDiagnosticsScanner:
 					self._scan_manifest_entry(agents, manifest, category, entry)
 			except (OSError, ValueError, UnicodeError) as exc:
 				self._record_issue('INVALID-MANIFEST', manifest, str(exc))
+	# 2026-11-14
+	# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
+	# https://github.com/dmitry-ai/harness/issues/71
 	def _scan_manifest_entry(self, agents: Path, manifest: Path, category: str, entry) -> None:
 		target, has_extra = resolve_manifest_entry(agents, entry)
 		if None is target:
@@ -213,9 +216,15 @@ class SourceDiagnosticsScanner:
 					if path.is_file():
 						self._add_source(path, f'configured-{category}', str(manifest), required=True)
 	def _verify_projection_receipt(self, scope: Path) -> None:
+		# 2026-11-19
+		# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+		# https://github.com/dmitry-ai/harness/issues/96
 		receipt_path = data_dir_for(scope) / 'native-config.json'
 		if self._add_source(receipt_path, 'projection-receipt', f'optional-discovery:{scope}')['exists']:
 			try:
+				# 2026-11-14
+				# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
+				# https://github.com/dmitry-ai/harness/issues/71
 				_, _, receipt = load_project_receipt(receipt_path, by_path=True, error_message='Projection receipt must be an object')
 				for path, expected in receipt.items():
 					proj = self._add_source(Path(path), 'native-projection', str(receipt_path), required=True)
@@ -233,5 +242,11 @@ class SourceDiagnosticsScanner:
 		self._check_native_overrides()
 		fingerprint = hashlib.sha256(json.dumps(sorted(((item['path'], item.get('sha256')) for item in self.sources)), ensure_ascii=False).encode()).hexdigest()
 		return {'schema_version': 1, 'root': str(self.root), 'workspace_root': str(self.workspace), 'canonical': str(self.primary), 'platform': self.platform, 'selected_profile': self.profile, 'sources': self.sources, 'configuration_sha256': fingerprint, 'conflicts': self.conflicts, 'valid': not any(('error' == item['severity'] for item in self.conflicts)), 'platform_injection': {'status': 'unknown', 'detail': 'Configured paths and disk versions are observable; actual platform injection and model reading are not proven by this diagnostic'}}
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def diagnose_sources(root, *, platform=None, profile=None, config=None, primary=PRIMARY):
 	return SourceDiagnosticsScanner(root, platform=platform, profile=profile, config=config, primary=primary).run()

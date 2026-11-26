@@ -1,24 +1,4 @@
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
-# https://github.com/dmitry-ai/harness/issues/133
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Initialize new Upwork projects in the V2 filesystem layout":
-# https://github.com/dmitry-ai/harness/issues/110
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
-# https://github.com/dmitry-ai/harness/issues/109
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove automatic Context.md generation from project initialization and finalize stage":
-# https://github.com/dmitry-ai/harness/issues/104
-# 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
-# https://github.com/dmitry-ai/harness/issues/6
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace per-profile Harness projections with shared native connections":
-# https://github.com/dmitry-ai/harness/issues/35
+# 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from contextlib import contextmanager
 from copy import deepcopy
 import json
@@ -37,6 +17,12 @@ from agent_tools.platforms import codex
 from agent_tools.analysis import publish_owned, render_analysis, SECTIONS
 from agent_tools.context import generate
 from agent_tools.snapshot import snapshot_draft
+# 2026-10-15
+# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
+# https://github.com/dmitry-ai/harness/issues/6
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class ProjectionTests(TemporaryCase):
 	def setUp(self):
 		super().setUp()
@@ -48,6 +34,9 @@ class ProjectionTests(TemporaryCase):
 		for relative in ('runtime.json', 'platforms/codex.md', 'skills/upwork-init/SKILL.md', 'agents/worker.md'):
 			shutil.copyfile(runtime.PRIMARY / relative, self.primary / relative)
 		self.output = self.root / 'workspace'
+	# 2026-10-17
+	# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+	# https://github.com/dmitry-ai/harness/issues/7
 	def test_verified_legacy_migrates_but_manual_configuration_and_fallback_survive(self):
 		configuration.build_native(self.output, primary=self.primary)
 		legacy = self.output / 'CODEX.md'
@@ -61,6 +50,9 @@ class ProjectionTests(TemporaryCase):
 		result = configuration.build_native(self.output, primary=self.primary)
 		self.assertTrue(result['valid'], result)
 		self.assertFalse(legacy.exists())
+		# 2026-11-02
+		# "Replace per-profile Harness projections with shared native connections":
+		# https://github.com/dmitry-ai/harness/issues/35
 		backups = list((self.output / 'ꘖ/data/native-retired').rglob('*.bin'))
 		self.assertEqual([path.read_bytes() for path in backups], [b'old owned projection'])
 		value = tomllib.loads(native.read_text())
@@ -73,6 +65,9 @@ class ProjectionTests(TemporaryCase):
 		previous = native.read_bytes()
 		self.assertFalse(configuration.build_native(self.output, primary=self.primary)['valid'])
 		self.assertEqual(native.read_bytes(), previous)
+	# 2026-10-17
+	# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+	# https://github.com/dmitry-ai/harness/issues/7
 	def test_unowned_legacy_prevents_partial_migration(self):
 		self.output.mkdir()
 		legacy = self.output / 'CODEX.md'
@@ -81,6 +76,9 @@ class ProjectionTests(TemporaryCase):
 		self.assertFalse(result['valid'])
 		self.assertEqual(legacy.read_text(), 'MY ORIGINAL')
 		self.assertFalse((self.output / '.codex/config.toml').exists())
+	# 2026-10-17
+	# "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
+	# https://github.com/dmitry-ai/harness/issues/7
 	def test_global_instructions_are_read_safely_and_local_override_keeps_its_priority(self):
 		config = deepcopy(runtime.settings())
 		homes = {name: str(self.root / name) for name in ('C1', 'C2')}
@@ -114,6 +112,9 @@ class ProjectionTests(TemporaryCase):
 		rule.write_text(rule.read_text(encoding='utf-8') + '\nSpecific changed policy.\n', encoding='utf-8')
 		self.assertTrue(configuration.build_native(self.output, primary=self.primary, check=True)['valid'])
 		self.assertEqual(configuration.build_native(self.output, primary=self.primary)['written'], [])
+		# 2026-11-02
+		# "Replace per-profile Harness projections with shared native connections":
+		# https://github.com/dmitry-ai/harness/issues/35
 		generated = self.primary / 'platforms/codex/agents/upwork-aa.toml'
 		generated.write_text('USER CHANGE', encoding='utf-8')
 		result = configuration.build_native(self.output, primary=self.primary)
@@ -122,6 +123,9 @@ class ProjectionTests(TemporaryCase):
 	def test_check_does_not_create_an_uninstalled_workspace(self):
 		self.assertFalse(configuration.build_native(self.output, primary=self.primary, check=True)['valid'])
 		self.assertFalse(self.output.exists())
+	# 2026-11-02
+	# "Replace per-profile Harness projections with shared native connections":
+	# https://github.com/dmitry-ai/harness/issues/35
 	def test_dangling_personal_guidance_links_are_preserved_before_shared_publication(self):
 		for relative in ('AGENTS.md', '.codex/config.toml', 'CODEX.md'):
 			with self.subTest(relative=relative):
@@ -137,6 +141,9 @@ class ProjectionTests(TemporaryCase):
 				self.assertEqual(path.readlink(), identity)
 				self.assertFalse(target.exists())
 				self.assertFalse((self.primary / 'agents/af-worker.md').exists())
+	# 2026-11-02
+	# "Replace per-profile Harness projections with shared native connections":
+	# https://github.com/dmitry-ai/harness/issues/35
 	def test_shared_generation_uses_one_owner_across_projects_and_profile_install(self):
 		from agent_tools import native_profiles
 		from agent_tools.storage import data_dir_for
@@ -190,6 +197,9 @@ class ProjectionTests(TemporaryCase):
 			value = tomllib.loads((self.primary / f'platforms/codex/agents/{name}.toml').read_text(encoding='utf-8'))
 			self.assertNotIn('model', value)
 			self.assertNotIn('model_reasoning_effort', value)
+		# 2026-11-23
+		# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
+		# https://github.com/dmitry-ai/harness/issues/133
 		af_worker_md = (self.primary / 'agents/af-worker.md').read_text(encoding='utf-8')
 		self.assertNotIn('\nmodel:', af_worker_md)
 		with patch.object(runtime, 'settings', return_value=config):
@@ -293,7 +303,16 @@ class ProjectionTests(TemporaryCase):
 		self.assertEqual(saved['custom'], 'keep')
 		self.assertIn({'path': 'rules'}, saved['entries'])
 		self.assertEqual(context.read_bytes(), original)
+# 2026-10-15
+# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
+# https://github.com/dmitry-ai/harness/issues/6
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class CodexEvidenceTests(ProjectCase):
+	# 2026-10-18
+	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+	# https://github.com/dmitry-ai/harness/issues/10
 	def setUp(self):
 		super().setUp()
 		self.home = self.root / 'codex-profile'
@@ -416,12 +435,18 @@ class CodexEvidenceTests(ProjectCase):
 		self.write_trace(self.child, self.child_rows)
 		with self.assertRaisesRegex(ValueError, 'review-input execution'):
 			codex.native_review_proof(self.project, self.parent, self.child, backend=self.home)
+	# 2026-10-18
+	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+	# https://github.com/dmitry-ai/harness/issues/10
 	def test_self_review_uses_codex_parent_evidence_without_requiring_antigravity(self):
 		report = self.review_report(self.package, self_review=True)
 		self.put_project('ꘖ/KB/Evidence/Reviews/self.json', json.dumps(report))
 		with self.selected():
 			flow.record_review(self.project, 'ꘖ/KB/Evidence/Reviews/self.json', parent_id=self.parent, reviewer_id=self.parent)
 		self.assertFalse(flow.load(self.project)['reviews'][0]['independent'])
+	# 2026-10-18
+	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+	# https://github.com/dmitry-ai/harness/issues/10
 	def test_codex_workflow_reviews_current_kb_and_exports_exact_native_request_and_reply(self):
 		value = self.valid_review_analysis()
 		publish_owned(self.project / 'ꘖ/KB/Analysis.md', render_analysis(value))
@@ -445,8 +470,14 @@ class CodexEvidenceTests(ProjectCase):
 			flow.complete_stage(self.project, 'review', ['ꘖ/KB/Analysis.json'], ['ꘖ/KB/Evidence/Reviews/report.json'])
 			flow.complete_stage(self.project, 'kb_review', flow.kb_paths(self.project), ['ꘖ/KB/Analysis.md'], note='Checked current KB')
 			flow.record_current_answer(self.project, answer)
+			# 2026-11-21
+			# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+			# https://github.com/dmitry-ai/harness/issues/109
 			flow.complete_stage(self.project, 'finalize', flow.kb_paths(self.project), ['ꙮ/≺/1–20/1.md'])
 			self.assertTrue(all(('complete' == value for value in flow.status(self.project)['stages'].values())))
+			# 2026-11-21
+			# "Initialize new Upwork projects in the V2 filesystem layout":
+			# https://github.com/dmitry-ai/harness/issues/110
 			draft = self.put_project('\u2c0f/\u227b/\u2655/\U0001f582/Letters/EN/draft.md', 'User draft\r\n')
 			self.put_project('ꘖ/data/continuation.md', 'Current goal: revise the existing proposal.\n')
 			snapshot_draft(draft, 'cross_system_proposal')
@@ -463,13 +494,25 @@ class CodexEvidenceTests(ProjectCase):
 			with self.assertRaisesRegex(ValueError, 'registration'):
 				flow.complete_stage(self.project, 'identity_init', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/init.json'])
 		expected = self.parent_rows[2]['payload']['content'][0]['text']
+		# 2026-11-21
+		# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+		# https://github.com/dmitry-ai/harness/issues/109
 		self.assertEqual((self.project / 'ꙮ/≻/1–20/1.md').read_bytes().decode(), expected)
+		# 2026-11-20
+		# "Remove automatic Context.md generation from project initialization and finalize stage":
+		# https://github.com/dmitry-ai/harness/issues/104
+		# 2026-11-21
+		# "Initialize new Upwork projects in the V2 filesystem layout":
+		# https://github.com/dmitry-ai/harness/issues/110
 		self.assertFalse((self.project / '\u2c0f/\u227b/\u2659/Context/output/Context.md').exists())
 		generate(self.project, self.project / '.agents/context.json')
 		context = (self.project / '\u2c0f/\u227b/\u2659/Context/output/Context.md').read_text(encoding='utf-8')
 		self.assertIn(expected, context)
 		self.assertIn(answer, context)
 	def test_second_platform_keeps_original_date_root_manual_kb_and_saved_snapshot(self):
+		# 2026-11-21
+		# "Initialize new Upwork projects in the V2 filesystem layout":
+		# https://github.com/dmitry-ai/harness/issues/110
 		manual = self.project / '\U0001f56e/Project.md'
 		manual.write_bytes(manual.read_bytes() + b'\nUSER TEXT\n')
 		before = manual.read_bytes()
@@ -483,6 +526,9 @@ class CodexEvidenceTests(ProjectCase):
 		self.assertFalse((self.project / '.codex/config.toml').exists())
 		self.assertIn('`Topic`', (self.project / '.agents/rules/90-project.md').read_text(encoding='utf-8'))
 	def test_proposal_export_selects_each_language_final_or_existing_draft(self):
+		# 2026-11-21
+		# "Initialize new Upwork projects in the V2 filesystem layout":
+		# https://github.com/dmitry-ai/harness/issues/110
 		en = self.put_project('\u2c0f/\u227b/\u2655/\U0001f582/Letters/EN/draft.md', 'English draft')
 		self.put_project('\u2c0f/\u227b/\u2655/\U0001f582/Letters/RU/draft.md', 'Russian draft')
 		self.put_project('\u2c0f/\u227b/\u2655/\U0001f582/Letters/EN/draft.prev.md', 'Earlier version')
@@ -509,5 +555,8 @@ class CodexEvidenceTests(ProjectCase):
 		context.write_bytes(original)
 		up.configure_project(self.project)
 		saved = json.loads(context.read_text(encoding='utf-8'))
+		# 2026-11-21
+		# "Initialize new Upwork projects in the V2 filesystem layout":
+		# https://github.com/dmitry-ai/harness/issues/110
 		self.assertEqual(next((section for section in saved['sections'] if 'Proposals' == section['title']))['drafts'], ['\u2c0f/\u227b/\u2655/\U0001f582/Letters'])
 		self.assertIn(original, [file.read_bytes() for file in (self.project / 'ꘖ/data/config-history').glob('*.json')])

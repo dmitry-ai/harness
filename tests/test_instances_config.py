@@ -1,18 +1,4 @@
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
-# https://github.com/dmitry-ai/harness/issues/133
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
-# https://github.com/dmitry-ai/harness/issues/105
 # 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix runtime instance path derivation and store validation":
-# https://github.com/dmitry-ai/harness/issues/89
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
-# https://github.com/dmitry-ai/harness/issues/105
-# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Externalize agent environments and per-instance system paths into runtime.json":
-# https://github.com/dmitry-ai/harness/issues/86
 from contextlib import closing, redirect_stdout
 from copy import deepcopy
 import io
@@ -30,6 +16,9 @@ from test_onboarding import source
 import check_stop_gate
 from agent_tools import cleanup, completion, configuration, metrics, native_profiles as native, registration, runtime, text_diagnostics, upwork_project as up, workflow
 from agent_tools.platforms import adapter, antigravity, codex
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
 class RuntimeInstancesTests(TemporaryCase):
 	def setUp(self):
 		super().setUp()
@@ -274,6 +263,9 @@ class RuntimeInstancesTests(TemporaryCase):
 			self.assertEqual(rc3, 0)
 			data3 = json.loads(buf3.getvalue())
 			self.assertEqual(data3['instance']['id'], 'A6')
+	# 2026-11-23
+	# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
+	# https://github.com/dmitry-ai/harness/issues/133
 	def test_instance_flag_and_codex_auto_lookup_for_handoff_and_audit(self):
 		project = Path(up.initialize_upwork_project(source()['job_id'], 'Topic', '2026-10-15', daily_root=self.daily, extracted_data=source(), register_native=False)['project_dir'])
 		self.write_file(self.cx_homes['C2'] / 'config.toml', 'developer_instructions = "Global C2 rules"\n')
@@ -450,6 +442,9 @@ class RuntimeInstancesTests(TemporaryCase):
 			saved_a9 = json.loads((a9_project / proof_a9['proof']).read_text(encoding='utf-8'))
 			saved_a9_no_inst = {k: v for k, v in saved_a9.items() if 'instance' != k}
 			self.assertEqual(antigravity.verify_native_proof(a9_project, saved_a9_no_inst)['reviewer_id'], child_a9)
+	# 2026-11-23
+	# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
+	# https://github.com/dmitry-ai/harness/issues/133
 	def test_codex_custom_system_paths_trace_requests_metadata_and_answers(self):
 		c9_home = self.root / 'custom_cx_home'
 		custom_state = self.root / 'custom_cx_state'
@@ -499,6 +494,9 @@ class RuntimeInstancesTests(TemporaryCase):
 			self.sql(state_db, 'INSERT INTO threads VALUES (?, ?, ?, ?, ?)', (rogue_cid, str(rogue_rollout), 'cx-p1', str(project), ''))
 			with self.assertRaisesRegex(ValueError, 'outside the selected profile sessions'):
 				codex.native_tool_trace(project, {'surface': 'codex-ui', 'conversation_id': rogue_cid, 'instance': 'C9', 'call_ids': ['call_1']})
+	# 2026-11-20
+	# "Remove retired journal-watch subsystem and prune delivered checkpoint recovery directories":
+	# https://github.com/dmitry-ai/harness/issues/105
 	def test_cleanup_custom_system_paths_stop_gate_and_claude_code_only_extensibility(self):
 		custom_home = self.root / 'cleanup_ag_home'
 		custom_backend = self.root / 'cleanup_ag_backend'
@@ -616,6 +614,9 @@ class RuntimeInstancesTests(TemporaryCase):
 			decision = check_stop_gate.evaluate_stop_payload({'terminationReason': 'NO_TOOL_CALL', 'fullyIdle': True, 'cwd': str(old_proj), 'sessionId': cid_a6})
 			self.assertEqual(decision['decision'], 'continue')
 			self.assertIn('turn-begin', decision['reason'])
+	# 2026-11-18
+	# "Fix runtime instance path derivation and store validation":
+	# https://github.com/dmitry-ai/harness/issues/89
 	def test_default_system_paths_overrides_and_nested_codex_globs(self):
 		inst_ag = {
 			'enabled': True,
@@ -643,6 +644,9 @@ class RuntimeInstancesTests(TemporaryCase):
 		self.assertTrue(runtime._exists_flag(wild_abs))
 		self.assertEqual(Path(runtime._codex_home_conversation_trace(None, cid, system_paths=sp_cx)).resolve(), sess_file.resolve())
 		self.assertEqual(Path(runtime._codex_home_conversation_trace(self.root, cid, system_paths={'state_db_glob': 'dbs/*/state_*.sqlite'})).resolve(), sess_file.resolve())
+	# 2026-11-18
+	# "Fix runtime instance path derivation and store validation":
+	# https://github.com/dmitry-ai/harness/issues/89
 	def test_dynamic_folders_json_and_cleanup_without_homes(self):
 		custom_cfg_dir = self.root / 'custom_ag/cfg'
 		custom_proj_dir = custom_cfg_dir / 'projects'
@@ -715,6 +719,9 @@ class RuntimeInstancesTests(TemporaryCase):
 			self.assertEqual(trace_row['id'], cid)
 			self.assertEqual(trace_path.resolve(), rollout.resolve())
 			self.assertTrue(trace_rows)
+	# 2026-11-18
+	# "Fix runtime instance path derivation and store validation":
+	# https://github.com/dmitry-ai/harness/issues/89
 	def test_custom_adapter_platform_keys_and_instruction_snapshot(self):
 		cfg = deepcopy(self.config)
 		cfg['platforms'] = {
@@ -747,6 +754,9 @@ class RuntimeInstancesTests(TemporaryCase):
 			self.assertTrue(any((s['kind'] == 'adapter' and Path(s['path']).name == 'antigravity.md' for s in snap_ag['sources'])))
 			snap_cc = completion._instruction_snapshot(self.root / 'workspace/proj', {'platform': 'claude_code', 'conversation_id': 'c2'}, stage='answer-prepare')
 			self.assertEqual(snap_cc['errors'], [])
+	# 2026-11-18
+	# "Fix runtime instance path derivation and store validation":
+	# https://github.com/dmitry-ai/harness/issues/89
 	def test_claude_code_only_real_cli_subprocesses(self):
 		cc_primary = self.root / 'cc_cli_harness/code'
 		(cc_primary / 'rules').mkdir(parents=True)

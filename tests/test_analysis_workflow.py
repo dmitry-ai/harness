@@ -1,30 +1,4 @@
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
-# https://github.com/dmitry-ai/harness/issues/133
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add compact evidence-query command and unify collect-http CLI flags":
-# https://github.com/dmitry-ai/harness/issues/118
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Initialize new Upwork projects in the V2 filesystem layout":
-# https://github.com/dmitry-ai/harness/issues/110
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
-# https://github.com/dmitry-ai/harness/issues/109
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove automatic Context.md generation from project initialization and finalize stage":
-# https://github.com/dmitry-ai/harness/issues/104
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Decompose workflow.py and knowledge.py into WorkflowStateEngine, ResearchQuestionRegistry, and ProjectHealthAuditor with shared attachment inventory":
-# https://github.com/dmitry-ai/harness/issues/74
 # 2026-10-15 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
-# https://github.com/dmitry-ai/harness/issues/4
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
-# 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
-# https://github.com/dmitry-ai/harness/issues/38
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -47,6 +21,12 @@ from agent_tools import workflow as flow
 from agent_tools.metrics import summarize, native_review_proof
 from agent_tools.context import generate
 from agent_tools.journal import record_step
+# 2026-10-15
+# "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
+# https://github.com/dmitry-ai/harness/issues/4
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class ProjectCase(TemporaryCase):
 	def setUp(self):
 		super().setUp()
@@ -68,6 +48,9 @@ class ProjectCase(TemporaryCase):
 		self.put_project('ꘖ/KB/Analysis.json', json.dumps(value, ensure_ascii=False))
 		r = value
 		return r
+	# 2026-10-18
+	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+	# https://github.com/dmitry-ai/harness/issues/10
 	def valid_review_analysis(self):
 		from agent_tools.knowledge import sync_website_card
 		project = json.loads((self.project / 'ꘖ/project.json').read_text(encoding='utf-8'))
@@ -82,6 +65,9 @@ class ProjectCase(TemporaryCase):
 		self.assertEqual(evidence_issues(self.project, value), [])
 		r = value
 		return r
+	# 2026-10-18
+	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+	# https://github.com/dmitry-ai/harness/issues/10
 	def review_package(self, parent, response='Client task', risk='routine', claims=None):
 		if not (self.project / 'ꘖ/KB/Analysis.json').exists() or 3 != json.loads((self.project / 'ꘖ/KB/Analysis.json').read_text()).get('schema_version'):
 			self.valid_review_analysis()
@@ -107,14 +93,23 @@ class ProjectCase(TemporaryCase):
 		spec = {'risk': risk, 'basis': 'Explicit fixture risk based on the declared claims and current request.', 'request_scope': 'Answer only the current fixture request.', 'claim_ids': [c['claim_id'] for c in manifest], 'claims': manifest, 'task_flags': sorted(flags)}
 		r = flow.prepare_review(self.project, parent, spec, response)
 		return r
+	# 2026-10-18
+	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+	# https://github.com/dmitry-ai/harness/issues/10
 	def review_report(self, package, *, self_review=False, result='approved', findings=None):
 		report = {'schema_version': 2, 'package': package['package'], 'package_sha256': package['package_sha256'], 'scope': [*SECTIONS, 'kb_consistency', 'response'], 'result': result, 'claim_reviews': [{'claim_id': c['claim_id'], 'observed': 'Exact registered title inspected.', 'inferred': 'Only the attributed title is asserted.', 'method': 'Read saved intake JSON.', 'alternatives': 'No hidden configuration or cause is inferred.', 'limits': 'Client attribution only.', 'falsification': 'A different registered title would contradict the literal attribution.', 'raw_vs_criteria': 'The saved title equals the response excerpt; no causal experiment is claimed.', 'test_alignment': {'target_claim': c['essence'], 'tested_claim': 'The registered intake literally contains this title.', 'relationship': 'direct', 'rationale': 'A different literal title would fail this attribution check.', 'counterexample': 'A later change on the live site could leave the old intake title unchanged; this answer only attributes the saved title.'}, 'outcome': 'supported'} for c in package['claims']], 'findings': findings or []}
 		if self_review:
 			report['review_kind'] = 'self_review'
 		r = report
 		return r
+	# 2026-10-18
+	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+	# https://github.com/dmitry-ai/harness/issues/10
 	def experiment_requirement(self, ident='R-CONTENT'):
 		return {'id': ident, 'claim': 'Inspect the returned document content.', 'property': 'content', 'alternatives': ['The requested document may be unavailable.'], 'method': 'http', 'conditions': {}, 'scope': {'objects': ['https://example.invalid/']}, 'falsification': 'The returned content contradicts the proposed text.', 'discriminating_test': 'Compare literal returned content to the expected text, including contradictory content.', 'expected': 'Saved content or an explicit gap.', 'completion_criterion': 'Hash-checked saved response or unavailable result.'}
+	# 2026-10-18
+	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+	# https://github.com/dmitry-ai/harness/issues/10
 	def experiment_gap(self, requirement):
 		from agent_tools.experiments import prepare_experiment, record_experiment
 		plan = prepare_experiment(self.project, requirement)
@@ -321,7 +316,13 @@ class ContinuationTests(ProjectCase):
 		original = {p: p.read_bytes() for p in (self.project / 'ꘖ/KB').glob('*.md')}
 		capture = self.project / json.loads((self.project / 'ꘖ/project.json').read_text())['snapshot']
 		request = 'Continue analysis. Analysis was interrupted due to a power outage.\n'
+		# 2026-11-21
+		# "Initialize new Upwork projects in the V2 filesystem layout":
+		# https://github.com/dmitry-ai/harness/issues/110
 		context = self.project / '\u2c0f/\u227b/\u2659/Context/output/Context.md'
+		# 2026-11-20
+		# "Remove automatic Context.md generation from project initialization and finalize stage":
+		# https://github.com/dmitry-ai/harness/issues/104
 		context.parent.mkdir(parents=True, exist_ok=True)
 		context.write_text('EXTERNAL_ONLY_INFORMATION')
 		result = flow.resume(self.project, 'power failure', request)
@@ -345,6 +346,9 @@ class ContinuationTests(ProjectCase):
 		self.assertEqual(flow.status(self.project)['stages']['identity_init'], 'stale')
 	def test_question_has_one_owner_and_explicit_handoff(self):
 		flow.resume(self.project, 'quota')
+		# 2026-10-18
+		# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+		# https://github.com/dmitry-ai/harness/issues/10
 		requirement = self.experiment_requirement()
 		flow.add_question(self.project, 'Q-SITE', 'Check canonical URL', 'Affects identity', 'Saved exact canonical', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/site.json'], requirements=[requirement])
 		flow.claim_question(self.project, 'Q-SITE', 'worker-a')
@@ -352,11 +356,17 @@ class ContinuationTests(ProjectCase):
 			flow.claim_question(self.project, 'Q-SITE', 'worker-b')
 		flow.handoff(self.project, 'Q-SITE', 'worker-a', 'worker-b', 'Native status shows worker-a stopped')
 		self.put_project('ꘖ/KB/Evidence/site.json', '{"canonical":"https://example.org"}')
+		# 2026-10-18
+		# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+		# https://github.com/dmitry-ai/harness/issues/10
 		flow.finish_question(self.project, 'Q-SITE', 'worker-b', ['ꘖ/KB/Evidence/site.json'], gap='Source unavailable.', results=[self.experiment_gap(requirement)])
 		with self.assertRaises(ValueError):
 			flow.claim_question(self.project, 'Q-SITE', 'worker-a')
 	def test_search_cycle_returns_gap_or_requires_a_new_method(self):
 		flow.resume(self.project, 'quota')
+		# 2026-10-18
+		# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+		# https://github.com/dmitry-ai/harness/issues/10
 		flow.add_question(self.project, 'Q-DOC', 'Find diagnostics source', 'Needed for cause', 'Exact source or gap', ['ꘖ/project.json'], ['ꘖ/KB/Evidence/doc.json'], requirements=[self.experiment_requirement()])
 		flow.claim_question(self.project, 'Q-DOC', 'worker')
 		for n in range(3):
@@ -401,6 +411,9 @@ class NativeReviewTests(ProjectCase):
 			home, backend, parent, child = self.native_fixture(package, agent=agent, final_type=final)
 			with self.assertRaises(ValueError):
 				native_review_proof(self.project, parent, child, backend=backend)
+	# 2026-11-23
+	# "Delegate subagent model selection to parent agents and remove hardcoded outdated models":
+	# https://github.com/dmitry-ai/harness/issues/133
 	def test_parent_model_selection_allowed_and_observed_mismatch_rejected(self):
 		package = self.review_package(str(uuid.uuid4()))
 		home, backend, parent, child = self.native_fixture(package)
@@ -464,8 +477,17 @@ class NativeReviewTests(ProjectCase):
 			flow.complete_stage(self.project, 'review', ['ꘖ/KB/Analysis.json'], ['ꘖ/KB/Evidence/Reviews/report.json'])
 			flow.complete_stage(self.project, 'kb_review', flow.kb_paths(self.project), ['ꘖ/KB/Analysis.md'], note='Reviewed contradictions and missing evidence in the present KB')
 			flow.record_current_answer(self.project, 'Final response exactly as saved: Client task')
+			# 2026-11-21
+			# "Wire automatic journal upgrade and bucketed step resolution across Harness subsystems":
+			# https://github.com/dmitry-ai/harness/issues/109
 			flow.complete_stage(self.project, 'finalize', flow.kb_paths(self.project), ['ꙮ/≺/1–20/1.md'])
 			self.assertTrue(all(('complete' == x for x in flow.status(self.project)['stages'].values())))
+			# 2026-11-20
+			# "Remove automatic Context.md generation from project initialization and finalize stage":
+			# https://github.com/dmitry-ai/harness/issues/104
+			# 2026-11-21
+			# "Initialize new Upwork projects in the V2 filesystem layout":
+			# https://github.com/dmitry-ai/harness/issues/110
 			self.assertFalse((self.project / '\u2c0f/\u227b/\u2659/Context/output/Context.md').exists())
 			from agent_tools.context import generate
 			generate(self.project, self.project / '.agents/context.json')
@@ -475,6 +497,9 @@ class NativeReviewTests(ProjectCase):
 			self.put_project('ꘖ/KB/Website.md', '# Website\nNew evidence changes this module\n')
 			with self.assertRaises(ValueError):
 				flow.complete_stage(self.project, 'review', ['ꘖ/KB/Analysis.json'], ['ꘖ/KB/Evidence/Reviews/report.json'])
+	# 2026-10-19
+	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+	# https://github.com/dmitry-ai/harness/issues/12
 	def test_native_review_rejects_prompt_bias_and_reviewer_isolation_violations(self):
 		package = self.review_package(str(uuid.uuid4()))
 		home, backend, parent, child = self.native_fixture(package)
@@ -507,6 +532,9 @@ class NativeReviewTests(ProjectCase):
 		with self.assertRaisesRegex(ValueError, 'accessed sibling project path'):
 			native_review_proof(self.project, parent, child, backend=backend)
 		child_log.write_text(original_child, encoding='utf-8')
+	# 2026-10-19
+	# "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
+	# https://github.com/dmitry-ai/harness/issues/12
 	def test_html_links_json_summary_non_destructive_collect_and_scratch_cleanliness(self):
 		html_data = extract_bytes(b'<html><body><a href="https://instagram.com/brand">IG</a></body></html>', 'text/html', 'html')
 		self.assertEqual(html_data['links'], [{'href': 'https://instagram.com/brand', 'text': 'IG'}])
@@ -531,6 +559,9 @@ class NativeReviewTests(ProjectCase):
 		self.assertFalse(check['valid'])
 		self.assertTrue(any(('project.one_off_script' == i['code'] for i in check['issues'])))
 		script.unlink()
+	# 2026-11-02
+	# "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
+	# https://github.com/dmitry-ai/harness/issues/38
 	def test_void_elements_compact_extracted_disk_json_and_max_bytes_guard(self):
 		html_doc = ('<html><head><link id="void-link" href="/a.css"><meta id="void-meta" content="x"></head><body><h1 id="sec-1">Title</h1><img id="void-img" src="/a.png"><div id="box"><p>' + ('word ' * 400) + '</p></div></body></html>').encode('utf-8')
 		parsed = extract_bytes(html_doc, 'text/html', 'html')
@@ -558,6 +589,9 @@ class NativeReviewTests(ProjectCase):
 		with patch('agent_tools.research.MAX_BYTES', 64):
 			with self.assertRaisesRegex(ValueError, 'Extracted JSON exceeds 16 MiB'):
 				extract_observation(self.project, obs_rel, 'html')
+	# 2026-11-14
+	# "Decompose workflow.py and knowledge.py into WorkflowStateEngine, ResearchQuestionRegistry, and ProjectHealthAuditor with shared attachment inventory":
+	# https://github.com/dmitry-ai/harness/issues/74
 	def test_workflow_classes_and_shared_attachment_inventory(self):
 		from agent_tools.knowledge import AttachmentInventory
 		engine = flow.WorkflowStateEngine(self.project)
@@ -586,6 +620,9 @@ class MetricsTests(TemporaryCase):
 		self.assertIsNone(result['tokens']['cache_read_tokens']['complete_total'])
 		self.assertEqual(result['duplicate_records_ignored'], 1)
 		self.assertEqual(result['generations'], 1)
+	# 2026-11-21
+	# "Add compact evidence-query command and unify collect-http CLI flags":
+	# https://github.com/dmitry-ai/harness/issues/118
 	def test_collect_http_positional_batch_extract_profile_and_14_url_evidence_query(self):
 		import io
 		from contextlib import redirect_stdout

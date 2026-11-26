@@ -1,20 +1,20 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
-# https://github.com/dmitry-ai/harness/issues/224
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/173
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/169
 from __future__ import annotations
 from pathlib import Path
 from ..shell_audit import classify_git_argv, normalize_host_path
 from .classifier import classify_code_path, resolve_code_scope
 from .commands import classify_test_command
+# 2026-11-24
+# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
+# https://github.com/dmitry-ai/harness/issues/224
 from .outcomes import _BG_TASK_FINISHED_RE, _BG_TASK_ID_RE, extract_bg_task_ids, parse_command_outcome
 import json
 import re
 _BG_ENDED_RE = re.compile(r'Task\s+id\s+"([^"]+)"\s+(?:finished|canceled|cancelled|terminated|killed)\b', re.IGNORECASE)
 _BG_SENDER_RE = re.compile(r'\bsender=([A-Za-z0-9_./:-]+/task-\d+)\b', re.IGNORECASE)
+# 2026-11-24
+# "Fix EXEC-2 TDD trace scoping for deleted worktrees and subagent steps":
+# https://github.com/dmitry-ai/harness/issues/173
 _DENIED_WRITE_OUT_RE = re.compile(r'Encountered error in (?:tool|step) execution:|tool call denied by pre-tool hook:', re.IGNORECASE)
 _SAFE_COMMIT_EXEC_RE = re.compile(r'\bsafe_commit\.py\b[^\r\n]*--execute\b')
 _SAFE_COMMIT_REPO_RE = re.compile(r'--repo\s+(?:"([^"]+)"|\'([^\']+)\'|(\S+))')
@@ -67,6 +67,9 @@ def _extract_row_call_events(step_idx: int, calls: list[dict], outputs: list[str
 		cname = str(call.get('name') or '')
 		cargs = _normalize_args_dict(call.get('args', {}))
 		if cname in _WRITE_TOOL_NAMES:
+			# 2026-11-24
+			# "Fix EXEC-2 TDD trace scoping for deleted worktrees and subagent steps":
+			# https://github.com/dmitry-ai/harness/issues/173
 			matched = [outputs[c_pos]] if c_pos < len(outputs) else outputs
 			if not is_denied_write_output(matched):
 				_append_write_tool_event(step_idx, cname, cargs, cwd, events)
@@ -123,6 +126,9 @@ def _scan_segment_calls(calls: list[dict], outs: list[str], active_bg: set[str])
 		cargs = _normalize_args_dict(call.get('args', {}))
 		if 'invoke_subagent' == cname:
 			spawned += 1
+		# 2026-11-24
+		# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
+		# https://github.com/dmitry-ai/harness/issues/224
 		elif 'run_command' == cname:
 			if re.search(r'\banswer-prepare\b', str(cargs.get('CommandLine') or ''), re.I):
 				prepared = True
@@ -159,6 +165,9 @@ def _select_active_segment(rows: list[dict]) -> list[dict]:
 def _track_bg_command_outputs(c_pos: int, outs: list[str], active_bg: set[str]) -> None:
 	matched = [outs[c_pos]] if c_pos < len(outs) else outs
 	for out_s in matched:
+		# 2026-11-24
+		# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
+		# https://github.com/dmitry-ai/harness/issues/224
 		active_bg.update(extract_bg_task_ids(out_s))
 def _unwrap_arg_value(val):
 	r = val
@@ -176,6 +185,9 @@ def build_command_tdd_event(step: int, cmd: str, outputs: list[str] | tuple[str,
 	test_info = classify_test_command(cmd, scope_root=scope_hint)
 	outcome = parse_command_outcome(outputs)
 	ev = {'cmd': str(cmd or ''), 'commit_scope': str(commit_repo) if None is not commit_repo else None, 'cwd': str(eff_cwd) if None is not eff_cwd else '', 'is_git_commit': is_commit, 'kind': 'command', 'outcome': outcome, 'step': int(step), 'test_info': test_info}
+	# 2026-11-24
+	# "Fix EXEC-2 TDD trace scoping for deleted worktrees and subagent steps":
+	# https://github.com/dmitry-ai/harness/issues/173
 	if None is not sub_step:
 		ev['sub_step'] = int(sub_step)
 	if subagent_id:
@@ -187,14 +199,23 @@ def build_file_write_tdd_event(step: int, raw_path: str | Path, *, cwd: Path | N
 	cls = classify_code_path(full, content=content)
 	scope = resolve_code_scope(full) if 'non_code' != cls else full.parent
 	ev = {'classification': cls, 'kind': 'file_write', 'path': str(full), 'scope': str(scope), 'step': int(step)}
+	# 2026-11-24
+	# "Fix EXEC-2 TDD trace scoping for deleted worktrees and subagent steps":
+	# https://github.com/dmitry-ai/harness/issues/173
 	if None is not sub_step:
 		ev['sub_step'] = int(sub_step)
 	if subagent_id:
 		ev['subagent_id'] = str(subagent_id)
 	return ev
+# 2026-11-24
+# "Fix EXEC-2 TDD trace scoping for deleted worktrees and subagent steps":
+# https://github.com/dmitry-ai/harness/issues/173
 def is_denied_write_output(outputs) -> bool:
 	items = [outputs] if isinstance(outputs, str) else [str(item) for item in (outputs or ()) if item]
 	return bool(items) and all((bool(_DENIED_WRITE_OUT_RE.search(item)) for item in items))
+# 2026-11-24
+# "Fix EXEC-2 TDD trace scoping for deleted worktrees and subagent steps":
+# https://github.com/dmitry-ai/harness/issues/173
 def record_tdd_tool_write_event(acc: dict, step: int, raw_path: str | Path, *, cwd: Path | None=None, content: str | None=None, cmd_outputs=None, sub_step: int | None=None, subagent_id: str | None=None) -> dict | None:
 	r = None
 	if 'tdd_events' in acc and (not is_denied_write_output(cmd_outputs)):
@@ -203,6 +224,9 @@ def record_tdd_tool_write_event(acc: dict, step: int, raw_path: str | Path, *, c
 			acc['tdd_events'].append(wev)
 			r = wev
 	return r
+# 2026-11-24
+# "Decompose tdd_gate.py into modular TDD verification package":
+# https://github.com/dmitry-ai/harness/issues/169
 def extract_antigravity_tdd_events(transcript_path: Path, *, cwd: Path | None=None) -> list[dict]:
 	rows = _load_transcript_rows(transcript_path)
 	segment = _select_active_segment(rows) if rows else []

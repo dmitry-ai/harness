@@ -1,12 +1,4 @@
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
-# https://github.com/dmitry-ai/harness/issues/251
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
-# https://github.com/dmitry-ai/harness/issues/186
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Deploy immutable Harness runtime snapshots with LKG fallback":
-# https://github.com/dmitry-ai/harness/issues/184
 from __future__ import annotations
 from datetime import datetime, timezone
 import io
@@ -20,6 +12,9 @@ import tarfile
 import uuid
 from .runtime_launchers import GIT_HOOK_LAUNCHER_HEADER, HOOK_RUNNER_HEADER, git_hook_launcher_source, git_hook_shell_wrapper, harness_hook_runner_source
 from .storage import data_dir_for, locked, replace_bytes
+# 2026-11-24
+# "Deploy immutable Harness runtime snapshots with LKG fallback":
+# https://github.com/dmitry-ai/harness/issues/184
 DEFAULT_KEEP_RELEASES = 5
 GIT_HOOK_NAMES = ('pre-commit', 'commit-msg', 'pre-push')
 REQUIRED_ENTRYPOINTS = ('check_markdown_slop.py', 'check_rules_and_server_gate.py', 'check_pre_invocation.py', 'check_stop_gate.py', 'git_shim.py')
@@ -51,6 +46,9 @@ _VALIDATION_PROBE = (
 	"\tpr = importlib.import_module('agent_tools.path_registry')\n"
 	'\tif pr._CODE_ANCHOR.resolve() != canon:\n'
 	"\t\traise SystemExit(f'anchor mismatch: {pr._CODE_ANCHOR} != {canon}')\n"
+	# 2026-11-24
+	# "Enforce transaction-boundary Python size ratchet and symbol integrity checks":
+	# https://github.com/dmitry-ai/harness/issues/186
 	"if (sdir / 'agent_tools/python_integrity.py').is_file():\n"
 	"\tpi = importlib.import_module('agent_tools.python_integrity')\n"
 	'\tpi_errs = pi.verify_directory_python_integrity(sdir)\n'
@@ -175,6 +173,9 @@ def _set_local_hooks_path(main_repo: Path, hooks_dir: Path) -> None:
 def _validate_staged_release(staging: Path, canonical_primary: Path, entrypoints: tuple[str, ...]) -> tuple[bool, str]:
 	proc = subprocess.run([sys.executable, '-I', '-c', _VALIDATION_PROBE, str(staging), canonical_primary.as_posix(), json.dumps(list(entrypoints))], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=60, check=False, creationflags=_NO_WINDOW)
 	detail = (proc.stderr or proc.stdout or '').strip()
+	# 2026-11-25
+	# "Add PreToolUse canary probe to runtime snapshot validation and turn hook-crash audit":
+	# https://github.com/dmitry-ai/harness/issues/251
 	if 0 != proc.returncode:
 		r = (False, detail)
 	else:

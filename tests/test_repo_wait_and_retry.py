@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add deterministic reactive wait primitive for transient repository and journal contention":
-# https://github.com/dmitry-ai/harness/issues/199
 from __future__ import annotations
 from contextlib import redirect_stdout
 from io import StringIO
@@ -32,6 +30,9 @@ def _init_repo(base: Path) -> Path:
 	subprocess.run(['git', '-C', str(repo), 'add', 'a.py'], check=True, capture_output=True)
 	subprocess.run(['git', '-C', str(repo), 'commit', '-m', 'init'], check=True, capture_output=True)
 	return repo
+# 2026-11-24
+# "Add deterministic reactive wait primitive for transient repository and journal contention":
+# https://github.com/dmitry-ai/harness/issues/199
 class RepoWaitAndRetryTests(unittest.TestCase):
 	def test_answer_prepare_cli_reports_retryable_false_fast_and_true_on_transient_timeout(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

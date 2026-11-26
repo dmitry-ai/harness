@@ -1,21 +1,4 @@
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Use native workspace priority and AST command parsing in request binding":
-# https://github.com/dmitry-ai/harness/issues/129
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove text-based explicit-project-root override from request binding":
-# https://github.com/dmitry-ai/harness/issues/112
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Restrict explicit project root binding to full root labels":
-# https://github.com/dmitry-ai/harness/issues/111
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
-# https://github.com/dmitry-ai/harness/issues/75
 # 2026-10-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
-# https://github.com/dmitry-ai/harness/issues/6
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from contextlib import contextmanager
 import json
 import os
@@ -27,7 +10,16 @@ from test_analysis_workflow import ProjectCase
 from agent_tools import runtime, workflow as flow
 from agent_tools.analysis import SECTIONS
 from agent_tools.platforms import codex, antigravity
+# 2026-10-16
+# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
+# https://github.com/dmitry-ai/harness/issues/6
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class CodexContinuationTests(ProjectCase):
+	# 2026-10-18
+	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+	# https://github.com/dmitry-ai/harness/issues/10
 	def setUp(self):
 		super().setUp()
 		self.home = self.root / 'codex'
@@ -66,6 +58,9 @@ class CodexContinuationTests(ProjectCase):
 		config['homes'] = {'C2': str(self.home)}
 		with patch.object(codex, 'platform_settings', return_value=config), runtime.using('codex', 'C2'):
 			yield
+	# 2026-10-18
+	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+	# https://github.com/dmitry-ai/harness/issues/10
 	def report(self):
 		return self.review_report(self.package, self_review=True)
 	def test_new_native_root_chat_imports_exact_continuation_and_allows_both_review_kinds(self):
@@ -131,7 +126,16 @@ def wire(field, payload):
 		r = bytes(encoded)
 		return r
 	return encode(field << 3 | 2) + encode(len(payload)) + payload
+# 2026-10-16
+# "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
+# https://github.com/dmitry-ai/harness/issues/6
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class AntigravityContinuationTests(ProjectCase):
+	# 2026-10-18
+	# "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
+	# https://github.com/dmitry-ai/harness/issues/10
 	def setUp(self):
 		super().setUp()
 		self.home = self.root / 'ag-home'
@@ -184,6 +188,9 @@ class AntigravityContinuationTests(ProjectCase):
 			self.workspace(paths)
 			with self.assertRaises(ValueError):
 				antigravity.native_requests(self.project, self.parent, backend=self.backend)
+	# 2026-11-21
+	# "Remove text-based explicit-project-root override from request binding":
+	# https://github.com/dmitry-ai/harness/issues/112
 	def test_explicit_upwork_init_binds_generic_workspace_without_rewriting_user_text(self):
 		self.workspace([self.root])
 		job_id = flow.load(self.project)['job_id']
@@ -197,6 +204,9 @@ class AntigravityContinuationTests(ProjectCase):
 			self.inputs([text_override])
 			with self.assertRaises(ValueError):
 				antigravity.native_requests(self.project, self.parent, backend=self.backend)
+	# 2026-11-21
+	# "Remove text-based explicit-project-root override from request binding":
+	# https://github.com/dmitry-ai/harness/issues/112
 	def test_foreign_job_does_not_claim_parent_or_self_review_while_text_root_preserves_workspace(self):
 		self.inputs(['Own request', '/upwork-init https://www.upwork.com/jobs/~0299999', 'Continue analysis.'])
 		self.assertEqual(len(antigravity.native_requests(self.project, self.parent, backend=self.backend)), 1)
@@ -206,6 +216,9 @@ class AntigravityContinuationTests(ProjectCase):
 			antigravity.require_current_binding(self.project, self.parent, backend=self.backend)
 		self.inputs(['Own request', f'Continue analysis.\nProject root: `{self.root}`', 'Continue analysis.'])
 		self.assertEqual(len(antigravity.native_requests(self.project, self.parent, backend=self.backend)), 3)
+	# 2026-11-21
+	# "Remove text-based explicit-project-root override from request binding":
+	# https://github.com/dmitry-ai/harness/issues/112
 	def test_native_workspace_supports_self_review_and_empty_metadata_keeps_legacy_job_id(self):
 		self.workspace([self.project])
 		self.inputs(['Continue analysis.'])
@@ -227,7 +240,7 @@ class AntigravityContinuationTests(ProjectCase):
 		self.assertEqual([item['text'] for item in antigravity.native_requests(self.project, self.parent, backend=self.backend)], [texts[0]])
 		with self.assertRaises(ValueError):
 			antigravity.require_current_binding(self.project, self.parent, backend=self.backend)
-	# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+	# 2026-10-31
 	# "Canonicalize relocated Codex, Antigravity, and Harness project roots and support v2Migrated gitFolder project resources":
 	# https://github.com/dmitry-ai/harness/issues/29
 	def test_git_folder_project_id_fallback_and_relocated_root_canonicalization(self):
@@ -250,6 +263,9 @@ class AntigravityContinuationTests(ProjectCase):
 		requests = antigravity.native_requests(self.project, self.parent, backend=self.backend)
 		self.assertEqual(requests[0]['project_binding']['kind'], 'antigravity-project-id')
 		self.assertEqual(Path(requests[0]['project_binding']['root']).resolve(), self.project.resolve())
+	# 2026-11-14
+	# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+	# https://github.com/dmitry-ai/harness/issues/75
 	def test_status_five_compacted_step_recovers_nested_protobuf_and_transcript_fallback(self):
 		db_file = self.backend / 'conversations' / (self.parent + '.db')
 		conn = sqlite3.connect(db_file)
@@ -272,6 +288,12 @@ class AntigravityContinuationTests(ProjectCase):
 			conn.close()
 		with self.assertRaises(ValueError):
 			antigravity.native_requests(self.project, self.parent, backend=self.backend)
+	# 2026-11-21
+	# "Restrict explicit project root binding to full root labels":
+	# https://github.com/dmitry-ai/harness/issues/111
+	# 2026-11-21
+	# "Remove text-based explicit-project-root override from request binding":
+	# https://github.com/dmitry-ai/harness/issues/112
 	def test_text_root_labels_neither_break_valid_workspace_nor_claim_foreign_workspace(self):
 		self.workspace([self.project])
 		for text_mention in (
@@ -289,6 +311,9 @@ class AntigravityContinuationTests(ProjectCase):
 			self.inputs([explicit_text])
 			with self.assertRaises(ValueError):
 				antigravity.native_requests(self.project, self.parent, backend=self.backend)
+	# 2026-11-21
+	# "Remove text-based explicit-project-root override from request binding":
+	# https://github.com/dmitry-ai/harness/issues/112
 	def test_historical_explicit_project_root_receipt_reconciles_without_rewriting_saved_state(self):
 		from agent_tools import completion
 		self.workspace([self.project])
@@ -325,6 +350,9 @@ class AntigravityContinuationTests(ProjectCase):
 			state_path.write_bytes((json.dumps(tampered, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
 			with self.assertRaisesRegex(ValueError, 'Native requests changed before the saved boundary'):
 				completion._state(self.project, native, turn_done, recovered=True, allow_extended=True)
+	# 2026-11-23
+	# "Use native workspace priority and AST command parsing in request binding":
+	# https://github.com/dmitry-ai/harness/issues/129
 	def test_quoted_and_non_leading_upwork_init_never_override_or_poison_and_support_cross_platform_commands(self):
 		from agent_tools import completion
 		from agent_tools.platforms.request_binding import completion_project_id, scoped_inputs

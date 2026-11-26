@@ -1,12 +1,4 @@
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Refactor shared rules into compact three-layer M-2 architecture":
-# https://github.com/dmitry-ai/harness/issues/242
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Codify fail-fast defaults and prohibit schedule timers over run_command in rules and docs":
-# https://github.com/dmitry-ai/harness/issues/164
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Codify mandatory TDD workflow and ratchet contract in Harness documentation":
-# https://github.com/dmitry-ai/harness/issues/139
 from __future__ import annotations
 
 from pathlib import Path
@@ -23,6 +15,9 @@ from agent_tools import links, upwork_project
 import check_markdown_slop
 
 
+# 2026-11-23
+# "Codify mandatory TDD workflow and ratchet contract in Harness documentation":
+# https://github.com/dmitry-ai/harness/issues/139
 class TddRulesAndDocumentationContractTests(unittest.TestCase):
 	def test_rules_and_docs_codify_tdd_contract_and_pass_lint_checks(self) -> None:
 		rule_doc = HARNESS_ROOT / 'rules/08-execution-and-tools.md'
@@ -38,6 +33,9 @@ class TddRulesAndDocumentationContractTests(unittest.TestCase):
 
 		# Canonical rule budget and mandatory TDD contract terms
 		rule_bytes = rule_doc.read_bytes()
+		# 2026-11-25
+		# "Refactor shared rules into compact three-layer M-2 architecture":
+		# https://github.com/dmitry-ai/harness/issues/242
 		self.assertLess(len(rule_bytes), 6000, 'rules/08-execution-and-tools.md must remain comfortably under system prompt budget')
 		rule_text = rule_bytes.decode('utf-8')
 		for token in ('RATCHET-OK', 'ratchet-ok', 'tdd-check', 'Red', 'full test suite'):
@@ -79,9 +77,15 @@ class TddRulesAndDocumentationContractTests(unittest.TestCase):
 		self.assertIn('per_file_bytes', doc_report)
 		self.assertIn('08-execution-and-tools.md', doc_report['per_file_bytes'])
 
+	# 2026-11-23
+	# "Codify fail-fast defaults and prohibit schedule timers over run_command in rules and docs":
+	# https://github.com/dmitry-ai/harness/issues/164
 	def test_failfast_defaults_and_schedule_prohibition_contract(self) -> None:
 		rule_text = (HARNESS_ROOT / 'rules/08-execution-and-tools.md').read_text(encoding='utf-8')
 		self.assertNotIn('or a `schedule` timer with `DurationSeconds`', rule_text)
+		# 2026-11-25
+		# "Refactor shared rules into compact three-layer M-2 architecture":
+		# https://github.com/dmitry-ai/harness/issues/242
 		for token in ('run-tests', 'WaitMsBeforeAsync', 'fail-fast', 'DurationSeconds'):
 			self.assertIn(token, rule_text, f'Missing fail-fast / schedule rule term {token!r} in rules/08-execution-and-tools.md')
 		readme_text = (HARNESS_ROOT / 'scripts/README-agent-tools.md').read_text(encoding='utf-8')

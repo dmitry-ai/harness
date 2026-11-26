@@ -1,15 +1,12 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix worktree scope resolution for new files in TDD classifier":
-# https://github.com/dmitry-ai/harness/issues/188
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/173
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/169
 from __future__ import annotations
 from pathlib import Path
 from ..shell_audit import normalize_host_path
 import os
 import re
+# 2026-11-24
+# "Decompose tdd_gate.py into modular TDD verification package":
+# https://github.com/dmitry-ai/harness/issues/169
 SOFTWARE_CODE_SUFFIXES = frozenset({
 	'.py', '.pyi', '.pyx',
 	'.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.vue', '.svelte', '.astro',
@@ -132,6 +129,9 @@ def is_test_file(path: str | Path, *, content: str | None=None) -> bool:
 		stem = p.stem
 		r = any(seg in _TEST_DIR_SEGMENTS for seg in dir_parts_low) or bool(_TEST_FILENAME_RE.match(stem)) or bool(_TEST_CAMEL_SUFFIX_RE.match(stem)) or p.name.lower() in _TEST_HELPER_FILENAMES
 	return r
+# 2026-11-24
+# "Fix EXEC-2 TDD trace scoping for deleted worktrees and subagent steps":
+# https://github.com/dmitry-ai/harness/issues/173
 def _resolve_deleted_worktree_scope(p: Path) -> Path | None:
 	from ..path_registry import project_paths
 	parts, r = (p.parts, None)
@@ -151,6 +151,12 @@ def resolve_code_scope(path: str | Path) -> Path:
 	except OSError:
 		p = raw
 	start_dir = p if p.is_dir() else p.parent
+	# 2026-11-24
+	# "Fix EXEC-2 TDD trace scoping for deleted worktrees and subagent steps":
+	# https://github.com/dmitry-ai/harness/issues/173
+	# 2026-11-24
+	# "Fix worktree scope resolution for new files in TDD classifier":
+	# https://github.com/dmitry-ai/harness/issues/188
 	git_anc = _find_git_ancestor(start_dir)
 	deleted_wt = '/data/worktrees/' in _norm_posix(p).lower() and (not p.exists()) and (None is git_anc or '/data/worktrees/' not in _norm_posix(git_anc).lower())
 	r = _resolve_deleted_worktree_scope(p) if deleted_wt else git_anc

@@ -1,12 +1,4 @@
-# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
-# https://github.com/dmitry-ai/harness/issues/81
 # 2026-10-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
-# https://github.com/dmitry-ai/harness/issues/16
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -25,6 +17,12 @@ from agent_tools.article import check_link_style
 from agent_tools.text_core import scan
 from agent_tools.research import collect, Response, json_data
 from agent_tools.text_claims import digest
+# 2026-10-23
+# "Implement turn-completion contract, journal watcher, primary source admission, and Codex root AGENTS.md loader":
+# https://github.com/dmitry-ai/harness/issues/16
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class LinkPresentationTests(unittest.TestCase):
 	def findings(self, text, profile='formatted'):
 		findings = []
@@ -217,6 +215,9 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		result = self.saved(spec)
 		self.assertTrue(result['valid'], result['issues'])
 		self.assertTrue(self.checked([result['source_check']])['valid'])
+		# 2026-11-16
+		# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+		# https://github.com/dmitry-ai/harness/issues/81
 		unver_id = {**identity, 'profile': {'name': 'fixture'}}
 		unver_raw = json_data(unver_id)
 		unver_path = self.project / 'ꘖ/KB/Evidence/CDPSessions' / (digest(unver_raw) + '.json')
@@ -312,6 +313,9 @@ class SourceAdmissionTests(TextWorkspaceCase):
 			server.shutdown()
 			thread.join()
 			server.server_close()
+	# 2026-11-16
+	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+	# https://github.com/dmitry-ai/harness/issues/81
 	def test_m1_heading_band_wrapper_child_sentinel_and_github_user_content_anchors(self):
 		html_body = (
 			'<div id="testEvents"><h2>Test Events Tool</h2></div>'
@@ -398,6 +402,9 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		hm_spec = self.spec(url=edge_base, body=head_mount_html)
 		hm_spec['evidence'].update(quote='Unanchored overview text.', locator={'type': 'text', 'value': 'Unanchored overview text.'}, anchor_exception={'section': 'Overview', 'observation': hm_spec['evidence']['observation']})
 		self.assertTrue(self.saved(hm_spec, edge_cand)['valid'])
+	# 2026-11-16
+	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+	# https://github.com/dmitry-ai/harness/issues/81
 	def test_m2_remote_text_markdown_content_negotiation_and_explicit_heading_ids(self):
 		from agent_tools.links import Page, check_network
 		seen_headers = {}
@@ -449,6 +456,9 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		statuses = {item['url']: item['status'] for item in probe['results']}
 		self.assertEqual(statuses['https://example.org/consent#test-events'], 'http-ok')
 		self.assertEqual(statuses['https://example.org/consent#missing'], 'anchor-unverified')
+	# 2026-11-16
+	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+	# https://github.com/dmitry-ai/harness/issues/81
 	def test_m3_passive_cloudflare_jsd_script_is_admitted_while_real_interstitial_is_blocked(self):
 		from agent_tools.research import classify_html_challenge
 		passive_cf_html = (
@@ -490,6 +500,9 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		self.assertTrue(classify_html_challenge('<html><body><div id="app"></div><noscript>Enable JavaScript to run this app.</noscript></body></html>'))
 		self.assertFalse(classify_html_challenge('<html><body><pre>{"event_name":"Purchase","value":120}</pre></body></html>'))
 		self.assertTrue(classify_html_challenge('<html><head><title>Un instant...</title></head><body><p>V\u00e9rification de la s\u00e9curit\u00e9 de votre connexion avant d\'acc\u00e9der au site.</p><script>window._cf_chl_opt={cvId:"3"};</script></body></html>', status=None))
+	# 2026-11-16
+	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+	# https://github.com/dmitry-ai/harness/issues/81
 	def test_m4_collect_browser_public_and_authenticated_cdp_identity_provenance(self):
 		from agent_tools.research import collect_browser, load_observation
 		from agent_tools.text_browser import save_cdp_identity
@@ -526,6 +539,9 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		bad_prof_spec = deepcopy(pub_spec)
 		bad_prof_spec['cdp_identity'] = unverified_ref
 		self.assertFalse(self.saved(bad_prof_spec, pub_cand)['valid'])
+	# 2026-11-16
+	# "Resolve HTML heading-wrapper/Markdown fragment scopes, structural anti-bot challenge classification, and unified DOM/intake source-check provenance":
+	# https://github.com/dmitry-ai/harness/issues/81
 	def test_m5_intake_job_snapshot_source_check_provenance_and_attempt_isolation(self):
 		job_id = '~021989674775509080169'
 		snapshot_obj = {'job_id': job_id, 'captured_at': '2026-11-10T09:00:00+00:00', 'description': 'Need GTM Server-Side and Meta CAPI audit.', 'client': {'recent_history': [{'freelancer_feedback_text': 'Clear communication throughout the GTM audit.'}]}}

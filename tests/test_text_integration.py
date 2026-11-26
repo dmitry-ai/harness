@@ -1,9 +1,4 @@
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from copy import deepcopy
 import argparse
 import json
@@ -13,6 +8,12 @@ from test_text_workflow import TextWorkspaceCase, codes
 from agent_tools import journal, text_review, text_workflow, text_claims, text_sources
 from agent_tools.links import Page
 from agent_tools.research import json_data
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class TextReviewTests(TextWorkspaceCase):
 	def setUp(self):
 		super().setUp()
@@ -83,6 +84,12 @@ class TextReviewTests(TextWorkspaceCase):
 		self.assertEqual(package['risk'], 'significant')
 		with self.verified(), self.assertRaises(ValueError):
 			text_workflow.apply(self.project, checked['check'])
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class TextBoundaryTests(TextWorkspaceCase):
 	def test_dom_cli_dispatch_keeps_the_explicit_authorized_session(self):
 		from agent_tools import operations

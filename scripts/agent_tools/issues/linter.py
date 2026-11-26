@@ -1,11 +1,4 @@
-# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs":
-# https://github.com/dmitry-ai/harness/issues/264
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce Markdown table ban and /df-analysis structural validation across response gates":
-# https://github.com/dmitry-ai/harness/issues/181
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/77
 from __future__ import annotations
 from pathlib import Path
 import re
@@ -40,6 +33,9 @@ _PATTERN_RULES = (
 	('strip', re.compile('(\\(\\s*\\\\?|\\b(?:version|from|to|in|at|with|by|for)\\s*`?)$'), 'TRUNCATED_END', 'Text ends abruptly with an unfinished token or open delimiter (caused by PowerShell `0 -> NUL byte truncation)'),
 )
 _TECH_MARKERS = ('app/code/', 'vendor/', '::', '### Problem', '## 1. Root Cause', '## Summary')
+# 2026-11-24
+# "Decompose github_issue.py and issue_lifecycle.py into IssueMarkdownLinter, IssueEvidenceWorkspace, GitHubIssueService, and TurnIssueLifecycleAuditor with locked turn updates":
+# https://github.com/dmitry-ai/harness/issues/77
 class IssueMarkdownLinter:
 	@staticmethod
 	def _check_body_blocks(text: str, out: list[dict[str, Any]], *, check_structure_policy: bool, parent_number: int | None, repo: str | None, self_number: int | None) -> None:
@@ -54,9 +50,13 @@ class IssueMarkdownLinter:
 				out.append({'code': 'UNBALANCED_INLINE_BACKTICKS', 'line': lno, 'message': f"Line {lno} has an odd number of inline backticks ({line.count('`')})"})
 		if in_fence:
 			out.append({'code': 'UNCLOSED_CODE_FENCE', 'message': 'Markdown has an unclosed ``` fenced code block'})
+		# 2026-11-24
+		# "Enforce Markdown table ban and /df-analysis structural validation across response gates":
+		# https://github.com/dmitry-ai/harness/issues/181
 		from ..statements import find_markdown_table_lines
 		for tbl_ln in find_markdown_table_lines(text):
 			out.append({'code': 'MARKDOWN_TABLE_FORBIDDEN', 'line': tbl_ln, 'message': f'Line {tbl_ln} contains a Markdown table, which is forbidden by DOC-4; rewrite as structured prose or a list'})
+		# 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
 		from ..repo_link_gate import chat_repo_link_issues
 		for repo_err in chat_repo_link_issues(text):
 			out.append({'code': 'REPO_LINK_FORBIDDEN', 'message': repo_err})

@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Cache normalized text and numeric tokens in LocalSourceGroundingAuditor corpus":
-# https://github.com/dmitry-ai/harness/issues/216
 from __future__ import annotations
 from pathlib import Path
 import sys
@@ -21,6 +19,9 @@ def _setup_project(root: Path) -> tuple[Path, Path]:
 	p_a.write_text(f'> *Quoted* alpha—record 41201 confirmed.\n{pad}', encoding='utf-8')
 	p_b.write_text(f'Secondary beta–metric 52302 verified.\n{pad}', encoding='utf-8')
 	return (p_a, p_b)
+# 2026-11-24
+# "Cache normalized text and numeric tokens in source_grounding active corpus":
+# https://github.com/dmitry-ai/harness/issues/216
 class GroundingCorpusCacheM9Tests(unittest.TestCase):
 	def test_corpus_cache_matches_uncached_norm_and_isolates_observed_texts(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:

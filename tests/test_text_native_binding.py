@@ -1,15 +1,4 @@
-# 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Use native workspace priority and AST command parsing in request binding":
-# https://github.com/dmitry-ai/harness/issues/129
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Remove text-based explicit-project-root override from request binding":
-# https://github.com/dmitry-ai/harness/issues/112
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from copy import deepcopy
 import hashlib
 import json
@@ -22,6 +11,12 @@ import uuid
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from agent_tools.platforms import antigravity, codex
 from agent_tools.platforms.request_binding import native_project_id, scoped_inputs, text_project_id
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class TextNativeBindingTests(unittest.TestCase):
 	def setUp(self):
 		self.temp = tempfile.TemporaryDirectory()
@@ -56,6 +51,9 @@ class TextNativeBindingTests(unittest.TestCase):
 		project.write_text('{"job_id":"text-forged"}', encoding='utf-8')
 		with self.assertRaises(ValueError):
 			native_project_id(self.root)
+	# 2026-11-21
+	# "Remove text-based explicit-project-root override from request binding":
+	# https://github.com/dmitry-ai/harness/issues/112
 	def test_internal_id_or_text_root_never_substitutes_for_actual_cwd(self):
 		identifier = self.identity['id']
 		for msg in ('Reference ' + identifier, f'Write an article.\nProject root: `{self.root}`', f'Продолжай.\nКорень проекта: `{self.root}`'):
@@ -66,6 +64,9 @@ class TextNativeBindingTests(unittest.TestCase):
 		selected, active, _ = scoped_inputs(self.root, identifier, [(1, foreign_quote)], [(0, str(self.root), 'native-cwd')])
 		self.assertEqual([item[1] for item in selected], [foreign_quote])
 		self.assertTrue(active)
+		# 2026-11-23
+		# "Use native workspace priority and AST command parsing in request binding":
+		# https://github.com/dmitry-ai/harness/issues/129
 		selected, active, binding = scoped_inputs(self.root, identifier, [(1, 'Write'), (2, '/upwork-init https://upwork.com/jobs/~0299999'), (3, 'Continue')], [(0, str(self.root), 'native-cwd'), (4, str(self.root), 'native-cwd')])
 		self.assertEqual([item[1] for item in selected], ['Write', '/upwork-init https://upwork.com/jobs/~0299999', 'Continue'])
 		self.assertTrue(active)
@@ -122,6 +123,9 @@ class TextNativeBindingTests(unittest.TestCase):
 		requests = codex.native_requests(self.root, self.parent, backend=home)
 		self.assertEqual([request['text'] for request in requests], ['  Exact article request.  '])
 		self.assertEqual(requests[0]['project_binding']['kind'], 'codex-session-cwd')
+		# 2026-11-21
+		# "Remove text-based explicit-project-root override from request binding":
+		# https://github.com/dmitry-ai/harness/issues/112
 		foreign_mention = f'Write an article.\nProject root: `{self.base}`'
 		self.codex_fixture(request=foreign_mention)
 		self.assertEqual(codex.native_requests(self.root, self.parent, backend=home)[0]['text'], foreign_mention)
@@ -132,6 +136,9 @@ class TextNativeBindingTests(unittest.TestCase):
 		self.codex_fixture(cwd=self.base, request=exact)
 		with self.assertRaises(ValueError):
 			codex.native_requests(self.root, self.parent, backend=home)
+	# 2026-11-21
+	# "Remove text-based explicit-project-root override from request binding":
+	# https://github.com/dmitry-ai/harness/issues/112
 	def test_antigravity_scope_uses_workspace_only_for_text(self):
 		backend = self.antigravity_fixture()
 		foreign_mention = f'Exact article request.\nProject root: `{self.base}`'

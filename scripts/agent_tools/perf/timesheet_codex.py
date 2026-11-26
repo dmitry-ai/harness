@@ -1,6 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add harness perf-timesheet CLI for deterministic turn chronometry":
-# https://github.com/dmitry-ai/harness/issues/191
 from __future__ import annotations
 from collections import Counter
 from typing import Any
@@ -81,6 +79,9 @@ def _record_codex_tokens(idx: int, pay: dict[str, Any], st: dict[str, Any]) -> N
 		st['tokens']['output_tokens'] += out_t
 		if in_t > st['peak_tokens']:
 			st['peak_tokens'], st['peak_step'] = (in_t, idx)
+# 2026-11-24
+# "Add harness perf-timesheet CLI for deterministic turn chronometry":
+# https://github.com/dmitry-ai/harness/issues/191
 def analyze_codex_rows(rows: list[dict[str, Any]], *, top_gaps_limit: int=10) -> dict[str, Any]:
 	st = _init_cx_state()
 	for idx, row in enumerate(rows):

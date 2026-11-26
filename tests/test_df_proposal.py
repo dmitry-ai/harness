@@ -1,15 +1,16 @@
 # 2026-10-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
-# https://github.com/dmitry-ai/harness/issues/13
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from test_agent_tools import TemporaryCase
 from agent_tools import proposal
 def rules(findings, severity=None):
 	return {finding.rule for finding in findings if None is severity or finding.severity == severity}
 def lint(text, **kwargs):
 	return proposal.lint_text(text, lang='en', lexicon=[], bans=[], **kwargs)
+# 2026-10-20
+# "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
+# https://github.com/dmitry-ai/harness/issues/13
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 class ProposalTransformTests(TemporaryCase):
 	def test_explicit_external_codes_and_standards_are_not_internal_points(self):
 		text = '1. The consent setting conflicts with 11 CCR § 7025.\nRFC 9110 §15.4.3 and ISO 27001:2022 §5.1 remain external.\n2. Inspect the setting described in §1.\n'

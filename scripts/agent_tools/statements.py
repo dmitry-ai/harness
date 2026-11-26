@@ -1,23 +1,12 @@
-# 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Require separate companion /df-analysis tracks for every complex problem analysis":
-# https://github.com/dmitry-ai/harness/issues/249
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add FILE-6 warning banner rule for out-of-workspace file-scattering recommendations":
-# https://github.com/dmitry-ai/harness/issues/200
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce Markdown table ban and /df-analysis structural validation across response gates":
-# https://github.com/dmitry-ai/harness/issues/181
 # 2026-10-11 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
-# https://github.com/dmitry-ai/harness/issues/2
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from __future__ import annotations
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 import json
 import re
+# 2026-11-24
+# "Enforce Markdown table ban and /df-analysis structural validation across response gates":
+# https://github.com/dmitry-ai/harness/issues/181
 _AGAINST_RE = re.compile(r'(?i)(?:доводы\s+против|аргументы\s+против|(?:^|[\s(*_-])против\s*[:—–-]|arguments?\s+against|counterevidence|cons\s*[:—–-])')
 _CMD_RE = re.compile(r'(?i)(?:^|[\s(\[])(?:/df-analysis|\$df-analysis|\[df-analysis\]\(slashCommand;df-analysis\))(?=$|[\s.,;:!?)\]])')
 _DOC_HOST_PREFIXES = ('docs.', 'developer.', 'developers.', 'learn.', 'help.', 'support.', 'manual.', 'wiki.', 'devdocs.')
@@ -57,6 +46,9 @@ def _check_item_group(items: list[tuple[str, str]], *, require_link: bool, kind:
 	for label, body in items:
 		errs.extend(_check_item_fields(label, body, require_link=require_link, kind=kind))
 	return errs
+# 2026-11-25
+# "Require separate companion /df-analysis tracks for every complex problem analysis":
+# https://github.com/dmitry-ai/harness/issues/249
 def _check_problem_blocks(blocks: list[dict]) -> list[str]:
 	from .problem_tracks import companion_track_issues
 	errs: list[str] = []
@@ -93,6 +85,12 @@ def _check_problem_sections(sections: dict[int, tuple[str, str]]) -> list[str]:
 	if 4 in sections:
 		errs.extend(_check_item_group(_parse_section_items(sections[4][1]), require_link=False, kind='solution method', context='Section # 4 (Systemic Solutions)'))
 	return errs
+# 2026-11-24
+# "Enforce Markdown table ban and /df-analysis structural validation across response gates":
+# https://github.com/dmitry-ai/harness/issues/181
+# 2026-11-25
+# "Require separate companion /df-analysis tracks for every complex problem analysis":
+# https://github.com/dmitry-ai/harness/issues/249
 def _detect_mode(text: str, blocks: list[dict], requests: list | tuple, mode: str) -> str:
 	if mode in ('general', 'problem'):
 		r = mode
@@ -246,11 +244,23 @@ def is_documentation_url(url: str) -> bool:
 	return host.startswith(_DOC_HOST_PREFIXES) or host.endswith(_DOC_HOST_SUFFIXES) or any((m in path for m in _DOC_PATH_MARKERS)) or (host in ('github.com', 'raw.githubusercontent.com') and path.endswith('.md'))
 def markdown_table_issues(text: str) -> list[str]:
 	return [f'DOC-4 Line {ln}: Markdown table detected; Markdown tables are forbidden by rule DOC-4 (rewrite as structured prose or a list).' for ln in find_markdown_table_lines(text)]
+# 2026-11-24
+# "Enforce Markdown table ban and /df-analysis structural validation across response gates":
+# https://github.com/dmitry-ai/harness/issues/181
 def validate_df_analysis(response: str, *, requests: list | tuple=(), mode: str='auto') -> list[str]:
 	from .metadata import strip_leading_metadata_header
+	# 2026-11-25
+	# "Require separate companion /df-analysis tracks for every complex problem analysis":
+	# https://github.com/dmitry-ai/harness/issues/249
 	from .problem_tracks import extract_problem_blocks
+	# 2026-11-24
+	# "Add FILE-6 warning banner rule for out-of-workspace file-scattering recommendations":
+	# https://github.com/dmitry-ai/harness/issues/200
 	from .scatter_banner import validate_scatter_banners
 	body = strip_leading_metadata_header(response or '')
+	# 2026-11-25
+	# "Require separate companion /df-analysis tracks for every complex problem analysis":
+	# https://github.com/dmitry-ai/harness/issues/249
 	blocks = extract_problem_blocks(body, _mask_fenced_lines, _TOP_HEAD_RE)
 	eff_mode = _detect_mode(body, blocks, requests, mode)
 	if 'problem' == eff_mode:
@@ -259,8 +269,20 @@ def validate_df_analysis(response: str, *, requests: list | tuple=(), mode: str=
 		r = _validate_general(body, _requests_invoke_df_analysis(requests) or 'general' == mode)
 	else:
 		r = []
+	# 2026-11-24
+	# "Add FILE-6 warning banner rule for out-of-workspace file-scattering recommendations":
+	# https://github.com/dmitry-ai/harness/issues/200
+	# 2026-11-25
+	# "Require separate companion /df-analysis tracks for every complex problem analysis":
+	# https://github.com/dmitry-ai/harness/issues/249
 	r.extend(validate_scatter_banners(body, blocks=blocks, mode=eff_mode))
 	return r
+# 2026-10-11
+# "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
+# https://github.com/dmitry-ai/harness/issues/2
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def validate_statements(directory: Path) -> list[str]:
 	directory = Path(directory)
 	if not directory.is_dir():

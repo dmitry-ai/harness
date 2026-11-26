@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Require separate companion /df-analysis tracks for every complex problem analysis":
-# https://github.com/dmitry-ai/harness/issues/249
 from __future__ import annotations
 from pathlib import Path
 import json
@@ -117,6 +115,9 @@ def _four_track_ru(src_link: str, *, m1_primary: str='') -> str:
 		_block_ru('Разбор задачи §4: обход Журнала ꙮ и контур отчётности', '4', 'https://github.com/dmitry-ai/harness/issues/248', 'После «Stop hook blocked termination» отчёт ушёл в UI в обход Журнала `ꙮ` (`FILE-3`).', src_link),
 	]
 	return '\n---\n\n'.join(parts)
+# 2026-11-25
+# "Require separate companion /df-analysis tracks for every complex problem analysis":
+# https://github.com/dmitry-ai/harness/issues/249
 class DfAnalysisCompanionTracksTests(unittest.TestCase):
 	def test_bundled_companion_topics_inside_single_block_still_rejected(self) -> None:
 		bundled = _block_ru(

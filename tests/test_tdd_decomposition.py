@@ -1,5 +1,4 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# https://github.com/dmitry-ai/harness/issues/169
 from __future__ import annotations
 from pathlib import Path
 import json
@@ -18,6 +17,9 @@ def _init_temp_git_repo(repo: Path) -> None:
 		['git', 'config', 'user.name', 'Test User'],
 	):
 		subprocess.run(args, cwd=repo, check=True, capture_output=True)
+# 2026-11-24
+# "Decompose tdd_gate.py into modular TDD verification package":
+# https://github.com/dmitry-ai/harness/issues/169
 class TddDecompositionTests(unittest.TestCase):
 	def test_classifier_module_behavior_and_parity(self) -> None:
 		from agent_tools import tdd_gate

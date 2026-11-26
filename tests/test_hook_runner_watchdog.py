@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add soft watchdog timeout with LKG fallback to harness_hook_runner":
-# https://github.com/dmitry-ai/harness/issues/252
 from __future__ import annotations
 from pathlib import Path
 import json
@@ -66,6 +64,9 @@ def _seed_two_releases(base: Path) -> tuple[Path, Path, Path, str, str]:
 	runner = base / 'harness_hook_runner.py'
 	runner.write_text(harness_hook_runner_source(repo, store_dir=store), encoding='utf-8')
 	return (repo, store, runner, sha1, sha2)
+# 2026-11-25
+# "Add soft watchdog timeout with LKG fallback to harness_hook_runner":
+# https://github.com/dmitry-ai/harness/issues/252
 class HookRunnerWatchdogTests(unittest.TestCase):
 	def test_default_watchdog_falls_back_to_lkg_on_8s_delay_within_10s(self) -> None:
 		with tempfile.TemporaryDirectory() as td:

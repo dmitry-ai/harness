@@ -1,9 +1,4 @@
-# 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
-# https://github.com/dmitry-ai/harness/issues/205
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Enforce PreToolUse fail-fast normalization and block redundant schedule timers over run_command":
-# https://github.com/dmitry-ai/harness/issues/162
 from __future__ import annotations
 import json
 from pathlib import Path
@@ -23,6 +18,9 @@ def _run_hook(payload: dict) -> dict:
 def _write_tx(path: Path, rows: list[dict]) -> Path:
 	path.write_text(''.join((json.dumps(r, ensure_ascii=False) + '\n' for r in rows)), encoding='utf-8')
 	return path
+# 2026-11-23
+# "Enforce PreToolUse fail-fast normalization and block redundant schedule timers over run_command":
+# https://github.com/dmitry-ai/harness/issues/162
 class FailFastAndScheduleGateTests(unittest.TestCase):
 	def test_hooks_manifest_and_canonical_hooks_match_schedule(self) -> None:
 		hooks = json.loads((HARNESS_ROOT / 'platforms/antigravity/hooks.json').read_text(encoding='utf-8'))
@@ -70,6 +68,9 @@ class FailFastAndScheduleGateTests(unittest.TestCase):
 			d_bad = _run_hook({'cwd': tmp, 'toolCall': {'name': 'run_command', 'args': {'CommandLine': 'Set-Location tests; python -m unittest discover -s . -p test_*.py', 'WaitMsBeforeAsync': 500}}})
 			self.assertEqual(d_bad['decision'], 'deny', d_bad)
 			self.assertIn('EXEC-2-TEST-FAILFAST-GATE', d_bad.get('reason', ''))
+			# 2026-11-24
+			# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+			# https://github.com/dmitry-ai/harness/issues/205
 			d_unbounded = _run_hook({'cwd': tmp, 'toolCall': {'name': 'run_command', 'args': {'CommandLine': 'Set-Location tests; python -m unittest discover -f -s . -p test_*.py', 'WaitMsBeforeAsync': 10000}}})
 			self.assertEqual(d_unbounded['decision'], 'deny', d_unbounded)
 			self.assertIn('EXEC-2-TEST-FAILFAST-GATE', d_unbounded.get('reason', ''))
@@ -92,6 +93,9 @@ class FailFastAndScheduleGateTests(unittest.TestCase):
 				ov = dec.get('overwrite') or {}
 				self.assertIn(expected_flag, ov.get('CommandLine', ''), (cmd, dec))
 				self.assertEqual(ov.get('WaitMsBeforeAsync'), 10000, (cmd, dec))
+			# 2026-11-24
+			# "Enforce watchdog timeout and stdin isolation for unittest and pytest in failfast_gate":
+			# https://github.com/dmitry-ai/harness/issues/205
 			wrapped_u = _run_hook({'cwd': tmp, 'toolCall': {'name': 'run_command', 'args': {'CommandLine': 'python -m unittest discover -f -s tests -p "test_*.py"', 'WaitMsBeforeAsync': 10000}}})
 			self.assertEqual(wrapped_u['decision'], 'allow', wrapped_u)
 			self.assertIn('test-watchdog', (wrapped_u.get('overwrite') or {}).get('CommandLine', ''))

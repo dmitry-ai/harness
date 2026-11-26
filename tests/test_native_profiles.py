@@ -1,22 +1,4 @@
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
-# https://github.com/dmitry-ai/harness/issues/116
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Canonicalize native profile manifests and Codex links across compatibility junctions in install-global":
-# https://github.com/dmitry-ai/harness/issues/106
-# 2026-11-20 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
-# https://github.com/dmitry-ai/harness/issues/103
-# https://github.com/dmitry-ai/harness/issues/86
-# 2026-11-16 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
-# https://github.com/dmitry-ai/harness/issues/80
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
-# https://github.com/dmitry-ai/harness/issues/71
 # 2026-11-02 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Replace per-profile Harness projections with shared native connections":
-# https://github.com/dmitry-ai/harness/issues/35
 from copy import deepcopy
 import hashlib
 import json
@@ -26,6 +8,9 @@ from unittest.mock import patch
 from test_agent_tools import TemporaryCase
 from agent_tools import configuration, native_profiles as native, runtime
 from agent_tools.storage import data_dir_for
+# 2026-11-02
+# "Replace per-profile Harness projections with shared native connections":
+# https://github.com/dmitry-ai/harness/issues/35
 class NativeProfileTests(TemporaryCase):
 	def setUp(self):
 		super().setUp()
@@ -36,6 +21,9 @@ class NativeProfileTests(TemporaryCase):
 		self.config['workspace_root'] = str(self.root / 'workspace')
 		self.gravity = {name: self.root / f'profiles/{name}/.gemini/config' for name in ('A0', 'A6')}
 		self.homes = {name: self.root / f'profiles/{name}' for name in ('C1', 'C2')}
+		# 2026-11-18
+		# "Externalize agent environments and per-instance system paths into runtime.json":
+		# https://github.com/dmitry-ai/harness/issues/86
 		self.config['platforms']['antigravity']['instances'] = {name: {'enabled': True, 'home': str(path.parent.parent)} for name, path in self.gravity.items()}
 		self.config['platforms']['codex']['instances'] = {name: {'enabled': True, 'home': str(path)} for name, path in self.homes.items()}
 		self.write(self.primary / 'runtime.json', json.dumps(self.config))
@@ -704,6 +692,9 @@ class NativeProfileTests(TemporaryCase):
 		self.assertEqual((old / 'personal.txt').read_text(encoding='utf-8'), 'Concurrent replacement\n')
 		self.assertEqual(native._state_path(self.primary).read_bytes(), receipt)
 		self.assertTrue(Path(result['recovery_receipt']).is_file())
+	# 2026-11-14
+	# "Unify projection publishing, _ManagedLink link lifecycle, and .agents/*.json manifest helpers across native_profiles.py, configuration.py, upwork_project.py, and text_diagnostics.py":
+	# https://github.com/dmitry-ai/harness/issues/71
 	def test_unified_managed_link_and_manifest_helpers(self):
 		target_file = self.write(self.root / 'shared-role.toml', 'name = "aa"\n')
 		role_link_path = self.root / 'links/aa.toml'
@@ -740,6 +731,9 @@ class NativeProfileTests(TemporaryCase):
 		self.assertTrue(self.install(('C2',))['valid'])
 		self.assertTrue(unknown.samefile(personal))
 		self.assertEqual(native._load_state(self.primary)['profiles']['C2']['links'][str(unknown)], str(personal))
+	# 2026-11-16
+	# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
+	# https://github.com/dmitry-ai/harness/issues/80
 	def test_m4_and_m5_scrub_antigravity_cdp_grant_mcp_hooks_and_codex_chrome_plugin(self):
 		self.write(self.gravity['A6'] / 'config.json', json.dumps({'userSettings': {'globalPermissionGrants': {'allow': ['command(curl.exe -s http://127.0.0.1:9222/json)', 'read_url(*)']}}}))
 		fake_hs = self.write(self.root / 'tools/chrome-headless-shell.exe', 'binary')
@@ -763,6 +757,9 @@ class NativeProfileTests(TemporaryCase):
 		self.assertFalse(codex_cfg['plugins']['chrome@openai-bundled']['enabled'])
 		self.assertTrue(codex_cfg['plugins']['browser@openai-bundled']['enabled'])
 		self.assertTrue(self.install(('A6', 'C2'), check=True)['valid'])
+	# 2026-11-20
+	# "Replace V2 verbal directory names with Ⰿ/♕/♙ symbols and add Antigravity hook runner":
+	# https://github.com/dmitry-ai/harness/issues/103
 	def test_v2_unicode_primary_generates_ascii_hook_runner_upgrades_legacy_hooks_and_runs_via_cmd_exe(self):
 		import shutil
 		import subprocess
@@ -794,6 +791,9 @@ class NativeProfileTests(TemporaryCase):
 		decision = json.loads(proc.stdout)
 		self.assertEqual(decision['decision'], 'deny')
 		self.assertIn('multiple sentences', decision['reason'])
+	# 2026-11-20
+	# "Canonicalize native profile manifests and Codex links across compatibility junctions in install-global":
+	# https://github.com/dmitry-ai/harness/issues/106
 	def test_install_global_rewrites_manifests_and_codex_links_even_when_compatibility_junction_exists(self):
 		import shutil
 		old_primary = self.root / 'v2_mig/Artifacts/\u227b/Deliverables/\u26ef'
@@ -818,6 +818,9 @@ class NativeProfileTests(TemporaryCase):
 		self.assertTrue(native.install_native_profiles(('A6', 'C2'), primary=new_primary, check=True)['valid'])
 		self.assertEqual((skill_link / 'SKILL.md').read_text(encoding='utf-8'), (new_primary / 'skills/df-article/SKILL.md').read_text(encoding='utf-8'))
 		self.assertEqual(role_link.read_bytes(), (new_primary / 'platforms/codex/agents/upwork-aa.toml').read_bytes())
+	# 2026-11-20
+	# "Canonicalize native profile manifests and Codex links across compatibility junctions in install-global":
+	# https://github.com/dmitry-ai/harness/issues/106
 	def test_install_global_recovers_dangling_relocated_codex_links_when_receipt_already_points_to_primary(self):
 		import shutil
 		old_primary = self.root / 'v2_rec/Artifacts/\u227b/Deliverables/\u26ef'
@@ -846,6 +849,9 @@ class NativeProfileTests(TemporaryCase):
 		self.assertEqual(role_link.read_bytes(), (new_primary / 'platforms/codex/agents/upwork-aa.toml').read_bytes())
 		self.assertEqual(str(native._link_target_path(personal_link)), str(native._absolute(personal_target)))
 		self.assertTrue(native.install_native_profiles(('C2',), primary=new_primary, check=True)['valid'])
+	# 2026-11-21
+	# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
+	# https://github.com/dmitry-ai/harness/issues/116
 	def test_build_native_publishes_shared_hooks_and_upgrades_stop_only_final_turn_gate(self):
 		from agent_tools.upwork_project import canonical_global_hooks, legacy_runner_global_hooks
 		legacy_hooks = legacy_runner_global_hooks(self.primary)

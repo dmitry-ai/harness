@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
-# https://github.com/dmitry-ai/harness/issues/237
 from __future__ import annotations
 from pathlib import Path
 import sys
@@ -12,6 +10,9 @@ from .path_registry import project_paths
 from .runtime import resolve_antigravity_paths
 from .shadow_replay_clone import build_stop_transcript, cleanup_shadow_root, clone_project_tree, remap_shadow_state, shadow_isolation_context
 from .turn_routing import resolve_active_turn_state
+# 2026-11-25
+# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
+# https://github.com/dmitry-ai/harness/issues/237
 NOT_RUN_STAGES = ('live_llm_generation', 'live_upwork_browser_capture', 'live_antigravity_rpc_title_sync')
 def _ensure_scripts_path() -> None:
 	scripts_dir = str(Path(__file__).resolve().parents[1])

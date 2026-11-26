@@ -1,6 +1,4 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Extract ask_question clarification metadata and prohibit Stop Gate bypass via ask_question":
-# https://github.com/dmitry-ai/harness/issues/234
 from __future__ import annotations
 from typing import Any
 import re
@@ -75,6 +73,9 @@ def build_segment_metadata(segment: list[dict], seg_models: list[str] | tuple[st
 	if clarifications:
 		r['clarifications'] = clarifications
 	return r
+# 2026-11-25
+# "Extract ask_question clarification metadata and prohibit Stop Gate bypass via ask_question":
+# https://github.com/dmitry-ai/harness/issues/234
 def extract_ask_question_clarifications(segment: list[dict]) -> list[dict[str, Any]]:
 	r: list[dict[str, Any]] = []
 	for pos, row in enumerate(segment or ()):

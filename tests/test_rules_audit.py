@@ -1,6 +1,4 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add deterministic rules-audit CLI and aggregate budget enforcement":
-# https://github.com/dmitry-ai/harness/issues/244
 from __future__ import annotations
 from pathlib import Path
 import json
@@ -30,6 +28,9 @@ def _seed_harness(root: Path, rules: dict[str, str], *, codex_md: str='# Codex\n
 	if None is not ws_agents:
 		(ws / 'AGENTS.md').write_text(ws_agents, encoding='utf-8')
 	return (ws, prim)
+# 2026-11-26
+# "Add deterministic rules-audit CLI and aggregate budget enforcement":
+# https://github.com/dmitry-ai/harness/issues/244
 class RulesAuditTests(unittest.TestCase):
 	def test_cli_rules_audit_and_semantic_brief_and_live_harness_green(self) -> None:
 		from agent_tools import upwork_project

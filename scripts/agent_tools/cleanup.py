@@ -1,22 +1,4 @@
-# 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Initialize new Upwork projects in the V2 filesystem layout":
-# https://github.com/dmitry-ai/harness/issues/110
-# 2026-11-19 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
-# https://github.com/dmitry-ai/harness/issues/96
-# 2026-11-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Fix runtime instance path derivation and store validation":
-# https://github.com/dmitry-ai/harness/issues/89
-# https://github.com/dmitry-ai/harness/issues/86
-# 2026-11-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
-# https://github.com/dmitry-ai/harness/issues/75
 # 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add /upwork-cleanup skill and cross-platform empty project pruner with timestamped audit logs":
-# https://github.com/dmitry-ai/harness/issues/8
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
-# https://github.com/dmitry-ai/harness/issues/26
 from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
@@ -31,6 +13,9 @@ from .platforms.trace_common import extract_resource_uri, local_uri_to_path, ope
 from .research import json_data
 from .runtime import HARNESS_META, LEGACY_PRIMARY, PRIMARY, extract_platform_homes, platform_active, platform_adapter_name, platform_instances, platform_name, settings
 from .storage import create_bytes, locked, replace_bytes
+# 2026-11-18
+# "Externalize agent environments and per-instance system paths into runtime.json":
+# https://github.com/dmitry-ai/harness/issues/86
 _ACTIVE_CODEX_GLOBS = ContextVar('upwork_cleanup_codex_globs', default=None)
 @contextmanager
 def _codex_glob_scope(globs):
@@ -39,8 +24,11 @@ def _codex_glob_scope(globs):
 		yield
 	finally:
 		_ACTIVE_CODEX_GLOBS.reset(token)
+# 2026-11-14
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
 _STATUS_NAMES = ('recent', 'preserved', 'eligible', 'removed', 'pending', 'blocked', 'already-absent')
-# 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-17
 # "Add /upwork-cleanup skill and cross-platform empty project pruner with timestamped audit logs":
 # https://github.com/dmitry-ai/harness/issues/8
 def record_cleanup_answer(body, *, now=None, log_root=None):
@@ -56,6 +44,9 @@ def record_cleanup_answer(body, *, now=None, log_root=None):
 	timestamp = f'{local:%Y-%m-%d %H:%M} {zone}'
 	answer = timestamp + '\n\n' + body
 	payload = answer.encode('utf-8')
+	# 2026-11-19
+	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
+	# https://github.com/dmitry-ai/harness/issues/96
 	from .path_registry import store_value, workspace_override
 	ws = Path(settings()['workspace_root']).resolve()
 	ovr_log = workspace_override(ws, 'cleanup_log_dir')
@@ -196,6 +187,9 @@ def _load_conversation_index(backend, homes):
 def legacy_initialization(root):
 	agents = root / '.agents'
 	rule = agents / 'rules/90-project.md'
+	# 2026-11-21
+	# "Initialize new Upwork projects in the V2 filesystem layout":
+	# https://github.com/dmitry-ai/harness/issues/110
 	kb = next((p for p in (root / '\U0001f56e/Project.md', root / 'KB/Project.md') if p.is_file()), root / 'KB/Project.md')
 	manifests = [agents / (kind + '.json') for kind in ('rules', 'skills', 'agents')]
 	if not all((p.is_file() for p in [rule, kb, *manifests])):
@@ -237,7 +231,7 @@ def candidates(daily, config, now):
 		except (OSError, ValueError, TypeError, KeyError) as exc:
 			issues.append({'root': str(root), 'error': str(exc)})
 	return (values, issues)
-# 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-31
 # "Canonicalize relocated Codex, Antigravity, and Harness project roots and support v2Migrated gitFolder project resources":
 # https://github.com/dmitry-ai/harness/issues/29
 def _resource_uri(res):
@@ -406,6 +400,9 @@ def remove_antigravity(root, directory, folders, expected, check):
 			raise ValueError('Folders did not confirm cleanup; retry')
 		r = {'complete': True, 'removed_projects': removed, 'removed_folders': pruned, 'awaiting_commit': True}
 	return r
+# 2026-11-14
+# "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
+# https://github.com/dmitry-ai/harness/issues/75
 class ProjectCleanupScanner:
 	def __init__(self, *, apply=False, daily_root=None, now=None, config=None, ag_directory=None, ag_backend=None, folders=None, control=None):
 		self.apply = apply
@@ -420,6 +417,9 @@ class ProjectCleanupScanner:
 		self.single_ag_mode = None is not ag_directory or None is not ag_backend
 		self.ag_stores = {}
 		platforms_cfg = self.config.get('platforms') or {}
+		# 2026-11-18
+		# "Fix runtime instance path derivation and store validation":
+		# https://github.com/dmitry-ai/harness/issues/89
 		ag_plats = [pid for pid, pcfg in platforms_cfg.items() if isinstance(pcfg, dict) and 'antigravity' == platform_adapter_name(pid, pcfg) and platform_active(pid, config=self.config)]
 		cx_plats = [pid for pid, pcfg in platforms_cfg.items() if isinstance(pcfg, dict) and 'codex' == platform_adapter_name(pid, pcfg) and platform_active(pid, config=self.config)]
 		from .path_registry import default_platform_paths
@@ -647,8 +647,11 @@ class ProjectCleanupScanner:
 					self.result['complete'] = False
 				self.result['counts'] = {name: sum((p['status'] == name for p in self.result['projects'])) for name in _STATUS_NAMES}
 		return self.result
-# 2026-10-17 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# 2026-10-17
 # "Add /upwork-cleanup skill and cross-platform empty project pruner with timestamped audit logs":
 # https://github.com/dmitry-ai/harness/issues/8
+# 2026-10-31
+# "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
+# https://github.com/dmitry-ai/harness/issues/26
 def cleanup_projects(*, apply=False, daily_root=None, now=None, config=None, ag_directory=None, ag_backend=None, folders=None, control=None):
 	return ProjectCleanupScanner(apply=apply, daily_root=daily_root, now=now, config=config, ag_directory=ag_directory, ag_backend=ag_backend, folders=folders, control=control).run()
