@@ -1621,7 +1621,7 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.shadow_replay._ensure_scripts_path()`
 	# @used-by :func:`agent_tools.statements.is_documentation_url()`
 	# @used-by :func:`agent_tools.tdd.diff_coverage._find_uncovered()`
-	# @used-by :func:`agent_tools.tdd.diff_coverage.run_trace_diff_coverage()`
+	# @used-by :func:`agent_tools.tdd.diff_coverage_hook.prepare_single_pass_coverage_env()`
 	# @used-by :func:`agent_tools.tdd.outcomes._uri_to_local_path()`
 	# @used-by :func:`agent_tools.text_browser._endpoint_with_meta()`
 	# @used-by :func:`agent_tools.upwork_data.extract_upwork_job_url_id()`
@@ -1735,6 +1735,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_observability_diagnostics`
 	# @used-by :mod:`test_parallel_runner`
 	# @used-by :mod:`test_parallel_test_runner`
+	# @used-by :mod:`test_path_cache_and_diff_cov_perf`
 	# @used-by :mod:`test_path_registry_perf`
 	# @used-by :mod:`test_path_registry`
 	# @used-by :mod:`test_perf_improvement_skill_contract`
