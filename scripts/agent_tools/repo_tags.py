@@ -157,6 +157,7 @@ def commit_date_day(repo: Path, commit: str='HEAD') -> str:
 # @used-by :func:`test_clarification_stop_consent._build_fixture()`
 # @used-by :func:`test_dirty_diff_issue_scope._init_repo()`
 # @used-by :func:`test_git_lifecycle_memoization._init_multi_issue_repo()`
+# @used-by :func:`test_incomplete_scope_regression_matrix._build_step_281_fixture()`
 # @used-by :func:`test_issue_close_acceptance._commit_and_tag()`
 # @used-by :func:`test_issue_first_completion._init_github_project()`
 # @used-by :func:`test_issue_preflight_and_batch._commit_and_tag()`

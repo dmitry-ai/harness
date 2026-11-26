@@ -35,6 +35,7 @@ def _collect_turn_issues(turn: dict, turn_state: dict | None) -> dict[str, dict]
 # @used-by :meth:`test_clarification_stop_consent.ClarificationStopConsentTests.test_explicit_user_stop_consent_in_clarifications_unblocks_deferral()`
 # @used-by :meth:`test_clarification_stop_consent.ClarificationStopConsentTests.test_step_100_102_real_clarifications_rejected_with_open_deferred_children()`
 # @used-by :meth:`test_git_lifecycle_memoization.GitLifecycleMemoizationTests.test_audit_memoizes_readonly_git_commands_across_multiple_issues()`
+# @used-by :meth:`test_incomplete_scope_regression_matrix.IncompleteScopeRegressionMatrixTests.test_step_281_scope_deferral_matrix_blocks_open_children_allows_unrelated_bugs_and_consent()`
 # @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue45_post_checkpoint_evicted_citation_gate_and_issue48_defect_filing_gate()`
 # @used-by :meth:`test_issue_conversation_isolation.IssueConversationIsolationTests.test_analytical_turn_ignores_foreign_and_legacy_broadcast_issues_with_dirty_repo()`
 # @used-by :meth:`test_issue_decomposition.IssueDecompositionTests.test_issue_markdown_linter_and_service_classes_exist()`

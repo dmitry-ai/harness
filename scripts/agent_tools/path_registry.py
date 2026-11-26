@@ -1714,6 +1714,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_hook_runner_watchdog`
 	# @used-by :mod:`test_hook_trace_cache_and_watchdog`
 	# @used-by :mod:`test_hook_unification`
+	# @used-by :mod:`test_incomplete_scope_regression_matrix`
 	# @used-by :mod:`test_issue44`
 	# @used-by :mod:`test_issue45_to_48`
 	# @used-by :mod:`test_issue_close_acceptance`
