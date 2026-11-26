@@ -31,8 +31,13 @@ def dff_chop0(v: Any) -> str:
 # 2017-09-29 Compare two numeric values within 0.1% deviation of `a`.
 # https://github.com/mage2pro/core/blob/11.6.1/Core/lib/float.php#L61-L78
 # @used-by :meth:`test_df_core_base.DfCoreBaseTests.test_empty_float_and_math()`
+# @used-by :meth:`test_df_upstream_fixes.TestDfUpstreamFixes.test_327_dff_eq_zero_and_negative()`
 def dff_eq(a: float | str | int, b: float | str | int) -> bool:
-	return dff_eq0(float(a) - float(b), .001 * float(a))
+	# 2026-11-26 "Fix dff_eq() returning False for zero and negative equal values": https://github.com/dmitry-ai/harness/issues/327
+	# Upstream defect: https://github.com/mage2pro/core/issues/470
+	fa, fb = (float(a), float(b))
+	tol = .001 * abs(fa)
+	return (fa == fb) if 0.0 == tol else dff_eq0(fa - fb, tol)
 # 2016-09-08 Check whether `a` is within `deviation` (default 0.001) of zero.
 # https://github.com/mage2pro/core/blob/11.6.1/Core/lib/float.php#L80-L98
 # @used-by :func:`dff_eq()`

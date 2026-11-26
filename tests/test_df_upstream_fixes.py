@@ -15,5 +15,14 @@ class TestDfUpstreamFixes(unittest.TestCase):
 		from Df.Core.Exception import Exception as DFE
 		ex = DFE('boom', 2)
 		self.assertEqual(2, ex.getStackLevelsCountToSkip())
+	# 2026-11-26 "Fix dff_eq() returning False for zero and negative equal values": https://github.com/dmitry-ai/harness/issues/327
+	# Upstream defect: https://github.com/mage2pro/core/issues/470
+	# @used-by :mod:`unittest`
+	def test_327_dff_eq_zero_and_negative(self) -> None:
+		from Df.Core.lib.float import dff_eq
+		self.assertTrue(dff_eq(0, 0))
+		self.assertTrue(dff_eq(-10.0, -10.0))
+		self.assertTrue(dff_eq(-100.0, -100.05))
+		self.assertFalse(dff_eq(-100.0, -101.0))
 if '__main__' == __name__:
 	unittest.main()
