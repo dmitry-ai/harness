@@ -73,14 +73,14 @@ def check_close_acceptance_receipt(code_repo: Path, repo: str, number: int, comm
 		r = f'EXEC-2 acceptance gate: missing passing shadow-replay receipt (\ua616/data/shadow-replay-receipt.json) for {reason} in {repo}#{number}; run passing shadow-replay before closing'
 	return r
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService._check_close_commit_readiness()`
-def check_close_readiness(workspace, args, repo: str, number: int, consumable: list[tuple[Path, bytes]], project_root: str | Path | None) -> tuple[Path | None, str | None, str]:
+def check_close_readiness(workspace, args, repo: str, number: int, consumable: list[tuple[Path, bytes]], project_root: str | Path | None, *, verify_fn=verify_repo_issue_ready_for_close, is_tracked_fn=is_issue_tracked_code_repo) -> tuple[Path | None, str | None, str]:
 	from ..addon_observability import check_close_companion_health
 	code_repo = workspace.find_local_code_repo(repo, project_root=project_root, source_files=consumable, repo_root=getattr(args, 'repo_root', None))
 	err: str | None = None
 	stage = 'pre_flight_commit_check'
-	if None is not code_repo and is_issue_tracked_code_repo(code_repo):
+	if None is not code_repo and is_tracked_fn(code_repo):
 		try:
-			res = verify_repo_issue_ready_for_close(code_repo, repo, number, project_root=project_root)
+			res = verify_fn(code_repo, repo, number, project_root=project_root)
 		except (ValueError, RuntimeError) as exc:
 			err, stage = (str(exc), 'pre_flight_commit_check')
 		else:

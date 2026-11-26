@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 from ..cli_common import consume_unchanged_files, dump_json
 # 2026-11-26 "Require passing shadow-replay acceptance receipt in df_github_issue close gate": https://github.com/dmitry-ai/harness/issues/291
+from ..git_gate import is_issue_tracked_code_repo, verify_repo_issue_ready_for_close
 from .acceptance_gate import check_close_readiness
 from .linter import IssueMarkdownLinter
 from .repo_commands import run_audit_repo, run_transfer_repo
@@ -37,7 +38,7 @@ class GitHubIssueService:
 	# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
 	def _check_close_commit_readiness(self, args: argparse.Namespace, repo: str, number: int, consumable: list[tuple[Path, bytes]], project_root: str | Path | None) -> tuple[Path | None, str | None, str]:
 		# 2026-11-26 "Require passing shadow-replay acceptance receipt in df_github_issue close gate": https://github.com/dmitry-ai/harness/issues/291
-		return check_close_readiness(self.workspace, args, repo, number, consumable, project_root)
+		return check_close_readiness(self.workspace, args, repo, number, consumable, project_root, verify_fn=verify_repo_issue_ready_for_close, is_tracked_fn=is_issue_tracked_code_repo)
 	def _edit_parent_only(self, repo: str, number: int, parent_num: int, target_locale: str, consumable: list[tuple[Path, bytes]], project_root: str | Path | None) -> int:
 		fetched = self._api(f'repos/{repo}/issues/{number}', method='GET')
 		remote_title, remote_body = (fetched.get('title') or '', fetched.get('body') or '')

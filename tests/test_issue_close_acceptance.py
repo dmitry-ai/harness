@@ -81,5 +81,14 @@ class IssueCloseAcceptanceTests(unittest.TestCase):
 			receipt_f.write_text(json.dumps({'schema_version': 1, 'repo_head': new_sha, 'valid': True, 'exit_code': 0}), encoding='utf-8')
 			rc_fresh, out_fresh = _run_close_cli(proj, code, 12)
 			self.assertEqual(0, rc_fresh, out_fresh)
+	# @used-by :mod:`unittest`
+	def test_service_close_preserves_verify_repo_issue_ready_for_close_patch_hook(self) -> None:
+		from test_repo_tag_close_gate import _init_tracked_repo
+		with tempfile.TemporaryDirectory() as td:
+			proj, code, _ = _init_tracked_repo(Path(td).resolve())
+			with patch('agent_tools.issues.service.verify_repo_issue_ready_for_close', return_value={'verified': True}) as mocked_verify:
+				rc, out = _run_close_cli(proj, code, 13)
+			self.assertEqual(0, rc, out)
+			self.assertEqual(1, mocked_verify.call_count)
 if '__main__' == __name__:
 	unittest.main()
