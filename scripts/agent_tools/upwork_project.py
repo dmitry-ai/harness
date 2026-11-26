@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Separate --domain and --topic init labels with kebab-case rejection":
+# https://github.com/dmitry-ai/harness/issues/266
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Add deterministic reactive wait primitive for transient repository and journal contention":
 # https://github.com/dmitry-ai/harness/issues/199
@@ -80,6 +83,7 @@ import sqlite3
 import sys
 from .configuration import DISCOVERY_KINDS, configure_codex_project, is_linked_path, load_discovery_manifest, project_discovery_entries
 from .knowledge import create_once, json_bytes, populate_agent_kb, render_analysis, validate_analysis
+from .project_labels import attach_label_result, label_error_exit_code, resolve_init_label, update_state_label, validate_label_safe
 from .storage import create_bytes, locked, replace_bytes
 from .upwork_data import canonical_job_url, normalize_job_id, format_kb_project_md
 from .upwork_extract import attachment_path, extract_upwork_job
@@ -121,10 +125,7 @@ def default_context_config(root: Path | None=None):
 			letters_client = f'{let_rel}/client'
 	return {'version': 1, 'output': out_rel, 'sections': [{'title': 'Project', 'files': [overview_rel]}, {'title': 'Manual KB', 'globs': [manual_kb_glob], 'optional': True}, {'title': 'Agent KB', 'globs': [agent_kb_glob], 'exclude': [ev_excl], 'optional': True}, {'title': 'Analysis', 'journals': [journal_rel], 'optional': True}, {'title': 'Proposals', 'globs': [f'{proposals_rel}/**/final/*.md', f'{proposals_rel}/**/final.md'], 'drafts': [proposals_rel], 'optional': True}, {'title': 'Correspondence', 'optional': True, 'letters': [{'root': letters_my, 'author': 'Consultant', 'languages': ['EN', 'RU']}, {'root': letters_client, 'author': 'Client', 'languages': ['EN', 'RU']}]}]}
 def validate_label(value):
-	if not value or len(value) > 120 or value != value.strip().rstrip('.') or re.search('[\\\\/:\\x00-\\x1f<>"|?*]', value):
-		raise ValueError('Project name must be a Windows-safe domain or short topic, without a URL scheme')
-	r = value
-	return r
+	return validate_label_safe(value)
 # 2026-10-31 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
@@ -361,7 +362,7 @@ def resolve_or_create_project_dir(job_id, domain_or_topic, date_str=None, daily_
 # 2026-10-14 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
-def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, daily_root=DAILY_PROPOSALS_ROOT, primary_agents_dir=PRIMARY_AGENTS_DIR, extracted_data=None, register_antigravity=None, antigravity_projects_dir=None, antigravity_folders_json=None, site_hypothesis=None, platform=None, register_native=None, all_platforms=None, launcher_root=None, conversation_id=None):
+def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, daily_root=DAILY_PROPOSALS_ROOT, primary_agents_dir=PRIMARY_AGENTS_DIR, extracted_data=None, register_antigravity=None, antigravity_projects_dir=None, antigravity_folders_json=None, site_hypothesis=None, platform=None, register_native=None, all_platforms=None, launcher_root=None, conversation_id=None, topic=None):
 	platform = platform_name(platform)
 	job_id, day = (normalize_job_id(url_or_id), request_day(date_str))
 	if None is extracted_data:
@@ -371,7 +372,7 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, da
 		raise ValueError('Capture must be a JSON object')
 	if data.get('job_id') != job_id or not data.get('title') or (not data.get('description')):
 		raise ValueError('A capture with matching job ID, title and full description is required')
-	label = domain_or_topic or ' '.join(re.findall('[\\w-]+', data['title'])[:5])
+	label, label_kind, label_warning = resolve_init_label(domain=domain_or_topic, topic=topic, fallback_title=data['title'])
 	from .path_registry import project_paths
 	root = resolve_or_create_project_dir(job_id, label, day.isoformat(), daily_root)
 	(root / '\ua616/data').mkdir(parents=True, exist_ok=True)
@@ -411,8 +412,7 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, da
 			website = sync_initial_website(root, snapshot, site_hypothesis)
 			if 'conflict' == website['status']:
 				raise ValueError('Initial website card conflicts with a manual block; preserve and reconcile it')
-		state.update(initialized=True, snapshot=str(snapshot.relative_to(root)))
-		state.setdefault('request_date', day.isoformat())
+		update_state_label(state, root, snapshot, day, label_kind)
 		replace_bytes(state_file, json_bytes(state))
 	should_register = register_native if None is not register_native else register_antigravity
 	if None is should_register:
@@ -432,7 +432,7 @@ def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, da
 			handoffs = handoff_launcher_turn(launcher_root, root, job_id, conversation_id=conversation_id)
 		except (OSError, ValueError):
 			handoffs = []
-	r = {'project_dir': str(root), 'job_id': job_id, 'domain_or_topic': label, 'context_path': None, 'snapshot': str(snapshot), 'registration': info, 'platform': platform, 'registrations': info['registrations'] if info else {}, 'antigravity': info['registrations'].get('antigravity') if info else None, 'analysis_status': 'pending; initialization is not a completed analysis'}
+	r = attach_label_result({'project_dir': str(root), 'job_id': job_id, 'domain_or_topic': label, 'context_path': None, 'snapshot': str(snapshot), 'registration': info, 'platform': platform, 'registrations': info['registrations'] if info else {}, 'antigravity': info['registrations'].get('antigravity') if info else None, 'analysis_status': 'pending; initialization is not a completed analysis'}, state['label_kind'], label_warning)
 	if handoffs:
 		r['launcher_handoff'] = handoffs
 	return r
@@ -530,7 +530,7 @@ def main(argv=None):
 	subcommands = {
 		'inspect': ('Capture the selected tab once, including attachments', (('url', {}), ('--output', {'required': True, 'type': Path}), ('--tab-id', {}), ('--session-id', {'help': 'Authorized runtime text.browser.sessions entry (default: primary session)'}), ('--cdp-port', {'type': int}))),
 		'browser-anchor': ('Verify primary Chrome profile M-2A/M-2B isolation or initialize M-2B sentinel on an explicit Default tab', (('--session-id', {}), ('--init-sentinel-tab', {'help': 'Explicit Default profile tab_id on which to set the isolated https://harness-profile.invalid sentinel cookie'}))),
-		'init': ('Initialize from an existing capture without browser requests', (('url', {}), ('--from-json', {'required': True, 'type': Path}), ('--domain', {}), ('--date', {}), ('--site-hypothesis', {'type': Path, 'help': 'Four-part identity hypothesis with evidence and expert probability'}), ('--daily-root', {'type': Path, 'default': DAILY_PROPOSALS_ROOT}), ('--no-register', {'action': 'store_true'}), ('--launcher-root', {'type': Path, 'help': 'Optional launcher workspace root whose open /upwork-init turn should be handed off to the created daily project (default: current working directory)'}), ('--conversation', {'help': 'Optional native conversation UUID to narrow launcher turn handoff'}))),
+		'init': ('Initialize from an existing capture without browser requests', (('url', {}), ('--from-json', {'required': True, 'type': Path}), ('--domain', {'help': 'Verified target domain hostname without scheme or www.'}), ('--topic', {'help': 'Provisional human-readable topic title when no domain is yet verified'}), ('--date', {}), ('--site-hypothesis', {'type': Path, 'help': 'Four-part identity hypothesis with evidence and expert probability'}), ('--daily-root', {'type': Path, 'default': DAILY_PROPOSALS_ROOT}), ('--no-register', {'action': 'store_true'}), ('--launcher-root', {'type': Path, 'help': 'Optional launcher workspace root whose open /upwork-init turn should be handed off to the created daily project (default: current working directory)'}), ('--conversation', {'help': 'Optional native conversation UUID to narrow launcher turn handoff'}))),
 		'intake-drain': ('Verify and commit managed staging evidence; dry-run unless --apply', (('capture', {'nargs': '?', 'type': Path, 'help': 'One immediate capture directory; default: all managed incoming'}), ('--daily-root', {'type': Path, 'default': DAILY_PROPOSALS_ROOT}), ('--apply', {'action': 'store_true', 'help': 'Drain only after durable evidence and receipt verification'}))),
 		'cleanup': ('Remove empty native Upwork projects older than 72 hours; keep the entire daily archive', (('--apply', {'action': 'store_true', 'help': 'Apply cleanup; default is a read-only preview'}), ('--daily-root', {'type': Path, 'default': DAILY_PROPOSALS_ROOT}))),
 		'cleanup-report': ('Save the exact cleanup answer with an Istanbul timestamp in AI/log/cleanup', (('--answer', {'default': '-', 'help': 'Answer body as a UTF-8 file, or - for stdin'}),)),
@@ -650,7 +650,7 @@ def run(args):
 				for asset in data.get('saved_attachments') or []:
 					if not Path(asset['path']).resolve().is_relative_to(args.from_json.parent.resolve()):
 						raise ValueError('Attachment must belong to the capture directory')
-				result = initialize_upwork_project(args.url, args.domain, date_str=args.date, daily_root=args.daily_root, extracted_data=data, site_hypothesis=read_input_json(args.site_hypothesis, encoding='utf-8') if args.site_hypothesis else None, register_native=False if args.no_register else None, launcher_root=args.launcher_root if getattr(args, 'launcher_root', None) else Path.cwd(), conversation_id=getattr(args, 'conversation', None))
+				result = initialize_upwork_project(args.url, args.domain, date_str=args.date, daily_root=args.daily_root, extracted_data=data, site_hypothesis=read_input_json(args.site_hypothesis, encoding='utf-8') if args.site_hypothesis else None, register_native=False if args.no_register else None, launcher_root=args.launcher_root if getattr(args, 'launcher_root', None) else Path.cwd(), conversation_id=getattr(args, 'conversation', None), topic=getattr(args, 'topic', None))
 				from .intake import INCOMING, commit_capture
 				capture = Path(os.path.abspath(args.from_json)).parent
 				if 'source.json' == args.from_json.name and capture.parent == Path(os.path.abspath(INCOMING)):
@@ -673,7 +673,7 @@ def run(args):
 			dump_json(operation_error_payload(exc))
 		else:
 			print(f'ERROR: {type(exc).__name__}: {exc}', file=sys.stderr)
-		r = 1
+		r = label_error_exit_code(exc)
 	return r
 if '__main__' == __name__:
 	raise SystemExit(main())

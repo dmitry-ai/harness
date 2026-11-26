@@ -32,10 +32,12 @@ All client-attached files must be saved simultaneously in the root `source/` fol
 Include all attached text documents (PDF, DOCX, TXT, MD, etc.) verbatim and in full in both knowledge bases (`🕮/Project.md` / legacy `KB/Project.md` and `ꘖ/KB/{Project,Projects,Evidence}.md`) with proper Markdown formatting; transcribe all client-referenced videos (including Loom links in the job description or attached documents) in full with `[MM:SS]` timestamps; transcribe all attached images in full (verbatim text in `«»`, complete UI description, confirmations and contradictions against client statements with `%` scores) via `sync-attachments <project> --media-descriptions -`.  
 If anything material could not be extracted automatically, inspect it via an available authenticated session with separate evidence or document the exact limitation.  
 
-Name the project directory after the verified domain without scheme or `www`, or use a concise topic label when no domain is proven.  
+Name the project directory after the verified domain without scheme or `www` via `--domain <host>`, or use an explicit human-readable provisional topic title via `--topic "<Title>"` (Title Case such as `Magento & GA4`, never lowercase multi-hyphen machine slugs like `magento-nextjs-ga4-reporting`) when no domain is proven.  
+Before falling back to `--topic`, attempt at least one explicit search method change when initial geo, name, or keyword queries miss (for example, dropping an overly narrow location constraint and searching by founding year, catalog attributes, or tech stack).  
 Website ownership is established via a DOC-2 hypothesis rather than a folder name or bare URL mention.  
 The `site.json` hypothesis specifies an explicit `website_url` (HTTP(S) or `null`, for the initial block in the root card), `id`, `essence`, `for`, `against`, `probability_percent`, and `assessment_basis`; each argument includes `argument`, `source`, and `quote`; documented absence of counterevidence is permitted under DOC-2.  
-Run `init <URL> --from-json <staging>/source.json --domain <label> --date YYYY-MM-DD`, adding `--site-hypothesis <staging>/site.json` only when a website hypothesis is substantiated.  
+Run `init <URL> --from-json <staging>/source.json (--domain <host> | --topic "<Title>") --date YYYY-MM-DD`, adding `--site-hypothesis <staging>/site.json` only when a website hypothesis is substantiated (`--topic` records `"label_kind": "provisional_topic"` in `ꘖ/project.json`).  
+As soon as subsequent research establishes a single high-confidence `target` domain in `Analysis.json`, promote the provisional project directory and native registrations via `harness.py rename-project <project> --domain <host>` (or pass `--promote-domain` to `save-analysis` / `render-analysis`) before `stage finalize`.  
 Use the initial request date in `Europe/Istanbul`, not the continuation date.  
 The initial manual `🕮/Project.md` (legacy `KB/Project.md`) card is created once and ported in full into the agent KB along with all attachments in `source/`.  
 After `init`, staging materials are imported into `Evidence` with hashes and an `intake-drain` receipt, and `incoming` is emptied; any incomplete capture is preserved.  
@@ -149,3 +151,4 @@ Delete only your own temporary scratch files after verifying permanent copies (`
 <!-- https://github.com/dmitry-ai/harness/issues/217 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/225 -->  
 <!-- https://github.com/dmitry-ai/harness/issues/234 -->  
+<!-- https://github.com/dmitry-ai/harness/issues/266 -->  
