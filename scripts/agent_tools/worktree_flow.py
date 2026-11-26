@@ -318,7 +318,7 @@ def prioritized_worktree_candidates(repo_root: str | Path | None=None, cwd: Path
 			break
 	return cands
 # @used-by :func:`agent_tools.repo_wait._map_touched_path_to_repo()`
-# @used-by :func:`agent_tools.tdd.diff_coverage._touched_git_repos()`
+# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__touched_git_repos()`
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._collect_touched_repos()`
 def resolve_touched_repo_file(path: Path, is_tracked_fn) -> tuple[Path, str] | None:
 	r = None

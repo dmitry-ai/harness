@@ -34,6 +34,7 @@ class BrowserMcpGate:
 					break
 		return r
 	# @used-by :func:`agent_tools.gates.browser_mcp.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_pretool_classes_cover_all_guards()`
 	def check(self, name: str, args: dict, payload: dict | None=None) -> str | None:
 		r = None
 		if name.startswith('mcp_') and re.search('(?:chrome|devtools|browser|playwright|page)', name, re.I):

@@ -35,11 +35,11 @@ class ScheduleGate:
 	@staticmethod
 	def __discard_ended_tasks(row: dict, active_tids: set[str]) -> None:
 		if row.get('type') in ('SYSTEM_MESSAGE', 'EPHEMERAL_MESSAGE', 'GENERIC') and row.get('content'):
-			from agent_tools.tdd_gate import _BG_TASK_FINISHED_RE
+			from Df.Harness.Tdd.OutcomeParser import OutcomeParser
 			c_str = str(row.get('content'))
 			for m_end in ScheduleGate.__BG_TASK_ENDED_RE.finditer(c_str):
 				active_tids.discard(m_end.group(1).strip())
-			m_fin = _BG_TASK_FINISHED_RE.search(c_str)
+			m_fin = OutcomeParser.BG_TASK_FINISHED_RE.search(c_str)
 			if m_fin:
 				active_tids.discard(m_fin.group(1).strip())
 	# @used-by :meth:`ScheduleGate.__collect_started_tasks()`
@@ -70,9 +70,9 @@ class ScheduleGate:
 	# @used-by :meth:`ScheduleGate.__collect_started_tasks()`
 	@staticmethod
 	def __record_output_task_ids(outputs: list[str], all_tids: set[str], active_tids: set[str]) -> None:
-		from agent_tools.tdd_gate import _BG_TASK_ID_RE
+		from Df.Harness.Tdd.OutcomeParser import OutcomeParser
 		for out_s in outputs:
-			for m_tid in _BG_TASK_ID_RE.finditer(out_s):
+			for m_tid in OutcomeParser.BG_TASK_ID_RE.finditer(out_s):
 				tid = m_tid.group(1).strip().rstrip('.,')
 				if tid:
 					all_tids.add(tid)
@@ -104,6 +104,7 @@ class ScheduleGate:
 		return (explicit, rows[last_user + 1:] if 0 <= last_user else rows)
 	# @used-by :func:`agent_tools.failfast_gate.evaluate_pre_tool_use_schedule()`
 	# @used-by :func:`agent_tools.gates.schedule_gate.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_pretool_classes_cover_all_guards()`
 	def check(self, name: str, args: dict, payload: dict | None=None) -> str | None:
 		is_one_shot = 'schedule' == name and (not args.get('CronExpression')) and (True is not args.get('IsDaemon')) and (None is not args.get('DurationSeconds'))
 		return ScheduleGate.__schedule_block_reason(str((payload or {}).get('transcriptPath') or '').strip(), args, payload or {}) if is_one_shot else None

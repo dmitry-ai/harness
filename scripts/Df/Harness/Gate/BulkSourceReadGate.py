@@ -25,6 +25,7 @@ class BulkSourceReadGate:
 	# @used-by :func:`agent_tools.gates.bulk_source_read._parse_call_args()`
 	# @used-by :meth:`BulkSourceReadGate.check()`
 	# @used-by :meth:`Df.Harness.Gate.BrowserMcpGate.BrowserMcpGate.turn_has_background_mcp_new_page()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_pretool_classes_cover_all_guards()`
 	@staticmethod
 	def parse_call_args(raw) -> dict:
 		r = raw if isinstance(raw, dict) else {}

@@ -52,7 +52,6 @@ class Later(datetime):
 	# @used-by :func:`agent_tools.runtime.request_day()`
 	# @used-by :func:`agent_tools.runtime_snapshot._activate_release()`
 	# @used-by :func:`agent_tools.runtime_snapshot._promote_locked()`
-	# @used-by :func:`agent_tools.tdd.mechanical.record_mechanical_exemption()`
 	# @used-by :func:`agent_tools.text_browser.collect_cdp_dom()`
 	# @used-by :func:`agent_tools.text_browser.collect_headless_dom()`
 	# @used-by :func:`agent_tools.text_sources._attempt()`
@@ -62,6 +61,7 @@ class Later(datetime):
 	# @used-by :func:`agent_tools.workflow.now()`
 	# @used-by :func:`test_worktree_isolation_gate._write_turn()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.record_review()`
+	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 	# @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
 	# @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.prepare()`
 	# @used-by :meth:`agent_tools.experiments.ExperimentRunValidator.record()`

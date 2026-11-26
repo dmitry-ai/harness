@@ -1,151 +1,34 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
-import re
-# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
-from Df.Core.lib.array.first import df_first
-# 2026-11-24
-# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
-# https://github.com/dmitry-ai/harness/issues/224
-_BG_HEADER_SPLIT_RE = re.compile(r'(?m)^(?:Command output|Output|Log output):\s*$')
-_BG_TASK_FINISHED_RE = re.compile(r'Task\s+id\s+"([^"]+)"\s+finished\s+with\s+result:\s*([\s\S]*)', re.IGNORECASE)
-_BG_TASK_ID_RE = re.compile(r'task\s+id:\s*([A-Za-z0-9_./:-]+)', re.IGNORECASE)
-_BG_TASK_LOG_RE = re.compile(r'(?:Task\s+logs\s+are\s+available\s+at|Log):\s*(file:///[^\s\'"<>]+)', re.IGNORECASE)
-_EXIT_CODE_RE = re.compile(r'(?im)^(?:(?:Command|Process)\s+exited\s+with\s+code\s+(-?\d+)\.?|Exit\s+code:\s*(-?\d+))\s*$')
-# 2026-11-24
-# "Enable parallel pytest-xdist full-suite execution and outcome parsing":
-# https://github.com/dmitry-ai/harness/issues/178
-_FAIL_LOG_RE = re.compile(r'(?m:^FAILED(?:\s*\(|\s+\S)|^FAIL\b)|(?i:\btest result:\s*FAILED\b|\bFAILURES!\b|\bERRORS!\b|\bFailed!\s*-\s*Failed:\s*[1-9]|=+\s+[^=\n]*\b[1-9]\d*\s+(?:failed|errors?)\b[^=\n]*=+)')
-_INVOCATION_ERROR_RE = re.compile(
-	r'(?i)(?:is not recognized as an internal or external command'
-	r'|is not recognized as the name of a cmdlet'
-	r'|:\s*command not found\b'
-	r'|error:\s*unrecognized arguments:'
-	r'|no such option:'
-	r'|no module named\s+(?:pytest|unittest|nose|tox)\b'
-	r'|cannot find module\b[^.\n]*(?:jest|vitest|mocha))'
-)
-_NODE_FAIL_LOG_RE = re.compile(r'[\u2139i]\s+fail\s+[1-9]\d*\b')
-_OUTPUT_BODY_SPLIT_RE = re.compile(r'(?m)^(?:Command output|Output):\s*$')
-_ZERO_TESTS_RE = re.compile(
-	r'(?i)(?:\bRan\s+0\s+tests?\s+in\b'
-	r'|\bcollected\s+0\s+items\b'
-	r'|\bno\s+tests\s+ran\b'
-	r'|\b0\s+tests?\s+passed,\s*0\s+failed\b'
-	r'|[\u2139i]\s+tests\s+0\b)'
-)
-# @used-by :func:`parse_command_outcome()`
-def _collect_log_candidates(bg_log_path: str | None, task_log_paths: list[Path] | None) -> list[Path]:
-	r: list[Path] = [Path(bg_log_path)] if bg_log_path else []
-	for lp in task_log_paths or ():
-		p_obj = Path(lp)
-		if p_obj not in r:
-			r.append(p_obj)
-	return r
-# @used-by :func:`parse_command_outcome()`
-def _extract_bg_meta(combined: str) -> tuple[str | None, str | None]:
-	tids = extract_bg_task_ids(combined)
-	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
-	bg_tid = df_first(tids)
-	m_log = _BG_TASK_LOG_RE.search(combined)
-	lp = _uri_to_local_path(m_log.group(1)) if m_log else None
-	return (bg_tid, str(lp) if None is not lp else None)
-# @used-by :func:`parse_command_outcome()`
-def _header_exit_code(parts: list[str]) -> int | None:
-	r = None
-	for part in parts:
-		header = _OUTPUT_BODY_SPLIT_RE.split(part, maxsplit=1)[0]
-		m_hdr = _EXIT_CODE_RE.search(header)
-		if m_hdr:
-			r = int(m_hdr.group(1) or m_hdr.group(2))
-	return r
-# @used-by :func:`_infer_from_log_files()`
-# @used-by :func:`parse_command_outcome()`
+# 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
+from Df.Harness.Tdd.OutcomeParser import OutcomeParser
+_BG_HEADER_SPLIT_RE = OutcomeParser.BG_HEADER_SPLIT_RE
+_BG_TASK_FINISHED_RE = OutcomeParser.BG_TASK_FINISHED_RE
+_BG_TASK_ID_RE = OutcomeParser.BG_TASK_ID_RE
+_BG_TASK_LOG_RE = OutcomeParser.BG_TASK_LOG_RE
+_EXIT_CODE_RE = OutcomeParser.EXIT_CODE_RE
+_INVOCATION_ERROR_RE = OutcomeParser.INVOCATION_ERROR_RE
+_OUTPUT_BODY_SPLIT_RE = OutcomeParser.OUTPUT_BODY_SPLIT_RE
+_ZERO_TESTS_RE = OutcomeParser.ZERO_TESTS_RE
+# @used-by :mod:`agent_tools.tdd.outcomes`
 def _infer_exit_code_from_log_text(text: str) -> int | None:
-	r = None
-	if text:
-		m_ec = _EXIT_CODE_RE.search(text)
-		if m_ec:
-			r = int(m_ec.group(1) or m_ec.group(2))
-		elif _FAIL_LOG_RE.search(text):
-			r = 1
-		elif _is_pass_log_text(text):
-			r = 0
-		elif _NODE_FAIL_LOG_RE.search(text):
-			r = 1
-	return r
-# @used-by :func:`parse_command_outcome()`
-def _infer_from_log_files(log_candidates: list[Path]) -> tuple[int | None, str]:
-	exit_code = None
-	extra = ''
-	for lp in log_candidates:
-		try:
-			if lp.is_file():
-				tail = lp.read_text(encoding='utf-8', errors='replace')[-16000:]
-				extra += '\n' + tail
-				inferred = _infer_exit_code_from_log_text(tail)
-				if None is not inferred:
-					exit_code = inferred
-					break
-		except OSError:
-			continue
-	return (exit_code, extra)
-# @used-by :func:`_infer_exit_code_from_log_text()`
-def _is_pass_log_text(text: str) -> bool:
-	return bool(
-		(re.search(r'(?m)^Ran\s+\d+\s+tests?\s+in\s+\d', text) and re.search(r'(?m)^OK(?:\s|\(|$)', text))
-		or re.search(r'(?i)\btest result:\s*ok\.\s*[1-9]\d*\s+passed;\s*0\s+failed\b|\bPassed!\s*-\s*Failed:\s*0,\s*Passed:\s*[1-9]|\bOK\s*\(\d+\s+tests?', text)
-		# 2026-11-24
-		# "Enable parallel pytest-xdist full-suite execution and outcome parsing":
-		# https://github.com/dmitry-ai/harness/issues/178
-		or (re.search(r'(?m)^(?:=+\s+[^=\n]*\b)?[1-9]\d*\s+passed\b', text) and (not re.search(r'(?i)\b[1-9]\d*\s+(?:failed|errors?)\b', text)))
-		or (re.search(r'[\u2139i]\s+fail\s+0\b', text) and re.search(r'[\u2139i]\s+tests\s+[1-9]\d*\b', text))
-	)
-# @used-by :func:`_extract_bg_meta()`
+	return OutcomeParser.infer_exit_code_from_log_text(text)
 # @used-by :func:`agent_tools.issue_first_bg._bg_fin_outputs()`
 # @used-by :func:`agent_tools.issue_first_bg._register_bg_issue_tasks()`
+# @used-by :mod:`agent_tools.tdd.outcomes`
 def _uri_to_local_path(uri: str) -> Path | None:
-	raw = (uri or '').strip()
-	if not raw:
-		r = None
-	elif not raw.lower().startswith('file:'):
-		r = Path(raw)
-	else:
-		parsed = urlsplit(raw)
-		p_str = unquote(parsed.path)
-		if parsed.netloc and re.fullmatch(r'[A-Za-z]:', parsed.netloc):
-			p_str = parsed.netloc + p_str
-		elif re.match(r'^/[A-Za-z]:/', p_str):
-			p_str = p_str[1:]
-		r = Path(p_str)
-	return r
-# 2026-11-24
-# "Preserve multi-turn handed-off Stop Gate routing and stateful loop guard":
-# https://github.com/dmitry-ai/harness/issues/224
-# @used-by :func:`_extract_bg_meta()`
+	return OutcomeParser.uri_to_local_path(uri)
 # @used-by :func:`agent_tools.issue_first_bg._register_bg_issue_tasks()`
-# @used-by :func:`agent_tools.tdd.events._track_bg_command_outputs()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._record_tool_calls()`
+# @used-by :mod:`agent_tools.tdd.outcomes`
 def extract_bg_task_ids(text: str) -> list[str]:
-	r: list[str] = []
-	header = _BG_HEADER_SPLIT_RE.split(text or '', maxsplit=1)[0]
-	if not _EXIT_CODE_RE.search(header):
-		for m_tid in _BG_TASK_ID_RE.finditer(header):
-			tid = m_tid.group(1).strip().rstrip('.,')
-			if tid and tid not in r:
-				r.append(tid)
-	return r
-# 2026-11-24
-# "Decompose tdd_gate.py into modular TDD verification package":
-# https://github.com/dmitry-ai/harness/issues/169
+	return OutcomeParser.extract_bg_task_ids(text)
 # @used-by :func:`agent_tools.cli_command_grounding._is_passing_output()`
 # @used-by :func:`agent_tools.cli_command_grounding._record_call_outcome()`
 # @used-by :func:`agent_tools.completion._scan_child_trace_turn()`
 # @used-by :func:`agent_tools.doc5_context._inspect_call_failure()`
 # @used-by :func:`agent_tools.doc5_context._is_failed_cli_output()`
-# @used-by :func:`agent_tools.tdd.events._record_bg_task_completion()`
-# @used-by :func:`agent_tools.tdd.events.build_command_tdd_event()`
 # @used-by :func:`agent_tools.verification_observability._classify_shadow_output()`
 # @used-by :func:`agent_tools.verification_observability._inspect_shadow_call()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._record_subagent_calls()`
@@ -158,25 +41,9 @@ def extract_bg_task_ids(text: str) -> list[str]:
 # @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_chronological_tdd_state_machine_and_commit_reset()`
 # @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_hardening_header_exit_code_indirect_source_read_and_index_blob()`
 # @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_parse_command_outcome_sync_codex_and_background_task_log()`
+# @used-by :mod:`agent_tools.tdd.outcomes`
 # @used-by :mod:`agent_tools.tdd_gate`
 # @used-by :mod:`agent_tools.tdd`
 def parse_command_outcome(outputs: list[str] | tuple[str, ...] | str, *, task_log_paths: list[Path] | None=None) -> dict:
-	parts = [outputs] if isinstance(outputs, str) else [str(o) for o in (outputs or ()) if o]
-	combined = '\n'.join(parts)
-	bg_task_id, bg_log_path = _extract_bg_meta(combined)
-	exit_code = _header_exit_code(parts)
-	extra_log_text = ''
-	if None is exit_code:
-		exit_code, extra_log_text = _infer_from_log_files(_collect_log_candidates(bg_log_path, task_log_paths))
-	if None is exit_code:
-		exit_code = _infer_exit_code_from_log_text(combined)
-	full_text = combined + extra_log_text
-	is_inv_err = bool(_INVOCATION_ERROR_RE.search(full_text))
-	# 2026-11-24
-	# "Enable parallel pytest-xdist full-suite execution and outcome parsing":
-	# https://github.com/dmitry-ai/harness/issues/178
-	has_fail_log = bool(_FAIL_LOG_RE.search(full_text) or _NODE_FAIL_LOG_RE.search(full_text))
-	ran_zero = bool(_ZERO_TESTS_RE.search(full_text)) and (not has_fail_log)
-	is_fail = (None is not exit_code) and (0 != exit_code) and (not is_inv_err) and (not ran_zero)
-	is_pass = (0 == exit_code) and (not ran_zero) and (not is_inv_err)
-	return {'background_log_path': bg_log_path, 'background_task_id': bg_task_id, 'exit_code': exit_code, 'is_failure': is_fail, 'is_invocation_error': is_inv_err, 'is_pass': is_pass, 'ran_zero_tests': ran_zero}
+	return OutcomeParser(outputs, task_log_paths=task_log_paths).parse()
+__all__ = ['_BG_HEADER_SPLIT_RE', '_BG_TASK_FINISHED_RE', '_BG_TASK_ID_RE', '_BG_TASK_LOG_RE', '_EXIT_CODE_RE', '_INVOCATION_ERROR_RE', '_OUTPUT_BODY_SPLIT_RE', '_ZERO_TESTS_RE', '_infer_exit_code_from_log_text', '_uri_to_local_path', 'extract_bg_task_ids', 'parse_command_outcome']

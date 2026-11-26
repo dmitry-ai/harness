@@ -130,18 +130,6 @@ class RAM:
 	# @used-by :func:`agent_tools.snapshot.snapshot_draft()`
 	# @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`
 	# @used-by :func:`agent_tools.storage.write_immutable_bytes()`
-	# @used-by :func:`agent_tools.tdd.classifier._is_project_marker_dir()`
-	# @used-by :func:`agent_tools.tdd.classifier._resolve_deleted_worktree_scope()`
-	# @used-by :func:`agent_tools.tdd.classifier.resolve_code_scope()`
-	# @used-by :func:`agent_tools.tdd.comment_diff._git_read_text()`
-	# @used-by :func:`agent_tools.tdd.diff_contract._git_batch_texts()`
-	# @used-by :func:`agent_tools.tdd.diff_coverage._touched_git_repos()`
-	# @used-by :func:`agent_tools.tdd.diff_executability._git_read_bytes()`
-	# @used-by :func:`agent_tools.tdd.enforcement._git_show_text()`
-	# @used-by :func:`agent_tools.tdd.exemption.is_write_event_exempt()`
-	# @used-by :func:`agent_tools.tdd.mechanical._resolve_repo_binding()`
-	# @used-by :func:`agent_tools.tdd.mechanical.find_matching_mechanical_recipes()`
-	# @used-by :func:`agent_tools.tdd.worktree_scope.canonical_scope_path()`
 	# @used-by :func:`agent_tools.text_claims.registry_path()`
 	# @used-by :func:`agent_tools.text_claims.save_registry()`
 	# @used-by :func:`agent_tools.text_cli.main()`
@@ -170,6 +158,18 @@ class RAM:
 	# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__find_git_root()`
 	# @used-by :meth:`Df.Harness.Gate.CdpBypassGate.CdpBypassGate.is_inside_harness_code()`
 	# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.enclosing_github_repo()`
+	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.__is_project_marker_dir()`
+	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.__resolve_deleted_worktree_scope()`
+	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.resolve_code_scope()`
+	# @used-by :meth:`Df.Harness.Tdd.CommentDiff.CommentDiff.git_read_text()`
+	# @used-by :meth:`Df.Harness.Tdd.DiffContract.DiffContract.__git_batch_texts()`
+	# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__touched_git_repos()`
+	# @used-by :meth:`Df.Harness.Tdd.DiffExecutability.DiffExecutability.__git_read_bytes()`
+	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__git_show_text()`
+	# @used-by :meth:`Df.Harness.Tdd.Exemption.Exemption.is_write_event_exempt()`
+	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__resolve_repo_binding()`
+	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.find_matching_recipes()`
+	# @used-by :meth:`Df.Harness.Tdd.WorktreeScope.WorktreeScope.canonical_scope_path()`
 	# @used-by :meth:`RAM.get()`
 	# @used-by :meth:`agent_tools.git_gate.GitRepoGate._extract_added_diff_urls()`
 	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.is_issue_tracked()`

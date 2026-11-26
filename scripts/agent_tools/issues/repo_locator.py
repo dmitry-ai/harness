@@ -111,9 +111,9 @@ def _config_may_have_origin_remote(code_repo: Path) -> bool:
 # "Optimize local GitHub repository discovery with pruned walk and TTL cache":
 # https://github.com/dmitry-ai/harness/issues/172
 # @used-by :func:`_register_repo_slugs()`
-# @used-by :func:`agent_tools.tdd.mechanical.find_matching_mechanical_recipes()`
 # @used-by :func:`origin_repo_slug()`
 # @used-by :func:`repo_matches_slug()`
+# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.find_matching_recipes()`
 def _extract_config_slugs(code_repo: Path) -> list[str]:
 	cfg_file = git_config_file(code_repo)
 	r: list[str] = []

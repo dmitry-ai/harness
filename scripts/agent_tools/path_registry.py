@@ -1071,13 +1071,13 @@ def _v2_software_deliverable_dir(root: Path, reg: PathRegistry) -> Path:
 # @used-by :func:`agent_tools.platforms.codex._review_inputs()`
 # @used-by :func:`agent_tools.platforms.request_binding.canonical_path()`
 # @used-by :func:`agent_tools.review.read_package_envelope()`
-# @used-by :func:`agent_tools.tdd.mechanical.record_mechanical_exemption()`
 # @used-by :func:`agent_tools.text_workflow._roots()`
 # @used-by :func:`evaluate_similar_project_touches()`
 # @used-by :func:`is_tracked_workspace()`
 # @used-by :func:`project_paths()`
 # @used-by :func:`resolve_project_root()`
 # @used-by :func:`same_project_root()`
+# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 # @used-by :meth:`ProjectPaths.__init__()`
 # @used-by :meth:`agent_tools.completion.TurnJournalReconciler.__init__()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.is_issue_tracked()`
@@ -1618,9 +1618,6 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.runtime_cache._file_stat_key()`
 	# @used-by :func:`agent_tools.shadow_replay._ensure_scripts_path()`
 	# @used-by :func:`agent_tools.statements.is_documentation_url()`
-	# @used-by :func:`agent_tools.tdd.diff_coverage._find_uncovered()`
-	# @used-by :func:`agent_tools.tdd.diff_coverage_hook.prepare_single_pass_coverage_env()`
-	# @used-by :func:`agent_tools.tdd.outcomes._uri_to_local_path()`
 	# @used-by :func:`agent_tools.text_browser._endpoint_with_meta()`
 	# @used-by :func:`agent_tools.upwork_data.extract_upwork_job_url_id()`
 	# @used-by :func:`agent_tools.upwork_extract.download_attachment()`
@@ -1639,6 +1636,9 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__validate_file_uri()`
 	# @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__validate_relative_cross_repo()`
 	# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.enclosing_github_repo()`
+	# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__find_uncovered()`
+	# @used-by :meth:`Df.Harness.Tdd.DiffCoverageHook.DiffCoverageHook.prepare_env()`
+	# @used-by :meth:`Df.Harness.Tdd.OutcomeParser.OutcomeParser.uri_to_local_path()`
 	# @used-by :meth:`PathRegistry.__init__()`
 	# @used-by :meth:`agent_tools.completion.TurnJournalReconciler._prune_delivered_checkpoint_recovery()`
 	# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.publish_progress()`
@@ -1699,6 +1699,8 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_dotpy_bootstrap`
 	# @used-by :mod:`test_df_harness_dedup_s8`
 	# @used-by :mod:`test_df_harness_lib_s10`
+	# @used-by :mod:`test_df_harness_s11_wave2b_gate`
+	# @used-by :mod:`test_df_harness_s11_wave2b_tdd`
 	# @used-by :mod:`test_df_harness_s11_wave2e_arch`
 	# @used-by :mod:`test_df_qa`
 	# @used-by :mod:`test_df_upstream_fixes`
@@ -2040,12 +2042,12 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.repo_wait._active_turn_touched_paths()`
 	# @used-by :func:`agent_tools.shadow_replay._find_reply_path()`
 	# @used-by :func:`agent_tools.shadow_replay._run_pre_invocation()`
-	# @used-by :func:`agent_tools.tdd.mechanical._candidate_recipe_dirs()`
-	# @used-by :func:`agent_tools.tdd.mechanical.record_mechanical_exemption()`
-	# @used-by :func:`agent_tools.tdd.ratchet._turn_receipt_dirs()`
 	# @used-by :func:`check_markdown_slop._check_turn_budget_gate()`
 	# @used-by :func:`is_tracked_workspace()`
 	# @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__check_df_issue_turn_intent()`
+	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__candidate_recipe_dirs()`
+	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
+	# @used-by :meth:`Df.Harness.Tdd.RatchetGuard.RatchetGuard.turn_receipt_dirs()`
 	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._target_for_project_root()`
 	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.issue_target_for_path()`
 	# @used-by :meth:`test_blocked_report_hygiene_and_doc5_m2.BlockedReportHygieneAndDoc5M2Tests.test_blocked_report_records_journal_despite_hygiene_failures_and_allows_doc5()`
@@ -2376,10 +2378,6 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.shadow_replay_command.persist_shadow_replay_receipt()`
 # @used-by :func:`agent_tools.source_grounding.load_fact_ledger()`
 # @used-by :func:`agent_tools.storage.data_dir_for()`
-# @used-by :func:`agent_tools.tdd.classifier._resolve_deleted_worktree_scope()`
-# @used-by :func:`agent_tools.tdd.mechanical._candidate_recipe_dirs()`
-# @used-by :func:`agent_tools.tdd.mechanical.record_mechanical_exemption()`
-# @used-by :func:`agent_tools.tdd.ratchet._turn_receipt_dirs()`
 # @used-by :func:`agent_tools.text_browser._endpoint_lock()`
 # @used-by :func:`agent_tools.text_browser.save_cdp_identity()`
 # @used-by :func:`agent_tools.text_claims.registry_path()`
@@ -2411,6 +2409,10 @@ class ProjectPaths:
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.record_review()`
 # @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__check_df_issue_turn_intent()`
 # @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__match_upwork_root()`
+# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.__resolve_deleted_worktree_scope()`
+# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__candidate_recipe_dirs()`
+# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
+# @used-by :meth:`Df.Harness.Tdd.RatchetGuard.RatchetGuard.turn_receipt_dirs()`
 # @used-by :meth:`agent_tools.completion.AnswerPreparationRunner.__init__()`
 # @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.__init__()`
 # @used-by :meth:`agent_tools.experiments.ExperimentRunValidator._verify_saved_artifacts()`

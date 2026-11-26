@@ -17,7 +17,6 @@ def evaluate_pre_tool_use_schedule(name: str, args: dict, payload: dict) -> str 
 # @used-by :mod:`agent_tools.failfast_gate`
 def evaluate_pre_tool_use_test_failfast(name: str, args: dict) -> tuple[str | None, dict | None]:
 	return FailfastGate().evaluate(name, args)
-# @used-by :func:`agent_tools.tdd.evaluator._collect_failfast_warnings()`
 # @used-by :mod:`agent_tools.failfast_gate`
 def missing_failfast_flag(seg: str) -> tuple[str, str, re.Match] | None:
 	return FailfastGate.missing_failfast_flag(seg)

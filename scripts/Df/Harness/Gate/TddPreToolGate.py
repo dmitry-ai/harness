@@ -6,11 +6,12 @@ class TddPreToolGate:
 	PRIORITY = 110
 	TOOLS = frozenset({'run_command', 'write_file', 'edit_file'})
 	# @used-by :func:`agent_tools.gates.tdd.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_thin_pretool_shims_and_checkers()`
 	def check(self, name: str, args: dict, payload: dict | None=None) -> str | None:
-		from agent_tools.tdd.service_exempt import is_service_finalization_call
-		if is_service_finalization_call(name, args, payload):
+		from Df.Harness.Tdd.ServiceExempt import ServiceExempt
+		if ServiceExempt().is_exempt(name, args, payload):
 			r = None
 		else:
-			from agent_tools.tdd_gate import evaluate_pre_tool_use_tdd
-			r = evaluate_pre_tool_use_tdd(name, args, payload or {})
+			from Df.Harness.Tdd.Enforcement import Enforcement
+			r = Enforcement().evaluate_pre_tool_use(name, args, payload or {})
 		return r

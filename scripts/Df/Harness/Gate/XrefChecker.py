@@ -34,6 +34,7 @@ class XrefChecker:
 	# @used-by :func:`agent_tools.xref_gate.check_file_xref_violations()`
 	# @used-by :meth:`Df.Harness.Gate.XrefPreToolGate.XrefPreToolGate.check()`
 	# @used-by :meth:`XrefChecker.verify_legacy_changed_files()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_thin_pretool_shims_and_checkers()`
 	def __init__(self, path: str | Path, source: str, *, baseline_source: str | None=None) -> None:
 		self.__path = path
 		self.__source = source or ''
@@ -158,6 +159,7 @@ class XrefChecker:
 	# @used-by :func:`agent_tools.xref_gate.check_file_xref_violations()`
 	# @used-by :meth:`Df.Harness.Gate.XrefPreToolGate.XrefPreToolGate.check()`
 	# @used-by :meth:`XrefChecker.verify_legacy_changed_files()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_thin_pretool_shims_and_checkers()`
 	def check(self) -> list[str]:
 		rel = Path(self.__path).as_posix()
 		lang = XrefChecker.lang_for_rel(rel)

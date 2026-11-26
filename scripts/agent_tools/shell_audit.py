@@ -345,7 +345,7 @@ class ShellCommandInspector:
 				r.append(snippet)
 		return r
 _INSPECTOR = ShellCommandInspector()
-# @used-by :func:`agent_tools.tdd.events._is_git_commit_command()`
+# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.is_git_commit_command()`
 def _iter_shell_git_segments(candidate: str) -> list[tuple[str, list[str]]]:
 	return _INSPECTOR._iter_git_segments(candidate)
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_write_invocation()`
@@ -355,20 +355,20 @@ def _parse_commit_subcommand_args(argv: list[str] | tuple[str, ...]) -> tuple[li
 def _scan_git_global_opts(argv: list[str] | tuple[str, ...], *, base_dir: Path | None=None) -> tuple[int | None, bool, Path | None]:
 	return _INSPECTOR.scan_git_global_opts(argv, base_dir=base_dir)
 # @used-by :func:`agent_tools.issue_first_bg.is_df_issue_command_text()`
-# @used-by :func:`agent_tools.tdd.commands._collect_write_matches()`
-# @used-by :func:`agent_tools.tdd.commands.classify_test_command()`
-# @used-by :func:`agent_tools.tdd.commands.shell_test_delete_targets()`
-# @used-by :func:`agent_tools.tdd.evaluator._collect_failfast_warnings()`
-# @used-by :func:`agent_tools.tdd.service_exempt._is_service_command()`
 # @used-by :meth:`Df.Harness.Gate.FailfastGate.FailfastGate.__normalize_test_cmd()`
+# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.__collect_write_matches()`
+# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.classify_test_command()`
+# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.shell_test_delete_targets()`
+# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__collect_failfast_warnings()`
+# @used-by :meth:`Df.Harness.Tdd.ServiceExempt.ServiceExempt.__is_service_command()`
 def _split_shell_segments(cmd: str) -> list[str]:
 	return _INSPECTOR._split_segments(cmd)
 # @used-by unused
 def _unquote(token: str) -> str:
 	return _INSPECTOR._unquote(token)
 # @used-by :func:`agent_tools.git_gate.verify_git_write_invocation()`
-# @used-by :func:`agent_tools.tdd.events._is_git_commit_command()`
 # @used-by :func:`git_shim.prepare_git_invocation()`
+# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.is_git_commit_command()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_write_invocation()`
 def classify_git_argv(argv: list[str] | tuple[str, ...]) -> tuple[str | None, bool]:
 	return _INSPECTOR.classify_git_argv(argv)
@@ -405,13 +405,13 @@ def extract_issue_urls(text: str) -> list[str]:
 	# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
 	return dfa_unique_fast(_GITHUB_ISSUE_URL_RE.findall(text or ''))
 # 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
-# @used-by :func:`agent_tools.tdd.exemption.verify_staged_issue_urls()`
 # @used-by :meth:`Df.Harness.Gate.CdpBypassGate.CdpBypassGate.__check_write_content()`
+# @used-by :meth:`Df.Harness.Tdd.Exemption.Exemption.verify_staged_issue_urls()`
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._inspect_touched_code_file()`
 # @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_gates_and_classifiers_recognize_dotpy_files()`
 def is_code_file(rel_path: str | Path) -> bool:
 	return (Path(rel_path).suffix.lower() or (Path(rel_path).name.lower() if Path(rel_path).name.startswith('.') else '')) in _ISSUE_LINKED_CODE_SUFFIXES
-# @used-by :func:`agent_tools.tdd.mechanical.find_matching_mechanical_recipes()`
+# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.find_matching_recipes()`
 # @used-by :meth:`ShellCommandInspector.prohibited_git_write_commands()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_workflow()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_write_invocation()`
@@ -431,21 +431,21 @@ def normalize_commit_message(message: str | None) -> str:
 # @used-by :func:`agent_tools.issue_first_gate.evaluate_pre_tool_use_issue_first()`
 # @used-by :func:`agent_tools.issue_first_gate.resolve_issue_first_target()`
 # @used-by :func:`agent_tools.runtime_snapshot._set_local_hooks_path()`
-# @used-by :func:`agent_tools.tdd.classifier.resolve_code_scope()`
-# @used-by :func:`agent_tools.tdd.commands._resolve_shell_target()`
-# @used-by :func:`agent_tools.tdd.enforcement._eval_pre_write()`
-# @used-by :func:`agent_tools.tdd.enforcement._resolve_worktree_git_dirs()`
-# @used-by :func:`agent_tools.tdd.evaluator._git_main_repo_root()`
-# @used-by :func:`agent_tools.tdd.evaluator._resolve_event_target_scopes()`
-# @used-by :func:`agent_tools.tdd.events._is_git_commit_command()`
-# @used-by :func:`agent_tools.tdd.events.build_file_write_tdd_event()`
-# @used-by :func:`agent_tools.tdd.mechanical._resolve_repo_binding()`
 # @used-by :func:`git_shim._normalize_arg_token()`
 # @used-by :func:`git_shim.resolve_system_git()`
 # @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__resolve_pre_tool_target()`
 # @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.resolve_python_target()`
 # @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.resolve_target()`
 # @used-by :meth:`Df.Harness.Gate.XrefChecker.XrefChecker.resolve_target()`
+# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.resolve_code_scope()`
+# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.__resolve_shell_target()`
+# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__eval_pre_write()`
+# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__resolve_worktree_git_dirs()`
+# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__resolve_event_target_scopes()`
+# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.git_main_repo_root()`
+# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.build_file_write_event()`
+# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.is_git_commit_command()`
+# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__resolve_repo_binding()`
 # @used-by :meth:`ShellCommandInspector.scan_git_global_opts()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.__init__()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.assert_toplevel()`
@@ -465,10 +465,10 @@ def normalize_host_path(value: str | Path) -> Path:
 	return r
 # @used-by :func:`agent_tools.issue_first_gate._seed_open_issues_from_requests()`
 # @used-by :func:`agent_tools.issues.parity.merge_turn_issue_item()`
-# @used-by :func:`agent_tools.tdd.exemption._is_same_repo_url()`
-# @used-by :func:`agent_tools.tdd.mechanical._recipe_matches_repo()`
-# @used-by :func:`agent_tools.tdd.mechanical._validate_recipe_inputs()`
-# @used-by :func:`agent_tools.tdd.ratchet._find_issue_ratchet_approval()`
+# @used-by :meth:`Df.Harness.Tdd.Exemption.Exemption.__is_same_repo_url()`
+# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__recipe_matches_repo()`
+# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__validate_recipe_inputs()`
+# @used-by :meth:`Df.Harness.Tdd.RatchetGuard.RatchetGuard.__find_issue_approval()`
 # @used-by :meth:`ShellCommandInspector.prohibited_git_write_commands()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_workflow()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_write_invocation()`

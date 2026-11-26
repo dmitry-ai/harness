@@ -152,7 +152,7 @@ def clear_in_process_trace_cache() -> None:
 	with _MEM_LOCK:
 		_MEM_CACHE.clear()
 # @used-by :func:`agent_tools.issue_first_gate.extract_antigravity_issue_first_events()`
-# @used-by :func:`agent_tools.tdd.events._load_transcript_rows()`
+# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.__load_transcript_rows()`
 # @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_incremental_disk_cache_appends_and_invalidation()`
 # @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_untracked_dir_skips_disk_index_and_stays_in_process_only()`
 def load_transcript_rows_cached(transcript_path: Path, *, cwd: Path | None=None, return_stats: bool=False) -> list[dict] | tuple[list[dict], dict[str, Any]]:

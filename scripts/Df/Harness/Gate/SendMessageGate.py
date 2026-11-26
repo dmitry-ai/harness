@@ -19,6 +19,7 @@ class SendMessageGate:
 		is_large_json = looks_json and SendMessageGate.__MAX_JSON_MSG_BYTES < len(msg.encode('utf-8')) and bool(SendMessageGate.__VERDICT_META_RE.search(msg))
 		return has_verdict or is_large_json
 	# @used-by :func:`agent_tools.gates.send_message_gate.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_pretool_classes_cover_all_guards()`
 	def check(self, name: str, args: dict, payload: dict | None=None) -> str | None:
 		r: str | None = None
 		if 'send_message' == name:

@@ -11,6 +11,7 @@ class IssueCommentChecker:
 	# @used-by :func:`agent_tools.issue_comment_gate.check_issue_comment_violations()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentPreToolGate.IssueCommentPreToolGate.check()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentStagedGate.IssueCommentStagedGate.verify()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_thin_pretool_shims_and_checkers()`
 	def __init__(self, path: str | Path, source: str, *, baseline_source: str | None=None) -> None:
 		self.__path = Path(path)
 		self.__source = source or ''
@@ -72,10 +73,10 @@ class IssueCommentChecker:
 	# @used-by :meth:`IssueCommentChecker.check()`
 	@staticmethod
 	def __check_diff_issue_lines(rel_label: str, source: str, base_lines: list[str], cur_lines: list[str], base_scan: dict, cur_scan: dict, suffix: str) -> list[str]:
-		from agent_tools.tdd.comment_diff import is_comment_only_diff
+		from Df.Harness.Tdd.CommentDiff import CommentDiff
 		errs: list[str] = []
 		diff_info = IssueCommentChecker.__diff_changes(base_lines, cur_lines, base_scan, cur_scan)
-		if is_comment_only_diff(rel_label, '\n'.join(base_lines), source):
+		if CommentDiff.is_comment_only(rel_label, '\n'.join(base_lines), source):
 			diff_info['changed_code'], diff_info['del_anchors'], diff_info['comment_only'] = (set(), set(), True)
 		base_urls = {u for urls in base_scan['issue_lines'].values() for u in urls}
 		if 0.70 > len(diff_info['changed_code']) / max(1, len(cur_scan['code_lines'])):
@@ -118,6 +119,7 @@ class IssueCommentChecker:
 	# @used-by :func:`agent_tools.issue_comment_gate.check_issue_comment_violations()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentPreToolGate.IssueCommentPreToolGate.check()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentStagedGate.IssueCommentStagedGate.verify()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_thin_pretool_shims_and_checkers()`
 	def check(self) -> list[str]:
 		suffix = df_path_suffix(self.__path)
 		errs: list[str] = []

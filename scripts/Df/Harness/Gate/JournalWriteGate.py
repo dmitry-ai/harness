@@ -7,6 +7,7 @@ class JournalWriteGate:
 	PRIORITY = 50
 	TOOLS = frozenset({'run_command', 'write_file', 'edit_file'})
 	# @used-by :func:`agent_tools.gates.journal_write.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_pretool_classes_cover_all_guards()`
 	def check(self, name: str, args: dict, payload: dict | None=None) -> str | None:
 		r = None
 		if name in ('write_file', 'edit_file'):

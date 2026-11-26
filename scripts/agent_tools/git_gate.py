@@ -111,7 +111,7 @@ class GitRepoGate:
 	# "Enforce EXEC-5 code/issue lifecycle gate in answer-prepare, URL-only commit messages, git_shim/hook commit interception, and worktree isolation":
 	# https://github.com/dmitry-ai/harness/issues/31
 	# @used-by :func:`_extract_added_diff_urls()`
-	# @used-by :func:`agent_tools.tdd.exemption._verify_single_file_issue_urls()`
+	# @used-by :meth:`Df.Harness.Tdd.Exemption.Exemption.__verify_single_file_issue_urls()`
 	def _extract_added_diff_urls(self, rel_name: str) -> tuple[set[str], set[str]]:
 		added_urls: set[str] = set()
 		head_urls: set[str] = set()
@@ -917,7 +917,7 @@ def _main_repo_for_worktree(root: Path) -> Path:
 # @used-by :func:`agent_tools.issues.acceptance_gate.check_close_readiness()`
 # @used-by :func:`agent_tools.issues.parity._peer_code_repo_candidates()`
 # @used-by :func:`agent_tools.issues.service_helpers._parse_dirty_porcelain()`
-# @used-by :func:`agent_tools.tdd.diff_coverage._touched_git_repos()`
+# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__touched_git_repos()`
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._bind_issue_repos()`
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._collect_repos_and_issues()`
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._collect_touched_repos()`
@@ -949,9 +949,9 @@ def verify_issue_workflow(root: Path, relative: list[str], message: str | None=N
 # 2026-11-13
 # "Extract issue_lifecycle.py from completion.py, fix open backlog-issue lifecycle gating, and consolidate Git/issue helpers in git_gate.py":
 # https://github.com/dmitry-ai/harness/issues/53
-# @used-by :func:`agent_tools.tdd.events._is_git_commit_command()`
 # @used-by :func:`run_git_hook()`
 # @used-by :func:`verify_git_write_invocation()`
+# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.is_git_commit_command()`
 def resolve_git_repo_from_argv(argv: list[str] | tuple[str, ...], cwd: Path | None=None) -> Path | None:
 	base_dir = normalize_host_path(cwd).resolve() if None is not cwd else Path.cwd().resolve()
 	_, _, target_dir = _scan_git_global_opts(argv, base_dir=base_dir)

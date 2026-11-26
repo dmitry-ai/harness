@@ -10,6 +10,7 @@ class ServerHygieneGate:
 	__SERVER_CMD_RE = re.compile(r'\b(nxcli\.io|nxcli\.net|ssh\.exe|ssh\s+)\b', re.IGNORECASE)
 	__SERVER_SCRIPT_RE = re.compile(r'\b(nxcli\.io|nxcli\.net|ssh\.exe)\b', re.IGNORECASE)
 	# @used-by :func:`agent_tools.gates.server_hygiene.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_pretool_classes_cover_all_guards()`
 	def check(self, name: str, args: dict, payload: dict | None=None) -> str | None:
 		r = None
 		if 'run_command' == name:

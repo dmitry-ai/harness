@@ -33,6 +33,7 @@ class PreToolRegistry:
 	__NON_PRE_TOOL_MODULES = frozenset({'answer_checks', 'stop_checks'})
 	# @used-by :func:`agent_tools.gates.run_pre_tool_gates()`
 	# @used-by :meth:`PreToolRegistry.discover()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
 	def __init__(self, pkg_name: str='agent_tools.gates', pkg_dir: Path | None=None) -> None:
 		self.__pkg_name = pkg_name
 		self.__pkg_dir = Path(pkg_dir) if None is not pkg_dir else Path(__file__).resolve().parents[3] / 'agent_tools/gates'
@@ -125,6 +126,7 @@ class PreToolRegistry:
 			gates.sort(key=lambda item: (item['priority'], item['name']))
 		return gates
 	# @used-by :func:`agent_tools.gates.run_pre_tool_gates()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
 	def run(self, name: str, args: dict, payload: dict, *, extra_dirs: list[Path] | tuple[Path, ...] | None=None) -> dict:
 		r = {'decision': 'allow'}
 		for gate in PreToolRegistry.discover(tool_name=name, extra_dirs=extra_dirs, pkg_name=self.__pkg_name, pkg_dir=self.__pkg_dir):

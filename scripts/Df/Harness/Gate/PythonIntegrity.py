@@ -65,6 +65,7 @@ class PythonIntegrity:
 	# @used-by :meth:`Df.Harness.Gate.CodeSizeStagedGate.CodeSizeStagedGate.verify()`
 	# @used-by :meth:`PythonIntegrity.verify_directory()`
 	# @used-by :meth:`PythonIntegrity.verify_file()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
 	@staticmethod
 	def check(path: str | Path, source: str) -> list[str]:
 		rel_label = Path(path).as_posix()
@@ -86,6 +87,7 @@ class PythonIntegrity:
 					errs.append(f'CODE-4: Undefined global symbol(s) in {rel_label}: {joined}')
 		return errs
 	# @used-by :func:`agent_tools.python_integrity.verify_directory_python_integrity()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_staged_and_repo_checks()`
 	@staticmethod
 	def verify_directory(root_dir: Path) -> list[str]:
 		base = Path(root_dir).resolve()
@@ -111,10 +113,11 @@ class PythonIntegrity:
 			r = PythonIntegrity.check(label, fpath.read_text(encoding='utf-8', errors='replace'))
 		return r
 	# @used-by :func:`agent_tools.python_integrity.verify_touched_python_files()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_staged_and_repo_checks()`
 	@staticmethod
 	def verify_touched(repo_root: Path, rel_paths: list[str] | set[str]) -> list[str]:
-		from agent_tools.code_size_gate import check_python_size_violations
-		from agent_tools.tdd_gate import _git_head_text
+		from Df.Harness.Gate.CodeSizeChecker import CodeSizeChecker
+		from Df.Harness.Tdd.Enforcement import Enforcement
 		repo = Path(repo_root).resolve()
 		errs: list[str] = []
 		for rel in sorted(rel_paths or ()):
@@ -123,12 +126,13 @@ class PythonIntegrity:
 			fpath = repo / rel
 			if fpath.is_file():
 				errs.extend(PythonIntegrity.verify_file(fpath, rel_label=rel))
-				errs.extend(check_python_size_violations(rel, fpath.read_text(encoding='utf-8', errors='replace'), baseline_source=_git_head_text(repo, rel)))
+				errs.extend(CodeSizeChecker(rel, fpath.read_text(encoding='utf-8', errors='replace'), baseline_source=Enforcement.git_head_text(repo, rel)).check())
 		return errs
 	# @used-by :func:`agent_tools.python_integrity.verify_worktree_python_changes()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_staged_and_repo_checks()`
 	@staticmethod
 	def verify_worktree(wt_path: Path, target_branch: str) -> list[str]:
-		from agent_tools.code_size_gate import check_python_size_violations
+		from Df.Harness.Gate.CodeSizeChecker import CodeSizeChecker
 		wt = Path(wt_path).resolve()
 		raw = df_git_read_text(wt, 'diff', '--name-only', '--diff-filter=ACMR', f'{target_branch}..HEAD') or ''
 		errs: list[str] = []
@@ -139,5 +143,5 @@ class PythonIntegrity:
 			if fpath.is_file():
 				errs.extend(PythonIntegrity.verify_file(fpath, rel_label=rel))
 				base_text = df_git_read_text(wt, 'show', f'{target_branch}:{rel}')
-				errs.extend(check_python_size_violations(rel, fpath.read_text(encoding='utf-8', errors='replace'), baseline_source=base_text))
+				errs.extend(CodeSizeChecker(rel, fpath.read_text(encoding='utf-8', errors='replace'), baseline_source=base_text).check())
 		return errs

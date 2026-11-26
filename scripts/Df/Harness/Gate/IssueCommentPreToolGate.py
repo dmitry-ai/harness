@@ -7,18 +7,19 @@ class IssueCommentPreToolGate:
 	TOOLS = frozenset({'write_file', 'edit_file'})
 	# @used-by :func:`agent_tools.gates.issue_comment.check()`
 	# @used-by :func:`agent_tools.issue_comment_gate.evaluate_pre_tool_use_issue_comment()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_thin_pretool_shims_and_checkers()`
 	def check(self, name: str, args: dict, payload: dict | None=None) -> str | None:
 		r = None
 		if name in ('write_file', 'edit_file'):
 			from Df.Harness.Gate.IssueCommentChecker import IssueCommentChecker
 			from Df.Harness.Gate.IssueCommentScanner import IssueCommentScanner
-			from agent_tools.tdd_gate import _compute_edited_content, _git_head_text
+			from Df.Harness.Tdd.Enforcement import Enforcement
 			resolved = IssueCommentScanner.resolve_target(args, payload or {})
 			if None is not resolved:
 				repo_root, target, rel = resolved
-				_, new_text, _, _ = _compute_edited_content(name, args, target)
+				_, new_text, _, _ = Enforcement.compute_edited_content(name, args, target)
 				if None is not new_text:
-					base = _git_head_text(repo_root, rel) if None is not repo_root else (target.read_text(encoding='utf-8', errors='replace') if target.is_file() else None)
+					base = Enforcement.git_head_text(repo_root, rel) if None is not repo_root else (target.read_text(encoding='utf-8', errors='replace') if target.is_file() else None)
 					errs = IssueCommentChecker(rel, new_text, baseline_source=base).check()
 					r = '; '.join(errs[:3]) if errs else None
 		return r

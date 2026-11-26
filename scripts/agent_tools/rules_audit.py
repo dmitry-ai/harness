@@ -5,7 +5,6 @@ from pathlib import Path
 from Df.Harness.Gate.RulesAuditChecker import RulesAuditChecker
 from Df.Harness.Gate.RulesAuditor import RulesAuditor
 # @used-by :func:`agent_tools.cli_registry._exec_rules_audit()`
-# @used-by :meth:`Df.Harness.Gate.RulesManifest.RulesManifest.__build_doctor_rule_meta()`
 # @used-by :meth:`test_arch_rules_contract.ArchRulesContractTests.test_architecture_rule_is_compact_always_on_and_passes_doctor_and_rules_audit()`
 # @used-by :meth:`test_ask_question_pre_tool_gate.AskQuestionPreToolGateTests.test_pre_tool_gate_blocks_stop_gate_bypass_and_docs_codify_rule()`
 # @used-by :meth:`test_cli_command_grounding.CliCommandGroundingTests.test_exec2_rule_contains_shadow_replay_requirement_and_passes_rules_audit()`
@@ -21,7 +20,6 @@ def audit_rules(primary: str | Path, *, workspace: str | Path | None=None, max_f
 # @used-by :mod:`agent_tools.rules_audit`
 def build_semantic_audit_brief(primary: str | Path, *, workspace: str | Path | None=None) -> str:
 	return RulesAuditor.build_semantic_brief(primary, workspace=workspace)
-# @used-by :meth:`Df.Harness.Gate.RulesBudgetGate.RulesBudgetGate.check()`
 # @used-by :mod:`agent_tools.rules_audit`
 def check_shared_rule_edit(name: str, args: dict) -> str | None:
 	return RulesAuditor.check_shared_rule_edit(name, args)

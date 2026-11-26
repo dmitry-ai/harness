@@ -222,7 +222,7 @@ def init_turn_accumulator(*, extra=None):
 # "Detect unfinished background tasks in Antigravity turns and inherit unclosed TDD-FULL-GATE":
 # https://github.com/dmitry-ai/harness/issues/166
 # @used-by :func:`agent_tools.completion._intermediate_or_language_issues()`
-# @used-by :func:`agent_tools.tdd.events._antigravity_segment_is_interrupted()`
+# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.antigravity_segment_is_interrupted()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._finalize_segment()`
 # @used-by :meth:`test_background_wait_and_tdd_inheritance.BackgroundWaitAndTddInheritanceTests.test_waiting_stub_classifier_handles_ru_en_and_avoids_false_positives()`
 def is_waiting_status_stub(text: str) -> bool:

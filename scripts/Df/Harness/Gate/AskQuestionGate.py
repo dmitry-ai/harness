@@ -28,6 +28,7 @@ class AskQuestionGate:
 	def __is_undisclosed_deferral(option: str) -> bool:
 		return bool(AskQuestionGate.__RECOMMENDED_RE.search(option) and AskQuestionGate.__DEFERRAL_RE.search(option) and (not AskQuestionGate.__EXPLICIT_STOP_RE.search(option)))
 	# @used-by :func:`agent_tools.gates.ask_question_gate.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
 	def check(self, name: str, args: dict, payload: dict | None=None) -> str | None:
 		r: str | None = None
 		if 'ask_question' == name:

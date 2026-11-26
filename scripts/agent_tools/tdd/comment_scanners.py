@@ -1,243 +1,46 @@
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
-import re
-# 2026-11-25
-# "Add comment-only diff lexer exemption for top 20 repository languages":
-# https://github.com/dmitry-ai/harness/issues/238
-_CPP_RAW_RE = re.compile(r'R"([^\s()\\]{0,16})\(')
-_HEREDOC_START_RE = re.compile(r'<<<[ \t]*(?:"([A-Za-z_]\w*)"|\'([A-Za-z_]\w*)\'|([A-Za-z_]\w*))')
-_SH_HEREDOC_RE = re.compile(r'<<(-?)[ \t]*(?:"([A-Za-z_]\w*)"|\'([A-Za-z_]\w*)\'|([A-Za-z_]\w*))')
-# @used-by :func:`agent_tools.tdd.comment_lexers_c.lex_c_like()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_c.lex_php()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._lex_indent_loop()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._lex_loop()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_markup.lex_dockerfile()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_markup.lex_indent_hash()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_markup.lex_sed()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_markup.lex_sfc()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_markup.lex_tcl()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_script.lex_batch()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_script.lex_hash_script()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_script.lex_vbscript()`
+# 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
+from Df.Harness.Tdd.CommentScanners import CommentScanners
+# @used-by :mod:`agent_tools.tdd.comment_scanners`
 def finalize_line_tokens(raw_tokens: list[str]) -> tuple[str, ...]:
-	out: list[str] = []
-	for tok in raw_tokens:
-		if '\n' == tok:
-			if out and '\n' != out[-1]:
-				out.append('\n')
-		else:
-			out.append(tok)
-	if out and '\n' != out[-1]:
-		out.append('\n')
-	return tuple(out)
-# @used-by :func:`agent_tools.tdd.comment_lexers_c._c_like_comment_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_c._php_code_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._fsharp_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._hcl_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._rust_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._sass_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_block_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_script._sql_step()`
+	return CommentScanners.finalize_line_tokens(raw_tokens)
 # @used-by :func:`agent_tools.xref.java_lex._tokenize_java_step()`
 # @used-by :func:`agent_tools.xref.js_lex._tokenize_js_step()`
+# @used-by :mod:`agent_tools.tdd.comment_scanners`
 def scan_block_comment(src: str, pos: int, open_tok: str, close_tok: str, *, nested: bool=False) -> int:
-	n = len(src)
-	olen, clen = (len(open_tok), len(close_tok))
-	i, depth, r = (pos + olen, 1, -1)
-	while i < n:
-		if nested and src.startswith(open_tok, i):
-			depth += 1
-			i += olen
-		elif src.startswith(close_tok, i):
-			depth -= 1
-			i += clen
-			if 0 == depth:
-				r = i
-				break
-		else:
-			i += 1
-	return r
-# @used-by :func:`agent_tools.tdd.comment_lexers_c._c_like_string_step()`
+	return CommentScanners.scan_block_comment(src, pos, open_tok, close_tok, nested=nested)
+# @used-by :mod:`agent_tools.tdd.comment_scanners`
 def scan_cpp_raw(src: str, pos: int) -> int:
-	m = _CPP_RAW_RE.match(src, pos)
-	if None is m:
-		r = -1
-	else:
-		end_marker = f'){m.group(1)}"'
-		idx = src.find(end_marker, m.end())
-		r = -1 if -1 == idx else idx + len(end_marker)
-	return r
-# @used-by :func:`agent_tools.tdd.comment_lexers_c._c_like_special_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._sass_step()`
+	return CommentScanners.scan_cpp_raw(src, pos)
+# @used-by :mod:`agent_tools.tdd.comment_scanners`
 def scan_css_url(src: str, pos: int) -> int:
-	n = len(src)
-	i = pos + 4
-	while i < n and src[i] in ' \t\r\n':
-		i += 1
-	if i < n and src[i] in ('"', "'"):
-		end_q = scan_quoted(src, i, src[i], backslash=True, allow_nl=False)
-		r = -1 if 0 > end_q else _scan_until_paren(src, end_q)
-	else:
-		r = _scan_until_paren(src, i)
-	return r
-# @used-by :func:`agent_tools.tdd.comment_lexers_c._php_code_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._hcl_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_here_or_regex()`
+	return CommentScanners.scan_css_url(src, pos)
+# @used-by :mod:`agent_tools.tdd.comment_scanners`
 def scan_heredoc(src: str, pos: int, *, php: bool=False) -> int:
-	pat = _HEREDOC_START_RE if php else _SH_HEREDOC_RE
-	m = pat.match(src, pos)
-	if None is m:
-		r = -1
-	else:
-		tag = next((g for g in m.groups()[-3:] if g), '')
-		nl = src.find('\n', m.end())
-		r = -1 if -1 == nl else _find_heredoc_end(src, nl + 1, tag, php=php)
-	return r
-# @used-by :func:`agent_tools.tdd.comment_lexers_c._c_like_special_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_here_or_regex()`
+	return CommentScanners.scan_heredoc(src, pos, php=php)
 # @used-by :func:`agent_tools.xref.js_lex._tokenize_js_atom()`
+# @used-by :mod:`agent_tools.tdd.comment_scanners`
 def scan_js_regex(src: str, pos: int) -> int:
-	i, n, in_cls, r = (pos + 1, len(src), False, -1)
-	while i < n and src[i] not in '\r\n':
-		ch = src[i]
-		if '\\' == ch:
-			i += 2
-		elif '/' == ch and (not in_cls):
-			r = _scan_regex_flags(src, i + 1)
-			break
-		else:
-			in_cls = True if '[' == ch else (False if ']' == ch and in_cls else in_cls)
-			i += 1
-	return r
-# @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_block_step()`
+	return CommentScanners.scan_js_regex(src, pos)
+# @used-by :mod:`agent_tools.tdd.comment_scanners`
 def scan_line_block(src: str, pos: int, end_prefix: str) -> int:
-	n = len(src)
-	i, r = (pos, -1)
-	while i < n:
-		nl = src.find('\n', i)
-		line_end = n if -1 == nl else nl + 1
-		if src[i:line_end].startswith(end_prefix) and (len(end_prefix) == len(src[i:line_end].rstrip('\r\n')) or src[i + len(end_prefix)] in ' \t\r\n'):
-			r = line_end
-			break
-		i = line_end
-	return r
-# @used-by :func:`agent_tools.tdd.comment_lexers_c._c_like_comment_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_c._php_code_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._cmake_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._fsharp_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._hcl_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._lua_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._rust_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._sass_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._zig_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_markup._tcl_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_script._sql_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_script._vbs_step()`
+	return CommentScanners.scan_line_block(src, pos, end_prefix)
 # @used-by :func:`agent_tools.xref.java_lex._tokenize_java_step()`
 # @used-by :func:`agent_tools.xref.js_lex._tokenize_js_step()`
+# @used-by :mod:`agent_tools.tdd.comment_scanners`
 def scan_line_comment(src: str, pos: int, *, stop_tag: str='') -> int:
-	n = len(src)
-	nl = src.find('\n', pos)
-	end = n if -1 == nl else nl
-	if stop_tag:
-		tag_idx = src.find(stop_tag, pos, end)
-		if -1 != tag_idx:
-			end = tag_idx
-	return end
-# @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_here_or_regex()`
+	return CommentScanners.scan_line_comment(src, pos, stop_tag=stop_tag)
+# @used-by :mod:`agent_tools.tdd.comment_scanners`
 def scan_ps_herestring(src: str, pos: int, quote: str) -> int:
-	nl = src.find('\n', pos + 2)
-	if -1 == nl:
-		r = -1
-	else:
-		end_marker = f'\n{quote}@'
-		idx = src.find(end_marker, nl)
-		r = -1 if -1 == idx else idx + len(end_marker)
-	return r
-# @used-by :func:`agent_tools.tdd.comment_lexers_c._c_like_string_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_c._php_code_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_c._scan_template_expr()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._cmake_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._fsharp_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._hcl_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._lua_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._rust_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._sass_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._scan_rust_char_or_lifetime()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._zig_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_markup._tcl_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_quote_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_script._sql_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_script._vbs_step()`
+	return CommentScanners.scan_ps_herestring(src, pos, quote)
 # @used-by :func:`agent_tools.xref.java_lex._tokenize_java_atom()`
 # @used-by :func:`agent_tools.xref.js_lex._tokenize_js_atom()`
-# @used-by :func:`scan_css_url()`
+# @used-by :mod:`agent_tools.tdd.comment_scanners`
 def scan_quoted(src: str, pos: int, quote: str, *, backslash: bool=True, doubled: bool=False, allow_nl: bool=True, backtick: bool=False) -> int:
-	n = len(src)
-	i, r = (pos + 1, -1)
-	while i < n:
-		ch = src[i]
-		if (not allow_nl) and ch in '\r\n':
-			break
-		if backslash and '\\' == ch:
-			i += 2
-		elif backtick and '`' == ch:
-			i += 2
-		elif doubled and ch == quote and i + 1 < n and src[i + 1] == quote:
-			i += 2
-		elif ch == quote:
-			r = i + 1
-			break
-		else:
-			i += 1
-	return r
-# @used-by :func:`agent_tools.tdd.comment_lexers_c._c_like_string_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_ext._fsharp_step()`
-# @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_quote_step()`
+	return CommentScanners.scan_quoted(src, pos, quote, backslash=backslash, doubled=doubled, allow_nl=allow_nl, backtick=backtick)
 # @used-by :func:`agent_tools.xref.java_lex._tokenize_java_atom()`
+# @used-by :mod:`agent_tools.tdd.comment_scanners`
 def scan_triple_quote(src: str, pos: int, quote: str) -> int:
-	marker = quote * 3
-	i, n, r = (pos + 3, len(src), -1)
-	while i < n:
-		if '\\' == src[i]:
-			i += 2
-		elif src.startswith(marker, i):
-			r = i + 3
-			break
-		else:
-			i += 1
-	return r
-# @used-by :func:`scan_heredoc()`
-def _find_heredoc_end(src: str, start: int, tag: str, *, php: bool) -> int:
-	i, n, r = (start, len(src), -1)
-	while i < n:
-		nl = src.find('\n', i)
-		line_end = n if -1 == nl else nl
-		stripped = src[i:line_end].strip()
-		matched = (stripped == tag or stripped.startswith(f'{tag};')) if php else (stripped == tag)
-		if matched:
-			r = line_end
-			break
-		i = n if -1 == nl else nl + 1
-	return r
-# @used-by :func:`scan_js_regex()`
-def _scan_regex_flags(src: str, pos: int) -> int:
-	n = len(src)
-	i = pos
-	while i < n and src[i].isalpha():
-		i += 1
-	return i
-# @used-by :func:`scan_css_url()`
-def _scan_until_paren(src: str, pos: int) -> int:
-	n = len(src)
-	i, r = (pos, -1)
-	while i < n:
-		if '\\' == src[i]:
-			i += 2
-		elif ')' == src[i]:
-			r = i + 1
-			break
-		else:
-			i += 1
-	return r
+	return CommentScanners.scan_triple_quote(src, pos, quote)
+__all__ = ['finalize_line_tokens', 'scan_block_comment', 'scan_cpp_raw', 'scan_css_url', 'scan_heredoc', 'scan_js_regex', 'scan_line_block', 'scan_line_comment', 'scan_ps_herestring', 'scan_quoted', 'scan_triple_quote']

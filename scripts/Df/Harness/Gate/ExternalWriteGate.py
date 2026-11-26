@@ -63,6 +63,7 @@ class ExternalWriteGate:
 	def upwork_project_root_for_command(cmd: str) -> Path | None:
 		return next((hit for cand in ExternalWriteGate.__cand_paths_from_cmd(cmd) if None is not (hit := ExternalWriteGate.__match_upwork_root(cand))), None)
 	# @used-by :func:`agent_tools.gates.external_write.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_pretool_classes_cover_all_guards()`
 	def check(self, name: str, args: dict, payload: dict | None=None) -> str | None:
 		r = None
 		if 'run_command' == name:

@@ -20,14 +20,15 @@ class RulesBudgetGate:
 				r = f'Size of rule module {path} ({byte_len} bytes) exceeds the 6,000-byte limit. Split it into smaller topical modules.'
 		return r
 	# @used-by :func:`agent_tools.gates.rules_budget.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_pretool_classes_cover_all_guards()`
 	def check(self, name: str, args: dict, payload: dict | None=None) -> str | None:
 		path = str(args.get('Path') or '')
 		normalized = path.replace('\\', '/').lower() if path else ''
 		if '/.agents/rules/' in normalized:
 			r = RulesBudgetGate.__check_local_rule(name, args, path, normalized)
 		elif re.search('/rules/[^/]+\\.md$', normalized):
-			from agent_tools.rules_audit import check_shared_rule_edit
-			r = check_shared_rule_edit(name, args)
+			from Df.Harness.Gate.RulesAuditor import RulesAuditor
+			r = RulesAuditor.check_shared_rule_edit(name, args)
 		else:
 			r = None
 		return r

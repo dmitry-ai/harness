@@ -10,6 +10,7 @@ class CodeStyleAnalyzer:
 	__YODA_OPS = (ast.Eq, ast.NotEq, ast.Is, ast.IsNot)
 	# @used-by :func:`agent_tools.code_style_gate.analyze_python_style()`
 	# @used-by :meth:`Df.Harness.Gate.CodeStyleChecker.CodeStyleChecker.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
 	def __init__(self, source: str) -> None:
 		self.__source = source or ''
 	# @used-by :meth:`CodeStyleAnalyzer.__unique_return_map()`
@@ -74,6 +75,7 @@ class CodeStyleAnalyzer:
 		return out
 	# @used-by :func:`agent_tools.code_style_gate.analyze_python_style()`
 	# @used-by :meth:`Df.Harness.Gate.CodeStyleChecker.CodeStyleChecker.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
 	def analyze(self) -> dict:
 		try:
 			tree = ast.parse(self.__source)

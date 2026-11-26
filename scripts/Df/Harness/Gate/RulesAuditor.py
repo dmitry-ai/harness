@@ -18,7 +18,9 @@ class RulesAuditor:
 	)
 	__SHARED_RULE_PATH_RE = re.compile(r'/rules/[^/]+\.md$', re.I)
 	# @used-by :func:`agent_tools.rules_audit.audit_rules()`
+	# @used-by :meth:`Df.Harness.Gate.RulesManifest.RulesManifest.__build_doctor_rule_meta()`
 	# @used-by :meth:`RulesAuditor.verify_staged()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_staged_and_repo_checks()`
 	def __init__(self, primary: str | Path, *, workspace: str | Path | None=None, max_file_bytes: int=RulesAuditChecker.MAX_RULE_FILE_BYTES, max_always_on_bytes: int=RulesAuditChecker.MAX_ALWAYS_ON_BYTES, max_always_on_tokens: int=RulesAuditChecker.MAX_ALWAYS_ON_TOKENS, overrides: dict[Path, bytes] | None=None) -> None:
 		self.__primary = Path(primary).resolve()
 		self.__workspace = Path(workspace).resolve() if None is not workspace else None
@@ -112,11 +114,11 @@ class RulesAuditor:
 	def __read_staged_overrides(repo_root: Path, staged_paths: list[str], use_index: bool) -> dict[Path, bytes]:
 		r: dict[Path, bytes] = {}
 		if use_index:
-			from agent_tools.tdd.enforcement import _git_index_text
+			from Df.Harness.Tdd.Enforcement import Enforcement
 			for rel in staged_paths:
 				norm = rel.replace('\\', '/')
 				if norm.startswith('rules/') and norm.endswith('.md'):
-					txt = _git_index_text(repo_root, norm)
+					txt = Enforcement.git_index_text(repo_root, norm)
 					if None is not txt:
 						r[(repo_root / norm).resolve()] = txt.encode('utf-8')
 		return r
@@ -140,6 +142,7 @@ class RulesAuditor:
 		lines = ['# Neutral Read-Only A.A Semantic Rules Audit Brief', '', 'Role: independent read-only A.A auditor (REVIEW-1 / REVIEW-4; do not modify files or invoke hidden model sessions).  ', f'Primary Harness root: `{prim.as_posix()}`.  ', f'Workspace root: `{ws_label}`.  ', *RulesAuditor.__SEMANTIC_AUDIT_CHECKLIST, 'Shared rules to read in full:  ', *rules, 'Skills to cross-check for leakage or duplication:  ', *skills]
 		return '\n'.join(lines) + '\n'
 	# @used-by :func:`agent_tools.rules_audit.check_shared_rule_edit()`
+	# @used-by :meth:`Df.Harness.Gate.RulesBudgetGate.RulesBudgetGate.check()`
 	@staticmethod
 	def check_shared_rule_edit(name: str, args: dict) -> str | None:
 		r = None
@@ -176,7 +179,9 @@ class RulesAuditor:
 			r = [f"RULES-AUDIT ({item['code']}): {item['file']} — {item['detail']}" for item in rep['issues']]
 		return r
 	# @used-by :func:`agent_tools.rules_audit.audit_rules()`
+	# @used-by :meth:`Df.Harness.Gate.RulesManifest.RulesManifest.__build_doctor_rule_meta()`
 	# @used-by :meth:`RulesAuditor.verify_staged()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_staged_and_repo_checks()`
 	def audit(self) -> dict:
 		entries = RulesAuditor.__load_rule_entries(self.__primary, overrides=self.__overrides)
 		ws_files = RulesAuditor.__inspect_workspace_auto_files(self.__primary, self.__workspace)

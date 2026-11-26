@@ -1,9 +1,8 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from pathlib import Path
+from Df.Harness.Tdd.CommandInspector import CommandInspector
 from agent_tools.shell_audit import _split_shell_segments
-from agent_tools.tdd.commands import _HARNESS_WATCHDOG_PREFIX_RE, _mask_quoted, unwrap_watchdog_prefix
-from agent_tools.tdd_gate import classify_test_command
 import re
 # 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
 class FailfastGate:
@@ -90,15 +89,16 @@ class FailfastGate:
 	def __wrap_watchdog_cmd(cmd: str) -> str:
 		return f'python "{FailfastGate.__HARNESS_SCRIPT}" test-watchdog --timeout {FailfastGate.__DEFAULT_WATCHDOG_TIMEOUT} {cmd.strip()}'
 	# @used-by :func:`agent_tools.failfast_gate.missing_failfast_flag()`
+	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__collect_failfast_warnings()`
 	# @used-by :meth:`FailfastGate.__inject_missing_failfast()`
 	@staticmethod
 	def missing_failfast_flag(seg: str) -> tuple[str, str, re.Match] | None:
 		r = None
 		if isinstance(seg, str) and seg.strip():
-			inner = unwrap_watchdog_prefix(seg)
+			inner = CommandInspector.unwrap_watchdog_prefix(seg)
 			prefix_len = len(seg) - len(inner)
 			start = max(0, prefix_len - 1)
-			masked_seg = _mask_quoted(seg)
+			masked_seg = CommandInspector.mask_quoted(seg)
 			for label, anchor_re, has_re, flag in FailfastGate.__RUNNER_SPECS:
 				hay = seg if 'harness-run-tests' == label else masked_seg
 				m_anc = anchor_re.search(hay, start)
@@ -114,18 +114,19 @@ class FailfastGate:
 		r = None
 		if isinstance(seg, str) and seg.strip():
 			s = seg.strip()
-			if (not FailfastGate.__RUNNER_SPECS[0][1].search(s)) and (not _HARNESS_WATCHDOG_PREFIX_RE.match(s)):
-				masked = _mask_quoted(s)
+			if (not FailfastGate.__RUNNER_SPECS[0][1].search(s)) and (not CommandInspector.HARNESS_WATCHDOG_PREFIX_RE.match(s)):
+				masked = CommandInspector.mask_quoted(s)
 				if FailfastGate.__RUNNER_SPECS[1][1].search(masked):
 					r = ('unittest', 'harness.py run-tests --module-timeout 300 or harness.py test-watchdog --timeout 300')
 				elif FailfastGate.__RUNNER_SPECS[2][1].search(masked) and (not FailfastGate.__PYTEST_TIMEOUT_RE.search(masked)):
 					r = ('pytest', '--timeout=<S> or harness.py test-watchdog --timeout 300')
 		return r
 	# @used-by :func:`agent_tools.failfast_gate.evaluate_pre_tool_use_test_failfast()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
 	def evaluate(self, name: str, args: dict) -> tuple[str | None, dict | None]:
 		r: tuple[str | None, dict | None] = (None, None)
 		if 'run_command' == name:
 			cmd = str(args.get('CommandLine') or '')
-			if classify_test_command(cmd).get('is_test_cmd'):
+			if CommandInspector(cmd).classify_test_command().get('is_test_cmd'):
 				r = FailfastGate.__normalize_test_cmd(cmd, args)
 		return r

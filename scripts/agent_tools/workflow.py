@@ -344,14 +344,6 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.stop_subagent_check._apply_call()`
 	# @used-by :func:`agent_tools.stop_subagent_check._process_manage_subagents()`
 	# @used-by :func:`agent_tools.suite_runner._run_module_worker()`
-	# @used-by :func:`agent_tools.tdd.commands.shell_test_delete_targets()`
-	# @used-by :func:`agent_tools.tdd.commands.shell_write_targets()`
-	# @used-by :func:`agent_tools.tdd.diff_coverage._collect_hit_lines()`
-	# @used-by :func:`agent_tools.tdd.diff_coverage._prod_match_tokens()`
-	# @used-by :func:`agent_tools.tdd.diff_coverage._touched_git_repos()`
-	# @used-by :func:`agent_tools.tdd.enforcement._diff_added_lines()`
-	# @used-by :func:`agent_tools.tdd.substantive._collect_read_wrapper_params()`
-	# @used-by :func:`agent_tools.tdd.worktree_scope.extract_command_worktree_ids()`
 	# @used-by :func:`agent_tools.text_browser._verify_context_anchor()`
 	# @used-by :func:`agent_tools.text_claims.primary_numbers()`
 	# @used-by :func:`agent_tools.text_claims.save_registry()`
@@ -392,6 +384,14 @@ class ResearchQuestionRegistry:
 	# @used-by :meth:`Df.Harness.Gate.SubprocessHygieneChecker.SubprocessHygieneChecker.__collect_subprocess_bindings()`
 	# @used-by :meth:`Df.Harness.Gate.WorktreeIsolationGate.WorktreeIsolationGate.__count_active_open_turns()`
 	# @used-by :meth:`Df.Harness.Gate.XrefStagedGate.XrefStagedGate.__staged_overrides()`
+	# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.shell_test_delete_targets()`
+	# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.shell_write_targets()`
+	# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__collect_hit_lines()`
+	# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__touched_git_repos()`
+	# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.prod_match_tokens()`
+	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__diff_added_lines()`
+	# @used-by :meth:`Df.Harness.Tdd.SubstantiveTestChecker.SubstantiveTestChecker.__collect_read_wrapper_params()`
+	# @used-by :meth:`Df.Harness.Tdd.WorktreeScope.WorktreeScope.extract_command_worktree_ids()`
 	# @used-by :meth:`ResearchQuestionRegistry.contract_issues()`
 	# @used-by :meth:`agent_tools.claims.ClaimGraphValidator._check_claim_dependencies_and_caps()`
 	# @used-by :meth:`agent_tools.claims.ClaimGraphValidator._check_claim_structure()`
@@ -1088,10 +1088,6 @@ class WorkflowStateEngine:
 	# @used-by :func:`agent_tools.stop_subagent_check._collect_invoke_outputs()`
 	# @used-by :func:`agent_tools.stop_subagent_check._process_row_message()`
 	# @used-by :func:`agent_tools.stop_subagent_check._record_invoke()`
-	# @used-by :func:`agent_tools.tdd.diff_coverage._changed_py_files()`
-	# @used-by :func:`agent_tools.tdd.events._track_bg_command_outputs()`
-	# @used-by :func:`agent_tools.tdd.exemption._verify_single_file_issue_urls()`
-	# @used-by :func:`agent_tools.tdd.substantive._collect_repo_anchor_vars()`
 	# @used-by :func:`agent_tools.text_browser._verify_context_anchor()`
 	# @used-by :func:`agent_tools.text_browser.preflight()`
 	# @used-by :func:`agent_tools.text_claims.primary_numbers()`
@@ -1122,6 +1118,10 @@ class WorkflowStateEngine:
 	# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.__function_metrics()`
 	# @used-by :meth:`Df.Harness.Gate.CodeStyleAnalyzer.CodeStyleAnalyzer.__scan_tokens()`
 	# @used-by :meth:`Df.Harness.Gate.PythonIntegrity.PythonIntegrity.__collect_defined_globals()`
+	# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__changed_py_files()`
+	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.__track_bg_command_outputs()`
+	# @used-by :meth:`Df.Harness.Tdd.Exemption.Exemption.__verify_single_file_issue_urls()`
+	# @used-by :meth:`Df.Harness.Tdd.SubstantiveTestChecker.SubstantiveTestChecker.__collect_repo_anchor_vars()`
 	# @used-by :meth:`ResearchQuestionRegistry._apply_claim()`
 	# @used-by :meth:`ResearchQuestionRegistry._apply_finish()`
 	# @used-by :meth:`ResearchQuestionRegistry._apply_handoff()`

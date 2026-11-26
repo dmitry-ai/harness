@@ -2,7 +2,7 @@
 from __future__ import annotations
 from collections import Counter
 from pathlib import Path
-from agent_tools.tdd_gate import is_test_file
+from Df.Harness.Tdd.CodeClassifier import CodeClassifier
 import ast
 import re
 # 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
@@ -13,6 +13,7 @@ class SubprocessHygieneChecker:
 	# @used-by :func:`agent_tools.subprocess_hygiene_gate.check_subprocess_hygiene_violations()`
 	# @used-by :meth:`Df.Harness.Gate.SubprocessHygienePreToolGate.SubprocessHygienePreToolGate.check()`
 	# @used-by :meth:`Df.Harness.Gate.SubprocessHygieneStagedGate.SubprocessHygieneStagedGate.verify()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_thin_pretool_shims_and_checkers()`
 	def __init__(self, path: str | Path, source: str, *, baseline_source: str | None=None) -> None:
 		self.__path = path
 		self.__source = source
@@ -102,10 +103,11 @@ class SubprocessHygieneChecker:
 	def is_target(path: str | Path) -> bool:
 		rel = Path(str(path)).as_posix()
 		low = rel.casefold()
-		return low.endswith('.py') and (not low.startswith(('\ua616/', '\ua66e/', '.git/'))) and (is_test_file(rel) or bool(SubprocessHygieneChecker.__LAUNCHER_NAME_RE.search(Path(rel).name)))
+		return low.endswith('.py') and (not low.startswith(('\ua616/', '\ua66e/', '.git/'))) and (CodeClassifier.is_test_file(rel) or bool(SubprocessHygieneChecker.__LAUNCHER_NAME_RE.search(Path(rel).name)))
 	# @used-by :func:`agent_tools.subprocess_hygiene_gate.check_subprocess_hygiene_violations()`
 	# @used-by :meth:`Df.Harness.Gate.SubprocessHygienePreToolGate.SubprocessHygienePreToolGate.check()`
 	# @used-by :meth:`Df.Harness.Gate.SubprocessHygieneStagedGate.SubprocessHygieneStagedGate.verify()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_thin_pretool_shims_and_checkers()`
 	def check(self) -> list[str]:
 		r: list[str] = []
 		if SubprocessHygieneChecker.is_target(self.__path):

@@ -97,11 +97,6 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :func:`agent_tools.research.extract_markdown()`
 	# @used-by :func:`agent_tools.scatter_banner._has_unnegated_match()`
 	# @used-by :func:`agent_tools.scatter_banner._proposal_slice()`
-	# @used-by :func:`agent_tools.tdd.comment_lexers_c.lex_php()`
-	# @used-by :func:`agent_tools.tdd.comment_lexers_c.lex_python()`
-	# @used-by :func:`agent_tools.tdd.comment_lexers_markup._consume_astro_frontmatter()`
-	# @used-by :func:`agent_tools.tdd.comment_lexers_markup.lex_sfc()`
-	# @used-by :func:`agent_tools.tdd.mechanical._consume_partial_match()`
 	# @used-by :func:`agent_tools.text_core._excerpt()`
 	# @used-by :func:`agent_tools.text_core.bold_spans()`
 	# @used-by :func:`agent_tools.text_core.check_response()`
@@ -113,6 +108,11 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.__code_lines_and_semicolons()`
 	# @used-by :meth:`Df.Harness.Gate.CodeStyleAnalyzer.CodeStyleAnalyzer.__scan_tokens()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__trailing_comment_urls()`
+	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.lex_php()`
+	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.lex_python()`
+	# @used-by :meth:`Df.Harness.Tdd.MarkupCommentLexer.MarkupCommentLexer.__consume_astro_frontmatter()`
+	# @used-by :meth:`Df.Harness.Tdd.MarkupCommentLexer.MarkupCommentLexer.lex_sfc()`
+	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__consume_partial_match()`
 	# @used-by :meth:`TextClaimRevisionTests.test_changed_primary_bytes_invalidate_an_existing_semantic_check()`
 	# @used-by :meth:`TextMapTests.test_limited_claim_rejects_lazy_conditional_qualification()`
 	# @used-by :meth:`TextMapTests.test_standalone_proposal_map_needs_no_five_analysis_stages()`

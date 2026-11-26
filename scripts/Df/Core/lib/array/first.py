@@ -20,8 +20,8 @@ from Df.Core.lib.array.other.ita import df_ita
 # @used-by :func:`agent_tools.issues.repo_locator.origin_repo_slug()`
 # @used-by :func:`agent_tools.perf.timesheet_ag._ag_timestamps()`
 # @used-by :func:`agent_tools.repo_tags.pick_preferred_tag()`
-# @used-by :func:`agent_tools.tdd.mechanical.find_matching_mechanical_recipes()`
-# @used-by :func:`agent_tools.tdd.outcomes._extract_bg_meta()`
+# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.find_matching_recipes()`
+# @used-by :meth:`Df.Harness.Tdd.OutcomeParser.OutcomeParser.__extract_bg_meta()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner._apply_removal()`
 # @used-by :meth:`test_df_core_array.DfCoreArrayTests.test_deep_find_first_insert_and_is()`
 # @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_first_last_starts_with_and_is_windows_delegation_to_df()`

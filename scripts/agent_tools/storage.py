@@ -221,7 +221,6 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 # @used-by :func:`agent_tools.runtime_snapshot.promote_runtime_snapshot()`
 # @used-by :func:`agent_tools.snapshot.snapshot_draft()`
 # @used-by :func:`agent_tools.stop_emergency_capture.maybe_emergency_capture_journal()`
-# @used-by :func:`agent_tools.tdd.mechanical.record_mechanical_exemption()`
 # @used-by :func:`agent_tools.text_browser._endpoint_lock()`
 # @used-by :func:`agent_tools.text_claims.save_registry()`
 # @used-by :func:`agent_tools.text_review.record()`
@@ -232,6 +231,7 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 # @used-by :func:`agent_tools.worker_semaphore._try_reserve_once()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__persist_review_index()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__register_package_index()`
+# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner._apply_removal()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.run()`
 # @used-by :meth:`agent_tools.completion.TurnJournalReconciler.run()`
@@ -351,7 +351,6 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :func:`agent_tools.shadow_replay_command.persist_shadow_replay_receipt()`
 # @used-by :func:`agent_tools.snapshot.snapshot_draft()`
 # @used-by :func:`agent_tools.stop_hook_guard._save_guard()`
-# @used-by :func:`agent_tools.tdd.mechanical.record_mechanical_exemption()`
 # @used-by :func:`agent_tools.text_claims.save_registry()`
 # @used-by :func:`agent_tools.text_review.record()`
 # @used-by :func:`agent_tools.text_sources._attempt()`
@@ -363,6 +362,7 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :func:`agent_tools.worker_semaphore._try_reserve_once()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__persist_review_index()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__register_package_index()`
+# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._update_single_turn_locked()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.persist_issue_evidence()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.persist_repo_transfer_evidence()`

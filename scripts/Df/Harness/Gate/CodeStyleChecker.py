@@ -12,6 +12,7 @@ class CodeStyleChecker:
 	# @used-by :func:`agent_tools.code_style_gate.check_python_style_violations()`
 	# @used-by :meth:`Df.Harness.Gate.CodeStylePreToolGate.CodeStylePreToolGate.check()`
 	# @used-by :meth:`Df.Harness.Gate.CodeStyleStagedGate.CodeStyleStagedGate.verify()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
 	def __init__(self, path: str | Path, source: str, *, baseline_source: str | None=None) -> None:
 		self.__path = path
 		self.__source = source
@@ -40,6 +41,7 @@ class CodeStyleChecker:
 	# @used-by :func:`agent_tools.code_style_gate.check_python_style_violations()`
 	# @used-by :meth:`Df.Harness.Gate.CodeStylePreToolGate.CodeStylePreToolGate.check()`
 	# @used-by :meth:`Df.Harness.Gate.CodeStyleStagedGate.CodeStyleStagedGate.verify()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
 	def check(self) -> list[str]:
 		cur = CodeStyleAnalyzer(self.__source).analyze()
 		errs: list[str] = []

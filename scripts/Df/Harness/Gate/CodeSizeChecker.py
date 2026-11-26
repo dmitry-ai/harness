@@ -2,7 +2,7 @@
 from __future__ import annotations
 from pathlib import Path
 from Df.Harness.Gate.CodeSizeAnalyzer import CodeSizeAnalyzer
-from agent_tools.tdd_gate import is_test_file
+from Df.Harness.Tdd.CodeClassifier import CodeClassifier
 # 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
 class CodeSizeChecker:
 	PROD_FILE_SLOC_LIMIT = 300
@@ -14,6 +14,9 @@ class CodeSizeChecker:
 	# @used-by :func:`agent_tools.code_size_gate.check_python_size_violations()`
 	# @used-by :meth:`Df.Harness.Gate.CodeSizePreToolGate.CodeSizePreToolGate.check()`
 	# @used-by :meth:`Df.Harness.Gate.CodeSizeStagedGate.CodeSizeStagedGate.verify()`
+	# @used-by :meth:`Df.Harness.Gate.PythonIntegrity.PythonIntegrity.verify_touched()`
+	# @used-by :meth:`Df.Harness.Gate.PythonIntegrity.PythonIntegrity.verify_worktree()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
 	def __init__(self, path: str | Path, source: str, *, baseline_source: str | None=None) -> None:
 		self.__path = path
 		self.__source = source
@@ -53,8 +56,9 @@ class CodeSizeChecker:
 	# @used-by :meth:`CodeSizeChecker.is_legacy_oversized_baseline()`
 	@staticmethod
 	def __limits_for_path(path: str | Path) -> tuple[int, int, int]:
-		return (CodeSizeChecker.TEST_FILE_SLOC_LIMIT, CodeSizeChecker.TEST_FUNC_SLOC_LIMIT, CodeSizeChecker.TEST_MCCABE_LIMIT) if is_test_file(path) else (CodeSizeChecker.PROD_FILE_SLOC_LIMIT, CodeSizeChecker.PROD_FUNC_SLOC_LIMIT, CodeSizeChecker.PROD_MCCABE_LIMIT)
+		return (CodeSizeChecker.TEST_FILE_SLOC_LIMIT, CodeSizeChecker.TEST_FUNC_SLOC_LIMIT, CodeSizeChecker.TEST_MCCABE_LIMIT) if CodeClassifier.is_test_file(path) else (CodeSizeChecker.PROD_FILE_SLOC_LIMIT, CodeSizeChecker.PROD_FUNC_SLOC_LIMIT, CodeSizeChecker.PROD_MCCABE_LIMIT)
 	# @used-by :meth:`Df.Harness.Gate.CodeSizePreToolGate.CodeSizePreToolGate.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
 	@staticmethod
 	def is_legacy_oversized_baseline(path: str | Path, baseline_source: str | None) -> bool:
 		r = False
@@ -67,6 +71,9 @@ class CodeSizeChecker:
 	# @used-by :func:`agent_tools.code_size_gate.check_python_size_violations()`
 	# @used-by :meth:`Df.Harness.Gate.CodeSizePreToolGate.CodeSizePreToolGate.check()`
 	# @used-by :meth:`Df.Harness.Gate.CodeSizeStagedGate.CodeSizeStagedGate.verify()`
+	# @used-by :meth:`Df.Harness.Gate.PythonIntegrity.PythonIntegrity.verify_touched()`
+	# @used-by :meth:`Df.Harness.Gate.PythonIntegrity.PythonIntegrity.verify_worktree()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
 	def check(self) -> list[str]:
 		cur = CodeSizeAnalyzer(self.__source).analyze()
 		rel_label = Path(self.__path).as_posix()

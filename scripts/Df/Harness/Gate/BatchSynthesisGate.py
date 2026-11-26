@@ -9,6 +9,7 @@ class BatchSynthesisGate:
 	__ANALYSIS_RE = re.compile('analysis' + '\\.md', re.I)
 	__WRITE_CALL_RE = re.compile('\\b(?:write_' + 'text|write_' + 'bytes|open\\s*\\()\\b')
 	# @used-by :func:`agent_tools.gates.batch_synthesis.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_pretool_classes_cover_all_guards()`
 	def check(self, name: str, args: dict, payload: dict | None=None) -> str | None:
 		r = None
 		if name in ('write_file', 'edit_file'):

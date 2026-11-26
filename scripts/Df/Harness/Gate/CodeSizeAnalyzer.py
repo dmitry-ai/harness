@@ -13,6 +13,7 @@ class CodeSizeAnalyzer:
 	# @used-by :func:`agent_tools.code_size_gate.analyze_python_source()`
 	# @used-by :meth:`Df.Harness.Gate.CodeSizeChecker.CodeSizeChecker.check()`
 	# @used-by :meth:`Df.Harness.Gate.CodeSizeChecker.CodeSizeChecker.is_legacy_oversized_baseline()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
 	def __init__(self, source: str) -> None:
 		self.__source = source or ''
 	# @used-by :meth:`CodeSizeAnalyzer.__collect_excluded_lines()`
@@ -146,6 +147,7 @@ class CodeSizeAnalyzer:
 	# @used-by :func:`agent_tools.code_size_gate.analyze_python_source()`
 	# @used-by :meth:`Df.Harness.Gate.CodeSizeChecker.CodeSizeChecker.check()`
 	# @used-by :meth:`Df.Harness.Gate.CodeSizeChecker.CodeSizeChecker.is_legacy_oversized_baseline()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
 	def analyze(self) -> dict:
 		try:
 			tree = ast.parse(self.__source)

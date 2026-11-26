@@ -87,6 +87,7 @@ class RepoLinkGate:
 						r.append(f'LINK-6: Cross-repository relative link {href} targets {slug}{suffix}; use a tagged GitHub URL https://github.com/{slug}/{kind}/<tag>{suffix}')
 		return r
 	# @used-by :func:`agent_tools.repo_link_gate.chat_repo_link_issues()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_staged_and_repo_checks()`
 	@staticmethod
 	def check_chat(content: str, *, root: Path | None=None) -> list[str]:
 		errors: list[str] = []
@@ -116,6 +117,7 @@ class RepoLinkGate:
 		return dfa_unique_fast(errors)
 	# @used-by :func:`agent_tools.repo_link_gate.verify_staged_repo_links()`
 	# @used-by :meth:`Df.Harness.Gate.StagedGates.StagedGates.verify()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_staged_and_repo_checks()`
 	def verify_staged(self, repo_root: Path, staged_paths: list[str], *, use_index: bool=True) -> list[str]:
 		violations: list[str] = []
 		for rel in staged_paths:

@@ -60,6 +60,8 @@ class StopChecksGate:
 		(40, 'tdd', __check_tdd),
 	)
 	# @used-by :func:`agent_tools.gates.stop_checks.run_stop_gates()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_pretool_classes_cover_all_guards()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_v4_arch_audit_and_pipeline_parity()`
 	# @uses :meth:`Df.Harness.Gate.StopChecksGate.StopChecksGate.__check_arch_audit()`
 	# @uses :meth:`Df.Harness.Gate.StopChecksGate.StopChecksGate.__check_code_lifecycle()`
 	# @uses :meth:`Df.Harness.Gate.StopChecksGate.StopChecksGate.__check_issue_first()`

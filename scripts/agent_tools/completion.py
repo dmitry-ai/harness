@@ -646,7 +646,6 @@ def _directory(root, selected=None):
 # @used-by :func:`_state()`
 # @used-by :func:`_unchanged()`
 # @used-by :func:`agent_tools.stop_emergency_capture.maybe_emergency_capture_journal()`
-# @used-by :func:`agent_tools.tdd.mechanical._resolve_turn_key()`
 # @used-by :func:`begin()`
 # @used-by :func:`check_answer()`
 # @used-by :func:`issue_first_check_turn()`
@@ -654,6 +653,7 @@ def _directory(root, selected=None):
 # @used-by :func:`recover_checkpoint()`
 # @used-by :func:`similar_project_exempt()`
 # @used-by :func:`tdd_check_turn()`
+# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__resolve_turn_key()`
 # @used-by :meth:`TurnJournalReconciler.run()`
 # @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_open_turn_reconciles_safely_and_trims_stale_reservation()`
 # @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_prepared_or_missing_tail_turn_remains_rejected()`
@@ -675,7 +675,6 @@ def _key(native, turn):
 # @used-by :func:`_prepare_once()`
 # @used-by :func:`_unchanged()`
 # @used-by :func:`agent_tools.stop_emergency_capture.maybe_emergency_capture_journal()`
-# @used-by :func:`agent_tools.tdd.mechanical._resolve_turn_key()`
 # @used-by :func:`begin()`
 # @used-by :func:`check_answer()`
 # @used-by :func:`issue_first_check_turn()`
@@ -685,6 +684,7 @@ def _key(native, turn):
 # @used-by :func:`sync_conversation_title()`
 # @used-by :func:`tdd_check_turn()`
 # @used-by :func:`test_turn_completion.completed_tail_is_immutable()`
+# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__resolve_turn_key()`
 # @used-by :meth:`TurnJournalReconciler.__init__()`
 # @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_open_turn_reconciles_safely_and_trims_stale_reservation()`
 # @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_prepared_or_missing_tail_turn_remains_rejected()`
@@ -1605,7 +1605,6 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 # @used-by :func:`_persist_turn_recovery()`
 # @used-by :func:`_prepare_once()`
 # @used-by :func:`_unchanged()`
-# @used-by :func:`agent_tools.tdd.mechanical._resolve_turn_key()`
 # @used-by :func:`begin()`
 # @used-by :func:`check_answer()`
 # @used-by :func:`issue_first_check_turn()`
@@ -1613,6 +1612,7 @@ def _state(root, native, turn, *, recovered=False, allow_extended=False, journal
 # @used-by :func:`recover_checkpoint()`
 # @used-by :func:`similar_project_exempt()`
 # @used-by :func:`tdd_check_turn()`
+# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__resolve_turn_key()`
 # @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_historical_explicit_project_root_receipt_reconciles_without_rewriting_saved_state()`
 def _active(native):
 	if not native['primary']:

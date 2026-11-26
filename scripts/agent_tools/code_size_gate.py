@@ -29,8 +29,6 @@ def _resolve_python_target(args: dict, payload: dict) -> tuple[Path, Path, str] 
 # @used-by :mod:`agent_tools.code_size_gate`
 def analyze_python_source(source: str) -> dict:
 	return CodeSizeAnalyzer(source).analyze()
-# @used-by :meth:`Df.Harness.Gate.PythonIntegrity.PythonIntegrity.verify_touched()`
-# @used-by :meth:`Df.Harness.Gate.PythonIntegrity.PythonIntegrity.verify_worktree()`
 # @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_comments_docstrings_and_declarative_tables_excluded_from_sloc()`
 # @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_legacy_ratchet_allows_holding_or_shrinking_blocks_growth()`
 # @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_mccabe_complexity_and_semicolon_anti_gaming()`

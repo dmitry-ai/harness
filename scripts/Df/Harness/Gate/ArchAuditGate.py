@@ -7,6 +7,7 @@ class ArchAuditGate:
 	PRIORITY = 105
 	TOOLS = frozenset({'write_file', 'edit_file'})
 	# @used-by :func:`agent_tools.gates.arch_audit.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_v4_arch_audit_and_pipeline_parity()`
 	def check(self, name: str, args: dict, payload: dict | None=None) -> str | None:
 		from agent_tools.arch.enforcement import evaluate_pre_tool_use_arch_audit
 		return evaluate_pre_tool_use_arch_audit(name, args, payload or {})

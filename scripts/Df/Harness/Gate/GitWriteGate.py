@@ -6,6 +6,7 @@ class GitWriteGate:
 	PRIORITY = 30
 	TOOLS = frozenset({'run_command'})
 	# @used-by :func:`agent_tools.gates.git_write.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_pretool_classes_cover_all_guards()`
 	def check(self, name: str, args: dict, payload: dict | None=None) -> str | None:
 		r = None
 		if 'run_command' == name:

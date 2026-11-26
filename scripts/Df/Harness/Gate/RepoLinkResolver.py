@@ -15,6 +15,7 @@ class RepoLinkResolver:
 	__SKIP_STAGED_RE = re.compile(r'(?:^|/)(?:\ua66e|req|res|evidence|plans|scratch)/', re.I)
 	# @used-by :func:`agent_tools.repo_link_gate.resolve_local_github_blob()`
 	# @used-by :meth:`RepoLinkResolver.hydrate_local_urls()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_staged_and_repo_checks()`
 	def __init__(self, root: Path | None) -> None:
 		self.__root = root
 	# @used-by :meth:`RepoLinkResolver.__validate_github_object()`
@@ -161,6 +162,7 @@ class RepoLinkResolver:
 		return r
 	# @used-by :func:`agent_tools.repo_link_gate.resolve_local_github_blob()`
 	# @used-by :meth:`RepoLinkResolver.hydrate_local_urls()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_staged_and_repo_checks()`
 	def resolve_blob(self, url: str) -> tuple[str, str] | None:
 		info = RepoLinkResolver.__parse_github_ref_url(url)
 		r: tuple[str, str] | None = None

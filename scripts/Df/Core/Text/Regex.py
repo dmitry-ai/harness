@@ -174,19 +174,6 @@ class Regex(O):
 	# @used-by :func:`agent_tools.statements._parse_explicit_items()`
 	# @used-by :func:`agent_tools.statements._parse_list_items()`
 	# @used-by :func:`agent_tools.statements._parse_section_items()`
-	# @used-by :func:`agent_tools.tdd.classifier.is_test_file()`
-	# @used-by :func:`agent_tools.tdd.commands.unwrap_watchdog_prefix()`
-	# @used-by :func:`agent_tools.tdd.comment_lexers_c.scan_word_or_char()`
-	# @used-by :func:`agent_tools.tdd.comment_lexers_markup.lex_dockerfile()`
-	# @used-by :func:`agent_tools.tdd.comment_lexers_script._hash_block_step()`
-	# @used-by :func:`agent_tools.tdd.comment_lexers_script._vbs_step()`
-	# @used-by :func:`agent_tools.tdd.comment_lexers_script.lex_batch()`
-	# @used-by :func:`agent_tools.tdd.comment_scanners.scan_cpp_raw()`
-	# @used-by :func:`agent_tools.tdd.comment_scanners.scan_heredoc()`
-	# @used-by :func:`agent_tools.tdd.outcomes._uri_to_local_path()`
-	# @used-by :func:`agent_tools.tdd.ratchet._parse_ratchet_ok_lines()`
-	# @used-by :func:`agent_tools.tdd.ratchet._removed_line_violations()`
-	# @used-by :func:`agent_tools.tdd.service_exempt._is_service_command()`
 	# @used-by :func:`agent_tools.text_core.check_markdown_lists()`
 	# @used-by :func:`agent_tools.text_core.check_prose()`
 	# @used-by :func:`agent_tools.text_core.command_blocks()`
@@ -225,6 +212,19 @@ class Regex(O):
 	# @used-by :meth:`Df.Harness.Gate.RulesAuditChecker.RulesAuditChecker.__strip_frontmatter()`
 	# @used-by :meth:`Df.Harness.Gate.RulesManifest.RulesManifest.parse_frontmatter()`
 	# @used-by :meth:`Df.Harness.Gate.SendMessageGate.SendMessageGate.__is_duplicate_verdict_payload()`
+	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.scan_word_or_char()`
+	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.is_test_file()`
+	# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.unwrap_watchdog_prefix()`
+	# @used-by :meth:`Df.Harness.Tdd.CommentScanners.CommentScanners.scan_cpp_raw()`
+	# @used-by :meth:`Df.Harness.Tdd.CommentScanners.CommentScanners.scan_heredoc()`
+	# @used-by :meth:`Df.Harness.Tdd.MarkupCommentLexer.MarkupCommentLexer.lex_dockerfile()`
+	# @used-by :meth:`Df.Harness.Tdd.OutcomeParser.OutcomeParser.uri_to_local_path()`
+	# @used-by :meth:`Df.Harness.Tdd.RatchetGuard.RatchetGuard.__removed_line_violations()`
+	# @used-by :meth:`Df.Harness.Tdd.RatchetGuard.RatchetGuard.parse_ratchet_ok_lines()`
+	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__hash_block_step()`
+	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__vbs_step()`
+	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.lex_batch()`
+	# @used-by :meth:`Df.Harness.Tdd.ServiceExempt.ServiceExempt.__is_service_command()`
 	# @used-by :meth:`Regex.matchInt()`
 	# @used-by :meth:`Regex.test()`
 	# @used-by :meth:`agent_tools.experiments.BrowserTraceInspector._tokenize()`

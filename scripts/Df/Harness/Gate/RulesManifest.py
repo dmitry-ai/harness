@@ -9,6 +9,7 @@ class RulesManifest:
 	ALLOWED_TRIGGERS = frozenset({'always_on', 'model_decision'})
 	__FRONTMATTER_RE = re.compile(r'^---\r?\n(.*?)\r?\n---\r?\n?', re.S)
 	# @used-by :func:`agent_tools.rules_manifest.validate_shared_rules_for_doctor()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_staged_and_repo_checks()`
 	def __init__(self, primary: Path, *, max_file_bytes: int=6000, max_always_on_bytes: int | None=24000, max_always_on_tokens: int | None=7000) -> None:
 		self.__primary = Path(primary)
 		self.__max_file_bytes = max_file_bytes
@@ -17,8 +18,8 @@ class RulesManifest:
 	# @used-by :meth:`RulesManifest.validate_for_doctor()`
 	@staticmethod
 	def __build_doctor_rule_meta(primary: Path, always: list[dict], on_demand: list[dict], always_bytes: int, always_tokens: int) -> dict:
-		from agent_tools.rules_audit import audit_rules
-		audit = audit_rules(primary)
+		from Df.Harness.Gate.RulesAuditor import RulesAuditor
+		audit = RulesAuditor(primary).audit()
 		return {'always_on_rules': [e['name'] for e in always], 'model_decision_rules': [e['name'] for e in on_demand], 'always_on_rule_bytes': always_bytes, 'always_on_estimated_tokens': always_tokens, 'rules_audit': {'valid': audit['valid'], 'issue_count': audit['issue_count'], 'issues': audit['issues'], 'total_always_on_bytes': audit['total_always_on_bytes'], 'total_always_on_tokens': audit['total_always_on_tokens']}}
 	# @used-by :meth:`RulesManifest.parse_frontmatter()`
 	@staticmethod
@@ -92,6 +93,7 @@ class RulesManifest:
 				values[key.strip()] = RulesManifest.__parse_frontmatter_value(raw_val)
 		return values
 	# @used-by :func:`agent_tools.rules_manifest.render_codex_loader()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_staged_and_repo_checks()`
 	@staticmethod
 	def render_codex_loader(primary: Path, local=(), *, restore_global: bool=True, display_root: Path | None=None) -> str:
 		prim = Path(primary)
@@ -124,6 +126,7 @@ class RulesManifest:
 	def scan_rules(primary: Path) -> list[dict]:
 		return [RulesManifest.inspect_rule(p) for p in sorted((Path(primary) / 'rules').glob('*.md'))]
 	# @used-by :func:`agent_tools.rules_manifest.validate_shared_rules_for_doctor()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_staged_and_repo_checks()`
 	def validate_for_doctor(self) -> tuple[list[Path], dict[str, int], dict]:
 		entries = RulesManifest.scan_rules(self.__primary)
 		if not entries:
