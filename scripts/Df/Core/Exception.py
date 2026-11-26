@@ -12,6 +12,7 @@ class Exception(builtins.Exception):
 	# https://github.com/mage2pro/core/issues/375
 	# https://github.com/mage2pro/core/blob/11.6.1/Core/Exception.php#L20-L70
 	# @used-by :func:`Df.Qa.lib.validation.error.df_error_create()`
+	# @used-by :meth:`Df.Qa.Method.Method.__throwException()`
 	# @used-by :meth:`Exception.wrap()`
 	# @used-by :meth:`test_df_core_base.DfCoreBaseTests.test_exception_and_json_class()`
 	# @used-by :meth:`test_df_qa.TestDfQa.test_diagnostics_and_exceptions()`
@@ -60,7 +61,7 @@ class Exception(builtins.Exception):
 		return r
 	# Provide subclasses with a typed accessor for the wrapped previous exception.
 	# https://github.com/mage2pro/core/blob/11.6.1/Core/Exception.php#L194-L200
-	# @used-by unused
+	# @used-by :meth:`test_df_upstream_fixes.TestDfUpstreamFixes.test_334_method_throws_dfe_with_stack_levels()`
 	def _prev(self) -> BaseException | None:
 		return self.__prev
 	# 2024-05-20 "Provide an ability to specify a context for a `Df\Core\Exception` instance":
@@ -75,6 +76,7 @@ class Exception(builtins.Exception):
 	# https://github.com/mage2pro/core/blob/11.6.1/Core/Exception.php#L87-L90
 	# @used-by :meth:`test_df_core_base.DfCoreBaseTests.test_exception_and_json_class()`
 	# @used-by :meth:`test_df_upstream_fixes.TestDfUpstreamFixes.test_326_exception_stack_levels()`
+	# @used-by :meth:`test_df_upstream_fixes.TestDfUpstreamFixes.test_334_method_throws_dfe_with_stack_levels()`
 	def getStackLevelsCountToSkip(self) -> int:
 		return self.__stackLevelsCountToSkip
 	# 2016-07-31

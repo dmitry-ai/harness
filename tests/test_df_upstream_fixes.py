@@ -86,5 +86,19 @@ class TestDfUpstreamFixes(unittest.TestCase):
 		res_it = df_type(ExplodingIter())
 		self.assertIn('an object:', res_it)
 		self.assertIn('ExplodingIter', res_it)
+	# 2026-11-26 "Fix Df\Qa\Method::throwException() instantiating Exception instead of Df\Core\Exception": https://github.com/dmitry-ai/harness/issues/334
+	# Upstream defect: https://github.com/mage2pro/core/issues/477
+	# @used-by :mod:`unittest`
+	def test_334_method_throws_dfe_with_stack_levels(self) -> None:
+		from Df.Core.Exception import Exception as DFE
+		from Df.Qa.lib.validation.param import df_param_sne
+		# @used-by :meth:`TestDfUpstreamFixes.test_334_method_throws_dfe_with_stack_levels()`
+		def check_token(token: str) -> str:
+			return df_param_sne(token, 0)
+		with self.assertRaises(DFE) as cm:
+			check_token('')
+		self.assertIn('The argument', cm.exception.message())
+		self.assertEqual(2, cm.exception.getStackLevelsCountToSkip())
+		self.assertIsNone(cm.exception._prev())
 if '__main__' == __name__:
 	unittest.main()

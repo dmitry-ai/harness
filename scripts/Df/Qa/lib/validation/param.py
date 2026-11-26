@@ -15,6 +15,7 @@ def df_param_iso2(v: str, ord_: int, sl: int=0) -> str:
 # @used-by :func:`Df.Qa.lib.validation.assert_.class_.df_assert_class_exists()`
 # @used-by :meth:`Df.Core.Html.Tag.Tag.__formatAttr()`
 # @used-by :meth:`test_df_qa._SampleService.checkSne()`
+# @used-by :meth:`test_df_upstream_fixes.TestDfUpstreamFixes.test_334_method_throws_dfe_with_stack_levels()`
 def df_param_sne(v: str, ord_: int, sl: int=0) -> str:
 	sl += 1
 	if df_es(v):

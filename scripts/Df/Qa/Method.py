@@ -1,7 +1,7 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from typing import Any
-import builtins
+from Df.Core.Exception import Exception as DFE
 from Df.Core.lib.reflection.text.cts import df_cts
 from Df.Core.lib.text.n.cc import df_cc_n
 from Df.Qa.Trace.Frame import Frame
@@ -33,7 +33,9 @@ class Method:
 	# @used-by :meth:`Method.raiseErrorVariable()`
 	@staticmethod
 	def __throwException(message: str, sl: int=0) -> None:
-		df_error(builtins.Exception(message, sl + 1))
+		# 2026-11-26 "Fix Df\Qa\Method::throwException() instantiating Exception instead of Df\Core\Exception": https://github.com/dmitry-ai/harness/issues/334
+		# Upstream defect: https://github.com/mage2pro/core/issues/477
+		df_error(DFE(message, sl + 1))
 	# Validate parameter value `v` with `vd`, raising a parameter error if invalid.
 	# https://github.com/mage2pro/core/blob/11.6.1/Qa/Method.php#L98-L100
 	# @used-by :meth:`Method.assertParamIsIso2()`
