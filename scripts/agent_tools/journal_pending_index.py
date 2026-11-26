@@ -118,6 +118,7 @@ def is_pending_prepared(st: Any) -> bool:
 def order_candidates_by_recency(turns_dir: Path, candidates: dict[str, dict[str, Any]]) -> list[tuple[str, dict[str, Any]]]:
 	return sorted(candidates.items(), key=lambda item: (-candidate_recency(turns_dir, item[0], item[1]), item[0]))
 # @used-by :func:`agent_tools.completion._persist()`
+# @used-by :meth:`test_bounded_foreign_sync.BoundedForeignSyncTests.test_pending_sync_index_does_not_create_unbootstrapped_file_on_persist()`
 # @used-by :mod:`agent_tools.journal_pending_index`
 # @used-by :mod:`agent_tools.journal_sync_all`
 def persist_turn_state(path: Path, raw: bytes, value: dict[str, Any]) -> None:
@@ -153,12 +154,12 @@ def rebuild_pending_index(root: Path, *, folder_fn, read_fn) -> dict[str, dict[s
 def update_index_for_turn(path: Path, value: dict[str, Any]) -> None:
 	turns_dir = path.parent
 	doc = _read_index_doc(turns_dir)
-	boot = bool(doc.get('bootstrapped')) if None is not doc else False
-	entries = {str(k): dict(v) for k, v in (doc.get('entries') or {}).items() if isinstance(v, dict)} if None is not doc else {}
-	if is_pending_prepared(value):
-		entries[path.stem] = _entry_from_state(path, value)
-		_write_index_doc(turns_dir, entries, bootstrapped=boot, create_if_empty=True)
-	elif path.stem in entries:
-		entries.pop(path.stem, None)
-		_write_index_doc(turns_dir, entries, bootstrapped=boot, create_if_empty=True)
+	if None is not doc and bool(doc.get('bootstrapped')):
+		entries = {str(k): dict(v) for k, v in (doc.get('entries') or {}).items() if isinstance(v, dict)}
+		if is_pending_prepared(value):
+			entries[path.stem] = _entry_from_state(path, value)
+			_write_index_doc(turns_dir, entries, bootstrapped=True, create_if_empty=True)
+		elif path.stem in entries:
+			entries.pop(path.stem, None)
+			_write_index_doc(turns_dir, entries, bootstrapped=True, create_if_empty=True)
 __all__ = ['PENDING_INDEX_FILE', 'candidate_recency', 'collect_pending_prepared', 'is_pending_prepared', 'order_candidates_by_recency', 'persist_turn_state', 'prune_resolved_from_index', 'rebuild_pending_index', 'update_index_for_turn']

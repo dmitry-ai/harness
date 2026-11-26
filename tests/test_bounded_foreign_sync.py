@@ -88,5 +88,16 @@ class BoundedForeignSyncTests(unittest.TestCase):
 			self.assertEqual(12, len(calls))
 			idx_data = json.loads((tdir / 'pending-sync.json').read_text(encoding='utf-8'))
 			self.assertEqual({}, idx_data.get('entries'))
+	# @used-by :mod:`unittest`
+	def test_pending_sync_index_does_not_create_unbootstrapped_file_on_persist(self) -> None:
+		from agent_tools import journal_pending_index as jpi
+		with tempfile.TemporaryDirectory() as td:
+			root = Path(td).resolve()
+			tdir = root / '\ua616/data/turns'
+			tdir.mkdir(parents=True)
+			turn_p = tdir / 'tk0001.json'
+			state = {'key': 'tk0001', 'conversation_id': 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'status': 'prepared', 'delivery': None}
+			jpi.persist_turn_state(turn_p, json.dumps(state).encode('utf-8'), state)
+			self.assertFalse((tdir / jpi.PENDING_INDEX_FILE).exists())
 if '__main__' == __name__:
 	unittest.main()
