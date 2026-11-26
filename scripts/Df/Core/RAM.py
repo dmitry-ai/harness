@@ -203,6 +203,7 @@ class RAM:
 	# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_void_elements_compact_extracted_disk_json_and_max_bytes_guard()`
 	# @used-by :meth:`test_analysis_workflow.ProjectCase.review_package()`
 	# @used-by :meth:`test_bounded_foreign_sync.BoundedForeignSyncTests.test_pending_sync_index_does_not_create_unbootstrapped_file_on_persist()`
+	# @used-by :meth:`test_bounded_foreign_sync.BoundedForeignSyncTests.test_reconcile_foreign_does_not_create_index_when_only_own_turn_prepared()`
 	# @used-by :meth:`test_cleanup.CleanupReportTests.test_empty_answer_or_naive_timestamp_does_not_create_a_log()`
 	# @used-by :meth:`test_cleanup.CleanupTests.test_changed_native_payload_during_final_check_is_never_unlinked()`
 	# @used-by :meth:`test_cleanup.CleanupTests.test_chat_after_native_unlink_restores_both_registrations_and_folder_assignment()`
