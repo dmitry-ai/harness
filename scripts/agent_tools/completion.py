@@ -2901,6 +2901,8 @@ def _scan_child_trace_turn(root_p: Path, eff_conv: str, native: dict) -> dict:
 # @used-by :meth:`test_df_analysis.DfAnalysisGatesTests.test_markdown_table_blocked_across_doc4_hook_linter_and_grounding()`
 # @used-by :meth:`test_df_analysis_companion_tracks.DfAnalysisCompanionTracksTests.test_four_separate_problem_analyses_validated_independently_ru_and_en()`
 # @used-by :meth:`test_doc5_context_trigger.Doc5ContextTriggerTests.test_active_turn_cli_failure_plus_new_parent_issue_forces_doc5_four_tracks()`
+# @used-by :meth:`test_doc5_context_trigger.Doc5ContextTriggerTests.test_external_repo_unparented_issues_do_not_force_doc5_while_local_bug_issue_does()`
+# @used-by :meth:`test_doc5_context_trigger.Doc5ContextTriggerTests.test_negative_regression_matrix_does_not_force_doc5()`
 # @used-by :meth:`test_doc5_context_trigger.Doc5ContextTriggerTests.test_planned_child_issue_turn_with_tdd_red_failure_does_not_force_doc5()`
 # @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_antigravity_issue_first_gate_blocks_retroactive_and_passes_parent_then_tdd()`
 # @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_codex_apply_patch_and_exec_command_issue_first_gate()`
