@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs":
+# https://github.com/dmitry-ai/harness/issues/264
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
 # https://github.com/dmitry-ai/harness/issues/230
@@ -31,6 +34,7 @@ from urllib.parse import unquote, urldefrag, urlsplit
 from .evidence_loader import load_observation_bundle
 from .links import _bare_urls, chat_reply_link_issues
 from .markdown_links import iter_inline_segments
+from .repo_link_gate import hydrate_local_repo_urls
 from .research import MAX_BYTES
 from .source_grounding import extract_blockquote_quotes, is_normative_harness_doc, local_source_grounding_issues, markdown_parser, norm_quote_text, quote_segments_present
 from .statements import analysis_gate_issues, external_anchor_issues
@@ -41,7 +45,8 @@ class ResponseEvidenceAuditor:
 		self.response = response
 		self.requests = requests
 		self.touched_files = touched_files
-		self.errors = list(chat_reply_link_issues(response))
+		self.errors = list(chat_reply_link_issues(response, root=self.root))
+		self.local_repo_urls: set[str] = set()
 		self.authored_links: list[tuple[str, str]] = []
 		self.authored_urls: list[str] = []
 		self.attributed_quotes: list[tuple[str, str]] = []
@@ -85,7 +90,7 @@ class ResponseEvidenceAuditor:
 		from .path_registry import project_paths
 		pp = project_paths(self.root, exact_root=True)
 		if pp.project_json.is_file() and pp.kb_dir.is_dir():
-			kb_urls = set(self.client_urls)
+			kb_urls = set(self.client_urls) | self.local_repo_urls
 			kb_topics: set[tuple[str, str]] = set()
 			kb_files = list(pp.kb_dir.rglob('*.md')) + (list(pp.manual_kb_dir.rglob('*.md')) if pp.manual_kb_dir.is_dir() else [])
 			analysis_file = pp.kb_dir / 'Analysis.json'
@@ -305,6 +310,7 @@ class ResponseEvidenceAuditor:
 		if self.authored_urls:
 			self._collect_client_urls()
 			self._ingest_evidence_files()
+			self.local_repo_urls = hydrate_local_repo_urls(self)
 			self._check_kb_membership()
 			self._check_external_refs()
 		self._check_local_grounding()
@@ -332,14 +338,11 @@ def _titles_compatible(claimed: str, observed: str) -> bool:
 	o_tokens = [w for w in re.findall('[a-z\\u0430-\\u044f\\u04510-9]+', observed.lower()) if 3 <= len(w)]
 	if not c_tokens or not o_tokens:
 		r = True
+	elif ' '.join(c_tokens) in ' '.join(o_tokens) or ' '.join(o_tokens) in ' '.join(c_tokens):
+		r = True
 	else:
-		c_str = ' '.join(c_tokens)
-		o_str = ' '.join(o_tokens)
-		if c_str in o_str or o_str in c_str:
-			r = True
-		else:
-			c_set, o_set = (set(c_tokens), set(o_tokens))
-			r = 0.6 <= len(c_set & o_set) / max(1, len(c_set))
+		c_set = set(c_tokens)
+		r = 0.6 <= len(c_set & set(o_tokens)) / max(1, len(c_set))
 	return r
 def response_source_and_kb_issues(root: Path, response: str, requests: list[dict], *, touched_files=None) -> list[str]:
 	return ResponseEvidenceAuditor(root, response, requests, touched_files=touched_files).validate()

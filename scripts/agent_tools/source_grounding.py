@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs":
+# https://github.com/dmitry-ai/harness/issues/264
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Cache normalized text and numeric tokens in LocalSourceGroundingAuditor corpus":
 # https://github.com/dmitry-ai/harness/issues/216
@@ -158,12 +161,8 @@ class LocalSourceGroundingAuditor:
 				self.section_ext_urls = list(ext_urls)
 			self._check_relational_operands(block.content, filtered_locals, ext_urls)
 			active_primary = primary_here or self.section_sources or self.default_sources
-			if not active_primary:
-				self._check_unlinked_deliverable_metrics(block.content)
-			else:
-				from .grounding_helpers import audit_block_lines
-				infos, combined_raw, combined_norm, ev_nums, src_label = self._build_active_corpus(filtered_locals, ext_urls, active_primary)
-				audit_block_lines(self, block, infos, combined_raw, combined_norm, ev_nums, src_label)
+			from .grounding_helpers import audit_active_block
+			audit_active_block(self, block, filtered_locals, ext_urls, active_primary, norm_quote_text, _source_numeric_tokens)
 	def _audit_linked_analyses(self) -> None:
 		for ap in self.linked_analyses:
 			try:

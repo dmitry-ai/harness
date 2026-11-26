@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs":
+# https://github.com/dmitry-ai/harness/issues/264
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Require separate companion /df-analysis tracks for every complex problem analysis":
 # https://github.com/dmitry-ai/harness/issues/249
@@ -40,14 +43,14 @@ _VALID_PROBLEM_RU = """# 0. Мета-данные проблемы
 
 ## H-1. Пропуск строк с `|` в `scan_doc4_sentence_issues`
 
-- Суть: обработчик [hook_runtime.py](file:///C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/agent_tools/hook_runtime.py#L22) исключает строки, начинающиеся с `|`.  
+- Суть: обработчик [hook_runtime.py](https://example.com/harness/hook_runtime.py#L22) исключает строки, начинающиеся с `|`.  
 - Доводы за: дословное условие `not stripped.startswith(('#', '|', '---', '===', '>'))` пропускает заголовки и разделители таблиц.  
 - Доводы против: отдельные пайпы в обычной прозе не являются таблицами и требуют проверки строки-разделителя.  
 - Оценка правдоподобности: 90%.  
 
 ## H-2. Отсутствие проверки таблиц в `answer-prepare`
 
-- Суть: исполнитель [completion.py](file:///C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/agent_tools/completion.py#L321) не вызывает проверку таблиц `DOC-4`.  
+- Суть: исполнитель [completion.py](https://example.com/harness/completion.py#L321) не вызывает проверку таблиц `DOC-4`.  
 - Доводы за: `AnswerPreparationRunner.run()` вызывает только `response_source_and_kb_issues`, а не `markdown_slop_issues`.  
 - Доводы против: при правке `hook_runtime.py` `PreToolUse` уже ловит запись `.md`, но прямой вызов `answer-prepare` всё равно остаётся уязвим.  
 - Оценка правдоподобности: 85%.  
@@ -97,14 +100,14 @@ _VALID_PROBLEM_RU = """# 0. Мета-данные проблемы
 
 ## H-2-1. Упрощённый фильтр строк в коммите первичного автора
 
-- Суть: автор коммита в [hook_runtime.py](file:///C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/agent_tools/hook_runtime.py#L22) исключил строки с `|` целиком.  
+- Суть: автор коммита в [hook_runtime.py](https://example.com/harness/hook_runtime.py#L22) исключил строки с `|` целиком.  
 - Доводы за: строка присутствует напрямую в исходном файле.  
 - Доводы против: могла преследоваться цель избежать ложных срабатываний на prose-пайпах.  
 - Оценка правдоподобности: 90%.  
 
 ## H-2-2. Отсутствие ревью-гейта на инварианты `DOC-4`
 
-- Суть: при приёмке в [completion.py](file:///C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/agent_tools/completion.py#L321) не требовалась проверка таблиц.  
+- Суть: при приёмке в [completion.py](https://example.com/harness/completion.py#L321) не требовалась проверка таблиц.  
 - Доводы за: валидатор вызывался не на всех шлюзах.  
 - Доводы против: вторичный фактор относительно самой правки.  
 - Оценка правдоподобности: 60%.  
@@ -154,14 +157,14 @@ _VALID_PROBLEM_RU = """# 0. Мета-данные проблемы
 
 ## H-3-1. Отсутствие негативной фикстуры с GFM-таблицей
 
-- Суть: в тестах [hook_runtime.py](file:///C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/agent_tools/hook_runtime.py#L22) отсутствовал кейс с парой заголовка и разделителя `| --- |`.  
+- Суть: в тестах [hook_runtime.py](https://example.com/harness/hook_runtime.py#L22) отсутствовал кейс с парой заголовка и разделителя `| --- |`.  
 - Доводы за: тесты проверяли только разрывы предложений, но не таблицы.  
 - Доводы против: часть проверок покрывала лишь `check_markdown_slop.py`.  
 - Оценка правдоподобности: 92%.  
 
 ## H-3-2. Несвязанность тестов `PreToolUse` и `answer-prepare`
 
-- Суть: шлюз [completion.py](file:///C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/agent_tools/completion.py#L321) тестировался отдельно от `hook_runtime.py`.  
+- Суть: шлюз [completion.py](https://example.com/harness/completion.py#L321) тестировался отдельно от `hook_runtime.py`.  
 - Доводы за: интеграционного теста на все три шлюза не существовало.  
 - Доводы против: это следствие отсутствия общего детектора.  
 - Оценка правдоподобности: 75%.  
@@ -211,14 +214,14 @@ _VALID_PROBLEM_RU = """# 0. Мета-данные проблемы
 
 ## H-4-1. Пропуск проверки таблиц внутри `answer-prepare`
 
-- Суть: при записи в `ꙮ` шлюз [completion.py](file:///C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/agent_tools/completion.py#L321) не отклонял таблицы.  
+- Суть: при записи в `ꙮ` шлюз [completion.py](https://example.com/harness/completion.py#L321) не отклонял таблицы.  
 - Доводы за: `ResponseEvidenceAuditor` не вызывал `analysis_gate_issues`.  
 - Доводы против: сам механизм записи пары в `ꙮ` и `Stop Gate` сработал штатно.  
 - Оценка правдоподобности: 90%.  
 
 ## H-4-2. Отсутствие пост-проверки `Stop Gate` по `DOC-4`
 
-- Суть: `Stop Gate` опирается на `prepared` из [completion.py](file:///C:/work/research/provision/code/AI/harness/Ⰿ/≻/♕/⛯/scripts/agent_tools/completion.py#L321) без повторного анализа контента.  
+- Суть: `Stop Gate` опирается на `prepared` из [completion.py](https://example.com/harness/completion.py#L321) без повторного анализа контента.  
 - Доводы за: `Stop Gate` доверяет чеку `answer-prepare`.  
 - Доводы против: дублирование проверки в `Stop Gate` избыточно при исправлении `answer-prepare`.  
 - Оценка правдоподобности: 35%.  

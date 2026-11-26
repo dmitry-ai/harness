@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs":
+# https://github.com/dmitry-ai/harness/issues/264
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Enforce Markdown table ban and /df-analysis structural validation across response gates":
 # https://github.com/dmitry-ai/harness/issues/181
@@ -54,6 +57,9 @@ class IssueMarkdownLinter:
 		from ..statements import find_markdown_table_lines
 		for tbl_ln in find_markdown_table_lines(text):
 			out.append({'code': 'MARKDOWN_TABLE_FORBIDDEN', 'line': tbl_ln, 'message': f'Line {tbl_ln} contains a Markdown table, which is forbidden by DOC-4; rewrite as structured prose or a list'})
+		from ..repo_link_gate import chat_repo_link_issues
+		for repo_err in chat_repo_link_issues(text):
+			out.append({'code': 'REPO_LINK_FORBIDDEN', 'message': repo_err})
 		IssueMarkdownLinter._check_body_policy(text, out, check_structure_policy=check_structure_policy, parent_number=parent_number, repo=repo, self_number=self_number)
 	@staticmethod
 	def _check_body_policy(text: str, out: list[dict[str, Any]], *, check_structure_policy: bool, parent_number: int | None, repo: str | None, self_number: int | None) -> None:

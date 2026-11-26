@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs":
+# https://github.com/dmitry-ai/harness/issues/264
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Skip blocking grounding on scratch drafts and add line locations to diagnostics":
 # https://github.com/dmitry-ai/harness/issues/214
@@ -17,6 +20,13 @@ import re
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from agent_tools.hook_runtime import ABBREVIATIONS, ABBR_RE, MULTI_SENT_RE, iter_turn_state_files, run_json_hook, scan_doc4_sentence_issues
+def _check_doc_grounding_and_links(proj_root: Path, content: str, p_obj: Path) -> str | None:
+	from agent_tools.repo_link_gate import file_repo_link_issues, is_skipped_repo_link_doc
+	from agent_tools.source_grounding import local_source_grounding_issues
+	issues = list(local_source_grounding_issues(proj_root, content, doc_path=p_obj))
+	if not is_skipped_repo_link_doc(p_obj):
+		issues.extend(file_repo_link_issues(p_obj, content, repo_root=proj_root))
+	return _format_grounding_issues(issues) if issues else None
 def _check_turn_budget_gate(proj_root: Path, target: Path) -> str | None:
 	from agent_tools.path_registry import project_paths
 	pp = project_paths(proj_root)
@@ -86,10 +96,7 @@ def check_markdown_content(content, path=None):
 				proj_root = _infer_project_root(p_obj)
 				r = _check_turn_budget_gate(proj_root, p_obj)
 				if None is r and (not _is_scratch_draft_file(norm_p)):
-					from agent_tools.source_grounding import local_source_grounding_issues
-					issues = local_source_grounding_issues(proj_root, content, doc_path=p_obj)
-					if issues:
-						r = _format_grounding_issues(issues)
+					r = _check_doc_grounding_and_links(proj_root, content, p_obj)
 	return r
 def is_abbreviation_end(text):
 	return bool(ABBR_RE.search(text.rstrip()))

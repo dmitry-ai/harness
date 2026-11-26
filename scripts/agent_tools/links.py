@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs":
+# https://github.com/dmitry-ai/harness/issues/264
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
 # https://github.com/dmitry-ai/harness/issues/230
@@ -35,8 +38,7 @@ def _readable_escapes(value: str) -> str:
 			safe_ascii = char.isascii() and (char.isalnum() or char in ' -._~')
 			safe_unicode = 160 <= ord(char) < 55296 or 57344 <= ord(char) <= 1114111
 			result.append(char if safe_ascii or safe_unicode else original)
-		r = ''.join(result)
-		return r
+		return ''.join(result)
 	return re.sub('(?:%[0-9a-fA-F]{2})+', decode, value)
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
@@ -63,15 +65,15 @@ def markdown_link(label: str | None, target: str | Path) -> str:
 	text = target if None is label else label
 	text = text.replace('\\', '\\\\').replace('[', '\\[').replace(']', '\\]')
 	destination = f'<{target}>' if any((char.isspace() or char in '()' for char in target)) else target
-	r = f'[{text}]({destination})'
-	return r
+	return f'[{text}]({destination})'
 # 2026-10-18 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
 # https://github.com/dmitry-ai/harness/issues/9
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # https://github.com/dmitry-ai/harness/issues/76
-def chat_reply_link_issues(content: str) -> list[str]:
-	return readable_link_issues(content, allow_unencoded_file_uri=True)
+def chat_reply_link_issues(content: str, *, root: Path | None=None) -> list[str]:
+	from .repo_link_gate import chat_repo_link_issues
+	return readable_link_issues(content, allow_unencoded_file_uri=True) + chat_repo_link_issues(content, root=root)
 def decode_file_uri(reference: str, *, reject_remote: bool=False) -> str:
 	from .markdown_links import decode_file_uri as _decode
 	return _decode(reference, reject_remote=reject_remote)
@@ -264,7 +266,8 @@ def validate_file(file_path: Path, **options) -> list[str]:
 	try:
 		file_path = Path(file_path).resolve()
 		content = file_path.read_text(encoding='utf-8')
-		errors = validate_content(content, **options)
+		from .repo_link_gate import file_repo_link_issues
+		errors = validate_content(content, **options) + file_repo_link_issues(file_path, content)
 		for href in references(content, options.get('include_code', False))[0]:
 			parsed = urlsplit(href)
 			windows_path = bool(re.match('^[A-Za-z]:[/\\\\]', href))
@@ -282,8 +285,7 @@ def validate_file(file_path: Path, **options) -> list[str]:
 			if not target.exists():
 				from .journal import resolve_migrated_step_file
 				migrated = resolve_migrated_step_file(target)
-				if migrated.exists():
-					target = migrated
+				target = migrated if migrated.exists() else target
 			if not target.exists():
 				errors.append(f'Missing local file: {href}')
 				continue
@@ -373,5 +375,4 @@ def check_network(urls: list[str], *, anchors: bool=False, timeout: float=15, fe
 				if 'not-found-in-source' == status:
 					details = {'available_anchors': html.anchors[:100], 'anchor_count': len(html.anchors), 'source_bytes': len(page.text.encode('utf-8'))}
 		results.append({'url': url, 'status': status, 'http_status': page.status, 'final_url': page.url, **details})
-	r = results
-	return r
+	return results

@@ -1,3 +1,6 @@
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs":
+# https://github.com/dmitry-ai/harness/issues/264
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Cache normalized text and numeric tokens in LocalSourceGroundingAuditor corpus":
 # https://github.com/dmitry-ai/harness/issues/216
@@ -54,6 +57,30 @@ def _tag_new_errors(errors: list[str], start_idx: int, line_no: int | None) -> N
 		for idx in range(start_idx, len(errors)):
 			if '(line ' not in errors[idx]:
 				errors[idx] = errors[idx] + suffix
+def _collect_local_repo_ext_entries(auditor, active_exts: list[str], norm_fn, num_fn) -> tuple[list[tuple[str, str, set[str]]], list[str]]:
+	from .repo_link_gate import resolve_local_github_blob
+	entries: list[tuple[str, str, set[str]]] = []
+	labels: list[str] = []
+	for url in active_exts:
+		if url.lower().startswith('https://github.com/'):
+			resolved = resolve_local_github_blob(auditor.root, url)
+			if None is not resolved:
+				label, raw = resolved
+				labels.append(label)
+				entries.append((raw, norm_fn(raw) if raw else '', num_fn(raw) if raw else set()))
+	return (entries, labels)
+def audit_active_block(auditor, block, filtered_locals: list[Path], ext_urls: list[str], active_primary: list[Path], norm_fn, num_fn) -> None:
+	if active_primary:
+		infos, combined_raw, combined_norm, ev_nums, src_label = auditor._build_active_corpus(filtered_locals, ext_urls, active_primary)
+		audit_block_lines(auditor, block, infos, combined_raw, combined_norm, ev_nums, src_label)
+	else:
+		active_exts = list(dict.fromkeys(ext_urls + auditor.section_ext_urls))
+		repo_entries, labels = _collect_local_repo_ext_entries(auditor, active_exts, norm_fn, num_fn)
+		if repo_entries:
+			infos, combined_raw, combined_norm, ev_nums = _assemble_corpus([], repo_entries)
+			audit_block_lines(auditor, block, infos, combined_raw, combined_norm, ev_nums, ', '.join(labels[:2]))
+		else:
+			auditor._check_unlinked_deliverable_metrics(block.content)
 def audit_block_lines(auditor, block, infos: list[dict], combined_raw: str, combined_norm: str, ev_nums: set[str], src_label: str) -> None:
 	bmap = getattr(block, 'map', None)
 	base_line = (int(bmap[0]) + 1) if isinstance(bmap, (list, tuple)) and bmap else None

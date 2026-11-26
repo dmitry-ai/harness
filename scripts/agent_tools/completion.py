@@ -1,4 +1,7 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
+# "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs":
+# https://github.com/dmitry-ai/harness/issues/264
+# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 # "Harden follow-up launcher handoff and journal reservation integrity":
 # https://github.com/dmitry-ai/harness/issues/269
 # 2026-11-25 Dmitrii Fediuk https://github.com/dmitrii-fediuk
@@ -1730,7 +1733,7 @@ def _authored_nonquote_hrefs(content: str) -> list[str]:
 def _response_link_issues(root_p: Path, response: str, *, response_path: Path | None = None, scratch_dir: Path | None = None) -> list[str]:
 	from urllib.parse import unquote, urldefrag, urlsplit
 	from .links import chat_reply_link_issues, heading_anchors, references
-	errors: list[str] = list(chat_reply_link_issues(response))
+	errors: list[str] = list(chat_reply_link_issues(response, root=root_p))
 	available_self = set(references(response)[1]) | heading_anchors(response)
 	base_dirs = [root_p]
 	if None is not response_path and '-' != str(response_path):
