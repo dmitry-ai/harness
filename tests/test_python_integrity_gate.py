@@ -20,12 +20,14 @@ def _copy_fixture_modules(repo: Path, rels: tuple[str, ...]) -> None:
 			shutil.copy2(src, dst)
 # @used-by :func:`_init_repo()`
 # @used-by :meth:`PythonIntegrityGateTests.test_pre_commit_and_worktree_land_enforce_integrity_and_ratchet()`
+# @used-by :meth:`PythonIntegrityGateTests.test_worktree_land_python_integrity_handles_cross_cutting_multi_file_commit()`
 def _git(repo: Path, *args: str) -> str:
 	proc = subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30, check=True)
 	return (proc.stdout or '').strip()
 # @used-by :meth:`PythonIntegrityGateTests.test_legacy_oversized_edit_deferred_in_pre_tool_use_while_write_file_enforced()`
 # @used-by :meth:`PythonIntegrityGateTests.test_pre_commit_and_worktree_land_enforce_integrity_and_ratchet()`
 # @used-by :meth:`PythonIntegrityGateTests.test_snapshot_promotion_and_auditor_reject_undefined_global()`
+# @used-by :meth:`PythonIntegrityGateTests.test_worktree_land_python_integrity_handles_cross_cutting_multi_file_commit()`
 def _init_repo(repo: Path, files: dict[str, str], *, copy_rels: tuple[str, ...]=()) -> Path:
 	repo.mkdir(parents=True, exist_ok=True)
 	_git(repo, 'init', '-b', 'main')
@@ -146,5 +148,29 @@ class PythonIntegrityGateTests(unittest.TestCase):
 			self.assertIn('MissingLazySym', snap.get('error', ''))
 			t_viols = verify_touched_python_files(repo, ['scripts/agent_tools/lazy_bug.py'])
 			self.assertTrue(any(('MissingLazySym' in v for v in t_viols)), t_viols)
+	# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
+	# @used-by :mod:`unittest`
+	def test_worktree_land_python_integrity_handles_cross_cutting_multi_file_commit(self) -> None:
+		from agent_tools.worktree_flow import worktree_begin, worktree_land
+		with tempfile.TemporaryDirectory() as td:
+			root = Path(td).resolve()
+			seed = {f'scripts/mod_{idx}.py': f'def fn_{idx}() -> int:\n\treturn {idx}\n' for idx in range(7)}
+			repo = _init_repo(root / 'repo', seed)
+			wt = Path(worktree_begin(repo, 'cross-py', worktrees_dir=root / 'wts')['worktree'])
+			for idx in range(7):
+				body = f'def fn_{idx}() -> int:\n\treturn BrokenCrossSym()\n' if 5 == idx else f'def fn_{idx}() -> int:\n\treturn {idx + 10}\n'
+				(wt / f'scripts/mod_{idx}.py').write_text(body, encoding='utf-8')
+			_git(wt, 'add', '.')
+			_git(wt, 'commit', '-m', 'cross cutting with broken symbol')
+			blocked = worktree_land(wt, run_tests=False, remove=False, leases_dir=root / 'leases', promote_snapshot=False)
+			self.assertFalse(blocked['landed'], blocked)
+			self.assertEqual('python_integrity', blocked['stage'])
+			self.assertIn('BrokenCrossSym', blocked['error'])
+			(wt / 'scripts/mod_5.py').write_text('def fn_5() -> int:\n\treturn 15\n', encoding='utf-8')
+			_git(wt, 'add', 'scripts/mod_5.py')
+			_git(wt, 'commit', '-m', 'fix broken symbol')
+			landed = worktree_land(wt, run_tests=False, remove=True, leases_dir=root / 'leases', promote_snapshot=False)
+			self.assertTrue(landed['valid'], landed)
+			self.assertTrue(landed['landed'], landed)
 if '__main__' == __name__:
 	unittest.main()

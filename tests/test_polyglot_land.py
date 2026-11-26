@@ -22,6 +22,7 @@ _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 # @used-by :class:`PolyglotLandTests`
 class PolyglotLandTests(unittest.TestCase):
 	# @used-by :meth:`PolyglotLandTests._init_node_repo()`
+	# @used-by :meth:`PolyglotLandTests.test_polyglot_land_and_health_handle_subprocess_timeout_cleanly()`
 	# @used-by :meth:`PolyglotLandTests.test_polyglot_node_repo_runs_in_workspace_sandbox_and_lands()`
 	# @used-by :meth:`PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error()`
 	# @used-by :meth:`PolyglotLandTests.test_worktree_land_allows_whitelisted_live_runtime_data_on_main_only()`
@@ -30,6 +31,7 @@ class PolyglotLandTests(unittest.TestCase):
 		return (proc.stdout or '').strip()
 	# @used-by :meth:`PolyglotLandTests.test_close_blocks_on_unhealthy_repo_health_command()`
 	# @used-by :meth:`PolyglotLandTests.test_host_state_mutation_fails_closed_while_heartbeat_timestamp_is_ignored()`
+	# @used-by :meth:`PolyglotLandTests.test_polyglot_land_and_health_handle_subprocess_timeout_cleanly()`
 	# @used-by :meth:`PolyglotLandTests.test_polyglot_node_repo_runs_in_workspace_sandbox_and_lands()`
 	# @used-by :meth:`PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error()`
 	# @used-by :meth:`PolyglotLandTests.test_worktree_land_allows_whitelisted_live_runtime_data_on_main_only()`
@@ -142,5 +144,43 @@ class PolyglotLandTests(unittest.TestCase):
 			self.assertTrue(res['valid'], res)
 			self.assertTrue(res['landed'])
 			self.assertIn('live', (repo / 'Folders/folders.json').read_text(encoding='utf-8'))
+	# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
+	# @used-by :mod:`unittest`
+	def test_polyglot_land_and_health_handle_subprocess_timeout_cleanly(self) -> None:
+		from agent_tools.polyglot_land import run_polyglot_land_tests, run_repo_health_check
+		with tempfile.TemporaryDirectory() as td:
+			root = Path(td).resolve()
+			repo = self._init_node_repo(root)
+			spec = {'test_command': [sys.executable, '-c', 'pass'], 'test_cwd': '.', 'watch_host_files': [], 'timeout_seconds': 5}
+			with mock.patch('agent_tools.polyglot_land.subprocess.run', side_effect=subprocess.TimeoutExpired(cmd=['node'], timeout=5)):
+				ok_t, res_t = run_polyglot_land_tests(repo, repo, spec=spec)
+			self.assertFalse(ok_t, res_t)
+			self.assertTrue(res_t.get('timed_out'), res_t)
+			self.assertEqual('tests', res_t['failure_stage'])
+			self.assertEqual(-1, res_t['exit_code'])
+			self.assertFalse((repo.parent / '\ua616/data/test-sandbox' / repo.name).exists())
+			wt = Path(worktree_begin(repo, 'poly-timeout', worktrees_dir=repo.parent / '\ua616/data/worktrees')['worktree'])
+			(wt / 'slow.js').write_text('module.exports = 3;\n', encoding='utf-8')
+			self._git(wt, 'add', 'slow.js')
+			self._git(wt, 'commit', '-m', 'add slow')
+			real_run = subprocess.run
+			# @used-by :meth:`PolyglotLandTests.test_polyglot_land_and_health_handle_subprocess_timeout_cleanly()`
+			def _timeout_node(cmd, *args, **kwargs):
+				if isinstance(cmd, (list, tuple)) and any(('demo.test.js' in str(c) for c in cmd)):
+					raise subprocess.TimeoutExpired(cmd=cmd, timeout=5)
+				return real_run(cmd, *args, **kwargs)
+			with mock.patch('agent_tools.polyglot_land.subprocess.run', side_effect=_timeout_node):
+				land = worktree_land(wt, run_tests=True, remove=False, owner='pt', leases_dir=root / 'leases')
+			self.assertFalse(land['valid'], land)
+			self.assertFalse(land['landed'], land)
+			self.assertEqual('tests', land['stage'])
+			self.assertTrue((land.get('test_result') or {}).get('timed_out'), land)
+			self.assertFalse((repo.parent / '\ua616/data/test-sandbox/poly-timeout').exists())
+			worktree_cleanup(repo, wt, force=True)
+			with mock.patch('agent_tools.polyglot_land.subprocess.run', side_effect=subprocess.TimeoutExpired(cmd=['node'], timeout=5)):
+				health = run_repo_health_check(repo, spec={'health_command': [sys.executable, '-c', 'pass']}, force=True)
+			self.assertFalse(health['ok'], health)
+			self.assertEqual(-1, health['exit_code'])
+			self.assertEqual('error', health['state'])
 if '__main__' == __name__:
 	unittest.main()

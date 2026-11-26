@@ -22,6 +22,7 @@ _B_DROPPED = '# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk\n# h
 # @used-by :meth:`XrefGateTests._assert_staged_js_java_and_legacy()`
 # @used-by :meth:`XrefGateTests.test_pre_commit_blocks_stale_cross_file_xref_and_passes_after_sync()`
 # @used-by :meth:`XrefGateTests.test_worktree_land_blocks_stale_xref_and_passes_when_synced()`
+# @used-by :meth:`XrefGateTests.test_worktree_land_xref_handles_cross_cutting_multi_file_commit()`
 def _git(repo: Path, *args: str) -> str:
 	proc = subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=30, check=True)
 	return (proc.stdout or '').strip()
@@ -29,6 +30,7 @@ def _git(repo: Path, *args: str) -> str:
 # @used-by :meth:`XrefGateTests.test_pre_commit_blocks_stale_cross_file_xref_and_passes_after_sync()`
 # @used-by :meth:`XrefGateTests.test_pre_tool_use_blocks_unannotated_new_python_js_java_and_forbidden_syntax()`
 # @used-by :meth:`XrefGateTests.test_worktree_land_blocks_stale_xref_and_passes_when_synced()`
+# @used-by :meth:`XrefGateTests.test_worktree_land_xref_handles_cross_cutting_multi_file_commit()`
 def _init_repo(repo: Path) -> Path:
 	repo.mkdir(parents=True, exist_ok=True)
 	_git(repo, 'init', '-b', 'main')
@@ -37,6 +39,7 @@ def _init_repo(repo: Path) -> Path:
 	return repo
 # @used-by :meth:`XrefGateTests.test_pre_commit_blocks_stale_cross_file_xref_and_passes_after_sync()`
 # @used-by :meth:`XrefGateTests.test_worktree_land_blocks_stale_xref_and_passes_when_synced()`
+# @used-by :meth:`XrefGateTests.test_worktree_land_xref_handles_cross_cutting_multi_file_commit()`
 def _seed_annotated_ab(repo: Path) -> None:
 	a_src = '# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk\n# https://github.com/o/r/issues/1\n# @used-by :func:`b.run()`\ndef helper() -> int:\n\treturn 1\n'
 	b_src = '# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk\n# https://github.com/o/r/issues/1\nfrom a import helper\n# @used-by :meth:`test_ab.AbTests.test_run()`\ndef run() -> int:\n\treturn helper()\n'
@@ -46,6 +49,7 @@ def _seed_annotated_ab(repo: Path) -> None:
 # @used-by :meth:`XrefGateTests._assert_staged_js_java_and_legacy()`
 # @used-by :meth:`XrefGateTests.test_pre_tool_use_blocks_unannotated_new_python_js_java_and_forbidden_syntax()`
 # @used-by :meth:`XrefGateTests.test_worktree_land_blocks_stale_xref_and_passes_when_synced()`
+# @used-by :meth:`XrefGateTests.test_worktree_land_xref_handles_cross_cutting_multi_file_commit()`
 def _seed_commit(repo: Path, files: dict[str, str], message: str='seed') -> None:
 	for rel, text in files.items():
 		fp = repo / rel
@@ -210,5 +214,33 @@ class XrefGateTests(unittest.TestCase):
 			_git(wt2, 'add', 'scripts/u1.py')
 			_git(wt2, 'commit', '--no-verify', '-m', 'edit legacy')
 			self.assertEqual([], verify_worktree_xref_changes(wt2, 'main'))
+	# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
+	# @used-by :mod:`unittest`
+	def test_worktree_land_xref_handles_cross_cutting_multi_file_commit(self) -> None:
+		from agent_tools.worktree_flow import worktree_begin, worktree_land
+		from agent_tools.xref import run_xref_sync
+		with tempfile.TemporaryDirectory() as td:
+			root = Path(td).resolve()
+			repo = _init_repo(root / 'repo')
+			_seed_annotated_ab(repo)
+			extras = {f'scripts/m{idx}.py': f'# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk\n# https://github.com/o/r/issues/1\n# @used-by unused\ndef f{idx}() -> int:\n\treturn {idx}\n' for idx in range(6)}
+			_seed_commit(repo, extras, message='seed six modules')
+			wt = Path(worktree_begin(repo, 'cross-xref', worktrees_dir=root / 'wts')['worktree'])
+			for idx in range(6):
+				(wt / f'scripts/m{idx}.py').write_text(f'# 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk\n# https://github.com/o/r/issues/2\n# @used-by unused\ndef f{idx}() -> int:\n\treturn {idx + 1}\n', encoding='utf-8', newline='\n')
+			(wt / 'scripts/b.py').write_text(_B_DROPPED, encoding='utf-8', newline='\n')
+			_git(wt, 'add', '.')
+			_git(wt, 'commit', '--no-verify', '-m', 'cross cutting stale xref')
+			blocked = worktree_land(wt, run_tests=False, remove=False, leases_dir=root / 'leases', promote_snapshot=False)
+			self.assertFalse(blocked['landed'], blocked)
+			self.assertEqual('xref_integrity', blocked['stage'])
+			self.assertIn('XREF-GATE', blocked['error'])
+			run_xref_sync(wt, lang='python')
+			(wt / 'scripts/a.py').write_text(_A_UNUSED, encoding='utf-8', newline='\n')
+			_git(wt, 'add', 'scripts/a.py')
+			_git(wt, 'commit', '--no-verify', '-m', 'sync cross cutting xref')
+			landed = worktree_land(wt, run_tests=False, remove=True, leases_dir=root / 'leases', promote_snapshot=False)
+			self.assertTrue(landed['valid'], landed)
+			self.assertTrue(landed['landed'], landed)
 if '__main__' == __name__:
 	unittest.main()

@@ -88,7 +88,19 @@ def _resolve_node_exe() -> str:
 	except Exception:
 		r = 'node'
 	return r
+# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
 # @used-by :func:`run_polyglot_land_tests()`
+def _run_polyglot_proc(cmd: list[str], cwd: Path, sandbox: Path, timeout: int) -> tuple[int, bool, str]:
+	try:
+		proc = subprocess.run(cmd, cwd=str(cwd), env=_sandbox_env(sandbox), stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=timeout, check=False, creationflags=_NO_WINDOW)
+		out = '\n'.join((p for p in (proc.stdout, proc.stderr) if p))[-4000:]
+		r = (proc.returncode, False, out)
+	except subprocess.TimeoutExpired as exc:
+		r = (-1, True, f'Polyglot land tests timed out after {exc.timeout}s')
+	finally:
+		shutil.rmtree(sandbox, ignore_errors=True)
+	return r
+# @used-by :func:`_run_polyglot_proc()`
 def _sandbox_env(sandbox_dir: Path) -> dict[str, str]:
 	appdata = sandbox_dir / 'appdata'
 	localappdata = sandbox_dir / 'localappdata'
@@ -167,6 +179,7 @@ def resolve_repo_verification_spec(main_repo: Path, wt_path: Path | None=None, *
 	return found if None is not found else (_auto_node_spec(wt_path) if None is not wt_path else None)
 # @used-by :func:`agent_tools.worktree_flow._run_land_tests()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_host_state_mutation_fails_closed_while_heartbeat_timestamp_is_ignored()`
+# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_land_and_health_handle_subprocess_timeout_cleanly()`
 # @used-by :mod:`agent_tools.polyglot_land`
 def run_polyglot_land_tests(main_repo: Path, wt_path: Path, *, spec: dict[str, Any] | None=None) -> tuple[bool, dict[str, Any] | None]:
 	eff = spec if None is not spec else resolve_repo_verification_spec(main_repo, wt_path)
@@ -178,18 +191,16 @@ def run_polyglot_land_tests(main_repo: Path, wt_path: Path, *, spec: dict[str, A
 		before = _snapshot_host_files(watch)
 		cwd = (wt_path / str(eff.get('test_cwd') or '.')).resolve()
 		timeout = max(5, int(eff.get('timeout_seconds') or 180))
-		try:
-			proc = subprocess.run(list(eff['test_command']), cwd=str(cwd), env=_sandbox_env(sandbox), stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=timeout, check=False, creationflags=_NO_WINDOW)
-		finally:
-			shutil.rmtree(sandbox, ignore_errors=True)
+		# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
+		rc, timed_out, out = _run_polyglot_proc(list(eff['test_command']), cwd, sandbox, timeout)
 		mutated = _diff_host_snapshots(before, _snapshot_host_files(watch))
-		out = '\n'.join((p for p in (proc.stdout, proc.stderr) if p))[-4000:]
-		ok = (0 == proc.returncode) and (not mutated)
+		ok = (0 == rc) and (not timed_out) and (not mutated)
 		stage = 'host_mutation' if mutated else (None if ok else 'tests')
-		r = (ok, {'ok': ok, 'runner': 'polyglot', 'failure_stage': stage, 'mutated_host_files': mutated, 'exit_code': proc.returncode, 'output': out})
+		r = (ok, {'ok': ok, 'runner': 'polyglot', 'failure_stage': stage, 'timed_out': timed_out, 'mutated_host_files': mutated, 'exit_code': rc, 'output': out})
 	return r
 # @used-by :func:`agent_tools.addon_observability.check_close_companion_health()`
 # @used-by :func:`agent_tools.worktree_flow._post_merge_checks()`
+# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_land_and_health_handle_subprocess_timeout_cleanly()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error()`
 # @used-by :mod:`agent_tools.polyglot_land`
 def run_repo_health_check(code_repo: Path, *, slug: str | None=None, spec: dict[str, Any] | None=None, force: bool=False) -> dict[str, Any]:

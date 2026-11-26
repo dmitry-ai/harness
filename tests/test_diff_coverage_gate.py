@@ -14,17 +14,21 @@ for p in (SCRIPTS,):
 	if str(p) not in sys.path:
 		sys.path.insert(0, str(p))
 # @used-by :func:`_init_demo_repo()`
+# @used-by :meth:`DiffCoverageGateTests.test_select_targeted_falls_back_to_direct_when_large_diff_has_no_token_match()`
 # @used-by :meth:`DiffCoverageGateTests.test_select_targeted_narrows_large_cross_cutting_test_diffs_to_prod_stems_and_packages()`
 # @used-by :meth:`DiffCoverageGateTests.test_select_targeted_prefers_changed_tests_over_unrelated_stem_matches()`
 # @used-by :meth:`DiffCoverageGateTests.test_worktree_land_blocks_uncovered_new_function_and_passes_when_covered()`
+# @used-by :meth:`DiffCoverageGateTests.test_worktree_land_handles_cross_cutting_commit_and_diff_coverage_timeout()`
 def _git(repo: Path, *args: str) -> str:
 	proc = subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', check=True, timeout=30)
 	return (proc.stdout or '').strip()
 # @used-by :meth:`DiffCoverageGateTests.test_run_trace_diff_coverage_handles_timeout_gracefully()`
+# @used-by :meth:`DiffCoverageGateTests.test_select_targeted_falls_back_to_direct_when_large_diff_has_no_token_match()`
 # @used-by :meth:`DiffCoverageGateTests.test_select_targeted_narrows_large_cross_cutting_test_diffs_to_prod_stems_and_packages()`
 # @used-by :meth:`DiffCoverageGateTests.test_select_targeted_prefers_changed_tests_over_unrelated_stem_matches()`
 # @used-by :meth:`DiffCoverageGateTests.test_tdd_check_reports_uncovered_added_function()`
 # @used-by :meth:`DiffCoverageGateTests.test_worktree_land_blocks_uncovered_new_function_and_passes_when_covered()`
+# @used-by :meth:`DiffCoverageGateTests.test_worktree_land_handles_cross_cutting_commit_and_diff_coverage_timeout()`
 def _init_demo_repo(root: Path) -> Path:
 	repo = root / 'repo'
 	(repo / 'pkg').mkdir(parents=True)
@@ -130,5 +134,61 @@ class DiffCoverageGateTests(unittest.TestCase):
 			self.assertEqual(1, res['checked_functions'])
 			self.assertEqual(['pkg/calc.py:base_val (L1)'], res['uncovered'])
 			self.assertEqual(['test_calc.py'], res['targeted_modules'])
+	# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
+	# @used-by :mod:`unittest`
+	def test_select_targeted_falls_back_to_direct_when_large_diff_has_no_token_match(self) -> None:
+		from agent_tools.tdd.diff_coverage import select_targeted_test_modules
+		with tempfile.TemporaryDirectory() as td:
+			root = Path(td).resolve()
+			repo = _init_demo_repo(root)
+			(repo / 'pkg/renamed_mod.py').write_text('def base_mod() -> int:\n\treturn 1\n', encoding='utf-8')
+			for idx in range(6):
+				(repo / f'tests/test_unrelated_{idx}.py').write_text(f'import unittest\nclass U{idx}(unittest.TestCase):\n\tdef test_ok(self) -> None:\n\t\tself.assertTrue(True)\n', encoding='utf-8')
+			_git(repo, 'add', '.')
+			_git(repo, 'commit', '--no-verify', '-m', 'seed unrelated tests')
+			(repo / 'pkg/renamed_mod.py').write_text('def base_mod() -> int:\n\treturn 1\ndef extra_mod() -> int:\n\treturn 2\n', encoding='utf-8')
+			for idx in range(6):
+				(repo / f'tests/test_unrelated_{idx}.py').write_text(f'# edit {idx}\nimport unittest\nclass U{idx}(unittest.TestCase):\n\tdef test_ok(self) -> None:\n\t\tself.assertTrue(True)\n', encoding='utf-8')
+			selected = select_targeted_test_modules(repo, ['pkg/renamed_mod.py'], base_ref='HEAD', include_working_tree=True)
+			self.assertEqual([f'test_unrelated_{idx}.py' for idx in range(6)], [m.name for m in selected])
+	# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
+	# @used-by :mod:`unittest`
+	def test_worktree_land_handles_cross_cutting_commit_and_diff_coverage_timeout(self) -> None:
+		from agent_tools.tdd import diff_coverage
+		from agent_tools.worktree_flow import worktree_begin, worktree_cleanup, worktree_land
+		with tempfile.TemporaryDirectory() as td:
+			root = Path(td).resolve()
+			repo = _init_demo_repo(root)
+			(repo / 'pkg/xref').mkdir(parents=True)
+			(repo / 'pkg/xref/__init__.py').write_text('', encoding='utf-8')
+			(repo / 'pkg/xref/calc.py').write_text('def x_base() -> int:\n\treturn 1\n', encoding='utf-8')
+			(repo / 'tests/test_xref_mod.py').write_text('import sys, unittest\nfrom pathlib import Path\nsys.path.insert(0, str(Path(__file__).resolve().parents[1]))\nfrom pkg.xref import calc\nclass XTests(unittest.TestCase):\n\tdef test_x(self) -> None:\n\t\tself.assertEqual(1, calc.x_base())\n', encoding='utf-8')
+			for idx in range(6):
+				(repo / f'tests/test_cross_{idx}.py').write_text(f'import unittest\nclass C{idx}(unittest.TestCase):\n\tdef test_ok(self) -> None:\n\t\tself.assertTrue(True)\n', encoding='utf-8')
+			_git(repo, 'add', '.')
+			_git(repo, 'commit', '--no-verify', '-m', 'seed cross cutting')
+			wt = Path(worktree_begin(repo, 'cross-cov', worktrees_dir=root / 'wts')['worktree'])
+			(wt / 'pkg/xref/calc.py').write_text('def x_base() -> int:\n\treturn 1\ndef x_added() -> int:\n\treturn 7\n', encoding='utf-8')
+			(wt / 'tests/test_xref_mod.py').write_text('import sys, unittest\nfrom pathlib import Path\nsys.path.insert(0, str(Path(__file__).resolve().parents[1]))\nfrom pkg.xref import calc\nclass XTests(unittest.TestCase):\n\tdef test_x(self) -> None:\n\t\tself.assertEqual(1, calc.x_base())\n\t\tself.assertEqual(7, calc.x_added())\n', encoding='utf-8')
+			for idx in range(6):
+				(wt / f'tests/test_cross_{idx}.py').write_text(f'# touch {idx}\nimport unittest\nclass C{idx}(unittest.TestCase):\n\tdef test_ok(self) -> None:\n\t\tself.assertTrue(True)\n', encoding='utf-8')
+			_git(wt, 'add', '.')
+			_git(wt, 'commit', '--no-verify', '-m', 'cross cutting covered')
+			real_run = subprocess.run
+			# @used-by :meth:`DiffCoverageGateTests.test_worktree_land_handles_cross_cutting_commit_and_diff_coverage_timeout()`
+			def _timeout_pytest(cmd, *args, **kwargs):
+				if isinstance(cmd, (list, tuple)) and 'pytest' in cmd:
+					raise subprocess.TimeoutExpired(cmd=cmd, timeout=1.0)
+				return real_run(cmd, *args, **kwargs)
+			with patch.object(diff_coverage.subprocess, 'run', side_effect=_timeout_pytest):
+				timed = worktree_land(wt, run_tests=True, remove=False, leases_dir=root / 'leases', promote_snapshot=False)
+			self.assertFalse(timed['valid'], timed)
+			self.assertEqual('diff_coverage', timed['stage'])
+			self.assertIn('timed out', timed['error'].lower())
+			landed = worktree_land(wt, run_tests=True, remove=True, leases_dir=root / 'leases', promote_snapshot=False)
+			self.assertTrue(landed['valid'], landed)
+			self.assertTrue(landed['landed'])
+			if wt.exists():
+				worktree_cleanup(repo, wt, force=True)
 if '__main__' == __name__:
 	unittest.main()

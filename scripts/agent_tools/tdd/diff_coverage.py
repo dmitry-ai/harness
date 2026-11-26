@@ -178,8 +178,10 @@ def _prod_match_tokens(changed_prod_rels: list[str]) -> set[str]:
 		if 3 <= len(parent) and parent not in _GENERIC_PROD_DIRS:
 			r.add(parent)
 	return r
+# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
 # @used-by :func:`verify_repo_diff_coverage()`
 # @used-by :func:`verify_worktree_diff_coverage()`
+# @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_select_targeted_falls_back_to_direct_when_large_diff_has_no_token_match()`
 # @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_select_targeted_narrows_large_cross_cutting_test_diffs_to_prod_stems_and_packages()`
 # @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_select_targeted_prefers_changed_tests_over_unrelated_stem_matches()`
 # @used-by :mod:`agent_tools.tdd.diff_coverage`

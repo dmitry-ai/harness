@@ -54,9 +54,11 @@ def run_xref_check(repo: Path, *, lang: str='all', files: list[str] | None=None,
 # 2026-11-26
 # "Extend cross-reference engine for JS/TS and Java":
 # https://github.com/dmitry-ai/harness/issues/301
+# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
 # @used-by :func:`agent_tools.cli_registry._exec_xref_sync()`
 # @used-by :meth:`test_xref_gate.XrefGateTests.test_pre_commit_blocks_stale_cross_file_xref_and_passes_after_sync()`
 # @used-by :meth:`test_xref_gate.XrefGateTests.test_worktree_land_blocks_stale_xref_and_passes_when_synced()`
+# @used-by :meth:`test_xref_gate.XrefGateTests.test_worktree_land_xref_handles_cross_cutting_multi_file_commit()`
 # @used-by :mod:`agent_tools.xref`
 def run_xref_sync(repo: Path, *, lang: str='all', apply: bool=True, files: list[str] | None=None) -> dict:
 	runners = {'java': sync_java_repo, 'js': sync_js_repo, 'python': sync_python_repo}

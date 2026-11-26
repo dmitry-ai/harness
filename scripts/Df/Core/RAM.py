@@ -27,6 +27,7 @@ class RAM:
 	# 2017-08-11
 	# 2016-09-04 Distinguishes a stored `None` value from a missing key.
 	# https://github.com/mage2pro/core/blob/11.6.1/Core/RAM.php#L19-L29
+	# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
 	# @used-by :func:`Df.Core.lib.cache.dfcf.dfcf()`
 	# @used-by :func:`agent_tools.admission.capture()`
 	# @used-by :func:`agent_tools.analysis.publish_owned()`
@@ -233,6 +234,7 @@ class RAM:
 	# @used-by :meth:`test_df_article.ReferenceArticleTests.test_deleted_premise_blocks_rendering_until_dependents_are_resolved()`
 	# @used-by :meth:`test_df_article.SlopDetectionTests.test_project_bans_are_discovered_from_the_project_root()`
 	# @used-by :meth:`test_df_core_base.DfCoreBaseTests.test_cache_dfc_dfcf_and_ram()`
+	# @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_handles_cross_cutting_commit_and_diff_coverage_timeout()`
 	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_arbitrary_intake_receipt_cannot_promote_own_note_or_attachment()`
 	# @used-by :meth:`test_executor_metadata.ExecutorMetadataTests.test_primary_reads_actual_generation_and_executor_configuration_paths()`
 	# @used-by :meth:`test_git_fixture_cache.GitFixtureCacheTests.test_clone_template_git_repo_caches_init_and_isolates_clones()`
@@ -278,6 +280,7 @@ class RAM:
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_custom_overlay_end_to_end_context_workflow_text_diagnostics_and_completion_canonicalization()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
+	# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_land_and_health_handle_subprocess_timeout_cleanly()`
 	# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_node_repo_runs_in_workspace_sandbox_and_lands()`
 	# @used-by :meth:`test_portability.CodexEvidenceTests.test_codex_workflow_reviews_current_kb_and_exports_exact_native_request_and_reply()`
 	# @used-by :meth:`test_portability.CodexEvidenceTests.test_second_platform_keeps_original_date_root_manual_kb_and_saved_snapshot()`

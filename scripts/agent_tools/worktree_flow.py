@@ -145,14 +145,17 @@ def _run_land_checks(main_repo: Path, wt_path: Path, branch: str, target_branch:
 	err: dict | None = None
 	if not ok_tests:
 		stage = str((test_res or {}).get('failure_stage') or 'tests')
-		msg = 'Host state mutated during sandboxed tests' if 'host_mutation' == stage else 'Full test suite failed on rebased worktree'
+		# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
+		msg = 'Host state mutated during sandboxed tests' if 'host_mutation' == stage else ('Sandboxed land tests timed out' if (test_res or {}).get('timed_out') else 'Full test suite failed on rebased worktree')
 		err = _fail_land(main_repo, wt_path, branch, stage, msg, test_runs=test_runs, test_result=test_res)
 	elif run_tests:
 		from .tdd.diff_coverage import verify_worktree_diff_coverage
 		cov = verify_worktree_diff_coverage(wt_path, target_branch)
 		if not cov.get('valid'):
 			joined = ', '.join(cov.get('uncovered', ())[:8])
-			err = _fail_land(main_repo, wt_path, branch, 'diff_coverage', f'Uncovered newly added production functions: {joined}', test_runs=test_runs, test_result=test_res)
+			# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
+			cov_msg = f'Diff coverage timed out with uncovered functions: {joined}' if cov.get('timed_out') else f'Uncovered newly added production functions: {joined}'
+			err = _fail_land(main_repo, wt_path, branch, 'diff_coverage', cov_msg, test_runs=test_runs, test_result=test_res)
 	return (err, test_runs, test_res)
 # @used-by :func:`_land_under_lease()`
 def _rebase_and_test(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, run_tests: bool, workers: int | None) -> tuple[dict | None, int, dict | None]:
@@ -267,10 +270,13 @@ def resolve_touched_repo_file(path: Path, is_tracked_fn) -> tuple[Path, str] | N
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_inherits_verified_open_parent_from_turn_state_and_summary_db()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
 # @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_blocks_uncovered_new_function_and_passes_when_covered()`
+# @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_handles_cross_cutting_commit_and_diff_coverage_timeout()`
+# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_land_and_health_handle_subprocess_timeout_cleanly()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_node_repo_runs_in_workspace_sandbox_and_lands()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_worktree_land_allows_whitelisted_live_runtime_data_on_main_only()`
 # @used-by :meth:`test_python_integrity_gate.PythonIntegrityGateTests.test_pre_commit_and_worktree_land_enforce_integrity_and_ratchet()`
+# @used-by :meth:`test_python_integrity_gate.PythonIntegrityGateTests.test_worktree_land_python_integrity_handles_cross_cutting_multi_file_commit()`
 # @used-by :meth:`test_repo_tag_close_gate.RepoTagCloseGateTests.test_worktree_land_with_tag_tags_and_pushes_landed_commit()`
 # @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_worktree_land_promotes_runtime_snapshot_after_merge()`
 # @used-by :meth:`test_worktree_cleanup_guard.WorktreeCleanupGuardTests.test_worktree_cleanup_fails_closed_with_lock_holders_on_locked_dir()`
@@ -290,6 +296,7 @@ def resolve_touched_repo_file(path: Path, is_tracked_fn) -> tuple[Path, str] | N
 # @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_status_flags_missing_worktree_as_stale()`
 # @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_status_flags_stale_behind_and_preserves_active_worktrees()`
 # @used-by :meth:`test_xref_gate.XrefGateTests.test_worktree_land_blocks_stale_xref_and_passes_when_synced()`
+# @used-by :meth:`test_xref_gate.XrefGateTests.test_worktree_land_xref_handles_cross_cutting_multi_file_commit()`
 def worktree_begin(repo: Path | str, task_id: str, *, base_ref: str='main', worktrees_dir: Path | str | None=None) -> dict:
 	main_repo = GitRepoGate(Path(repo).resolve()).main_repo()
 	safe_id = _safe_task_id(task_id)
@@ -311,6 +318,8 @@ def worktree_begin(repo: Path | str, task_id: str, *, base_ref: str='main', work
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_blocked_when_parent_issue_closed_or_missing_evidence()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_inherits_verified_open_parent_from_turn_state_and_summary_db()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
+# @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_handles_cross_cutting_commit_and_diff_coverage_timeout()`
+# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_land_and_health_handle_subprocess_timeout_cleanly()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error()`
 # @used-by :meth:`test_worktree_cleanup_guard.WorktreeCleanupGuardTests.test_worktree_cleanup_fails_closed_with_lock_holders_on_locked_dir()`
 # @used-by :meth:`test_worktree_cleanup_guard.WorktreeCleanupGuardTests.test_worktree_land_fails_closed_when_cleanup_is_locked()`
@@ -352,10 +361,13 @@ def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_bra
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 # @used-by :func:`agent_tools.cli_registry._exec_worktree_land()`
 # @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_blocks_uncovered_new_function_and_passes_when_covered()`
+# @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_handles_cross_cutting_commit_and_diff_coverage_timeout()`
+# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_land_and_health_handle_subprocess_timeout_cleanly()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_node_repo_runs_in_workspace_sandbox_and_lands()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_worktree_land_allows_whitelisted_live_runtime_data_on_main_only()`
 # @used-by :meth:`test_python_integrity_gate.PythonIntegrityGateTests.test_pre_commit_and_worktree_land_enforce_integrity_and_ratchet()`
+# @used-by :meth:`test_python_integrity_gate.PythonIntegrityGateTests.test_worktree_land_python_integrity_handles_cross_cutting_multi_file_commit()`
 # @used-by :meth:`test_repo_tag_close_gate.RepoTagCloseGateTests.test_worktree_land_with_tag_tags_and_pushes_landed_commit()`
 # @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_worktree_land_promotes_runtime_snapshot_after_merge()`
 # @used-by :meth:`test_worktree_cleanup_guard.WorktreeCleanupGuardTests.test_worktree_land_fails_closed_when_cleanup_is_locked()`
@@ -363,6 +375,7 @@ def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_bra
 # @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_worktree_land_aborts_when_tests_fail()`
 # @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_land_removes_worktree_and_branch_by_default()`
 # @used-by :meth:`test_xref_gate.XrefGateTests.test_worktree_land_blocks_stale_xref_and_passes_when_synced()`
+# @used-by :meth:`test_xref_gate.XrefGateTests.test_worktree_land_xref_handles_cross_cutting_multi_file_commit()`
 def worktree_land(worktree: Path | str, *, target_branch: str='main', run_tests: bool=True, push: bool=False, remove: bool=True, owner: str | None=None, wait_timeout: float=600.0, leases_dir: Path | None=None, workers: int | None=None, post_merge_fn=None, promote_snapshot: bool | None=None, snapshot_store: Path | None=None, tag: bool=False) -> dict:
 	wt_path = Path(worktree).resolve()
 	if not is_linked_worktree(wt_path):
