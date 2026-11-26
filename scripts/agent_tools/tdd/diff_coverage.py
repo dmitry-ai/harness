@@ -12,6 +12,8 @@ import sys
 import tempfile
 from ..git_gate import _NO_WINDOW
 from ..path_registry import project_paths
+# 2026-11-26 "Narrow diff-coverage test selection to production module stems on cross-cutting commits": https://github.com/dmitry-ai/harness/issues/315
+_GENERIC_PROD_DIRS = frozenset({'', '.', 'agent_tools', 'scripts', 'src', 'tests'})
 _SITE_HOOK_CODE = """import atexit, json, os, sys, threading, uuid
 _raw_t = os.environ.get('HARNESS_DIFF_COV_TARGETS') or ''
 _out_d = os.environ.get('HARNESS_DIFF_COV_DIR') or ''
@@ -48,7 +50,8 @@ if _raw_t and _out_d:
 \tsys.settrace(_call_tr)
 \tthreading.settrace(_call_tr)
 """
-# @used-by :func:`_changed_py_files()`, :func:`_git_show_text()`
+# @used-by :func:`_changed_py_files()`
+# @used-by :func:`_git_show_text()`
 def _git_read(repo_root: Path, *args: str) -> subprocess.CompletedProcess:
 	return subprocess.run(['git', '--no-optional-locks', '-C', str(repo_root), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=15, creationflags=_NO_WINDOW, check=False)
 # @used-by :func:`_parse_module_functions()`
@@ -59,7 +62,8 @@ def _collect_ast_defs(body: list[ast.stmt], prefix: str, out: dict[str, dict[str
 			out[qname] = {'name': qname, 'start_line': int(node.lineno), 'end_line': int(getattr(node, 'end_lineno', node.lineno) or node.lineno)}
 		elif isinstance(node, ast.ClassDef):
 			_collect_ast_defs(node.body, f'{prefix}{node.name}.', out)
-# @used-by :func:`find_added_production_functions()`, :func:`select_targeted_test_modules()`
+# @used-by :func:`_changed_test_paths()`
+# @used-by :func:`find_added_production_functions()`
 def _changed_py_files(repo_root: Path, *, base_ref: str, include_working_tree: bool) -> list[str]:
 	found: set[str] = set()
 	if include_working_tree:
@@ -72,7 +76,8 @@ def _changed_py_files(repo_root: Path, *, base_ref: str, include_working_tree: b
 def _git_show_text(repo_root: Path, ref: str, rel: str) -> str:
 	proc = _git_read(repo_root, 'show', f'{ref}:{rel}')
 	return proc.stdout if 0 == proc.returncode else ''
-# @used-by :func:`find_added_production_functions()`, :func:`select_targeted_test_modules()`
+# @used-by :func:`_changed_test_paths()`
+# @used-by :func:`find_added_production_functions()`
 def _is_test_py(rel: str) -> bool:
 	low = rel.replace('\\', '/').lower()
 	name = Path(low).name
@@ -125,7 +130,9 @@ def _touched_git_repos(root_p: Path, turn_obj: dict[str, Any]) -> list[Path]:
 			seen.add(repo.as_posix().lower())
 			repos.append(repo)
 	return repos
-# @used-by :func:`verify_worktree_diff_coverage()`, :func:`verify_repo_diff_coverage()`
+# @used-by :func:`verify_repo_diff_coverage()`
+# @used-by :func:`verify_worktree_diff_coverage()`
+# @used-by :mod:`agent_tools.tdd.diff_coverage`
 def find_added_production_functions(repo_root: Path, *, base_ref: str='HEAD', include_working_tree: bool=False) -> dict[str, list[dict[str, Any]]]:
 	added: dict[str, list[dict[str, Any]]] = {}
 	for rel in _changed_py_files(repo_root, base_ref=base_ref, include_working_tree=include_working_tree):
@@ -140,7 +147,40 @@ def find_added_production_functions(repo_root: Path, *, base_ref: str='HEAD', in
 		if new_list:
 			added[rel] = new_list
 	return added
-# @used-by :func:`verify_worktree_diff_coverage()`, :func:`verify_repo_diff_coverage()`
+# 2026-11-26 "Narrow diff-coverage test selection to production module stems on cross-cutting commits": https://github.com/dmitry-ai/harness/issues/315
+# @used-by :func:`select_targeted_test_modules()`
+def _changed_test_paths(repo_root: Path, all_tests: list[Path], *, base_ref: str, include_working_tree: bool) -> list[Path]:
+	changed = {(repo_root / rel).resolve() for rel in _changed_py_files(repo_root, base_ref=base_ref, include_working_tree=include_working_tree) if _is_test_py(rel)}
+	return [tf for tf in all_tests if tf.resolve() in changed]
+# 2026-11-26 "Narrow diff-coverage test selection to production module stems on cross-cutting commits": https://github.com/dmitry-ai/harness/issues/315
+# @used-by :func:`select_targeted_test_modules()`
+def _filter_tests_by_tokens(candidates: list[Path], tokens: set[str]) -> list[Path]:
+	r: list[Path] = []
+	for tf in candidates:
+		if any((tk in tf.stem for tk in tokens)):
+			r.append(tf)
+		else:
+			text = tf.read_text(encoding='utf-8', errors='replace')
+			if any((tk in text for tk in tokens)):
+				r.append(tf)
+	return r
+# 2026-11-26 "Narrow diff-coverage test selection to production module stems on cross-cutting commits": https://github.com/dmitry-ai/harness/issues/315
+# @used-by :func:`select_targeted_test_modules()`
+def _prod_match_tokens(changed_prod_rels: list[str]) -> set[str]:
+	r: set[str] = set()
+	for rel in changed_prod_rels:
+		p = Path(rel)
+		if p.stem and '__init__' != p.stem:
+			r.add(p.stem)
+		parent = p.parent.name
+		if 3 <= len(parent) and parent not in _GENERIC_PROD_DIRS:
+			r.add(parent)
+	return r
+# @used-by :func:`verify_repo_diff_coverage()`
+# @used-by :func:`verify_worktree_diff_coverage()`
+# @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_select_targeted_narrows_large_cross_cutting_test_diffs_to_prod_stems_and_packages()`
+# @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_select_targeted_prefers_changed_tests_over_unrelated_stem_matches()`
+# @used-by :mod:`agent_tools.tdd.diff_coverage`
 def select_targeted_test_modules(repo_root: Path, changed_prod_rels: list[str], *, base_ref: str='HEAD', include_working_tree: bool=False) -> list[Path]:
 	tests_dir = repo_root / 'tests'
 	if not tests_dir.is_dir():
@@ -150,34 +190,45 @@ def select_targeted_test_modules(repo_root: Path, changed_prod_rels: list[str], 
 		if 5 >= len(all_tests):
 			r = all_tests
 		else:
-			changed_tests = {(repo_root / rel).resolve() for rel in _changed_py_files(repo_root, base_ref=base_ref, include_working_tree=include_working_tree) if _is_test_py(rel)}
-			direct = [tf for tf in all_tests if tf.resolve() in changed_tests]
-			if direct:
-				r = direct
+			# 2026-11-26 "Narrow diff-coverage test selection to production module stems on cross-cutting commits": https://github.com/dmitry-ai/harness/issues/315
+			direct = _changed_test_paths(repo_root, all_tests, base_ref=base_ref, include_working_tree=include_working_tree)
+			tokens = _prod_match_tokens(changed_prod_rels)
+			if not direct:
+				r = _filter_tests_by_tokens(all_tests, tokens)
 			else:
-				stems = {Path(rel).stem for rel in changed_prod_rels}
-				r = [tf for tf in all_tests if any((st in tf.read_text(encoding='utf-8', errors='replace') for st in stems))]
+				narrowed = _filter_tests_by_tokens(direct, tokens) if 5 < len(direct) else direct
+				r = narrowed or direct
 	return r
 # @used-by :func:`run_trace_diff_coverage()`
 def _pytest_argv(test_modules: list[Path]) -> list[str]:
 	import importlib.util
 	extra = ['-n', 'auto', '--dist', 'worksteal'] if 1 < len(test_modules) and None is not importlib.util.find_spec('xdist') else []
 	return [sys.executable, '-m', 'pytest', '-q', '--no-header', '-o', 'addopts=', '-p', 'no:cacheprovider', *extra, *(str(m) for m in test_modules)]
-# @used-by :func:`verify_worktree_diff_coverage()`, :func:`verify_repo_diff_coverage()`
+# @used-by :func:`verify_repo_diff_coverage()`
+# @used-by :func:`verify_worktree_diff_coverage()`
+# @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_run_trace_diff_coverage_handles_timeout_gracefully()`
+# @used-by :mod:`agent_tools.tdd.diff_coverage`
 def run_trace_diff_coverage(repo_root: Path, added_funcs: dict[str, list[dict[str, Any]]], test_modules: list[Path], *, timeout: float=240.0) -> dict[str, Any]:
 	targets = [os.path.normcase(os.path.realpath(str(repo_root / rel))) for rel in sorted(added_funcs)]
+	timed_out = False
 	with tempfile.TemporaryDirectory() as td:
 		site_dir, cov_dir = (Path(td) / 'site', Path(td) / 'cov')
 		site_dir.mkdir()
 		cov_dir.mkdir()
 		(site_dir / 'sitecustomize.py').write_text(_SITE_HOOK_CODE, encoding='utf-8')
-		prev_pp = os.environ.get('PYTHONPATH') or ''
+		prev_pp = os.environ.get('PYTHONPATH', '')
 		env = {**os.environ, 'PYTHONPATH': f'{site_dir}{os.pathsep}{prev_pp}' if prev_pp else str(site_dir), 'HARNESS_DIFF_COV_TARGETS': json.dumps(targets), 'HARNESS_DIFF_COV_DIR': str(cov_dir), 'HARNESS_TEST_NO_FSYNC': '1', 'GIT_OPTIONAL_LOCKS': '0', 'PYTHONDONTWRITEBYTECODE': '1'}
-		proc = subprocess.run(_pytest_argv(test_modules), cwd=str(repo_root), env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=timeout, creationflags=_NO_WINDOW, check=False)
+		# 2026-11-26 "Narrow diff-coverage test selection to production module stems on cross-cutting commits": https://github.com/dmitry-ai/harness/issues/315
+		try:
+			exit_code = subprocess.run(_pytest_argv(test_modules), cwd=str(repo_root), env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=timeout, creationflags=_NO_WINDOW, check=False).returncode
+		except subprocess.TimeoutExpired:
+			timed_out = True
+			exit_code = -1
 		hits = _collect_hit_lines(cov_dir)
 	uncovered, checked = _find_uncovered(repo_root, added_funcs, hits)
-	return {'valid': 0 == proc.returncode and (not uncovered), 'exit_code': proc.returncode, 'checked_functions': checked, 'uncovered': uncovered, 'targeted_modules': [m.name for m in test_modules]}
+	return {'valid': 0 == exit_code and (not uncovered), 'exit_code': exit_code, 'timed_out': timed_out, 'checked_functions': checked, 'uncovered': uncovered, 'targeted_modules': [m.name for m in test_modules]}
 # @used-by :func:`agent_tools.completion.tdd_check_turn()`
+# @used-by :mod:`agent_tools.tdd.diff_coverage`
 def enrich_tdd_check_report(root_p: Path, role: str, turn_key: str, turn_obj: dict[str, Any], tdd_chk: dict[str, Any]) -> dict[str, Any]:
 	repos = _touched_git_repos(root_p, turn_obj)
 	uncovered: list[str] = []
@@ -189,6 +240,7 @@ def enrich_tdd_check_report(root_p: Path, role: str, turn_key: str, turn_obj: di
 	cov_summary = {'valid': not uncovered, 'checked_functions': checked, 'uncovered': uncovered}
 	return {'valid': bool(tdd_chk.get('verified', True)) and cov_summary['valid'], 'read_only': True, 'role': role, 'turn_key': turn_key, 'tdd_check': tdd_chk, 'diff_coverage': cov_summary, 'event_count': len(turn_obj.get('tdd_events') or ())}
 # @used-by :func:`enrich_tdd_check_report()`
+# @used-by :mod:`agent_tools.tdd.diff_coverage`
 def verify_repo_diff_coverage(repo_root: Path, *, base_ref: str='HEAD') -> dict[str, Any]:
 	added = find_added_production_functions(repo_root, base_ref=base_ref, include_working_tree=True)
 	if not added:
@@ -198,6 +250,7 @@ def verify_repo_diff_coverage(repo_root: Path, *, base_ref: str='HEAD') -> dict[
 		r = run_trace_diff_coverage(repo_root, added, mods) if mods else {'valid': False, 'checked_functions': sum((len(v) for v in added.values())), 'uncovered': [f"{rel}:{fn['name']} (L{fn['start_line']})" for rel, v in sorted(added.items()) for fn in v], 'targeted_modules': []}
 	return r
 # @used-by :func:`agent_tools.worktree_flow._run_land_checks()`
+# @used-by :mod:`agent_tools.tdd.diff_coverage`
 def verify_worktree_diff_coverage(wt_path: Path, target_branch: str) -> dict[str, Any]:
 	added = find_added_production_functions(wt_path, base_ref=target_branch, include_working_tree=False)
 	if not added:

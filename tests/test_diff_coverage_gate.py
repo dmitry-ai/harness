@@ -13,11 +13,18 @@ SCRIPTS = WT_ROOT / 'scripts'
 for p in (SCRIPTS,):
 	if str(p) not in sys.path:
 		sys.path.insert(0, str(p))
-# @used-by :func:`_init_demo_repo()`, :meth:`DiffCoverageGateTests.test_worktree_land_blocks_uncovered_new_function_and_passes_when_covered()`, :meth:`DiffCoverageGateTests.test_tdd_check_reports_uncovered_added_function()`
+# @used-by :func:`_init_demo_repo()`
+# @used-by :meth:`DiffCoverageGateTests.test_select_targeted_narrows_large_cross_cutting_test_diffs_to_prod_stems_and_packages()`
+# @used-by :meth:`DiffCoverageGateTests.test_select_targeted_prefers_changed_tests_over_unrelated_stem_matches()`
+# @used-by :meth:`DiffCoverageGateTests.test_worktree_land_blocks_uncovered_new_function_and_passes_when_covered()`
 def _git(repo: Path, *args: str) -> str:
 	proc = subprocess.run(['git', '--no-optional-locks', '-C', str(repo), *args], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', check=True, timeout=30)
 	return (proc.stdout or '').strip()
-# @used-by :meth:`DiffCoverageGateTests.test_worktree_land_blocks_uncovered_new_function_and_passes_when_covered()`, :meth:`DiffCoverageGateTests.test_tdd_check_reports_uncovered_added_function()`
+# @used-by :meth:`DiffCoverageGateTests.test_run_trace_diff_coverage_handles_timeout_gracefully()`
+# @used-by :meth:`DiffCoverageGateTests.test_select_targeted_narrows_large_cross_cutting_test_diffs_to_prod_stems_and_packages()`
+# @used-by :meth:`DiffCoverageGateTests.test_select_targeted_prefers_changed_tests_over_unrelated_stem_matches()`
+# @used-by :meth:`DiffCoverageGateTests.test_tdd_check_reports_uncovered_added_function()`
+# @used-by :meth:`DiffCoverageGateTests.test_worktree_land_blocks_uncovered_new_function_and_passes_when_covered()`
 def _init_demo_repo(root: Path) -> Path:
 	repo = root / 'repo'
 	(repo / 'pkg').mkdir(parents=True)
@@ -84,5 +91,44 @@ class DiffCoverageGateTests(unittest.TestCase):
 			(repo / 'tests/test_calc.py').write_text('import unittest\nclass CalcTests(unittest.TestCase):\n\tdef test_ok(self) -> None:\n\t\tself.assertTrue(True)\n', encoding='utf-8')
 			selected = select_targeted_test_modules(repo, ['pkg/calc.py'], base_ref='HEAD', include_working_tree=True)
 			self.assertEqual(['test_calc.py'], [m.name for m in selected])
+	# 2026-11-26 "Narrow diff-coverage test selection to production module stems on cross-cutting commits": https://github.com/dmitry-ai/harness/issues/315
+	# @used-by :mod:`unittest`
+	def test_select_targeted_narrows_large_cross_cutting_test_diffs_to_prod_stems_and_packages(self) -> None:
+		from agent_tools.tdd.diff_coverage import select_targeted_test_modules
+		with tempfile.TemporaryDirectory() as td:
+			root = Path(td).resolve()
+			repo = _init_demo_repo(root)
+			(repo / 'pkg/xref').mkdir(parents=True)
+			(repo / 'pkg/xref/__init__.py').write_text('', encoding='utf-8')
+			(repo / 'pkg/xref/calc.py').write_text('def x_base() -> int:\n\treturn 1\n', encoding='utf-8')
+			(repo / 'tests/test_xref_mod.py').write_text('# covers pkg/xref/calc.py\nimport unittest\nclass X(unittest.TestCase):\n\tdef test_ok(self) -> None:\n\t\tself.assertTrue(True)\n', encoding='utf-8')
+			for idx in range(7):
+				(repo / f'tests/test_other_{idx}.py').write_text(f'import unittest\nclass O{idx}(unittest.TestCase):\n\tdef test_ok(self) -> None:\n\t\tself.assertTrue(True)\n', encoding='utf-8')
+			_git(repo, 'add', '.')
+			_git(repo, 'commit', '--no-verify', '-m', 'add xref and unrelated tests')
+			(repo / 'pkg/xref/calc.py').write_text('def x_base() -> int:\n\treturn 1\ndef x_new() -> int:\n\treturn 2\n', encoding='utf-8')
+			by_pkg = select_targeted_test_modules(repo, ['pkg/xref/calc.py'], base_ref='HEAD', include_working_tree=True)
+			self.assertIn('test_xref_mod.py', [m.name for m in by_pkg])
+			(repo / 'tests/test_xref_mod.py').write_text('# updated pkg/xref/calc.py\nimport unittest\nclass X(unittest.TestCase):\n\tdef test_ok(self) -> None:\n\t\tself.assertTrue(True)\n', encoding='utf-8')
+			for idx in range(7):
+				(repo / f'tests/test_other_{idx}.py').write_text(f'# touched {idx}\nimport unittest\nclass O{idx}(unittest.TestCase):\n\tdef test_ok(self) -> None:\n\t\tself.assertTrue(True)\n', encoding='utf-8')
+			selected = select_targeted_test_modules(repo, ['pkg/xref/calc.py'], base_ref='HEAD', include_working_tree=True)
+			self.assertEqual(['test_xref_mod.py'], [m.name for m in selected])
+	# 2026-11-26 "Narrow diff-coverage test selection to production module stems on cross-cutting commits": https://github.com/dmitry-ai/harness/issues/315
+	# @used-by :mod:`unittest`
+	def test_run_trace_diff_coverage_handles_timeout_gracefully(self) -> None:
+		from agent_tools.tdd import diff_coverage
+		with tempfile.TemporaryDirectory() as td:
+			root = Path(td).resolve()
+			repo = _init_demo_repo(root)
+			added = {'pkg/calc.py': [{'name': 'base_val', 'start_line': 1, 'end_line': 2}]}
+			with patch.object(diff_coverage.subprocess, 'run', side_effect=subprocess.TimeoutExpired(cmd=['pytest'], timeout=1.0)):
+				res = diff_coverage.run_trace_diff_coverage(repo, added, [repo / 'tests/test_calc.py'], timeout=1.0)
+			self.assertFalse(res['valid'], res)
+			self.assertTrue(res.get('timed_out'), res)
+			self.assertEqual(-1, res['exit_code'])
+			self.assertEqual(1, res['checked_functions'])
+			self.assertEqual(['pkg/calc.py:base_val (L1)'], res['uncovered'])
+			self.assertEqual(['test_calc.py'], res['targeted_modules'])
 if '__main__' == __name__:
 	unittest.main()
