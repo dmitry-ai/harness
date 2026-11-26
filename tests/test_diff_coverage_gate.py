@@ -70,5 +70,19 @@ class DiffCoverageGateTests(unittest.TestCase):
 			self.assertIn('diff_coverage', rep)
 			self.assertFalse(rep['diff_coverage']['valid'], rep['diff_coverage'])
 			self.assertTrue(any(('untested_extra' in u for u in rep['diff_coverage']['uncovered'])), rep['diff_coverage'])
+	# @used-by :mod:`unittest`
+	def test_select_targeted_prefers_changed_tests_over_unrelated_stem_matches(self) -> None:
+		from agent_tools.tdd.diff_coverage import select_targeted_test_modules
+		with tempfile.TemporaryDirectory() as td:
+			root = Path(td).resolve()
+			repo = _init_demo_repo(root)
+			for idx in range(6):
+				(repo / f'tests/test_extra_{idx}.py').write_text(f'# mentions calc\nimport unittest\nclass E{idx}(unittest.TestCase):\n\tdef test_ok(self) -> None:\n\t\tself.assertTrue(True)\n', encoding='utf-8')
+			_git(repo, 'add', '.')
+			_git(repo, 'commit', '--no-verify', '-m', 'add extra tests')
+			(repo / 'pkg/calc.py').write_text('def base_val() -> int:\n\treturn 1\ndef new_fn() -> int:\n\treturn 2\n', encoding='utf-8')
+			(repo / 'tests/test_calc.py').write_text('import unittest\nclass CalcTests(unittest.TestCase):\n\tdef test_ok(self) -> None:\n\t\tself.assertTrue(True)\n', encoding='utf-8')
+			selected = select_targeted_test_modules(repo, ['pkg/calc.py'], base_ref='HEAD', include_working_tree=True)
+			self.assertEqual(['test_calc.py'], [m.name for m in selected])
 if '__main__' == __name__:
 	unittest.main()

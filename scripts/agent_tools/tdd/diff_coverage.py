@@ -150,13 +150,21 @@ def select_targeted_test_modules(repo_root: Path, changed_prod_rels: list[str], 
 		if 5 >= len(all_tests):
 			r = all_tests
 		else:
-			stems = {Path(rel).stem for rel in changed_prod_rels}
 			changed_tests = {(repo_root / rel).resolve() for rel in _changed_py_files(repo_root, base_ref=base_ref, include_working_tree=include_working_tree) if _is_test_py(rel)}
-			selected = [tf for tf in all_tests if tf.resolve() in changed_tests or any((st in tf.read_text(encoding='utf-8', errors='replace') for st in stems))]
-			r = selected
+			direct = [tf for tf in all_tests if tf.resolve() in changed_tests]
+			if direct:
+				r = direct
+			else:
+				stems = {Path(rel).stem for rel in changed_prod_rels}
+				r = [tf for tf in all_tests if any((st in tf.read_text(encoding='utf-8', errors='replace') for st in stems))]
 	return r
+# @used-by :func:`run_trace_diff_coverage()`
+def _pytest_argv(test_modules: list[Path]) -> list[str]:
+	import importlib.util
+	extra = ['-n', 'auto', '--dist', 'worksteal'] if 1 < len(test_modules) and None is not importlib.util.find_spec('xdist') else []
+	return [sys.executable, '-m', 'pytest', '-q', '--no-header', '-o', 'addopts=', '-p', 'no:cacheprovider', *extra, *(str(m) for m in test_modules)]
 # @used-by :func:`verify_worktree_diff_coverage()`, :func:`verify_repo_diff_coverage()`
-def run_trace_diff_coverage(repo_root: Path, added_funcs: dict[str, list[dict[str, Any]]], test_modules: list[Path], *, timeout: float=120.0) -> dict[str, Any]:
+def run_trace_diff_coverage(repo_root: Path, added_funcs: dict[str, list[dict[str, Any]]], test_modules: list[Path], *, timeout: float=240.0) -> dict[str, Any]:
 	targets = [os.path.normcase(os.path.realpath(str(repo_root / rel))) for rel in sorted(added_funcs)]
 	with tempfile.TemporaryDirectory() as td:
 		site_dir, cov_dir = (Path(td) / 'site', Path(td) / 'cov')
@@ -165,8 +173,7 @@ def run_trace_diff_coverage(repo_root: Path, added_funcs: dict[str, list[dict[st
 		(site_dir / 'sitecustomize.py').write_text(_SITE_HOOK_CODE, encoding='utf-8')
 		prev_pp = os.environ.get('PYTHONPATH') or ''
 		env = {**os.environ, 'PYTHONPATH': f'{site_dir}{os.pathsep}{prev_pp}' if prev_pp else str(site_dir), 'HARNESS_DIFF_COV_TARGETS': json.dumps(targets), 'HARNESS_DIFF_COV_DIR': str(cov_dir), 'HARNESS_TEST_NO_FSYNC': '1', 'GIT_OPTIONAL_LOCKS': '0', 'PYTHONDONTWRITEBYTECODE': '1'}
-		argv = [sys.executable, '-m', 'pytest', '-q', '--no-header', '-o', 'addopts=', '-p', 'no:cacheprovider', *(str(m) for m in test_modules)]
-		proc = subprocess.run(argv, cwd=str(repo_root), env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=timeout, creationflags=_NO_WINDOW, check=False)
+		proc = subprocess.run(_pytest_argv(test_modules), cwd=str(repo_root), env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=timeout, creationflags=_NO_WINDOW, check=False)
 		hits = _collect_hit_lines(cov_dir)
 	uncovered, checked = _find_uncovered(repo_root, added_funcs, hits)
 	return {'valid': 0 == proc.returncode and (not uncovered), 'exit_code': proc.returncode, 'checked_functions': checked, 'uncovered': uncovered, 'targeted_modules': [m.name for m in test_modules]}
