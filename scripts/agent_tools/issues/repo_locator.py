@@ -235,6 +235,7 @@ def find_local_code_repo(repo: str, project_root: str | Path | None=None, source
 # 2026-11-24
 # "Optimize local GitHub repository discovery with pruned walk and TTL cache":
 # https://github.com/dmitry-ai/harness/issues/172
+# @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
 # @used-by :func:`agent_tools.repo_link_gate._enclosing_github_repo()`
 # @used-by :func:`agent_tools.repo_tags.build_github_blob_url()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.origin_repo_slug()`

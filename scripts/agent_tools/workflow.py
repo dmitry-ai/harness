@@ -289,6 +289,7 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.context.assemble()`
 	# @used-by :func:`agent_tools.context.discover_letters()`
 	# @used-by :func:`agent_tools.contract_invariants.audit_readable_link_call_sites()`
+	# @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
 	# @used-by :func:`agent_tools.env_isolation_contracts._extract_worktree_land_gates()`
 	# @used-by :func:`agent_tools.evidence_loader._add_anchor()`
 	# @used-by :func:`agent_tools.experiments.requirement_issues()`

@@ -1675,6 +1675,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_cleanup_lifecycle`
 	# @used-by :mod:`test_cli_command_grounding`
 	# @used-by :mod:`test_cli_common`
+	# @used-by :mod:`test_cli_output_json`
 	# @used-by :mod:`test_cli_registry`
 	# @used-by :mod:`test_code_fanout_gates`
 	# @used-by :mod:`test_code_formatting_rules`
@@ -2270,6 +2271,7 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.context.assemble()`
 # @used-by :func:`agent_tools.context.default_context_config()`
 # @used-by :func:`agent_tools.context.generate()`
+# @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
 # @used-by :func:`agent_tools.evidence.local_file()`
 # @used-by :func:`agent_tools.evidence.source_reference()`
 # @used-by :func:`agent_tools.evidence_loader.resolve_http_observation()`

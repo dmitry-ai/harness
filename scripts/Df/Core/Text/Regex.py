@@ -130,6 +130,7 @@ class Regex(O):
 	# @used-by :func:`agent_tools.article.to_source()`
 	# @used-by :func:`agent_tools.claims._quantity_matches()`
 	# @used-by :func:`agent_tools.cli_command_grounding._extract_recommended_commands()`
+	# @used-by :func:`agent_tools.cli_output_json._truncated_top_level_failure()`
 	# @used-by :func:`agent_tools.completion._response_link_issues()`
 	# @used-by :func:`agent_tools.configuration._frontmatter()`
 	# @used-by :func:`agent_tools.configuration._root_options()`

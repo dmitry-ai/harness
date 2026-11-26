@@ -87,6 +87,7 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :func:`agent_tools.article.check_link_style()`
 	# @used-by :func:`agent_tools.article.check_structure()`
 	# @used-by :func:`agent_tools.claims._quantity_matches()`
+	# @used-by :func:`agent_tools.cli_output_json.extract_top_level_json_objects()`
 	# @used-by :func:`agent_tools.code_size_gate._code_lines_and_semicolons()`
 	# @used-by :func:`agent_tools.code_style_gate._scan_tokens()`
 	# @used-by :func:`agent_tools.grounding_domains.extract_fact_tuples()`

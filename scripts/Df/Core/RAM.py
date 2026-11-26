@@ -62,6 +62,7 @@ class RAM:
 	# @used-by :func:`agent_tools.configuration.load_project_receipt()`
 	# @used-by :func:`agent_tools.configuration.store_content_backup()`
 	# @used-by :func:`agent_tools.context.resolve_letter_file()`
+	# @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
 	# @used-by :func:`agent_tools.evidence.local_file()`
 	# @used-by :func:`agent_tools.evidence_loader.resolve_http_observation()`
 	# @used-by :func:`agent_tools.gates.cdp_bypass._is_inside_harness_code()`
