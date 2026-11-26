@@ -114,7 +114,10 @@ class CleanupAuditTests(TemporaryCase):
 		body = 'Очистка выполнена.  \nУдалён 1 проект.  \n'
 		scratch.write_text(body, encoding='utf-8')
 		out = io.StringIO()
-		fake_env = {'ANTIGRAVITY_CONVERSATION_ID': '11111111-2222-3333-4444-555555555555', 'ANTIGRAVITY_ACCOUNT': 'A6'}
+		# 2026-11-26
+		# "Isolate ANTIGRAVITY_APP_DATA_DIR in test_cleanup_audit.py under non-A6 sessions":
+		# https://github.com/dmitry-ai/harness/issues/310
+		fake_env = {'ANTIGRAVITY_ACCOUNT': 'A6', 'ANTIGRAVITY_APP_DATA_DIR': '', 'ANTIGRAVITY_CONVERSATION_ID': '11111111-2222-3333-4444-555555555555'}
 		with patch.object(cleanup, 'settings', return_value=self.config), patch.dict('os.environ', fake_env, clear=False), redirect_stdout(out):
 			rc = up.main(['cleanup-report', '--answer-file', str(scratch), '--consume-input', '--manifest', str(m_path), '--project', str(proj_root), '--platform', 'antigravity'])
 		self.assertEqual(0, rc, out.getvalue())
