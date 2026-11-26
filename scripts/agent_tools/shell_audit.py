@@ -416,6 +416,7 @@ def extract_issue_urls(text: str) -> list[str]:
 	return list(dict.fromkeys(_GITHUB_ISSUE_URL_RE.findall(text or '')))
 # 2026-11-26 "Add Df package dot-py bootstrap and dot-py support across Harness gates": https://github.com/dmitry-ai/harness/issues/320
 # @used-by :func:`agent_tools.gates.cdp_bypass._check_write_content()`
+# @used-by :func:`agent_tools.tdd.exemption.verify_staged_issue_urls()`
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._inspect_touched_code_file()`
 # @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_gates_and_classifiers_recognize_dotpy_files()`
 def is_code_file(rel_path: str | Path) -> bool:
@@ -473,6 +474,7 @@ def normalize_host_path(value: str | Path) -> Path:
 	return r
 # @used-by :func:`agent_tools.issue_first_gate._seed_open_issues_from_requests()`
 # @used-by :func:`agent_tools.issues.parity.merge_turn_issue_item()`
+# @used-by :func:`agent_tools.tdd.exemption._is_same_repo_url()`
 # @used-by :func:`agent_tools.tdd.mechanical._recipe_matches_repo()`
 # @used-by :func:`agent_tools.tdd.mechanical._validate_recipe_inputs()`
 # @used-by :func:`agent_tools.tdd.ratchet._find_issue_ratchet_approval()`

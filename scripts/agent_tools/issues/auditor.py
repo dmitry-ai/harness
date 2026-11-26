@@ -23,6 +23,7 @@ from .workspace import IssueEvidenceWorkspace, _V2_CODE_RELS
 class TurnIssueLifecycleAuditor:
 	# @used-by :func:`agent_tools.issue_lifecycle._check_multi_subtask_decomposition()`
 	# @used-by :func:`agent_tools.issue_lifecycle.code_and_issue_lifecycle_status()`
+	# @used-by :meth:`test_cross_repo_issue_urls.CrossRepoIssueUrlsTests.test_auditor_ignores_foreign_repo_turn_issue_urls_in_touched_file()`
 	# @used-by :meth:`test_issue_decomposition.IssueDecompositionTests.test_issue_markdown_linter_and_service_classes_exist()`
 	# @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_auditor_exempts_committed_comment_only_js_from_per_file_issue_url()`
 	# @used-by :meth:`test_tdd_mechanical_exemption.MechanicalExemptionTests.test_auditor_and_evaluator_accept_committed_mechanical_diff_and_reject_drift()`
@@ -236,13 +237,14 @@ class TurnIssueLifecycleAuditor:
 		required_issues.update(commit_urls)
 		committed_urls.update(commit_urls)
 	# @used-by :meth:`TurnIssueLifecycleAuditor._check_repo_commits_and_files()`
+	# @used-by :meth:`test_cross_repo_issue_urls.CrossRepoIssueUrlsTests.test_auditor_ignores_foreign_repo_turn_issue_urls_in_touched_file()`
 	# @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_auditor_exempts_committed_comment_only_js_from_per_file_issue_url()`
 	# @used-by :meth:`test_tdd_mechanical_exemption.MechanicalExemptionTests.test_auditor_and_evaluator_accept_committed_mechanical_diff_and_reject_drift()`
 	def _inspect_touched_code_file(self, code_repo: Path, rel: str, required_issues: set[str], committed_urls: set[str]) -> None:
 		# 2026-11-25
 		# "Add comment-only diff lexer exemption for top 20 repository languages":
 		# https://github.com/dmitry-ai/harness/issues/238
-		from ..tdd.exemption import is_git_path_exempt
+		from ..tdd.exemption import filter_repo_turn_issue_urls, is_git_path_exempt
 		fpath = code_repo / rel
 		if fpath.is_file() and is_code_file(rel):
 			try:
@@ -255,10 +257,10 @@ class TurnIssueLifecycleAuditor:
 			# https://github.com/dmitry-ai/harness/issues/238
 			if (not urls_in_file) and (not is_git_path_exempt(code_repo, rel, project_root=self.root)):
 				self.violations.append(f'Modified code file {fpath} does not reference a GitHub Issue URL')
-			for cu in comment_urls:
-				if cu in self.turn_issues:
-					required_issues.add(cu)
-					committed_urls.add(cu)
+			# 2026-11-26 "Scope issue-URL lifecycle gates to target repository": https://github.com/dmitry-ai/harness/issues/321
+			for cu in filter_repo_turn_issue_urls(comment_urls, self.turn_issues, self.workspace.origin_repo_slug(code_repo)):
+				required_issues.add(cu)
+				committed_urls.add(cu)
 	# @used-by :meth:`TurnIssueLifecycleAuditor._check_issue_file_evidence()`
 	def _lint_saved_issue_obj(self, issue_url: str, slug: str, num: int, info: dict, iss_obj: dict, t_txt: str, b_txt: str, p: Path, mutated: bool) -> None:
 		pnum = self._extract_saved_parent(info, iss_obj, b_txt, slug)

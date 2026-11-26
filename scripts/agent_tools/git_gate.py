@@ -76,6 +76,7 @@ class GitRepoGate:
 	# @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_shell_audit_inspector_and_single_pass_repo_gate_commit()`
 	# @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_git_pre_commit_blocks_oversized_python_file()`
 	# @used-by :meth:`test_code_style_gate.CodeStyleGateTests.test_pre_tool_use_gate_and_pre_commit_enforce_code_style()`
+	# @used-by :meth:`test_cross_repo_issue_urls.CrossRepoIssueUrlsTests.test_staged_issue_urls_ignore_foreign_repo_urls_and_check_dotpy()`
 	# @used-by :meth:`test_issue_comment_gate.IssueCommentGateTests.test_pre_tool_use_and_pre_commit_enforce_issue_comment_gate()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`

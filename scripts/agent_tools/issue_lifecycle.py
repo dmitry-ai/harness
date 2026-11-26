@@ -52,6 +52,7 @@ def evidence_issue_files(root: Path, repo_slug: str, fname: str, candidate_repos
 def evidence_issue_state(root: Path, repo_slug: str, number: int, candidate_repos=()) -> str | None:
 	return IssueEvidenceWorkspace.evidence_issue_state(root, repo_slug, number, candidate_repos)
 # @used-by :func:`agent_tools.issue_first_gate.resolve_issue_first_target()`
+# @used-by :func:`agent_tools.tdd.exemption.verify_staged_issue_urls()`
 # @used-by :func:`agent_tools.tdd.mechanical._resolve_existing_repo()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_workflow()`
 # @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_origin_repo_slug_and_linked_worktree_detection()`

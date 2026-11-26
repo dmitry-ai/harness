@@ -1673,6 +1673,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_comment_exemption_and_denied_writes`
 	# @used-by :mod:`test_context_and_storage_determinism`
 	# @used-by :mod:`test_contract_invariants`
+	# @used-by :mod:`test_cross_repo_issue_urls`
 	# @used-by :mod:`test_df_analysis_companion_tracks`
 	# @used-by :mod:`test_df_analysis_rules_contract`
 	# @used-by :mod:`test_df_analysis`
