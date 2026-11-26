@@ -383,6 +383,7 @@ def extract_comment_issue_urls(text: str) -> set[str]:
 # @used-by :func:`agent_tools.completion._scan_child_trace_turn()`
 # @used-by :func:`agent_tools.issue_first_bg._record_bg_seg_issues()`
 # @used-by :func:`agent_tools.issue_first_gate.build_issue_action_events()`
+# @used-by :func:`test_doc5_golden_feature_turn._extract_fixture_issue_actions()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._record_subagent_calls()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._record_tool_calls()`
 # @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._finalize_turn()`
