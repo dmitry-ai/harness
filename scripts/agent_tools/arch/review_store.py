@@ -148,6 +148,8 @@ def inspect_arch_status(root: Path, *, repo: Path | None=None, response_text: st
 # @used-by :meth:`test_arch_audit_gates.ArchAuditGatesTests.test_answer_and_stop_gates_enforce_significant_response_receipt_and_open_findings()`
 # @used-by :meth:`test_arch_audit_gates.ArchAuditGatesTests.test_pre_tool_use_blocks_unaudited_structural_write_and_allows_cached_or_approved_design()`
 # @used-by :meth:`test_arch_audit_gates.ArchAuditGatesTests.test_staged_pre_commit_enforces_approved_receipts_cache_and_anti_pattern_washing()`
+# @used-by :meth:`test_arch_audit_gates.ArchAuditGatesTests.test_staged_pre_commit_handles_participant_file_paths_and_incremental_multi_wave_commits()`
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_codex_arch_native_review_proof_works_on_bare_code_workspace_without_text_marker()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_codex_native_review_proof_and_verify_support_arch_role()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_prepare_input_record_and_check_roundtrip_with_module_cache()`
 # @used-by :mod:`agent_tools.arch.review_store`
@@ -166,6 +168,7 @@ def prepare_arch_package(root: Path, parent_id: str, *, kind: str, response_text
 	cached = _is_cached(_load_index(root), subj_sha, modules)
 	return {'valid': True, 'package': pkg_rel, 'package_sha256': pkg_sha, 'subject_kind': kind, 'subject_sha256': subj_sha, 'cached_approval': cached, 'module_hashes': payload['module_hashes']}
 # @used-by :func:`agent_tools.arch.review_cli._exec_arch_review_input()`
+# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_codex_arch_native_review_proof_works_on_bare_code_workspace_without_text_marker()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_codex_native_review_proof_and_verify_support_arch_role()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_prepare_input_record_and_check_roundtrip_with_module_cache()`
 # @used-by :mod:`agent_tools.arch.review_store`
