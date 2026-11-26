@@ -145,6 +145,9 @@ def inspect_arch_status(root: Path, *, repo: Path | None=None, response_text: st
 		issues.extend([f"ARCH-1 ({it['code']}): {it['message']}" for it in spec_res['issues']])
 	return {'valid': not issues, 'approved_module_count': len(index.get('approved_modules') or {}), 'approved_subject_count': len(index.get('approved_subjects') or {}), 'blocking_findings': blocking, 'issues': issues, 'approved_modules': index.get('approved_modules') or {}, 'approved_subjects': index.get('approved_subjects') or {}}
 # @used-by :func:`agent_tools.arch.review_cli._exec_arch_prepare()`
+# @used-by :meth:`test_arch_audit_gates.ArchAuditGatesTests.test_answer_and_stop_gates_enforce_significant_response_receipt_and_open_findings()`
+# @used-by :meth:`test_arch_audit_gates.ArchAuditGatesTests.test_pre_tool_use_blocks_unaudited_structural_write_and_allows_cached_or_approved_design()`
+# @used-by :meth:`test_arch_audit_gates.ArchAuditGatesTests.test_staged_pre_commit_enforces_approved_receipts_cache_and_anti_pattern_washing()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_codex_native_review_proof_and_verify_support_arch_role()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_prepare_input_record_and_check_roundtrip_with_module_cache()`
 # @used-by :mod:`agent_tools.arch.review_store`
@@ -175,6 +178,7 @@ def read_arch_review_input(root: Path, package_rel: str, *, parent_id: str | Non
 	pkg = json.loads(raw.decode('utf-8'))
 	return {'arch_review_input': 1, 'verified': True, 'project_root': pp.root.as_posix(), 'package': target.relative_to(pp.root).as_posix(), 'package_sha256': hashlib.sha256(raw).hexdigest(), 'parent_id': parent_id or pkg.get('parent_id'), 'reviewer_id': reviewer_id, 'content': pkg}
 # @used-by :func:`agent_tools.arch.review_cli._exec_arch_record_review()`
+# @used-by :func:`test_arch_audit_gates._record_verdict()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_prepare_input_record_and_check_roundtrip_with_module_cache()`
 # @used-by :mod:`agent_tools.arch.review_store`
 def record_arch_review(root: Path, report_bytes: bytes, *, parent_id: str, reviewer_id: str, native_evidence: Path | None=None, wait_timeout: float=0.0, platform: str | None=None, instance: str | None=None) -> dict[str, Any]:

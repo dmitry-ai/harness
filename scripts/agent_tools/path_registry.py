@@ -1660,6 +1660,7 @@ class ProjectPaths:
 	# @used-by :mod:`snapshot_draft`
 	# @used-by :mod:`test_addon_observability`
 	# @used-by :mod:`test_agent_tools`
+	# @used-by :mod:`test_arch_audit_gates`
 	# @used-by :mod:`test_arch_review_cli`
 	# @used-by :mod:`test_arch_rules_contract`
 	# @used-by :mod:`test_arch_spec_and_triggers`

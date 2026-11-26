@@ -10,6 +10,10 @@ from .stop_checks import run_stop_gates
 # "Convert PreToolUse hook entry points to lazy tool-scoped imports":
 # https://github.com/dmitry-ai/harness/issues/187
 _BUILTIN_TOOLS_MANIFEST = {
+	# 2026-11-26
+	# "Add blocking architecture audit gates with module-hash caching":
+	# https://github.com/dmitry-ai/harness/issues/363
+	'arch_audit': frozenset({'write_file', 'edit_file'}),
 	# 2026-11-26 "Enforce PreToolUse governance gate for ask_question calls": https://github.com/dmitry-ai/harness/issues/374
 	'ask_question_gate': frozenset({'ask_question'}),
 	'batch_synthesis': frozenset({'run_command', 'write_file', 'edit_file'}),
@@ -57,6 +61,7 @@ def _extract_pre_tool_entry(mod) -> dict | None:
 	tools = frozenset((str(t) for t in raw_tools)) if isinstance(raw_tools, (set, frozenset, list, tuple)) else None
 	return {'name': str(name), 'priority': int(priority), 'check': check, 'module': getattr(mod, '__name__', ''), 'tools': tools} if isinstance(name, str) and isinstance(priority, int) and callable(check) else None
 # @used-by :func:`_load_builtin_pre_tool_gates()`
+# @uses :func:`agent_tools.gates.arch_audit.check()`
 # @uses :func:`agent_tools.gates.ask_question_gate.check()`
 # @uses :func:`agent_tools.gates.batch_synthesis.check()`
 # @uses :func:`agent_tools.gates.browser_mcp.check()`
@@ -120,6 +125,7 @@ def _tool_matches(tool_name: str | None, tools: frozenset[str] | None) -> bool:
 		r = any((tool_name.startswith(pat[:-1]) if pat.endswith('*') else tool_name == pat for pat in tools))
 	return r
 # @used-by :func:`run_pre_tool_gates()`
+# @used-by :meth:`test_arch_audit_gates.ArchAuditGatesTests.test_arch_audit_gate_priority_manifest_and_lazy_export()`
 # @used-by :meth:`test_ask_question_pre_tool_gate.AskQuestionPreToolGateTests.test_hooks_manifest_and_canonical_hooks_include_ask_question()`
 # @used-by :meth:`test_gate_registry.GateRegistryTests.test_builtin_pre_tool_gates_discovered_in_strict_priority_order()`
 # @used-by :meth:`test_hook_lazy_imports.HookLazyImportsTests.test_discover_pre_tool_gates_tool_filtering_and_manifest_parity()`

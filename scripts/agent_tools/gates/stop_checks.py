@@ -1,5 +1,17 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
+# 2026-11-26
+# "Add blocking architecture audit gates with module-hash caching":
+# https://github.com/dmitry-ai/harness/issues/363
+# @used-by :mod:`agent_tools.gates.stop_checks`
+def _check_arch_audit(state: dict) -> dict | None:
+	aac = state.get('arch_audit_check') if isinstance(state.get('arch_audit_check'), dict) else {}
+	if False is not aac.get('verified'):
+		r = None
+	else:
+		detail = '; '.join((str(v) for v in (aac.get('violations') or ()))) or 'ARCH-1 / ARCH-2 architecture pattern specification or arch-auditor verification failed'
+		r = {'decision': 'continue', 'reason': f'ARCH-AUDIT Stop Gate: {detail}. Resolve architecture specification or arch-auditor findings and re-run harness.py answer-prepare.'}
+	return r
 # @used-by :mod:`agent_tools.gates.stop_checks`
 def _check_code_lifecycle(state: dict) -> dict | None:
 	clc = state.get('code_lifecycle_check') if isinstance(state.get('code_lifecycle_check'), dict) else {}
@@ -40,12 +52,14 @@ STOP_GATES = (
 	(10, 'prepared', _check_prepared),
 	(20, 'issue_first', _check_issue_first),
 	(30, 'code_lifecycle', _check_code_lifecycle),
+	(35, 'arch_audit', _check_arch_audit),
 	(40, 'tdd', _check_tdd),
 )
 # 2026-11-23
 # "Extract PreToolUse and completion gates into priority plugin registry":
 # https://github.com/dmitry-ai/harness/issues/167
 # @used-by :func:`check_stop_gate.evaluate_stop_payload()`
+# @used-by :meth:`test_arch_audit_gates.ArchAuditGatesTests.test_answer_and_stop_gates_enforce_significant_response_receipt_and_open_findings()`
 # @used-by :meth:`test_gate_registry.GateRegistryTests.test_stop_gates_evaluate_in_priority_order()`
 # @used-by :mod:`agent_tools.gates`
 def run_stop_gates(state: dict) -> dict | None:

@@ -272,6 +272,7 @@ class ResearchQuestionRegistry:
 		q['searches'].append({'query': ' '.join(query.casefold().split()), 'useful': bool(useful), 'method_change': method_change, 'time': now()})
 	# @used-by :func:`Df.Core.lib.lang.other.df_no_rec()`
 	# @used-by :func:`add_question()`
+	# @used-by :func:`agent_tools.arch.enforcement._arch_index_paths()`
 	# @used-by :func:`agent_tools.article.check_graph()`
 	# @used-by :func:`agent_tools.claims.collect_claim_closure()`
 	# @used-by :func:`agent_tools.claims.evaluate_safe_arithmetic()`
@@ -1036,6 +1037,8 @@ class WorkflowStateEngine:
 			raise ValueError('Provide --conversation or at least one --request-id to unadopt')
 		return update(self.root, {'action': 'unadopt_requests', 'conversation_id': conversation_id, 'request_ids': sorted(req_ids)}, lambda state: self._apply_unadopt(state, conversation_id, req_ids))
 	# @used-by :func:`Df.Core.lib.array.other.unshift_assoc.dfa_unshift_assoc()`
+	# @used-by :func:`agent_tools.arch.enforcement._load_merged_index()`
+	# @used-by :func:`agent_tools.arch.enforcement._staged_code_entries()`
 	# @used-by :func:`agent_tools.article.check_graph()`
 	# @used-by :func:`agent_tools.article.render()`
 	# @used-by :func:`agent_tools.claims.extract_verified_inline_calc_numbers()`

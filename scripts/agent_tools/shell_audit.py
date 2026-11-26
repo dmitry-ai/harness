@@ -418,6 +418,7 @@ def is_code_file(rel_path: str | Path) -> bool:
 # @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_shell_audit_inspector_and_single_pass_repo_gate_commit()`
 def normalize_commit_message(message: str | None) -> str:
 	return '\n'.join((line for line in (message or '').splitlines() if not line.startswith('#'))).strip()
+# @used-by :func:`agent_tools.arch.enforcement._resolve_pre_tool_target()`
 # @used-by :func:`agent_tools.code_size_gate._resolve_python_target()`
 # @used-by :func:`agent_tools.git_gate.cleanup_stale_credential_locks()`
 # @used-by :func:`agent_tools.git_gate.resolve_git_repo_from_argv()`

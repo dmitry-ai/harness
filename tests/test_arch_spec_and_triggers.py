@@ -7,10 +7,11 @@ WT_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = WT_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
+# 2026-11-26 "Add blocking architecture audit gates with module-hash caching": https://github.com/dmitry-ai/harness/issues/363
 # @used-by :meth:`ArchSpecAndTriggersTests.test_answer_gates_enforce_architecture_pattern_specs()`
 def _base_answer_ctx() -> dict:
 	return {
-		'root': WT_ROOT,
+		'root': None,
 		'role': 'primary',
 		'doc4_errs': [],
 		'link_errs': [],

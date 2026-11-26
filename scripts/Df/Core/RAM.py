@@ -33,6 +33,7 @@ class RAM:
 	# @used-by :func:`agent_tools.admission.capture()`
 	# @used-by :func:`agent_tools.analysis.publish_owned()`
 	# @used-by :func:`agent_tools.analysis.save_analysis()`
+	# @used-by :func:`agent_tools.arch.enforcement._find_git_root()`
 	# @used-by :func:`agent_tools.blocked_report.audit_runner_workflow_scope()`
 	# @used-by :func:`agent_tools.claims._manifest_primary()`
 	# @used-by :func:`agent_tools.cleanup._finish_pending()`

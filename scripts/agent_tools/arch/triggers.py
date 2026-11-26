@@ -127,6 +127,8 @@ def _is_registry_path(rel_posix: str, old_text: str | None, new_text: str | None
 	else:
 		r = False
 	return r
+# @used-by :func:`agent_tools.arch.enforcement._staged_code_entries()`
+# @used-by :func:`agent_tools.arch.enforcement.evaluate_pre_tool_use_arch_audit()`
 # @used-by :func:`agent_tools.arch.review_store._collect_modules()`
 # @used-by :meth:`test_arch_spec_and_triggers.ArchSpecAndTriggersTests.test_code_change_trigger_detects_structural_changes_and_ignores_trivial_fixes()`
 # @used-by :mod:`agent_tools.arch.triggers`
@@ -164,6 +166,7 @@ def classify_markdown_arch_trigger(text: str, *, is_issue: bool=False, is_parent
 		reasons.append('structural_parent_issue_proposal')
 	significant = has_flag or (has_heading and 2 <= len(hits)) or (has_m and 3 <= len(hits)) or (is_issue and bool(reasons))
 	return {'triggered': bool(reasons), 'significant': bool(reasons and significant), 'reasons': reasons, 'signals': hits}
+# @used-by :func:`agent_tools.arch.enforcement._staged_code_entries()`
 # @used-by :func:`agent_tools.arch.review_store._collect_modules()`
 # @used-by :func:`classify_code_change_trigger()`
 # @used-by :meth:`test_arch_spec_and_triggers.ArchSpecAndTriggersTests.test_code_change_trigger_detects_structural_changes_and_ignores_trivial_fixes()`

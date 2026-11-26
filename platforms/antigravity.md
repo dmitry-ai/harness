@@ -12,9 +12,10 @@ Metadata for primary/A.A/A.F is saved via `native-executor-metadata`: `requested
 
 Every internal command accepts `--platform antigravity`; it is the backward-compatible default.  
 <!-- 2026-11-23 "Delegate subagent model selection to parent agents and remove hardcoded outdated models": https://github.com/dmitry-ai/harness/issues/133 -->  
-The `runtime.json` profile defines the parent-driven subagent selection policy, agent roles (`self` for A.A, `af-worker` for A.F), the browser, and the Folders path without hardcoding model versions.  
+<!-- 2026-11-26 "Add blocking architecture audit gates with module-hash caching": https://github.com/dmitry-ai/harness/issues/363 -->  
+The `runtime.json` profile defines the parent-driven subagent selection policy, agent roles (`self` for A.A, `af-worker` for A.F, `arch-auditor` for ARCH), the browser, and the Folders path without hardcoding model versions.  
 The model for the primary `/upwork-init` chat is selected in the UI; the A.A role is a responsibility boundary rather than a fixed model name.  
-Delegate via `invoke_subagent` in the current UI conversation: A.A uses `self`, A.F uses `af-worker`, and the parent agent selects the subagent's `Model` option based on task complexity and the options currently offered by the tool (defaulting to `inherit` when no switch is needed).  
+Delegate via `invoke_subagent` in the current UI conversation: A.A uses `self`, A.F uses `af-worker`, ARCH uses `arch-auditor` (for independent read-only `/df-architecture` falsifier audits via `arch-prepare`, `arch-review-input`, and `arch-record-review`), and the parent agent selects the subagent's `Model` option based on task complexity and the options currently offered by the tool (defaulting to `inherit` when no switch is needed).  
 A requested option or tier does not prove the exact runtime model or effort; verify the available actual metadata.  
 Do not launch models via hidden CLI sessions.  
 Shared rules and skills are connected via existing `.agents/{rules,skills,agents}.json` manifests.  

@@ -28,6 +28,7 @@ def _active_turn_issue_urls(new_text: str | None, old_text: str | None) -> list[
 	return r
 # @used-by :func:`_eval_pre_code_write()`
 # @used-by :func:`_eval_pre_test_write()`
+# @used-by :func:`agent_tools.arch.enforcement.evaluate_pre_tool_use_arch_audit()`
 # @used-by :func:`agent_tools.code_size_gate.evaluate_pre_tool_use_code_size()`
 # @used-by :func:`agent_tools.code_style_gate.evaluate_pre_tool_use_code_style()`
 # @used-by :func:`agent_tools.issue_comment_gate.evaluate_pre_tool_use_issue_comment()`
@@ -197,6 +198,7 @@ def _git_head_sha(repo_root: Path) -> str | None:
 # @used-by :func:`_eval_shell_test_deletes()`
 # @used-by :func:`_eval_test_ratchet_and_fitting()`
 # @used-by :func:`_staged_entry_texts()`
+# @used-by :func:`agent_tools.arch.enforcement._staged_code_entries()`
 # @used-by :func:`agent_tools.code_size_gate.evaluate_pre_tool_use_code_size()`
 # @used-by :func:`agent_tools.code_size_gate.verify_staged_code_size_ratchet()`
 # @used-by :func:`agent_tools.code_style_gate.evaluate_pre_tool_use_code_style()`
@@ -222,6 +224,7 @@ def _git_head_text(repo_root: Path, rel_posix: str) -> str | None:
 		r = _HEAD_TEXT_CACHE[key]
 	return r
 # @used-by :func:`_staged_entry_texts()`
+# @used-by :func:`agent_tools.arch.enforcement._staged_code_entries()`
 # @used-by :func:`agent_tools.code_size_gate.verify_staged_code_size_ratchet()`
 # @used-by :func:`agent_tools.code_style_gate.verify_staged_code_style_ratchet()`
 # @used-by :func:`agent_tools.issue_comment_gate.verify_staged_issue_comment_placement()`

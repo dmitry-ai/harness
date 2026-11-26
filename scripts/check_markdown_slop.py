@@ -196,6 +196,7 @@ def is_abbreviation_end(text):
 # https://github.com/dmitry-ai/harness/issues/79
 # @used-by :func:`agent_tools.completion.check_answer()`
 # @used-by :func:`check_markdown_content()`
+# @used-by :meth:`test_arch_audit_gates.ArchAuditGatesTests.test_stage4_docs_document_arch_audit_gate_and_lint_cleanly()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_native_profiles_generates_arch_auditor_for_antigravity_and_codex()`
 # @used-by :meth:`test_arch_rules_contract.ArchRulesContractTests.test_architecture_rule_is_compact_always_on_and_passes_doctor_and_rules_audit()`
 # @used-by :meth:`test_arch_rules_contract.ArchRulesContractTests.test_df_architecture_skill_discovered_and_lints_cleanly()`
