@@ -332,7 +332,7 @@ def resolve_touched_repo_file(path: Path, is_tracked_fn) -> tuple[Path, str] | N
 				r = (anc, rel)
 			break
 	return r if None is not r else _resolve_deleted_worktree_file(path, is_tracked_fn)
-# @used-by :func:`agent_tools.cli_registry._exec_worktree_begin()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_worktree_begin()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_blocked_when_parent_issue_closed_or_missing_evidence()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_inherits_verified_open_parent_from_turn_state_and_summary_db()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
@@ -394,8 +394,8 @@ def worktree_begin(repo: Path | str, task_id: str, *, base_ref: str='main', work
 	head = GitRepoGate(wt_path).git('rev-parse', 'HEAD').decode('utf-8', errors='replace').strip()
 	return {'valid': True, 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': _current_branch(wt_path) or branch, 'base_ref': base_ref, 'head': head, 'enclosing_ignore': ignore_info}
 # 2026-11-26 "Block raw worktree removal and fail closed on locked cleanup": https://github.com/dmitry-ai/harness/issues/303
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_worktree_cleanup()`
 # @used-by :func:`_push_and_finish_land()`
-# @used-by :func:`agent_tools.cli_registry._exec_worktree_cleanup()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_blocked_when_parent_issue_closed_or_missing_evidence()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_inherits_verified_open_parent_from_turn_state_and_summary_db()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
@@ -449,7 +449,7 @@ def _land_under_lease(main_repo: Path, wt_path: Path, branch: str, *, target_bra
 # 2026-11-26 "Enforce pushed Git tags on issue-closing commits in lifecycle gates": https://github.com/dmitry-ai/harness/issues/263
 # 2026-11-26 "Split worktree-land into optimistic pre-lease verification and targeted wait": https://github.com/dmitry-ai/harness/issues/350
 # 2026-11-26 "Implement diff executability classifier and automatic test skip": https://github.com/dmitry-ai/harness/issues/358
-# @used-by :func:`agent_tools.cli_registry._exec_worktree_land()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_worktree_land()`
 # @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_blocks_uncovered_new_function_and_passes_when_covered()`
 # @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_handles_cross_cutting_commit_and_diff_coverage_timeout()`
 # @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_polyglot_land_skips_tests_and_health_for_comment_only_js()`
@@ -489,7 +489,7 @@ def worktree_land(worktree: Path | str, *, target_branch: str='main', run_tests:
 	if None is leases_dir:
 		ensure_worktree_dir_ignored(project_paths(main_repo).data_dir / 'repo-leases')
 	return execute_optimistic_worktree_land(main_repo, wt_path, branch, target_branch=target_branch, run_tests=run_tests, push=push, remove=remove, owner=owner, wait_timeout=wait_timeout, leases_dir=leases_dir, workers=workers, post_merge_fn=post_merge_fn, promote_snapshot=promote_snapshot, snapshot_store=snapshot_store, tag=tag, max_optimistic_retries=max_optimistic_retries, no_tests_reason=no_tests_reason)
-# @used-by :func:`agent_tools.cli_registry._exec_worktree_status()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_worktree_status()`
 # @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_status_flags_missing_worktree_as_stale()`
 # @used-by :meth:`test_worktree_lifecycle.WorktreeLifecycleTests.test_worktree_status_flags_stale_behind_and_preserves_active_worktrees()`
 def worktree_status(repo: Path | str) -> dict:

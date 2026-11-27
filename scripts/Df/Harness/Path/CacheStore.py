@@ -4,8 +4,11 @@ from pathlib import Path
 import json
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 class CacheStore:
+	# @used-by :func:`Df.Harness.lib.native_ag_plan.dfh_shared_native_outputs()`
 	# @used-by :func:`agent_tools.path_cache.resolve_code_anchor()`
+	# @used-by :meth:`Df.Harness.Path.Registry.Registry.__init_variables()`
 	# @used-by :meth:`test_df_harness_s11_wave2d.DfHarnessS11Wave2DTests.test_path_subsystem_classes()`
+	# @used-by :mod:`Df.Harness.lib.path_state`
 	def __init__(self, anchor_dir: Path) -> None:
 		self.__anchor = Path(anchor_dir).resolve()
 	# @used-by :meth:`CacheStore.run()`
@@ -34,8 +37,11 @@ class CacheStore:
 		except (OSError, ValueError):
 			r = None
 		return r
+	# @used-by :func:`Df.Harness.lib.native_ag_plan.dfh_shared_native_outputs()`
 	# @used-by :func:`agent_tools.path_cache.resolve_code_anchor()`
+	# @used-by :meth:`Df.Harness.Path.Registry.Registry.__init_variables()`
 	# @used-by :meth:`test_df_harness_s11_wave2d.DfHarnessS11Wave2DTests.test_path_subsystem_classes()`
+	# @used-by :mod:`Df.Harness.lib.path_state`
 	def run(self) -> Path:
 		meta_file = self.__anchor / 'snapshot.json'
 		if meta_file.is_file():

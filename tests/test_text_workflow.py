@@ -84,13 +84,13 @@ class TextWorkspaceCase(TemporaryCase):
 			value = {'schema_version': 3, 'facts': captured['facts']}
 		r = (text_claims.save_registry(self.project, value), value)
 		return r
+	# @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_profile_agents()`
 	# @used-by :func:`agent_tools.article.check_link_style()`
 	# @used-by :func:`agent_tools.article.check_structure()`
 	# @used-by :func:`agent_tools.cli_output_json.extract_top_level_json_objects()`
 	# @used-by :func:`agent_tools.grounding_domains.extract_fact_tuples()`
 	# @used-by :func:`agent_tools.grounding_domains.ticket_message_issues()`
 	# @used-by :func:`agent_tools.links.parse_markdown_headings()`
-	# @used-by :func:`agent_tools.native_profiles._profile_agents()`
 	# @used-by :func:`agent_tools.research._grep_section_windows()`
 	# @used-by :func:`agent_tools.research.extract_markdown()`
 	# @used-by :func:`agent_tools.scatter_banner._has_unnegated_match()`
@@ -389,8 +389,8 @@ class TextTransactionTests(TextWorkspaceCase):
 		snap = verifier.snapshot(ws.index()['targets'])
 		self.assertEqual('original_admitted_artifacts', verifier.verify(snap)['scope'])
 class TextMechanicalScopeTests(TextWorkspaceCase):
-	# @used-by :func:`agent_tools.cli_domains._op_collect_browser()`
-	# @used-by :func:`agent_tools.cli_domains._op_collect_http()`
+	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_collect_browser()`
+	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_collect_http()`
 	# @used-by :meth:`TextMechanicalScopeTests.test_links_can_change_a_destination_but_cannot_change_link_label()`
 	# @used-by :meth:`TextMechanicalScopeTests.test_links_cannot_rewrite_exact_ascii_source_quote()`
 	# @used-by :meth:`TextMechanicalScopeTests.test_renumber_cannot_rewrite_a_quoted_section_example()`

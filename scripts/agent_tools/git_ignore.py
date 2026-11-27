@@ -134,7 +134,7 @@ def ensure_worktree_dir_ignored(base_dir: Path | str) -> dict:
 		entries, gitlinks, warnings = _tracked_worktree_entries(toplevel, rel)
 		r = {'enclosing_repo': toplevel.as_posix(), 'already_ignored': already, 'excluded': excluded, 'exclude_file': exclude_file.as_posix(), 'pattern': pattern, 'tracked_entries': entries, 'tracked_gitlinks': gitlinks, 'warnings': warnings}
 	return r
-# @used-by :func:`agent_tools.native_profiles.install_native_profiles()`
+# @used-by :func:`Df.Harness.lib.native_codex_plan.dfh_install_native_profiles()`
 def finalize_install_result(result: dict, all_declared: list, names: list, primary: Path, *, check: bool=False, git_ignore_path: Path | str | None=None) -> dict:
 	result['skipped_disabled'] = [name for name in all_declared if name not in names]
 	target = resolve_managed_git_ignore_target(primary, git_ignore_path=git_ignore_path)

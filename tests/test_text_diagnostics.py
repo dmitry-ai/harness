@@ -56,8 +56,8 @@ class TextDiagnosticsTests(unittest.TestCase):
 	# @used-by :meth:`TextDiagnosticsTests.test_unsupported_inheritance_is_unknown_and_malformed_files_visible()`
 	def report(self):
 		return diagnose_sources(self.root, platform='codex', config=self.config, primary=self.primary)
-	# @used-by :func:`agent_tools.cli_domains._op_extract()`
-	# @used-by :func:`agent_tools.cli_domains._op_extract_file()`
+	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_extract()`
+	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_extract_file()`
 	# @used-by :meth:`TextDiagnosticsTests.test_conflicting_local_rule_is_visible_without_assumed_precedence()`
 	# @used-by :meth:`TextDiagnosticsTests.test_missing_optional_manifests_do_not_mean_shared_rules_absent()`
 	# @used-by :meth:`TextDiagnosticsTests.test_native_loader_found_at_workspace_without_project_manifest()`

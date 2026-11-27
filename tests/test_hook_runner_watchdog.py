@@ -49,7 +49,7 @@ def _seed_two_releases(base: Path) -> tuple[Path, Path, Path, str, str]:
 	(repo / 'scripts/agent_tools/gates/__init__.py').write_text('def discover_pre_tool_gates():\n\treturn []\n', encoding='utf-8')
 	# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 	# 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
-	for rel in ('scripts/Df/__init__.py', 'scripts/Df/Core/lib/fs/.py', 'scripts/Df/Core/lib/git.py', 'scripts/Df/Harness/Path/CacheStore.py', 'scripts/Df/Harness/Path/ProjectPaths.py', 'scripts/Df/Harness/Path/Registry.py', 'scripts/Df/Harness/Path/SlotResolver.py', 'scripts/agent_tools/path_cache.py', 'scripts/agent_tools/path_registry.py', 'scripts/agent_tools/runtime_snapshot.py'):
+	for rel in ('scripts/Df/__init__.py', 'scripts/Df/Core/lib/fs/.py', 'scripts/Df/Core/lib/git.py', 'scripts/Df/Harness/Path/CacheStore.py', 'scripts/Df/Harness/Path/PathReporter.py', 'scripts/Df/Harness/Path/ProjectPaths.py', 'scripts/Df/Harness/Path/Registry.py', 'scripts/Df/Harness/Path/SimilarProjectAuditor.py', 'scripts/Df/Harness/Path/SlotResolver.py', 'scripts/Df/Harness/lib/path_discovery.py', 'scripts/Df/Harness/lib/path_resolve.py', 'scripts/Df/Harness/lib/path_schema.py', 'scripts/Df/Harness/lib/path_state.py', 'scripts/Df/Harness/lib/path_template.py', 'scripts/Df/Harness/lib/uri.py', 'scripts/agent_tools/path_cache.py', 'scripts/agent_tools/path_registry.py', 'scripts/agent_tools/runtime_snapshot.py'):
 		src = WT_ROOT / rel
 		if src.is_file():
 			dst = repo / rel

@@ -462,7 +462,7 @@ def resolve_headless_shell(config=None):
 		if cand.is_file():
 			return cand.resolve()
 	raise FileNotFoundError('chrome-headless-shell executable not found; configure text.browser.headless_shell.executable in runtime.json')
-# @used-by :func:`agent_tools.native_profiles._antigravity_plan()`
+# @used-by :func:`Df.Harness.lib.native_ag_plan._rewrite_mcp_chrome_servers()`
 def headless_mcp_args(config=None):
 	exe = resolve_headless_shell(config)
 	return ['--headless', '--isolated', f'--executablePath={exe.as_posix()}']

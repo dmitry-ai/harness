@@ -264,8 +264,8 @@ def is_documentation_url(url: str) -> bool:
 	host = (parsed.hostname or '').lower()
 	path = (parsed.path or '').lower()
 	return host.startswith(_DOC_HOST_PREFIXES) or host.endswith(_DOC_HOST_SUFFIXES) or any((m in path for m in _DOC_PATH_MARKERS)) or (host in ('github.com', 'raw.githubusercontent.com') and path.endswith('.md'))
-# @used-by :func:`agent_tools.cli_registry._exec_analysis_check()`
-# @used-by :func:`agent_tools.hook_runtime.scan_doc4_sentence_issues()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_analysis_check()`
+# @used-by :func:`Df.Harness.lib.hook_runtime_ops.dfh_scan_doc4_sentence_issues()`
 # @used-by :func:`analysis_gate_issues()`
 def markdown_table_issues(text: str) -> list[str]:
 	return [f'DOC-4 Line {ln}: Markdown table detected; Markdown tables are forbidden by rule DOC-4 (rewrite as structured prose or a list).' for ln in find_markdown_table_lines(text)]
@@ -273,7 +273,7 @@ def markdown_table_issues(text: str) -> list[str]:
 # "Enforce Markdown table ban and /df-analysis structural validation across response gates":
 # https://github.com/dmitry-ai/harness/issues/181
 # 2026-11-26 "Trigger DOC-5 four-track validation from active-turn bug-report signals": https://github.com/dmitry-ai/harness/issues/294
-# @used-by :func:`agent_tools.cli_registry._exec_analysis_check()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_analysis_check()`
 # @used-by :func:`analysis_gate_issues()`
 # @used-by :meth:`test_df_analysis.DfAnalysisGatesTests.test_general_df_analysis_requires_multiple_hypotheses_methods_and_template_fields()`
 # @used-by :meth:`test_df_analysis.DfAnalysisGatesTests.test_problem_analysis_auto_triggers_and_enforces_all_five_sections()`
@@ -323,7 +323,7 @@ def validate_df_analysis(response: str, *, requests: list | tuple=(), mode: str=
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
-# @used-by :func:`agent_tools.cli.main()`
+# @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__run_validate_statements()`
 # @used-by :meth:`test_agent_tools.StatementTests.test_missing_test_not_masked_by_words_in_statement()`
 def validate_statements(directory: Path) -> list[str]:
 	directory = Path(directory)

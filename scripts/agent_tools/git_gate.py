@@ -722,8 +722,8 @@ class WorktreeCommitTransaction:
 		r = base / f'{self.label}-{uuid.uuid4().hex[:10]}'
 		self.gate.git('worktree', 'add', '--detach', str(r), 'HEAD')
 		return r
+	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_worktree_land()`
 	# @used-by :func:`agent_tools.article.check_graph()`
-	# @used-by :func:`agent_tools.cli_registry._exec_worktree_land()`
 	# @used-by :func:`remove_isolated_worktree()`
 	# @used-by :meth:`Df.Harness.Analysis.ClaimGraph.ClaimGraph.__visit_cycle()`
 	# @used-by :meth:`WorktreeCommitTransaction.commit()`
@@ -781,7 +781,7 @@ def _ancestor_process_names(pid: int | None=None) -> list[str]:
 # 2026-11-02
 # "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
 # https://github.com/dmitry-ai/harness/issues/39
-# @used-by :func:`git_shim.main()`
+# @used-by :meth:`Df.Harness.Cli.GitShim.GitShim.__run_main()`
 # @used-by :meth:`GitRepoGate.run_hook()`
 # @used-by :meth:`GitRepoGate.verify_write_invocation()`
 # @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_git_blob_size_gates_cygwin_paths_and_stale_credential_locks()`
@@ -798,9 +798,9 @@ def is_agent_git_context(env: dict[str, str] | None=None, *, ancestor_names: lis
 # 2026-11-02
 # "Eliminate quadratic HTML extraction bloat, enforce output and Git blob size invariants, and protect Cygwin Git hooks and credential locks":
 # https://github.com/dmitry-ai/harness/issues/38
-# @used-by :func:`git_shim.main()`
 # @used-by :func:`run_git_hook()`
 # @used-by :func:`verify_git_write_invocation()`
+# @used-by :meth:`Df.Harness.Cli.GitShim.GitShim.__run_main()`
 # @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_git_blob_size_gates_cygwin_paths_and_stale_credential_locks()`
 def cleanup_stale_credential_locks(max_age_seconds: float=10.0, *, candidates: list[Path] | tuple[Path, ...] | None=None, check_running: bool=True) -> list[str]:
 	if None is not candidates:
@@ -873,7 +873,7 @@ def git(root: Path, *args) -> bytes:
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
-# @used-by :func:`agent_tools.cli_domains._op_git_read()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_git_read()`
 # @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_read_git_and_git_shim_and_unflagged_detector()`
 def read_git(root: Path, subcommand: str='status', args: tuple[str, ...] | list[str]=()) -> dict:
 	if subcommand not in READ_SUBCOMMANDS:
@@ -968,7 +968,7 @@ def resolve_git_repo_from_argv(argv: list[str] | tuple[str, ...], cwd: Path | No
 # 2026-11-02
 # "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
 # https://github.com/dmitry-ai/harness/issues/39
-# @used-by :func:`git_shim.prepare_git_invocation()`
+# @used-by :meth:`Df.Harness.Cli.GitShim.GitShim.__prepare()`
 # @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_git_gate_allows_comment_only_commit_and_blocks_code_change()`
 # @used-by :meth:`test_tdd_git_gate.TddGitGateTests.test_agent_commit_requires_behavioral_test_for_production_code()`
 # @used-by :meth:`test_tdd_mechanical_exemption.MechanicalExemptionTests.test_git_gate_enforces_exact_recipe_issue_binding_and_mixed_m2_commit()`
@@ -986,7 +986,7 @@ def verify_git_write_invocation(argv: list[str] | tuple[str, ...], cwd: Path | N
 # 2026-11-02
 # "Enforce GitHub Issue URL commit requirement across all repositories for agents while exempting human user commits by invocation context":
 # https://github.com/dmitry-ai/harness/issues/39
-# @used-by :func:`git_shim.main()`
+# @used-by :meth:`Df.Harness.Cli.GitShim.GitShim.__run_main()`
 # @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_git_gate_verify_issue_workflow_enforces_slug_and_saved_evidence_in_github_code_repo()`
 # @used-by :meth:`test_mixed_commit_audit.MixedCommitAuditTests.test_pre_commit_emits_non_blocking_mixed_warning_to_stderr()`
 # @used-by :meth:`test_tdd_comment_exemption.CommentOnlyExemptionTests.test_git_gate_allows_comment_only_commit_and_blocks_code_change()`
@@ -1030,7 +1030,7 @@ def commit_in_worktree(root: Path, paths: list[str], message: str) -> list[str]:
 # 2026-10-11
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
-# @used-by :func:`agent_tools.cli.main()`
+# @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__run_safe_commit()`
 # @used-by :meth:`test_agent_tools.GitTests.test_unstaged_change_rejected_and_explicit_commit_works()`
 # @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_issue_tracked_code_repo_requires_github_issue_url_in_code_and_commit_message()`
 # @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_git_gate_verify_issue_workflow_enforces_slug_and_saved_evidence_in_github_code_repo()`

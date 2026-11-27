@@ -2,148 +2,51 @@
 from __future__ import annotations
 from contextlib import contextmanager
 from pathlib import Path
-import json
-import os
-import shutil
-from Df.Core.lib.text.source import df_text_rewrite_pairs
-from Df.Harness.lib.project import dfh_is_skipped_rel, dfh_rewrite_json_file, dfh_rewrite_value
-from .journal import resolve_journal_dir, state_dir
-from .path_cache import clear_path_cache
-from .path_registry import _path_key, load_registry
-# 2026-11-25
-# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
-# https://github.com/dmitry-ai/harness/issues/237
-# @used-by :func:`_remap_journal_data()`
-def _copy_file(src: Path, dst: Path, *, hardlink: bool) -> None:
-	dst.parent.mkdir(parents=True, exist_ok=True)
-	linked = False
-	if hardlink:
-		try:
-			os.link(src, dst)
-			linked = True
-		except OSError:
-			linked = False
-	if not linked:
-		shutil.copy2(src, dst)
-# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
-# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
-def _is_skipped_rel(rel: Path) -> bool:
-	return dfh_is_skipped_rel(rel)
-# @used-by :func:`remap_shadow_state()`
-# @used-by :meth:`Df.Harness.Shadow.CommandExecutor.CommandExecutor.run()`
-def _path_pairs(raw_pairs: tuple[tuple[Path, Path], ...]) -> list[tuple[str, str]]:
-	pairs: list[tuple[str, str]] = []
-	for old_p, new_p in raw_pairs:
-		old_r = Path(old_p).resolve()
-		new_r = Path(new_p).resolve()
-		pairs.append((str(old_r), str(new_r)))
-		old_posix, new_posix = (old_r.as_posix(), new_r.as_posix())
-		if old_posix != str(old_r):
-			pairs.append((old_posix, new_posix))
-	return pairs
-# @used-by :func:`remap_shadow_state()`
-def _remap_journal_data(old_state: Path, new_state: Path, pairs: list[tuple[str, str]]) -> None:
-	if old_state.is_dir():
-		for item in sorted(old_state.rglob('*')):
-			if item.is_file() and (not item.name.endswith('.lock')):
-				target = new_state / item.relative_to(old_state)
-				_copy_file(item, target, hardlink=False)
-				if '.json' == target.suffix.lower() and 'answer-groups' not in target.parts:
-					_rewrite_json_file(target, pairs)
-# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
-# @used-by :func:`_remap_journal_data()`
-# @used-by :func:`agent_tools.shadow_replay_command._copy_native_profile()`
-# @used-by :func:`remap_shadow_state()`
-def _rewrite_json_file(path: Path, pairs: list[tuple[str, str]], *, preserve_keys: tuple[str, ...]=()) -> None:
-	dfh_rewrite_json_file(path, pairs, preserve_keys=preserve_keys)
-# 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
-# @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_harness_callers_delegate_to_new_core_and_qa_helpers()`
-def _rewrite_path_text(text: str, pairs: list[tuple[str, str]]) -> str:
-	return df_text_rewrite_pairs(text, pairs)
-# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
-# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
-def _rewrite_value(value, pairs: list[tuple[str, str]], *, preserve_keys: tuple[str, ...]=()):
-	return dfh_rewrite_value(value, pairs, preserve_keys=preserve_keys)
-# @used-by :func:`agent_tools.shadow_replay._execute_replay_pipeline()`
-def build_stop_transcript(native_tx: Path, prepared_body: str, out_dir: Path) -> Path:
-	out_dir.mkdir(parents=True, exist_ok=True)
-	rows = [json.loads(line) for line in native_tx.read_text(encoding='utf-8-sig').splitlines() if line.strip()]
-	max_step = max((int(row.get('step_index', -1)) for row in rows if isinstance(row.get('step_index'), int)), default=0)
-	rows.append({'step_index': max_step + 1, 'type': 'PLANNER_RESPONSE', 'content': prepared_body, 'tool_calls': []})
-	dest = out_dir / 'transcript_full.jsonl'
-	dest.write_text('\n'.join((json.dumps(row, ensure_ascii=False) for row in rows)) + '\n', encoding='utf-8')
-	return dest
-# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.run()`
-def cleanup_shadow_root(shadow_root: Path) -> bool:
-	if shadow_root.exists():
-		shutil.rmtree(shadow_root, ignore_errors=False)
-	parent = shadow_root.parent
-	if parent.is_dir() and (not any(parent.iterdir())):
-		parent.rmdir()
-	return not shadow_root.exists()
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
-# @used-by :func:`agent_tools.shadow_replay._stage_shadow_copies()`
-# @used-by :func:`agent_tools.shadow_replay_command._stage_shadow_launcher()`
-# @used-by :func:`agent_tools.shadow_replay_command.stage_command_shadow_copies()`
-def clone_project_tree(src_root: Path, dst_root: Path, *, hardlink_evidence: bool=True) -> None:
-	from Df.Harness.Shadow.WorkspaceCloner import WorkspaceCloner
-	WorkspaceCloner(src_root, dst_root, hardlink_evidence=hardlink_evidence).run()
+from Df.Core.lib.text.source import df_text_rewrite_pairs
+from Df.Harness.Shadow.WorkspaceCloner import WorkspaceCloner
+from Df.Harness.lib.path_template import dfh_path_key
+from Df.Harness.lib.project import dfh_is_skipped_rel, dfh_rewrite_json_file, dfh_rewrite_value
+from Df.Harness.lib.shadow_clone import dfh_build_stop_transcript as build_stop_transcript, dfh_cleanup_shadow_root as cleanup_shadow_root, dfh_path_pairs as _path_pairs, dfh_remap_shadow_state as remap_shadow_state, dfh_shadow_isolation_context
+# @used-by :func:`agent_tools.shadow_replay.run_shadow_replay()`
 # @used-by :func:`shadow_isolation_context()`
-def _journal_identity_matcher(orig_fn, relocations: dict[Path, Path]):
-	mapped = {(_path_key(Path(src).resolve() / '\ua66e'), _path_key(Path(dst).resolve() / '\ua66e')) for src, dst in relocations.items()}
-	# @used-by :func:`_journal_identity_matcher()`
+@contextmanager
+def _legacy_shadow_patch_ctx(relocations: dict[Path, Path]):
+	from . import journal as journal_mod
+	from .platforms import antigravity as ag_mod
+	orig_title, orig_same_j = (ag_mod.update_conversation_title, journal_mod.same_journal_identity)
+	mapped = {(dfh_path_key(Path(src).resolve() / '\ua66e'), dfh_path_key(Path(dst).resolve() / '\ua66e')) for src, dst in relocations.items()}
+	# @used-by :func:`_legacy_shadow_patch_ctx()`
 	def _match(first, second) -> bool:
-		r = orig_fn(first, second)
+		r = orig_same_j(first, second)
 		if not r and first and second:
-			k1, k2 = (_path_key(Path(first).resolve()), _path_key(Path(second).resolve()))
+			k1, k2 = (dfh_path_key(Path(first).resolve()), dfh_path_key(Path(second).resolve()))
 			r = (k1, k2) in mapped or (k2, k1) in mapped
 		return r
-	return _match
-# 2026-11-26 "Add reusable finalized Upwork project fixture and lifecycle contract tests": https://github.com/dmitry-ai/harness/issues/293
-# @used-by :func:`shadow_isolation_context()`
-def _wrapped_shadow_registry(orig_load, relocations: dict[Path, Path]):
-	mapped = [(_path_key(Path(src).resolve()), Path(dst).resolve()) for src, dst in relocations.items()]
-	# @used-by :func:`_wrapped_shadow_registry()`
-	def _load(*args, **kwargs):
-		reg = orig_load(*args, **kwargs)
-		for src_k, dst_r in mapped:
-			reg.relocations[src_k] = str(dst_r)
-			reg.workspace_overrides[_path_key(dst_r)] = {}
-		return reg
-	return _load
-# @used-by :func:`shadow_isolation_context()`
-def _restore_shadow_registry(pr_mod, orig_load, ag_mod, orig_title, journal_mod, orig_same_j) -> None:
-	pr_mod.load_registry = orig_load
-	pr_mod.clear_registry_cache()
-	ag_mod.update_conversation_title = orig_title
-	journal_mod.same_journal_identity = orig_same_j
-	clear_path_cache()
-# @used-by :func:`agent_tools.shadow_replay._remap_staged_copies()`
-def remap_shadow_state(src_root: Path, dst_root: Path, extra_pairs: tuple[tuple[Path, Path], ...]=(), *, old_state: Path | None=None) -> None:
-	src_state = old_state if None is not old_state else state_dir(resolve_journal_dir(src_root))
-	new_state = state_dir(resolve_journal_dir(dst_root))
-	pairs = _path_pairs(((src_state, new_state), (src_root, dst_root), *extra_pairs))
-	_remap_journal_data(src_state, new_state, pairs)
-	data_dir = dst_root / '\ua616/data'
-	for name in ('workflow.json', 'rendered.json'):
-		_rewrite_json_file(data_dir / name, pairs)
-	turns_dir = data_dir / 'turns'
-	if turns_dir.is_dir():
-		for item in sorted(turns_dir.glob('*.json')):
-			_rewrite_json_file(item, pairs, preserve_keys=('admission',))
-# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.run()`
-@contextmanager
-def shadow_isolation_context(relocations: dict[Path, Path]):
-	from . import journal as journal_mod, path_registry as pr_mod
-	from .platforms import antigravity as ag_mod
-	orig_load = pr_mod.load_registry
-	orig_title, orig_same_j = (ag_mod.update_conversation_title, journal_mod.same_journal_identity)
-	pr_mod.load_registry = _wrapped_shadow_registry(orig_load, relocations)
-	pr_mod.load_registry()
-	ag_mod.update_conversation_title = lambda cid, title, **_kw: {'synced': False, 'changed': False, 'title': title, 'conversation_id': cid, 'reason': 'shadow_replay_disabled'}
-	journal_mod.same_journal_identity = _journal_identity_matcher(orig_same_j, relocations)
-	clear_path_cache()
+	ag_mod.update_conversation_title = lambda cid, title, **_kw: {'changed': False, 'conversation_id': cid, 'reason': 'shadow_replay_disabled', 'synced': False, 'title': title}
+	journal_mod.same_journal_identity = _match
 	try:
 		yield
 	finally:
-		_restore_shadow_registry(pr_mod, orig_load, ag_mod, orig_title, journal_mod, orig_same_j)
+		ag_mod.update_conversation_title = orig_title
+		journal_mod.same_journal_identity = orig_same_j
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
+def _is_skipped_rel(rel: Path) -> bool:
+	return dfh_is_skipped_rel(rel)
+# @used-by unused
+def _rewrite_json_file(path: Path, pairs: list[tuple[str, str]], *, preserve_keys: tuple[str, ...]=()) -> None:
+	dfh_rewrite_json_file(path, pairs, preserve_keys=preserve_keys)
+# @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_harness_callers_delegate_to_new_core_and_qa_helpers()`
+def _rewrite_path_text(text: str, pairs: list[tuple[str, str]]) -> str:
+	return df_text_rewrite_pairs(text, pairs)
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
+def _rewrite_value(value, pairs: list[tuple[str, str]], *, preserve_keys: tuple[str, ...]=()):
+	return dfh_rewrite_value(value, pairs, preserve_keys=preserve_keys)
+# @used-by unused
+def clone_project_tree(src_root: Path, dst_root: Path, *, hardlink_evidence: bool=True) -> None:
+	WorkspaceCloner(src_root, dst_root, hardlink_evidence=hardlink_evidence).run()
+# @used-by unused
+@contextmanager
+def shadow_isolation_context(relocations: dict[Path, Path]):
+	with dfh_shadow_isolation_context(relocations, legacy_ctx=_legacy_shadow_patch_ctx):
+		yield

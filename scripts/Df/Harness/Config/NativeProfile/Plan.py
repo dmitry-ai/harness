@@ -1,44 +1,58 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
+from Df.Harness.lib.config_blocks import dfh_has_linked_ancestor
+from Df.Harness.lib.native_links import dfh_absolute
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 class Plan:
-	# @used-by :func:`agent_tools.native_profiles.build_shared_native()`
-	# @used-by :func:`agent_tools.native_profiles.install_native_profiles()`
-	# @used-by :func:`agent_tools.native_profiles.retire_owned_project_projections()`
+	# @used-by :func:`Df.Harness.lib.native_codex_plan.dfh_build_shared_native()`
+	# @used-by :func:`Df.Harness.lib.native_codex_plan.dfh_install_native_profiles()`
+	# @used-by :func:`Df.Harness.lib.native_codex_plan.dfh_retire_owned_project_projections()`
 	# @used-by :meth:`test_df_harness_s11_wave2d.DfHarnessS11Wave2DTests.test_config_and_native_profile_classes()`
 	def __init__(self) -> None:
-		self.details = {}
-		self.files = {}
-		self.issues = []
-		self.managed_links = {}
-		self.profiles = {}
-		self.removed_shared = set()
-		self.retired_links = {}
-		self.shared = {}
-	# @used-by :func:`agent_tools.native_profiles._antigravity_plan()`
+		self.details: dict = {}
+		self.files: dict = {}
+		self.issues: list = []
+		self.managed_links: dict = {}
+		self.profiles: dict = {}
+		self.removed_shared: set = set()
+		self.retired_links: dict = {}
+		self.shared: dict = {}
+	# @used-by :func:`Df.Harness.lib.native_codex_plan._plan_codex_agents_md()`
+	# @used-by :func:`Df.Harness.lib.native_codex_plan._plan_codex_config_toml()`
 	def file(self, path, after) -> None:
-		from agent_tools import native_profiles as np
-		path = np._absolute(path)
-		if np._linked_ancestor(path):
-			self.issue(path, 'Linked native configuration preserved')
-		elif path.exists() and (not path.is_file()):
-			self.issue(path, 'Expected a regular configuration file; preserved')
+		path_abs = dfh_absolute(path)
+		if dfh_has_linked_ancestor(path_abs):
+			self.issue(path_abs, 'Linked native configuration preserved')
+		elif path_abs.exists() and (not path_abs.is_file()):
+			self.issue(path_abs, 'Expected a regular configuration file; preserved')
 		else:
-			before = path.read_bytes() if path.exists() else None
+			before = path_abs.read_bytes() if path_abs.exists() else None
 			if before != after:
-				self.files[path] = (before, after)
-	# @used-by :func:`agent_tools.cli_registry._exec_problem_metadata()`
-	# @used-by :func:`agent_tools.cli_registry._exec_tdd_exempt_mechanical()`
+				self.files[path_abs] = (before, after)
+	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_problem_metadata()`
+	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_tdd_exempt_mechanical()`
+	# @used-by :func:`Df.Harness.lib.native_ag_plan._merge_ag_hooks()`
+	# @used-by :func:`Df.Harness.lib.native_ag_plan._plan_ag_config_json()`
+	# @used-by :func:`Df.Harness.lib.native_ag_plan._plan_ag_hooks()`
+	# @used-by :func:`Df.Harness.lib.native_ag_plan._plan_ag_manifests()`
+	# @used-by :func:`Df.Harness.lib.native_ag_plan._plan_ag_mcp_json()`
+	# @used-by :func:`Df.Harness.lib.native_ag_plan._plan_ag_runner()`
+	# @used-by :func:`Df.Harness.lib.native_ag_plan.dfh_shared_plan()`
+	# @used-by :func:`Df.Harness.lib.native_codex_plan._plan_codex_agents_md()`
+	# @used-by :func:`Df.Harness.lib.native_codex_plan._plan_codex_config_toml()`
+	# @used-by :func:`Df.Harness.lib.native_codex_plan.dfh_retire_owned_project_projections()`
+	# @used-by :func:`Df.Harness.lib.native_codex_roles._handle_existing_codex_link()`
+	# @used-by :func:`Df.Harness.lib.native_codex_roles._retire_obsolete_skill_entry()`
+	# @used-by :func:`Df.Harness.lib.native_codex_roles._retire_one_profile_role()`
+	# @used-by :func:`Df.Harness.lib.native_codex_roles._retire_one_profile_skill()`
+	# @used-by :func:`Df.Harness.lib.native_codex_roles._retire_one_shared_role()`
+	# @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_plan_codex_link()`
+	# @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_retire_profile_roles()`
+	# @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_retire_profile_skills()`
+	# @used-by :func:`agent_tools.arch.review_cli._exec_arch_check()`
+	# @used-by :func:`agent_tools.arch.review_cli._exec_arch_prepare()`
 	# @used-by :func:`agent_tools.issues.comment_grounding.check_comment_preflight()`
 	# @used-by :func:`agent_tools.issues.repo_commands.run_fetch()`
-	# @used-by :func:`agent_tools.native_profiles._antigravity_plan()`
-	# @used-by :func:`agent_tools.native_profiles._codex_plan()`
-	# @used-by :func:`agent_tools.native_profiles._plan_codex_link()`
-	# @used-by :func:`agent_tools.native_profiles._retire_profile_roles()`
-	# @used-by :func:`agent_tools.native_profiles._retire_profile_skills()`
-	# @used-by :func:`agent_tools.native_profiles._retire_shared_roles()`
-	# @used-by :func:`agent_tools.native_profiles._shared_plan()`
-	# @used-by :func:`agent_tools.native_profiles.retire_owned_project_projections()`
 	# @used-by :meth:`Plan.file()`
 	# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_close()`
 	# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_comment()`

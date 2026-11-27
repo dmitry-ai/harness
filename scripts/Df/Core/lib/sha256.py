@@ -4,6 +4,9 @@ from pathlib import Path
 import hashlib
 # 2026-11-26 "Extract general duplicated helpers into Df/Core and Df/Qa": https://github.com/dmitry-ai/harness/issues/378
 # Return lowercase hex SHA-256 digest of raw bytes.
+# @used-by :func:`Df.Harness.lib.admission_ops.dfh_admission_binding()`
+# @used-by :func:`Df.Harness.lib.admission_ops.dfh_capture_admission()`
+# @used-by :func:`Df.Harness.lib.admission_ops.dfh_verify_admission()`
 # @used-by :func:`agent_tools.admission._digest()`
 # @used-by :func:`agent_tools.analysis.digest()`
 # @used-by :func:`agent_tools.intake._hash()`
@@ -68,14 +71,14 @@ import hashlib
 def df_sha256(data: bytes) -> str:
 	return hashlib.sha256(data).hexdigest()
 # Return lowercase hex SHA-256 digest of a file's raw bytes.
+# @used-by :func:`Df.Harness.lib.hook_stop_ops._record_emergency_files()`
 # @used-by :func:`agent_tools.snapshot.snapshot_draft()`
-# @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`
 # @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_sha256_json_io_and_time_helpers()`
 def df_sha256_file(path: str | Path) -> str:
 	return df_sha256(Path(path).read_bytes())
 # Return lowercase hex SHA-256 digest of UTF-8 encoded text.
+# @used-by :func:`Df.Harness.lib.hook_stop_ops._record_emergency_files()`
 # @used-by :func:`agent_tools.snapshot.snapshot_draft()`
-# @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`
 # @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_sha256_json_io_and_time_helpers()`
 def df_sha256_text(text: str) -> str:
 	return df_sha256(text.encode('utf-8'))

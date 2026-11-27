@@ -4,6 +4,9 @@ from typing import Any
 import os
 # 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
 # Collect non-empty URL strings from CLI positional, repeatable `--url`, and legacy single `url` args.
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_collect_browser()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_collect_http()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_evidence_query()`
 # @used-by :func:`agent_tools.cli_domains._collect_urls()`
 # @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_cli_journal_and_project_helpers()`
 def dfh_collect_urls(args: Any, *, require_nonempty: bool=True) -> list[str]:

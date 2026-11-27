@@ -19,6 +19,9 @@ def dfh_is_skipped_rel(rel: Path) -> bool:
 		r = False
 	return r
 # Rewrite path strings inside a JSON file in place using case-insensitive replacement pairs.
+# @used-by :func:`Df.Harness.lib.shadow_clone._remap_journal_data()`
+# @used-by :func:`Df.Harness.lib.shadow_clone.dfh_remap_shadow_state()`
+# @used-by :func:`Df.Harness.lib.shadow_command._copy_native_profile()`
 # @used-by :func:`agent_tools.shadow_replay_clone._rewrite_json_file()`
 # @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_cli_journal_and_project_helpers()`
 def dfh_rewrite_json_file(path: Path, pairs: list[tuple[str, str]], *, preserve_keys: tuple[str, ...]=()) -> bool:

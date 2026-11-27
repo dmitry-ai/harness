@@ -1,273 +1,107 @@
 # 2026-11-21 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-from contextlib import contextmanager
-import hashlib
-import json
 from pathlib import Path
-import re
-import sqlite3
+import json
 import sys
+# 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
+# @used-by :func:`_binding_violation_message()`
+# @used-by :func:`_expected_turn_key()`
+# @used-by :func:`_format_turn_begin_message()`
 # @used-by :func:`_is_tracked_and_non_umbrella()`
+# @used-by :func:`_latest_completed_user_step()`
 # @used-by :func:`_pre_flush_begin_context()`
 # @used-by :func:`_resolve_ag_paths()`
 # @used-by :func:`_resolve_pre_invocation_target()`
 # @used-by :func:`_resolve_root()`
 # @used-by :func:`_routed_pre_invocation_root()`
 # @used-by :func:`_scratch_answer_path()`
+# @used-by :func:`_summary_primary_status()`
+# @used-by :func:`_terminate_error()`
 # @used-by :func:`_turn_step_already_covered()`
 # @used-by :func:`_turns_dir()`
+# @used-by :func:`evaluate_pre_invocation_payload()`
 def _ensure_scripts_on_path() -> None:
 	scripts_dir = str(Path(__file__).resolve().parent)
 	if scripts_dir not in sys.path:
 		sys.path.insert(0, scripts_dir)
-# @used-by :func:`evaluate_pre_invocation_payload()`
-def _resolve_root(payload: dict) -> Path | None:
+# @used-by :func:`_is_binding_violation()`
+def _binding_violation_message(exc: ValueError, canon_root: Path, conversation_id: str, backend: Path) -> str | None:
 	_ensure_scripts_on_path()
-	from agent_tools.platforms.trace_common import local_uri_to_path
-	cwd_raw = str(payload.get('cwd') or '').strip()
-	if cwd_raw:
-		cand = local_uri_to_path(cwd_raw) if cwd_raw.lower().startswith('file://') else Path(cwd_raw)
-		return Path(cand).resolve()
-	ws = payload.get('workspacePaths')
-	if isinstance(ws, list) and 1 == len(ws) and isinstance(ws[0], str) and ws[0].strip():
-		raw = ws[0].strip()
-		cand = local_uri_to_path(raw) if raw.lower().startswith('file://') else Path(raw)
-		return Path(cand).resolve()
-	return None
-# 2026-11-23
-# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
-# https://github.com/dmitry-ai/harness/issues/132
-# @used-by :func:`evaluate_pre_invocation_payload()`
+	from Df.Harness.lib.hook_pre_invocation_ops import dfh_binding_violation_message
+	return dfh_binding_violation_message(exc, canon_root, conversation_id, backend)
+# @used-by unused
+def _expected_turn_key(backend: Path, conversation_id: str, start_step: int) -> str:
+	_ensure_scripts_on_path()
+	from Df.Harness.lib.hook_pre_invocation_ops import dfh_expected_turn_key
+	return dfh_expected_turn_key(backend, conversation_id, start_step)
+# @used-by unused
+def _format_turn_begin_message(canon_root: Path, res: dict) -> dict:
+	_ensure_scripts_on_path()
+	from Df.Harness.lib.hook_pre_invocation_ops import dfh_format_turn_begin_message
+	return dfh_format_turn_begin_message(canon_root, res)
+# @used-by unused
+def _is_binding_violation(exc: ValueError, canon_root: Path, conversation_id: str, backend: Path) -> bool:
+	return None is not _binding_violation_message(exc, canon_root, conversation_id, backend)
+# @used-by unused
 def _is_tracked_and_non_umbrella(root: Path, *, projects_dirs=None) -> tuple[bool, Path]:
 	_ensure_scripts_on_path()
-	try:
-		from agent_tools.path_registry import is_tracked_workspace
-		return is_tracked_workspace(root, projects_dirs=projects_dirs)
-	except Exception:
-		canon = root
-	tracked = (canon / '\ua616/project.json').is_file() or (canon / '_/\ua66e').is_dir() or (canon / '\ua66e').is_dir()
-	return (tracked, canon)
-# 2026-11-25
-# "Add workspace-local shadow-replay CLI command and EXEC-2 acceptance gate":
-# https://github.com/dmitry-ai/harness/issues/237
-# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
-# @used-by :func:`_resolve_pre_invocation_target()`
-# @used-by :func:`_routed_pre_invocation_root()`
+	from Df.Harness.lib.hook_stop_ops import dfh_tracked_workspace
+	return dfh_tracked_workspace(root, projects_dirs=projects_dirs)
+# @used-by unused
+def _latest_completed_user_step(conversations_dir: Path, conversation_id: str) -> int | None:
+	_ensure_scripts_on_path()
+	from Df.Harness.lib.hook_pre_invocation_ops import dfh_latest_completed_user_step
+	return dfh_latest_completed_user_step(conversations_dir, conversation_id)
+# @used-by unused
+def _pre_flush_begin_context(brain_dir: Path, conversations_dir: Path, conversation_id: str):
+	_ensure_scripts_on_path()
+	from Df.Harness.lib.hook_pre_invocation_ops import dfh_pre_flush_begin_context
+	return dfh_pre_flush_begin_context(brain_dir, conversations_dir, conversation_id)
+# @used-by unused
+def _resolve_ag_paths(conversation_id: str, t_path: Path | None=None, backend_override: Path | None=None) -> tuple[Path, Path, Path, Path, Path]:
+	_ensure_scripts_on_path()
+	from Df.Harness.lib.hook_stop_ops import dfh_resolve_ag_hook_paths
+	from agent_tools import runtime
+	return dfh_resolve_ag_hook_paths(conversation_id, t_path=t_path, backend_override=backend_override, settings_fn=runtime.settings)
+# @used-by unused
+def _resolve_pre_invocation_target(canon_root: Path, backend: Path, conversation_id: str, max_user_step: int, brain_dir: Path, conversations_dir: Path, t_path: Path | None) -> Path | None:
+	_ensure_scripts_on_path()
+	from Df.Harness.lib.hook_pre_invocation_ops import dfh_resolve_pre_invocation_target
+	return dfh_resolve_pre_invocation_target(canon_root, backend, conversation_id, max_user_step, brain_dir, conversations_dir, t_path)
+# @used-by unused
+def _resolve_root(payload: dict) -> Path | None:
+	_ensure_scripts_on_path()
+	from Df.Harness.lib.hook_pre_invocation_ops import dfh_resolve_hook_root
+	return dfh_resolve_hook_root(payload)
+# @used-by :func:`test_contract_invariants._run_routing_parity_case()`
+def _routed_pre_invocation_root(canon_root: Path, conversation_id: str, max_user_step: int, brain_dir: Path, conversations_dir: Path, t_path: Path | None) -> Path:
+	_ensure_scripts_on_path()
+	from Df.Harness.lib.hook_pre_invocation_ops import dfh_routed_pre_invocation_root
+	return dfh_routed_pre_invocation_root(canon_root, conversation_id, max_user_step, brain_dir, conversations_dir, t_path)
+# @used-by unused
+def _scratch_answer_path(canon_root: Path, turn_key: str) -> str:
+	_ensure_scripts_on_path()
+	from Df.Harness.lib.hook_pre_invocation_ops import dfh_scratch_answer_path
+	return dfh_scratch_answer_path(canon_root, turn_key)
+# @used-by unused
+def _summary_primary_status(conversations_db: Path, conversation_id: str) -> str:
+	_ensure_scripts_on_path()
+	from Df.Harness.lib.hook_pre_invocation_ops import dfh_summary_primary_status
+	return dfh_summary_primary_status(conversations_db, conversation_id)
+# @used-by unused
+def _terminate_error(message: str) -> dict:
+	_ensure_scripts_on_path()
+	from Df.Harness.lib.hook_pre_invocation_ops import dfh_terminate_error
+	return dfh_terminate_error(message)
+# @used-by unused
+def _turn_step_already_covered(t_dir: Path, backend: Path, conversation_id: str, max_user_step: int) -> bool:
+	_ensure_scripts_on_path()
+	from Df.Harness.lib.hook_pre_invocation_ops import dfh_turn_step_already_covered
+	return dfh_turn_step_already_covered(t_dir, backend, conversation_id, max_user_step)
 # @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_hook_and_transcript_callers_delegate_to_df_harness()`
 def _turns_dir(canon_root: Path) -> Path:
 	_ensure_scripts_on_path()
 	from Df.Harness.lib.journal import dfh_turns_dir
 	return dfh_turns_dir(canon_root, explicit_only=True)
-# @used-by :func:`_format_turn_begin_message()`
-def _scratch_answer_path(canon_root: Path, turn_key: str) -> str:
-	_ensure_scripts_on_path()
-	try:
-		from agent_tools.path_registry import project_paths
-		return (project_paths(canon_root, exact_root=True).scratch_dir / f'answer-{turn_key}.md').as_posix()
-	except Exception:
-		return (canon_root / '\ua616/data/scratch' / f'answer-{turn_key}.md').as_posix()
-# @used-by :func:`evaluate_pre_invocation_payload()`
-def _resolve_ag_paths(conversation_id: str, t_path: Path | None = None, backend_override: Path | None = None) -> tuple[Path, Path, Path, Path, Path]:
-	_ensure_scripts_on_path()
-	resolved = None
-	from agent_tools.runtime import platform_instances, resolve_antigravity_paths, settings
-	if None is not backend_override:
-		resolved = resolve_antigravity_paths(backend=backend_override, conversation_id=conversation_id)
-	elif None is not t_path:
-		cfg = settings()
-		ag_insts = platform_instances('antigravity', config=cfg, include_disabled=True) if 'antigravity' in (cfg.get('platforms') or {}) else {}
-		t_res = t_path.resolve()
-		for inst in ag_insts.values():
-			sp = inst['system_paths']
-			for key in ('brain_dir', 'backend_dir'):
-				val = sp.get(key)
-				if val and t_res.is_relative_to(Path(val).resolve()):
-					resolved = resolve_antigravity_paths(backend=sp.get('backend_dir'), instance=inst['id'], conversation_id=conversation_id, config=cfg)
-					break
-			if None is not resolved:
-				break
-	if None is resolved and None is t_path:
-		resolved = resolve_antigravity_paths(conversation_id=conversation_id)
-	if None is not resolved:
-		return (Path(resolved['backend_dir']).resolve(), Path(resolved['brain_dir']).resolve(), Path(resolved['conversations_db']).resolve(), Path(resolved['conversations_dir']).resolve(), Path(resolved['projects_dir']).resolve())
-	if None is not backend_override:
-		backend = Path(backend_override).resolve()
-	elif None is not t_path:
-		if len(t_path.parents) >= 5 and 'brain' == t_path.parents[3].name:
-			backend = t_path.parents[4].resolve()
-		elif len(t_path.parents) >= 4:
-			backend = t_path.parents[3].resolve()
-		else:
-			backend = t_path.parent.resolve()
-	else:
-		from agent_tools.path_registry import default_platform_paths
-		backend = Path(default_platform_paths('antigravity')['backend_dir']).resolve()
-	return (backend, backend / 'brain', backend / 'conversation_summaries.db', backend / 'conversations', backend.parent / 'config/projects')
-# @used-by :func:`evaluate_pre_invocation_payload()`
-def _summary_primary_status(conversations_db: Path, conversation_id: str) -> str:
-	if not conversations_db.is_file():
-		return 'unavailable'
-	conn = sqlite3.connect(conversations_db.resolve().as_uri() + '?mode=ro', uri=True)
-	try:
-		row = conn.execute('SELECT parent_conversation_id FROM conversation_summaries WHERE conversation_id=?', (conversation_id,)).fetchone()
-		if None is row:
-			return 'unavailable'
-		return 'child' if bool(row[0]) else 'primary'
-	except Exception:
-		return 'unavailable'
-	finally:
-		conn.close()
-# @used-by :func:`evaluate_pre_invocation_payload()`
-def _latest_completed_user_step(conversations_dir: Path, conversation_id: str) -> int | None:
-	conv_db = conversations_dir / f'{conversation_id}.db'
-	if not conv_db.is_file():
-		return None
-	conn = sqlite3.connect(conv_db.resolve().as_uri() + '?mode=ro', uri=True)
-	try:
-		row = conn.execute('SELECT MAX(idx) FROM steps WHERE step_type=14 AND status IN (3,5)').fetchone()
-		return int(row[0]) if row and None is not row[0] else None
-	except Exception:
-		return None
-	finally:
-		conn.close()
-# @used-by :func:`_pre_flush_begin_context()`
-def _has_planner_steps(conversations_dir: Path, conversation_id: str) -> bool:
-	conv_db = conversations_dir / f'{conversation_id}.db'
-	if not conv_db.is_file():
-		return False
-	conn = sqlite3.connect(conv_db.resolve().as_uri() + '?mode=ro', uri=True)
-	try:
-		return None is not conn.execute('SELECT 1 FROM steps WHERE step_type=15 LIMIT 1').fetchone()
-	except Exception:
-		return False
-	finally:
-		conn.close()
-# 2026-11-21
-# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
-# https://github.com/dmitry-ai/harness/issues/116
-# @used-by :func:`evaluate_pre_invocation_payload()`
-@contextmanager
-def _pre_flush_begin_context(brain_dir: Path, conversations_dir: Path, conversation_id: str):
-	logs_dir = brain_dir / conversation_id / '.system_generated/logs'
-	full_t = logs_dir / 'transcript_full.jsonl'
-	comp_t = logs_dir / 'transcript.jsonl'
-	if full_t.is_file() or comp_t.is_file() or _has_planner_steps(conversations_dir, conversation_id):
-		yield
-		return
-	_ensure_scripts_on_path()
-	from agent_tools.platforms import antigravity as ag_mod
-	orig_reader = ag_mod.read_jsonl_objects
-	allowed = {full_t.resolve(), comp_t.resolve()}
-	# @used-by :func:`_pre_flush_begin_context()`
-	def _empty_if_unflushed(source, *, partial_error=None):
-		if not isinstance(source, (bytes, bytearray)):
-			src_p = Path(source)
-			if not src_p.is_file() and src_p.resolve() in allowed:
-				return []
-		return orig_reader(source, partial_error=partial_error)
-	ag_mod.read_jsonl_objects = _empty_if_unflushed
-	try:
-		yield
-	finally:
-		ag_mod.read_jsonl_objects = orig_reader
-# @used-by unused
-def _expected_turn_key(backend: Path, conversation_id: str, start_step: int) -> str:
-	identity = ['antigravity', str(backend.resolve()), conversation_id, f'ag-{conversation_id}-{start_step}']
-	raw = (json.dumps(identity, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
-	return hashlib.sha256(raw).hexdigest()[:40]
-# 2026-11-26 "Harden addon companion observability and conflict reservation hygiene": https://github.com/dmitry-ai/harness/issues/302
-# @used-by :func:`evaluate_pre_invocation_payload()`
-def _format_turn_begin_message(canon_root: Path, res: dict) -> dict:
-	from agent_tools.addon_observability import format_pre_invocation_companion_warning
-	from agent_tools.runtime import default_user_locale
-	turn_key = str(res['turn_key'])
-	scratch_ans = _scratch_answer_path(canon_root, turn_key)
-	# 2026-11-22
-	# "Auto-name Antigravity conversations from project journal step numbers":
-	# https://github.com/dmitry-ai/harness/issues/120
-	title_info = res.get('conversation_title_sync') if isinstance(res.get('conversation_title_sync'), dict) else {}
-	title_part = f", journal_title={title_info['title']}" if title_info.get('title') else ''
-	# 2026-11-22
-	# "Enforce similar-project parity in turn lifecycle gates and Antigravity hooks":
-	# https://github.com/dmitry-ai/harness/issues/123
-	sim_peers = [str(p) for p in (res.get('similar_project_repos') or res.get('similar_projects') or ()) if str(p).strip()]
-	peer_part = f", similar_peers={','.join(sim_peers)}" if sim_peers else ''
-	# 2026-11-23
-	# "Configure default user locale for language-neutral commands in TEXT-1 and locale gate":
-	# https://github.com/dmitry-ai/harness/issues/131
-	def_loc = default_user_locale()
-	loc_part = f', user_default_locale={def_loc}' if def_loc else ''
-	comp_part = format_pre_invocation_companion_warning()
-	return {'injectSteps': [{'systemMessage': {'systemMessage': f'Harness PreInvocation: turn-begin initialized (turn_key={turn_key}{title_part}{peer_part}{loc_part}{comp_part}, scratch_answer={scratch_ans}).'}}]}
-# 2026-11-25
-# "Unify handed-off turn routing and deterministic state selection across hooks":
-# https://github.com/dmitry-ai/harness/issues/231
-# @used-by :func:`evaluate_pre_invocation_payload()`
-def _resolve_pre_invocation_target(canon_root: Path, backend: Path, conversation_id: str, max_user_step: int, brain_dir: Path, conversations_dir: Path, t_path: Path | None) -> Path | None:
-	_ensure_scripts_on_path()
-	from agent_tools.turn_routing import resolve_active_turn_state
-	orig_st = resolve_active_turn_state(_turns_dir(canon_root), conversation_id, max_user_step)
-	if isinstance(orig_st, dict) and 'handed_off' == orig_st.get('status'):
-		r: Path | None = None
-	else:
-		routed = _routed_pre_invocation_root(canon_root, conversation_id, max_user_step, brain_dir, conversations_dir, t_path)
-		r = None if _turn_step_already_covered(_turns_dir(routed), backend, conversation_id, max_user_step) else routed
-	return r
-# 2026-11-25
-# "Unify handed-off turn routing and deterministic state selection across hooks":
-# https://github.com/dmitry-ai/harness/issues/231
-# @used-by :func:`_resolve_pre_invocation_target()`
-# @used-by :func:`test_contract_invariants._run_routing_parity_case()`
-def _routed_pre_invocation_root(canon_root: Path, conversation_id: str, max_user_step: int, brain_dir: Path, conversations_dir: Path, t_path: Path | None) -> Path:
-	_ensure_scripts_on_path()
-	from agent_tools.turn_routing import resolve_handoff_target_root
-	routed = resolve_handoff_target_root(_turns_dir(canon_root), conversation_id, max_user_step, brain_dir=brain_dir, conversations_dir=conversations_dir, t_path=t_path)
-	return routed if None is not routed else canon_root
-# 2026-11-25
-# "Unify handed-off turn routing and deterministic state selection across hooks":
-# https://github.com/dmitry-ai/harness/issues/231
-# @used-by :func:`_resolve_pre_invocation_target()`
-def _turn_step_already_covered(t_dir: Path, backend: Path, conversation_id: str, max_user_step: int) -> bool:
-	_ensure_scripts_on_path()
-	from agent_tools.turn_routing import resolve_active_turn_state
-	st = resolve_active_turn_state(t_dir, conversation_id, max_user_step)
-	return isinstance(st, dict) and st.get('status') in ('open', 'prepared', 'delivered', 'conflict', 'handed_off')
-# @used-by :func:`evaluate_pre_invocation_payload()`
-def _terminate_error(message: str) -> dict:
-	return {'injectSteps': [{'errorMessage': {'userMessage': f'Harness PreInvocation turn-begin blocked: {message}'}}], 'terminationBehavior': 'terminate'}
-# 2026-11-23
-# "Use native workspace priority and AST command parsing in request binding":
-# https://github.com/dmitry-ai/harness/issues/129
-# @used-by :func:`_is_binding_violation()`
-# @used-by :func:`evaluate_pre_invocation_payload()`
-def _binding_violation_message(exc: ValueError, canon_root: Path, conversation_id: str, backend: Path) -> str | None:
-	msg = str(exc)
-	if any((tok in msg for tok in ('partial record', 'primary/child identity is unavailable', 'Exact current native conversation UUID required', 'Exact native Antigravity conversation UUID required'))):
-		return None
-	if any((tok in msg for tok in ('do not identify', 'bound to another project', 'already has a different journal', 'different native owner', 'exists in multiple Antigravity instances', 'A prepared answer does not cover'))):
-		return msg
-	if 'No active native user turn belonging entirely to this project' in msg:
-		try:
-			from agent_tools.platforms import antigravity
-			from agent_tools.platforms.request_binding import format_binding_diagnostic
-			native = antigravity.native_answers(canon_root, conversation_id, backend=backend)
-			if not any((not t.get('completed') and (not t.get('aborted')) for t in native.get('turns') or [])):
-				return None
-			if '(binding=' not in msg:
-				diag = native.get('binding_diagnostic') if isinstance(native.get('binding_diagnostic'), dict) else {}
-				detail = format_binding_diagnostic(diag.get('expected_root') or str(canon_root), diag.get('binding'), expected_job_id=diag.get('expected_job_id'))
-				if detail:
-					return f'{msg} ({detail})'
-			return msg
-		except Exception:
-			return None
-	return None
-# @used-by unused
-def _is_binding_violation(exc: ValueError, canon_root: Path, conversation_id: str, backend: Path) -> bool:
-	return None is not _binding_violation_message(exc, canon_root, conversation_id, backend)
-# 2026-11-21
-# "Add idempotent Antigravity PreInvocation turn-begin hook and dry-run flag":
-# https://github.com/dmitry-ai/harness/issues/116
-# @used-by :func:`agent_tools.shadow_replay._run_pre_invocation()`
 # @used-by :func:`main()`
 # @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_quoted_and_non_leading_upwork_init_never_override_or_poison_and_support_cross_platform_commands()`
 # @used-by :meth:`test_tdd_completion.TddTurnCompletionAndCliTests.test_cli_ratchet_ok_and_tdd_check_commands()`
@@ -278,62 +112,11 @@ def _is_binding_violation(exc: ValueError, canon_root: Path, conversation_id: st
 # @used-by :meth:`test_turn_routing_and_handoff_m6.TurnRoutingAndHandoffM6Tests.test_pre_invocation_allows_new_job_in_launcher_instead_of_routing()`
 # @used-by :meth:`test_turn_routing_and_handoff_m6.TurnRoutingAndHandoffM6Tests.test_pre_invocation_fast_exits_on_same_turn1_handed_off_step()`
 # @used-by :meth:`test_turn_routing_and_handoff_m6.TurnRoutingAndHandoffM6Tests.test_pre_invocation_routes_turn2_handed_off_to_daily_without_launcher_orphan()`
-def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | None = None) -> dict:
-	if not isinstance(payload, dict):
-		return {}
-	conversation_id = str(payload.get('conversationId') or payload.get('sessionId') or '').strip().lower()
-	if not conversation_id or (not re.fullmatch('[a-f0-9-]{36}', conversation_id)):
-		return {}
-	root = _resolve_root(payload)
-	if None is root:
-		return {}
-	fast_tracked, canon_root = _is_tracked_and_non_umbrella(root, projects_dirs=())
-	t_path_raw = str(payload.get('transcriptPath') or '').strip()
-	t_path = Path(t_path_raw).resolve() if t_path_raw else None
-	try:
-		backend, brain_dir, conversations_db, conversations_dir, projects_dir = _resolve_ag_paths(conversation_id, t_path=t_path, backend_override=backend_override)
-	except ValueError as exc:
-		if fast_tracked and 'exists in multiple Antigravity instances' in str(exc):
-			return _terminate_error(str(exc))
-		return {}
-	except Exception:
-		return {}
-	# 2026-11-23
-	# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
-	# https://github.com/dmitry-ai/harness/issues/132
-	if not fast_tracked:
-		tracked, canon_root = _is_tracked_and_non_umbrella(root, projects_dirs=(projects_dir,))
-		if not tracked:
-			return {}
-	role = _summary_primary_status(conversations_db, conversation_id)
-	if 'primary' != role:
-		return {}
-	max_user_step = _latest_completed_user_step(conversations_dir, conversation_id)
-	if None is max_user_step:
-		return {}
-	# 2026-11-25
-	# "Unify handed-off turn routing and deterministic state selection across hooks":
-	# https://github.com/dmitry-ai/harness/issues/231
-	canon_root = _resolve_pre_invocation_target(canon_root, backend, conversation_id, max_user_step, brain_dir, conversations_dir, t_path)
-	if None is canon_root:
-		return {}
-	with _pre_flush_begin_context(brain_dir, conversations_dir, conversation_id):
-		try:
-			from agent_tools import completion
-			res = completion.begin(canon_root, conversation_id, platform='antigravity', backend=backend)
-		except ValueError as exc:
-			violation_msg = _binding_violation_message(exc, canon_root, conversation_id, backend)
-			if None is not violation_msg:
-				return _terminate_error(violation_msg)
-			return {}
-		except Exception:
-			return {}
-	# 2026-11-23
-	# "Unify tracked workspace detection in path_registry and add launcher-to-daily handoff":
-	# https://github.com/dmitry-ai/harness/issues/132
-	if 'primary' == res.get('role') and res.get('turn_key') and 'handed_off' != res.get('status'):
-		return _format_turn_begin_message(canon_root, res)
-	return {}
+def evaluate_pre_invocation_payload(payload: dict, *, backend_override: Path | None=None) -> dict:
+	_ensure_scripts_on_path()
+	from Df.Harness.Hook.PreInvocationGate import PreInvocationGate
+	from agent_tools import completion, runtime
+	return PreInvocationGate(payload, backend_override=backend_override, settings_fn=runtime.settings, begin_fn=completion.begin).run()
 # @used-by :mod:`check_pre_invocation`
 def main() -> None:
 	out: dict = {}

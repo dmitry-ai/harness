@@ -53,7 +53,7 @@ def _iter_clarification_answers(clars: list[dict[str, Any]]) -> list[tuple[dict[
 		elif str(item.get('raw_output') or '').strip():
 			rows.append((item, 'A1', str(item.get('raw_output') or '')))
 	return rows
-# @used-by :func:`agent_tools.blocked_report.evaluate_runner_code_hygiene()`
+# @used-by :func:`Df.Harness.lib.blocked_report_ops.dfh_evaluate_runner_code_hygiene()`
 # @used-by :meth:`test_clarification_stop_consent.ClarificationStopConsentTests.test_runner_scope_deferral_and_raw_output_fallback()`
 def check_runner_scope_deferral(runner, lifecycle_chk: dict[str, Any]) -> None:
 	chk = evaluate_scope_deferral(runner.turn, runner.value, lifecycle_chk, runner.response, blocked_report=bool(runner.blocked_report))

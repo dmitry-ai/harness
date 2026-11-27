@@ -206,7 +206,7 @@ def run_polyglot_land_tests(main_repo: Path, wt_path: Path, *, spec: dict[str, A
 		eff = spec if None is not spec else resolve_repo_verification_spec(main_repo, wt_path)
 		r = (True, None) if (None is eff or (not eff.get('test_command'))) else _execute_polyglot_spec(main_repo, wt_path, eff)
 	return r
-# @used-by :func:`agent_tools.addon_observability.check_close_companion_health()`
+# @used-by :func:`Df.Harness.lib.hook_addon_ops.dfh_check_close_companion_health()`
 # @used-by :func:`agent_tools.worktree_flow._post_merge_checks()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_polyglot_land_and_health_handle_subprocess_timeout_cleanly()`
 # @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_post_land_health_passes_ready_skips_unavailable_and_blocks_error()`

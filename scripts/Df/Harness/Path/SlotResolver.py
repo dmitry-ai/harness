@@ -1,6 +1,7 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from pathlib import Path
+from Df.Harness.lib.path_template import TOKEN_RE, URI_SCHEME_RE, VAR_NAME_RE, dfh_escape_template_literal, dfh_expand_template, dfh_normalize_path_str
 import re
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 class SlotResolver:
@@ -13,12 +14,11 @@ class SlotResolver:
 		self.__paths_str: dict[str, str] = {}
 	# @used-by :meth:`SlotResolver.run()`
 	def __prepare_maps(self) -> tuple[dict[str, str], dict[str, str], dict[str, str]]:
-		from agent_tools import path_registry as pr
 		eff_tpls, slot_vars, var_to_slot = ({}, {}, {})
 		for slot_key, slot_tpl in self.__raw_paths.items():
 			slot_var = re.sub('[^A-Za-z0-9_]', '_', slot_key).upper()
 			eff_tpl = slot_tpl
-			if pr._VAR_NAME_RE.match(slot_var):
+			if VAR_NAME_RE.match(slot_var):
 				self_tok = f'${{{slot_var}}}'
 				if self_tok in eff_tpl and slot_var in self.__vars:
 					eff_tpl = eff_tpl.replace(self_tok, self.__vars[slot_var])
@@ -28,8 +28,7 @@ class SlotResolver:
 		return (eff_tpls, slot_vars, var_to_slot)
 	# @used-by :meth:`SlotResolver.__resolve_one()`
 	def __resolve_deps(self, eff_tpl: str, next_chain: tuple[str, ...], eff_tpls: dict[str, str], slot_vars: dict[str, str], var_to_slot: dict[str, str]) -> None:
-		from agent_tools import path_registry as pr
-		for m in pr._TOKEN_RE.finditer(eff_tpl):
+		for m in TOKEN_RE.finditer(eff_tpl):
 			ref = (m.group(1) or '').strip()
 			if ref and (not ref.upper().startswith('ENV:')):
 				if ref in next_chain:
@@ -42,16 +41,15 @@ class SlotResolver:
 		if slot_key in self.__paths_str:
 			r = self.__paths_str[slot_key]
 		else:
-			from agent_tools import path_registry as pr
 			slot_var, eff_tpl = (slot_vars.get(slot_key), eff_tpls[slot_key])
 			self.__resolve_deps(eff_tpl, (*chain, slot_var) if slot_var else chain, eff_tpls, slot_vars, var_to_slot)
-			val = pr.expand_template(eff_tpl, self.__vars, env=self.__env, normalize=True)
-			if not Path(val).is_absolute() and (not pr._URI_SCHEME_RE.match(val)):
-				val = pr.normalize_path_str(f'{self.__root.as_posix()}/{val}')
+			val = dfh_expand_template(eff_tpl, self.__vars, env=self.__env, normalize=True)
+			if not Path(val).is_absolute() and (not URI_SCHEME_RE.match(val)):
+				val = dfh_normalize_path_str(f'{self.__root.as_posix()}/{val}')
 			self.__paths_str[slot_key] = val
 			if slot_var:
 				var_val = val + ('/' if eff_tpl.endswith(('/', '\\')) and (not val.endswith('/')) else '')
-				self.__vars[slot_var] = pr.escape_template_literal(var_val)
+				self.__vars[slot_var] = dfh_escape_template_literal(var_val)
 			r = val
 		return r
 	# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__init__()`

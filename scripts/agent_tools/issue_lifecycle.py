@@ -28,10 +28,11 @@ def _collect_turn_issues(turn: dict, turn_state: dict | None) -> dict[str, dict]
 # 2026-11-13
 # "Extract issue_lifecycle.py from completion.py, fix open backlog-issue lifecycle gating, and consolidate Git/issue helpers in git_gate.py":
 # https://github.com/dmitry-ai/harness/issues/53
-# @used-by :func:`agent_tools.completion._new()`
-# @used-by :func:`agent_tools.completion._state()`
-# @used-by :func:`agent_tools.completion.check_answer()`
-# @used-by :meth:`agent_tools.completion.AnswerPreparationRunner._check_turn_hygiene()`
+# @used-by :func:`Df.Harness.lib.completion_commands._collect_check_payload()`
+# @used-by :func:`Df.Harness.lib.completion_state._initial_lifecycle_checks()`
+# @used-by :func:`Df.Harness.lib.completion_state._refresh_active_turn_checks()`
+# @used-by :func:`agent_tools.completion._completion_ops()`
+# @used-by :meth:`Df.Harness.Completion.AnswerPreparer.AnswerPreparer.__check_turn_hygiene()`
 # @used-by :meth:`test_clarification_stop_consent.ClarificationStopConsentTests.test_explicit_user_stop_consent_in_clarifications_unblocks_deferral()`
 # @used-by :meth:`test_clarification_stop_consent.ClarificationStopConsentTests.test_step_100_102_real_clarifications_rejected_with_open_deferred_children()`
 # @used-by :meth:`test_git_lifecycle_memoization.GitLifecycleMemoizationTests.test_audit_memoizes_readonly_git_commands_across_multiple_issues()`
@@ -47,7 +48,7 @@ def _collect_turn_issues(turn: dict, turn_state: dict | None) -> dict[str, dict]
 # @used-by :meth:`test_turn_completion.IssueLifecycleTests.test_post_audit_turn_isolation_diagnostic_parent_and_unclosed_parent_checks()`
 def code_and_issue_lifecycle_status(root, turn, turn_state=None, response=None) -> dict:
 	return TurnIssueLifecycleAuditor(Path(root), turn, turn_state, response).audit()
-# @used-by :func:`agent_tools.hook_crash_audit._has_recorded_hook_issue()`
+# @used-by :func:`Df.Harness.lib.hook_crash_ops.dfh_has_recorded_hook_issue()`
 # @used-by :func:`agent_tools.issue_first_gate._load_evidence_issue_info()`
 # @used-by :meth:`Df.Harness.Tdd.RatchetGuard.RatchetGuard.__find_issue_approval()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_issue_workflow()`

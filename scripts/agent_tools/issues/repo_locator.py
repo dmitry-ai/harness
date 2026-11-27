@@ -211,7 +211,7 @@ def _search_registry_and_roots(repo: str, seen: set[Path]) -> Path | None:
 # 2026-11-24
 # "Optimize local GitHub repository discovery with pruned walk and TTL cache":
 # https://github.com/dmitry-ai/harness/issues/172
-# @used-by :func:`agent_tools.path_registry.clear_registry_cache()`
+# @used-by :func:`Df.Harness.lib.path_state.dfh_clear_registry_cache()`
 def clear_repo_locator_cache() -> None:
 	_GLOBAL_INDEX_CACHE['expires_at'] = 0.0
 	_GLOBAL_INDEX_CACHE['key'] = None

@@ -5,7 +5,10 @@ import os
 import shutil
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 class WorkspaceCloner:
+	# @used-by :func:`Df.Harness.lib.shadow_command._stage_shadow_launcher()`
+	# @used-by :func:`Df.Harness.lib.shadow_command.dfh_stage_command_shadow_copies()`
 	# @used-by :func:`agent_tools.shadow_replay_clone.clone_project_tree()`
+	# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.__prepare_stage()`
 	def __init__(self, src_root: Path, dst_root: Path, *, hardlink_evidence: bool=True) -> None:
 		self.__src = Path(src_root).resolve()
 		self.__dst = Path(dst_root).resolve()
@@ -28,7 +31,10 @@ class WorkspaceCloner:
 	def __is_evidence(rel: Path) -> bool:
 		parts = rel.parts
 		return 3 <= len(parts) and '\ua616' == parts[0] and 'KB' == parts[1] and 'Evidence' == parts[2]
+	# @used-by :func:`Df.Harness.lib.shadow_command._stage_shadow_launcher()`
+	# @used-by :func:`Df.Harness.lib.shadow_command.dfh_stage_command_shadow_copies()`
 	# @used-by :func:`agent_tools.shadow_replay_clone.clone_project_tree()`
+	# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.__prepare_stage()`
 	def run(self) -> None:
 		from Df.Harness.lib.project import dfh_is_skipped_rel
 		self.__dst.mkdir(parents=True, exist_ok=True)

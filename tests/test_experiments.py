@@ -36,7 +36,7 @@ class ExperimentTests(unittest.TestCase):
 		self.home.mkdir()
 		self.cid = str(uuid.uuid4())
 		self.requirement = {'id': 'R-CONTENT', 'claim': 'The received JSON says the link exists', 'property': 'content', 'alternatives': ['The link is absent in the received response'], 'method': 'http', 'scope': {'objects': ['https://example.invalid/de-de']}, 'conditions': {}, 'expected': 'present is true', 'falsification': 'present is false', 'discriminating_test': 'Read the exact JSON field; parse failures are inconclusive', 'completion_criterion': 'Save one raw response and its measured field', 'assertions': [{'id': 'A-PRESENT', 'artifact_id': 'raw', 'locator': {'type': 'json_pointer', 'value': '/present'}, 'operator': 'equals', 'expected': True, 'disconfirming': {'operator': 'equals', 'expected': False}}]}
-	# @used-by :func:`agent_tools.operations._execute_collect()`
+	# @used-by :func:`Df.Harness.lib.cli_domain_ops.dfh_execute_collect()`
 	# @used-by :meth:`ExperimentTests.test_actual_exec_wrapper_with_nested_shell_plan_receipt_is_supported()`
 	# @used-by :meth:`ExperimentTests.test_actual_namespaced_cua_read_is_recognized_but_text_header_does_not_prove_identity()`
 	# @used-by :meth:`ExperimentTests.test_amended_expectation_requires_new_observation_and_retains_original()`

@@ -187,8 +187,8 @@ def _workspace_code_repos(root: Path) -> list[Path]:
 		if (resolved / '.git').exists() and resolved not in repos:
 			repos.append(resolved)
 	return repos
+# @used-by :func:`Df.Harness.lib.cli_input.dfh_operation_error_payload()`
 # @used-by :func:`_execute_with_retries()`
-# @used-by :func:`agent_tools.cli_common.operation_error_payload()`
 def is_transient_contention_error(exc: BaseException, root: Path | None=None) -> bool:
 	msg = str(exc).lower()
 	if bool(getattr(exc, 'retryable', False)):
@@ -206,7 +206,7 @@ def is_transient_contention_error(exc: BaseException, root: Path | None=None) ->
 	return r
 # 2026-11-26 "Fix shadow-replay CLI matching and observability timing diagnostics": https://github.com/dmitry-ai/harness/issues/342
 # 2026-11-26 "Split worktree-land into optimistic pre-lease verification and targeted wait": https://github.com/dmitry-ai/harness/issues/350
-# @used-by :func:`agent_tools.completion.prepare()`
+# @used-by :func:`Df.Harness.lib.completion_commands.dfh_prepare()`
 # @used-by :meth:`test_observability_diagnostics.ObservabilityDiagnosticsTests.test_run_with_transient_wait_separates_lease_retry_and_execution_seconds()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_targeted_wait_blocks_when_turn_touches_leased_repo_or_worktree()`
 # @used-by :meth:`test_optimistic_worktree_land.OptimisticWorktreeLandTests.test_targeted_wait_bypasses_foreign_lease_on_readonly_and_noncode_turns()`
@@ -229,8 +229,8 @@ def run_with_transient_wait(root: Path, fn: Callable[[], dict[str, Any]], *, wai
 # 2026-11-24
 # "Add deterministic reactive wait primitive for transient repository and journal contention":
 # https://github.com/dmitry-ai/harness/issues/199
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_wait_repo()`
 # @used-by :func:`_wait_active_repo_leases()`
-# @used-by :func:`agent_tools.cli_registry._exec_wait_repo()`
 # @used-by :meth:`test_repo_wait_and_retry.RepoWaitAndRetryTests.test_wait_repo_reacts_to_lease_release_dead_pid_and_clean_tree()`
 def wait_for_repo(repo: Path | str, *, clean: bool=False, lease_free: bool=False, timeout: float=DEFAULT_WAIT_TIMEOUT_SECONDS, poll_interval: float=DEFAULT_WAIT_POLL_SECONDS, leases_dir: Path | None=None) -> dict[str, Any]:
 	resolved = Path(repo).resolve()

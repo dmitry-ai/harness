@@ -418,8 +418,8 @@ def _titles_compatible(claimed: str, observed: str) -> bool:
 		r = 0.6 <= len(c_set & set(o_tokens)) / max(1, len(c_set))
 	return r
 # 2026-11-26 "Enforce verified CLI execution grounding in answer checks and restore EXEC-2 rule": https://github.com/dmitry-ai/harness/issues/290
-# @used-by :func:`agent_tools.completion.check_answer()`
-# @used-by :meth:`agent_tools.completion.AnswerPreparationRunner._check_source_grounding()`
+# @used-by :func:`Df.Harness.lib.completion_commands._collect_check_payload()`
+# @used-by :meth:`Df.Harness.Completion.AnswerPreparer.AnswerPreparer.__check_source_grounding()`
 # @used-by :meth:`test_analysis_workflow.MetricsTests.test_collect_http_positional_batch_extract_profile_and_14_url_evidence_query()`
 # @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue45_provenance_tiers_and_tier2_rejection()`
 def response_source_and_kb_issues(root: Path, response: str, requests: list[dict], *, touched_files=None, turn=None, native=None) -> list[str]:

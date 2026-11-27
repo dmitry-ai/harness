@@ -188,9 +188,9 @@ def merge_turn_issue_item(turn_issues: dict[str, dict], item: dict) -> None:
 		if isinstance(pnum, int) and pnum != num:
 			entry['parent_number'] = pnum
 		turn_issues[url] = entry
+# @used-by :func:`Df.Harness.lib.completion_checks._collect_peer_repo_slugs()`
+# @used-by :func:`Df.Harness.lib.completion_recovery._match_similar_peer()`
 # @used-by :func:`_evaluate_similar_peer_item()`
-# @used-by :func:`agent_tools.completion._similar_projects_metadata()`
-# @used-by :func:`agent_tools.completion.similar_project_exempt()`
 # @used-by :func:`agent_tools.issues.service_helpers.pending_similar_peer_slugs()`
 def similar_project_repo_slugs(peer_root: Path, *, registry=None) -> list[str]:
 	slugs, seen = ([], set())

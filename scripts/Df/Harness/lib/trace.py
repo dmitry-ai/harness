@@ -13,6 +13,7 @@ def _parse_call_args(raw_args: Any) -> dict[str, Any]:
 		except ValueError:
 			parsed = {}
 	return parsed if isinstance(parsed, dict) else {}
+# @used-by :func:`Df.Harness.lib.hook_verif_ops._inspect_shadow_call()`
 # @used-by :func:`agent_tools.cli_command_grounding._cmd_from_tool_call()`
 # @used-by :func:`agent_tools.doc5_context._cmd_from_call()`
 # @used-by :func:`agent_tools.verification_observability._cmd_from_call()`
@@ -44,6 +45,7 @@ def dfh_read_ag_rows(path: Path) -> list[dict[str, Any]]:
 			if isinstance(obj, dict):
 				r.append(obj)
 	return r
+# @used-by :func:`Df.Harness.lib.hook_verif_ops.dfh_detect_shadow_replay_runs()`
 # @used-by :func:`agent_tools.cli_command_grounding._collect_row_outputs()`
 # @used-by :func:`agent_tools.doc5_context._row_outputs()`
 # @used-by :func:`agent_tools.verification_observability._row_outputs()`

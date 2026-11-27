@@ -251,7 +251,7 @@ class IssueEvidenceWorkspace:
 		if None is r:
 			r = proj_root / '_/\ua616' if (proj_root / '_/\ua616').is_dir() or (proj_root / '_').is_dir() else proj_root / '\ua616' if (proj_root / '\ua616').is_dir() else None
 		return r
-	# @used-by :func:`agent_tools.addon_observability.is_live_runtime_data_file()`
+	# @used-by :func:`Df.Harness.lib.hook_addon_ops.dfh_is_live_runtime_data_file()`
 	# @used-by :func:`agent_tools.issue_lifecycle.origin_repo_slug()`
 	# @used-by :func:`agent_tools.issues.parity.similar_project_repo_slugs()`
 	# @used-by :func:`agent_tools.polyglot_land.resolve_repo_verification_spec()`

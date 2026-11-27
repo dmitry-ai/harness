@@ -203,8 +203,8 @@ class AntigravityContinuationTests(ProjectCase):
 		conn.commit()
 		conn.close()
 		self.inputs(['  Continue analysis.\nAfter outage.  '])
-	# @used-by :func:`agent_tools.cli_registry._exec_rules_audit()`
-	# @used-by :func:`agent_tools.cli_registry._exec_shadow_replay()`
+	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_rules_audit()`
+	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_shadow_replay()`
 	# @used-by :func:`agent_tools.issues.comment_grounding.check_comment_preflight()`
 	# @used-by :func:`agent_tools.issues.comment_grounding.validate_close_comment()`
 	# @used-by :func:`agent_tools.issues.repo_commands.run_fetch()`

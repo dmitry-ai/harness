@@ -271,7 +271,7 @@ def push_tag(repo: Path, tag: str, *, remote: str='origin') -> bool:
 def remote_has_tag(repo: Path, tag: str, *, remote: str='origin') -> bool:
 	proc = run_git_read(repo, ['ls-remote', '--tags', remote, f'refs/tags/{tag}'], check=False)
 	return 0 == proc.returncode and bool(proc.stdout.strip())
-# @used-by :func:`agent_tools.cli_registry._exec_repo_tag_retro()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_repo_tag_retro()`
 # @used-by :meth:`test_repo_tags.RepoTagsTests.test_retro_tag_repo_tags_closing_commits_chronologically()`
 def retro_tag_repo(repo: Path | str, *, apply: bool=False, push: bool=False, include_task_groups: bool=False, extra_commits: list[str] | tuple[str, ...]=(), remote: str='origin') -> dict:
 	repo_p = Path(repo).resolve()
@@ -292,7 +292,7 @@ def retro_tag_repo(repo: Path | str, *, apply: bool=False, push: bool=False, inc
 			raise RuntimeError(f'git push {remote} --tags failed: {p_proc.stderr.strip() or p_proc.stdout.strip()}')
 		pushed = True
 	return {'valid': True, 'repo': repo_p.as_posix(), 'apply': bool(apply), 'planned_count': len(plan), 'created_count': created, 'already_tagged_count': sum((1 for x in plan if x['already_tagged'])), 'pushed': pushed, 'planned': plan}
-# @used-by :func:`agent_tools.cli_registry._exec_repo_tag()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_repo_tag()`
 def run_repo_tag_cli(args) -> dict:
 	repo_p = Path(args.repo).resolve()
 	if args.file:

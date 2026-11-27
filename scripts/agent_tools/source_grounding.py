@@ -68,11 +68,10 @@ _SOURCE_INFO_CACHE: dict[tuple[str, int, int], dict] = {}
 # "Add read-only answer-check pre-flight validation command to harness CLI":
 # https://github.com/dmitry-ai/harness/issues/117
 _READ_ONLY_GROUNDING: ContextVar[bool] = ContextVar('harness_read_only_grounding', default=False)
-# @used-by :func:`agent_tools.completion.begin()`
-# @used-by :func:`agent_tools.completion.check_answer()`
-# @used-by :func:`agent_tools.completion.issue_first_check_turn()`
-# @used-by :func:`agent_tools.completion.recover_checkpoint()`
-# @used-by :func:`agent_tools.completion.tdd_check_turn()`
+# @used-by :func:`Df.Harness.lib.completion_commands.dfh_begin()`
+# @used-by :func:`Df.Harness.lib.completion_commands.dfh_check_answer()`
+# @used-by :func:`Df.Harness.lib.completion_recovery._scan_readonly_turn()`
+# @used-by :func:`Df.Harness.lib.completion_recovery.dfh_recover_checkpoint()`
 # @used-by :func:`agent_tools.issues.comment_grounding.check_comment_grounding()`
 @contextmanager
 def read_only_grounding():
@@ -759,11 +758,11 @@ def _tier0_candidate_files(root: Path, tickets: list[str] | tuple[str, ...]=()) 
 # https://github.com/dmitry-ai/harness/issues/45
 # @used-by :func:`_filter_primary_sources()`
 # @used-by :func:`is_primary_local_source()`
-# @used-by :meth:`Df.Harness.Review.FalsifierValidator.FalsifierValidator.__check_tier0_source()`
 # @used-by :meth:`LocalSourceGroundingAuditor._check_tier2_sole_evidence()`
 # @used-by :meth:`Tier0SourceIndex._build_hydrated_info()`
 # @used-by :meth:`Tier0SourceIndex._candidate_files()`
 # @used-by :meth:`Tier0SourceIndex.load_source_info()`
+# @used-by :meth:`agent_tools.review.ReviewReportValidator._check_disproved_claim()`
 # @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue45_provenance_tiers_and_tier2_rejection()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
 def classify_provenance_tier(path: Path, root: Path | None=None) -> str:
@@ -813,7 +812,7 @@ def detect_prose_locale(prose: str) -> dict:
 # 2026-11-06
 # "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
 # https://github.com/dmitry-ai/harness/issues/45
-# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.__build_data()`
+# @used-by :func:`agent_tools.review.prepare()`
 # @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue45_provenance_tiers_and_tier2_rejection()`
 # @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_issue51_post_finalize_deliverable_decoupling_journal_persistence_and_grounding_cache()`
 def discover_entity_tier0_sources(root: Path, text: str) -> list[dict]:
@@ -864,8 +863,8 @@ def extract_authored_prose(text: str, *, is_title: bool=False) -> str:
 		joined = re.sub('(?:^|(?<=\\s))(?:/|\\$)[A-Za-z][A-Za-z0-9_:-]*(?=$|\\s)', ' ', joined)
 		r = ' '.join(joined.split())
 	return r
+# @used-by :func:`Df.Harness.lib.completion_compaction.dfh_find_evicted_cited_files()`
 # @used-by :func:`_extract_block_links()`
-# @used-by :func:`agent_tools.completion._find_evicted_cited_files()`
 def extract_block_links(block, root: Path, doc_path: Path | None):
 	local_all: list[Path] = []
 	ext_urls: list[str] = []
@@ -940,9 +939,9 @@ def load_fact_ledger(root: Path) -> list[dict]:
 # 2026-11-01
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
+# @used-by :func:`Df.Harness.lib.hook_markdown_ops.dfh_check_doc_grounding_and_links()`
 # @used-by :func:`agent_tools.issues.comment_grounding.check_comment_grounding()`
-# @used-by :func:`check_markdown_slop._check_doc_grounding_and_links()`
-# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.__validate_response()`
+# @used-by :func:`agent_tools.review.prepare()`
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._check_comments_evidence()`
 # @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._lint_saved_issue_obj()`
 # @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_local_grounding()`
@@ -960,9 +959,9 @@ def local_source_grounding_issues(root: Path, content: str, *, doc_path: Path | 
 # 2026-11-23
 # "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 # https://github.com/dmitry-ai/harness/issues/76
-# @used-by :func:`agent_tools.completion._authored_nonquote_hrefs()`
-# @used-by :func:`agent_tools.completion._find_evicted_cited_files()`
-# @used-by :func:`agent_tools.platforms.request_binding._extract_leading_upwork_init_ids()`
+# @used-by :func:`Df.Harness.lib.completion_compaction.dfh_find_evicted_cited_files()`
+# @used-by :func:`Df.Harness.lib.completion_links.dfh_authored_nonquote_hrefs()`
+# @used-by :func:`Df.Harness.lib.request_binding._first_paragraph_line_children()`
 # @used-by :func:`extract_authored_prose()`
 # @used-by :meth:`LocalSourceGroundingAuditor.run()`
 # @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._extract_markdown_refs()`
@@ -974,12 +973,12 @@ def markdown_parser() -> MarkdownIt:
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
 # @used-by :func:`quote_segments_present()`
-# @used-by :meth:`Df.Harness.Review.FalsifierValidator.FalsifierValidator.__check_tier0_source()`
 # @used-by :meth:`LocalSourceGroundingAuditor._audit_block()`
 # @used-by :meth:`LocalSourceGroundingAuditor._build_active_corpus()`
 # @used-by :meth:`LocalSourceGroundingAuditor._check_prose_line()`
 # @used-by :meth:`Tier0SourceIndex._build_hydrated_info()`
 # @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_external_refs()`
+# @used-by :meth:`agent_tools.review.ReviewReportValidator._check_disproved_claim()`
 # @used-by :meth:`test_grounding_corpus_cache_m9.GroundingCorpusCacheM9Tests.test_repeated_blocks_avoid_per_block_re_normalization_and_tokenization()`
 def norm_quote_text(value: str) -> str:
 	cleaned = re.sub('[`*_~]+', '', value or '')
@@ -990,9 +989,9 @@ def norm_quote_text(value: str) -> str:
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
 # @used-by :func:`_quote_segments_present()`
-# @used-by :meth:`Df.Harness.Review.FalsifierValidator.FalsifierValidator.__check_tier0_source()`
 # @used-by :meth:`LocalSourceGroundingAuditor._check_blockquote()`
 # @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_external_refs()`
+# @used-by :meth:`agent_tools.review.ReviewReportValidator._check_disproved_claim()`
 def quote_segments_present(q_raw: str, obs_norm: str, min_seg_len: int=12) -> bool:
 	raw_parts = [norm_quote_text(s) for s in re.split('\\[\\.\\.\\.\\]|\\(\\.\\.\\.\\)|\\[\\u2026\\]|\\(\\u2026\\)|\\.{3,}|\\u2026', q_raw)]
 	segs = [s for s in raw_parts if min_seg_len <= len(s)]
@@ -1047,7 +1046,7 @@ def resolve_local_href(root: Path, href: str, doc_path: Path | None=None) -> Pat
 # 2026-11-06
 # "Enforce typed source provenance tiers (Tier 0/1/2), entity Tier 0 auto-discovery, and post-CHECKPOINT re-read gates":
 # https://github.com/dmitry-ai/harness/issues/45
-# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.__validate_response()`
+# @used-by :func:`agent_tools.review.prepare()`
 # @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue46_fact_tuple_ledger_and_contradictions()`
 # @used-by :meth:`test_source_grounding.SourceGroundingRefactorTests.test_auditor_and_domain_rules_deduplicate_ledger_tuples()`
 def sync_fact_ledger(root: Path) -> dict:
@@ -1077,7 +1076,7 @@ def _locale_to_target(locale_code: str | None) -> str | None:
 # 2026-11-13
 # "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
 # https://github.com/dmitry-ai/harness/issues/59
-# @used-by :func:`agent_tools.completion._intermediate_or_language_issues()`
+# @used-by :func:`Df.Harness.lib.completion_checks.dfh_intermediate_or_language_issues()`
 # @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter.lint()`
 # @used-by :meth:`test_source_grounding.SourceGroundingRefactorTests.test_language_neutral_slash_commands_enforce_user_default_locale_without_breaking_english_requests()`
 def verify_target_locale(text: str, *, target_locale: str='en-US', container_text: str | None=None, is_title: bool=False, allow_explicit_english_request: bool=False, min_target_ratio: float=0.35, min_alpha: int=15, default_locale: str | None=None) -> list[dict]:

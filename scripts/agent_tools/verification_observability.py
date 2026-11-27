@@ -1,140 +1,22 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
-# "Add verification observability gate for failed shadow-replay runs":
-# https://github.com/dmitry-ai/harness/issues/296
 from __future__ import annotations
 from pathlib import Path
 from typing import Any
-import re
-import shlex
+# 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
+from Df.Harness.Hook.VerificationObserver import VerificationObserver
+from Df.Harness.lib.hook_verif_ops import dfh_check_runner_verification_observability as check_runner_verification_observability, dfh_classify_shadow_output as _classify_shadow_output, dfh_closed_issues_after as _closed_issues_after, dfh_detect_shadow_replay_runs as detect_shadow_replay_runs, dfh_is_shadow_replay_cmd as _is_shadow_replay_cmd, dfh_latest_unresolved_failure as _latest_unresolved_failure, dfh_response_discloses_shadow_failure as _response_discloses_shadow_failure
 from Df.Harness.lib.trace import dfh_cmd_from_call, dfh_row_outputs
-from .cli_output_json import top_level_json_has_failure
-from .hook_crash_audit import _load_turn_rows
-from .tdd_gate import _BG_TASK_FINISHED_RE, parse_command_outcome
-_SHADOW_CMD_RE = re.compile(r'\bshadow-replay\b', re.IGNORECASE)
-# 2026-11-26 "Fix shadow-replay CLI matching and observability timing diagnostics": https://github.com/dmitry-ai/harness/issues/342
-_SHADOW_CLI_RE = re.compile(r'(?:^|[;&|\r\n]\s*)(?:[^;&|\r\n]*?\s)?[\'"]?[^\'"\s;&|]*\b(?:harness|upwork_project)\.py[\'"]?\s+shadow-replay(?:\s|$|[;&|])', re.IGNORECASE)
-_FAIL_DISCLOSE_RE = re.compile(r'(?i)(?:valid\s*[:=]\s*false|"valid"\s*:\s*false|exit(?:ed)?\s*(?:with\s+code\s+|status\s+|=)?[1-9]\d*|\bfail(?:ed|ure)?\b|\berror\b|\u0443\u043f\u0430\u043b|\u043f\u0440\u043e\u0432\u0430\u043b|\u043e\u0448\u0438\u0431\u043a|\u043d\u0435\s+\u043f\u0440\u043e\u0448)')
-# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
-# @used-by :func:`_inspect_shadow_call()`
 # @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
+# @used-by :mod:`agent_tools.verification_observability`
 def _cmd_from_call(call: dict[str, Any]) -> str:
 	return dfh_cmd_from_call(call)
-# 2026-11-26 "Separate top-level turn-begin status from foreign_reconciliation across trace auditors": https://github.com/dmitry-ai/harness/issues/370
-# @used-by :func:`_inspect_shadow_call()`
-# @used-by :func:`_resolve_bg_shadow_runs()`
-# @used-by :meth:`test_turn_begin_status_and_auditors.TurnBeginStatusAndAuditorsTests.test_all_trace_auditors_ignore_nested_foreign_reconciliation_and_flag_top_level_failure()`
-def _classify_shadow_output(step_idx: int, text: str) -> dict[str, Any]:
-	out = parse_command_outcome(text)
-	rc = out.get('exit_code')
-	has_invalid = top_level_json_has_failure(text)
-	failed = has_invalid or (None is not rc and 0 != rc) or 'fail' == out.get('status')
-	passed = (not failed) and (0 == rc or ('pass' == out.get('status') and None is rc))
-	return {'step': step_idx, 'passed': passed, 'failed': failed, 'exit_code': rc}
-# @used-by :func:`detect_shadow_replay_runs()`
 # @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
+# @used-by :mod:`agent_tools.verification_observability`
 def _row_outputs(rows: list[dict[str, Any]], pos: int) -> list[str]:
 	return dfh_row_outputs(rows, pos)
-# 2026-11-26 "Fix shadow-replay CLI matching and observability timing diagnostics": https://github.com/dmitry-ai/harness/issues/342
-# @used-by :func:`_inspect_shadow_call()`
-def _is_shadow_replay_cmd(cmd: str) -> bool:
-	r = False
-	if _SHADOW_CMD_RE.search(cmd):
-		try:
-			toks = shlex.split(cmd, posix=False)
-		except ValueError:
-			r = bool(_SHADOW_CLI_RE.search(cmd))
-		else:
-			for idx in range(len(toks) - 1):
-				cur = toks[idx].strip('\'"').replace('\\', '/').lower()
-				nxt = toks[idx + 1].strip('\'"').lower()
-				if cur.endswith(('harness.py', 'upwork_project.py')) and 'shadow-replay' == nxt:
-					r = True
-					break
-	return r
-# @used-by :func:`detect_shadow_replay_runs()`
-def _inspect_shadow_call(call: dict[str, Any], matched: str, step_idx: int, bg_steps: dict[str, int], runs: list[dict[str, Any]]) -> None:
-	cmd = _cmd_from_call(call)
-	# 2026-11-26 "Fix shadow-replay CLI matching and observability timing diagnostics": https://github.com/dmitry-ai/harness/issues/342
-	if cmd and _is_shadow_replay_cmd(cmd):
-		out_info = parse_command_outcome(matched)
-		if out_info.get('background_task_id'):
-			bg_steps[str(out_info['background_task_id'])] = step_idx
-		else:
-			runs.append(_classify_shadow_output(step_idx, matched))
-# @used-by :func:`detect_shadow_replay_runs()`
-def _resolve_bg_shadow_runs(rows: list[dict[str, Any]], bg_steps: dict[str, int], runs: list[dict[str, Any]]) -> None:
-	for row in rows:
-		if row.get('type') in ('EPHEMERAL_MESSAGE', 'SYSTEM_MESSAGE', 'GENERIC') and row.get('content'):
-			m_fin = _BG_TASK_FINISHED_RE.search(str(row.get('content')))
-			if None is not m_fin and m_fin.group(1).strip() in bg_steps:
-				runs.append(_classify_shadow_output(bg_steps[m_fin.group(1).strip()], m_fin.group(2)))
-# @used-by :func:`evaluate_verification_observability()`
-def _closed_issues_after(turn: dict[str, Any] | None, fail_step: int) -> list[str]:
-	closed: list[str] = []
-	for act in (turn or {}).get('issue_actions') or ():
-		if isinstance(act, dict) and 'close' == str(act.get('action') or '').lower():
-			act_step = act.get('step')
-			if None is act_step or (isinstance(act_step, int) and act_step >= fail_step):
-				label = f"{act['repo']}#{act['number']}" if act.get('repo') and act.get('number') else str(act.get('url') or 'issue')
-				closed.append(label)
-	return closed
-# @used-by :func:`evaluate_verification_observability()`
-def _latest_unresolved_failure(runs: list[dict[str, Any]]) -> dict[str, Any] | None:
-	ordered = sorted(runs, key=lambda x: int(x.get('step') or 0))
-	fail_idx = max((i for i, it in enumerate(ordered) if it.get('failed')), default=-1)
-	if 0 > fail_idx:
-		r = None
-	elif any((it.get('passed') for it in ordered[fail_idx + 1:])):
-		r = None
-	else:
-		r = ordered[fail_idx]
-	return r
-# @used-by :func:`evaluate_verification_observability()`
-def _response_discloses_shadow_failure(response: str | None) -> bool:
-	raw = str(response or '')
-	return bool(_SHADOW_CMD_RE.search(raw)) and bool(_FAIL_DISCLOSE_RE.search(raw))
-# @used-by :func:`evaluate_verification_observability()`
-# @used-by :meth:`test_observability_diagnostics.ObservabilityDiagnosticsTests.test_detect_shadow_replay_ignores_cli_arguments_and_matches_real_invocations()`
-# @used-by :mod:`agent_tools.verification_observability`
-def detect_shadow_replay_runs(native: dict[str, Any] | None, turn: dict[str, Any] | None) -> list[dict[str, Any]]:
-	rows = _load_turn_rows(native, turn)
-	bg_steps: dict[str, int] = {}
-	runs: list[dict[str, Any]] = []
-	for pos, row in enumerate(rows):
-		calls = [c for c in (row.get('tool_calls') or ()) if isinstance(c, dict)]
-		if not calls:
-			continue
-		step_idx = row['step_index'] if isinstance(row.get('step_index'), int) else pos
-		outs = _row_outputs(rows, pos)
-		joined = '\n'.join(outs)
-		for idx, call in enumerate(calls):
-			_inspect_shadow_call(call, outs[idx] if idx < len(outs) else joined, step_idx, bg_steps, runs)
-	_resolve_bg_shadow_runs(rows, bg_steps, runs)
-	return runs
-# @used-by :func:`agent_tools.blocked_report._run_runner_audits()`
-# @used-by :mod:`agent_tools.verification_observability`
-def check_runner_verification_observability(runner) -> None:
-	chk = evaluate_verification_observability(runner.root, runner.native, runner.turn, runner.value, runner.response)
-	runner.value['verification_observability_check'] = chk
-	if not chk['verified']:
-		runner._fail_gate('verification_observability', chk['detail'])
-# @used-by :func:`check_runner_verification_observability()`
-# @used-by :meth:`Df.Harness.Gate.AnswerChecksGate.AnswerChecksGate.__verification_obs_messages()`
+# @used-by :func:`agent_tools.gates.answer_checks._verification_obs_messages()`
 # @used-by :meth:`test_observability_diagnostics.ObservabilityDiagnosticsTests.test_detect_shadow_replay_ignores_cli_arguments_and_matches_real_invocations()`
 # @used-by :mod:`agent_tools.verification_observability`
 def evaluate_verification_observability(root: Path, native: dict[str, Any] | None, turn: dict[str, Any] | None, value: dict[str, Any] | None, response: str | None) -> dict[str, Any]:
-	unresolved = _latest_unresolved_failure(detect_shadow_replay_runs(native, turn))
-	if None is unresolved:
-		r: dict[str, Any] = {'verified': True, 'unresolved_failure': None}
-	else:
-		fail_step = int(unresolved['step'])
-		closed_after = _closed_issues_after(turn, fail_step)
-		if closed_after:
-			joined = ', '.join(closed_after[:5])
-			r = {'verified': False, 'unresolved_failure': unresolved, 'closed_after_failure': closed_after, 'detail': f"EXEC-2 / VERIFY-4 verification_observability_check: unresolved shadow-replay failure at step {fail_step} (exit={unresolved.get('exit_code')}) was followed by closing issue(s) {joined} without a subsequent passing shadow-replay rerun."}
-		elif _response_discloses_shadow_failure(response):
-			r = {'verified': True, 'unresolved_failure': unresolved, 'resolution': 'disclosed_in_response'}
-		else:
-			r = {'verified': False, 'unresolved_failure': unresolved, 'detail': f"EXEC-2 / VERIFY-4 verification_observability_check: shadow-replay failed at step {fail_step} (exit={unresolved.get('exit_code')}) with no later passing rerun and without explicit failure disclosure in the response."}
-	return r
-__all__ = ['check_runner_verification_observability', 'detect_shadow_replay_runs', 'evaluate_verification_observability']
+	return VerificationObserver(root, native, turn, value, response).run()
+__all__ = ['_classify_shadow_output', '_closed_issues_after', '_cmd_from_call', '_is_shadow_replay_cmd', '_latest_unresolved_failure', '_response_discloses_shadow_failure', '_row_outputs', 'check_runner_verification_observability', 'detect_shadow_replay_runs', 'evaluate_verification_observability']

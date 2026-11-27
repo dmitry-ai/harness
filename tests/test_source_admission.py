@@ -71,10 +71,10 @@ class SourceAdmissionTests(TextWorkspaceCase):
 		self.url = 'https://example.org/rule#p'
 		self.candidate = '1. Read ' + self.url + '.\n'
 		self.target, self.op = self.start(self.candidate, changes='links')
-	# @used-by :func:`agent_tools.cli_domains._op_prepare_experiment()`
-	# @used-by :func:`agent_tools.cli_domains._op_prepare_review()`
-	# @used-by :func:`agent_tools.cli_domains._op_question_add()`
-	# @used-by :func:`agent_tools.cli_domains._op_record_experiment()`
+	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_prepare_experiment()`
+	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_prepare_review()`
+	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_question_add()`
+	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_record_experiment()`
 	# @used-by :func:`agent_tools.text_cli.main()`
 	# @used-by :meth:`SourceAdmissionTests.saved()`
 	# @used-by :meth:`SourceAdmissionTests.test_a_200_redirect_to_a_challenge_is_not_the_intended_resource()`

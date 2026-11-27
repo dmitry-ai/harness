@@ -10,7 +10,7 @@ from .storage import create_bytes, data_dir_for, locked, replace_bytes
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
-# @used-by :func:`agent_tools.cli.main()`
+# @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__dispatch()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.begin()`
 # @used-by :meth:`test_agent_tools.SnapshotTests.test_changed_previous_copy_is_not_silently_replaced()`
 # @used-by :meth:`test_agent_tools.SnapshotTests.test_current_bytes_preserved_once_per_turn()`

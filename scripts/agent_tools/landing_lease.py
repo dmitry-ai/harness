@@ -130,7 +130,7 @@ def _unqueue_owner(path: Path, repo_str: str, owner: str) -> None:
 # 2026-11-23
 # "Add deterministic FIFO repository landing lease with reactive wait":
 # https://github.com/dmitry-ai/harness/issues/163
-# @used-by :func:`agent_tools.cli_registry._exec_land_acquire()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_land_acquire()`
 # @used-by :func:`agent_tools.worktree_land_flow._fifo_fallback_land()`
 # @used-by :func:`agent_tools.worktree_land_flow._phase2_commit_under_lease()`
 # @used-by :meth:`test_landing_lease.LandingLeaseTests.test_acquire_and_release_lifecycle()`
@@ -157,7 +157,7 @@ def acquire_lease(repo: Path | str, owner: str | None=None, *, wait: bool=False,
 		time.sleep(min(max(0.01, float(poll_interval)), rem))
 		acquired, pos, state = _try_acquire_once(path, main_repo.as_posix(), eff_owner, pid=eff_pid, ttl=float(ttl), now=time.time())
 	return {'valid': acquired, 'acquired': acquired, 'timed_out': timed_out, 'owner': eff_owner, 'repo': main_repo.as_posix(), 'lease_file': path.as_posix(), 'position': pos, 'holder': state.get('holder'), 'queue_length': len(state.get('queue') or [])}
-# @used-by :func:`agent_tools.cli_registry._exec_land_status()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_land_status()`
 # @used-by :func:`agent_tools.repo_wait._has_active_workspace_lease()`
 # @used-by :func:`agent_tools.repo_wait._probe_repo_state()`
 # @used-by :func:`agent_tools.repo_wait._wait_active_repo_leases()`
@@ -172,7 +172,7 @@ def lease_status(repo: Path | str, *, leases_dir: Path | None=None) -> dict:
 	state = _load_state(path, main_repo.as_posix())
 	_prune_state(state, time.time())
 	return {'valid': True, 'repo': main_repo.as_posix(), 'lease_file': path.as_posix(), 'free': None is state.get('holder'), 'holder': state.get('holder'), 'queue': state.get('queue') or []}
-# @used-by :func:`agent_tools.cli_registry._exec_land_release()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_land_release()`
 # @used-by :func:`agent_tools.worktree_land_flow._fifo_fallback_land()`
 # @used-by :func:`agent_tools.worktree_land_flow._phase2_commit_under_lease()`
 # @used-by :meth:`test_landing_lease.LandingLeaseTests.test_acquire_and_release_lifecycle()`

@@ -87,11 +87,11 @@ def resolve_issue_first_target(path: str | Path, *, content: str | None = None) 
 
 
 # 2026-11-26 "Fix comment-only diff and denied-write gate false positives": https://github.com/dmitry-ai/harness/issues/276
-# @used-by :func:`agent_tools.completion._scan_child_trace_turn()`
+# @used-by :func:`Df.Harness.lib.completion_child_trace._handle_child_call_item()`
 # @used-by :func:`agent_tools.issue_first_bg._record_bg_seg_issues()`
 # @used-by :func:`build_issue_action_events()`
-# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._scan_primary_turns()`
-# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._visit_subagent_rows()`
+# @used-by :meth:`Df.Harness.Platform.Codex.TurnScanner.TurnScanner.__handle_subagent_call()`
+# @used-by :meth:`Df.Harness.Platform.Codex.TurnScanner.TurnScanner.__handle_tool_call_row()`
 # @used-by :meth:`test_issue_first_gate.IssueFirstGateCoreTests.test_extract_issue_actions_recognizes_fetch_and_anti_spoofing_command_check()`
 # @used-by :meth:`test_issue_preflight_and_batch.IssuePreflightAndBatchTests.test_batch_create_verifies_readback_and_action_extraction()`
 def is_df_github_issue_command(cmd: str) -> bool:
@@ -100,7 +100,9 @@ def is_df_github_issue_command(cmd: str) -> bool:
 
 
 # 2026-11-26 "Fix comment-only diff and denied-write gate false positives": https://github.com/dmitry-ai/harness/issues/276
-# @used-by :func:`agent_tools.platforms.trace_common.record_normalized_tool_effects()`
+# @used-by :func:`Df.Harness.lib.trace_effects._record_file_tool_effects()`
+# @used-by :func:`Df.Harness.lib.trace_effects._record_patch_effects()`
+# @used-by :func:`Df.Harness.lib.trace_effects._record_shell_issue_first()`
 # @used-by :func:`extract_antigravity_issue_first_events()`
 def build_code_write_issue_first_event(
 	step: int,
@@ -124,12 +126,12 @@ def build_code_write_issue_first_event(
 	return r
 
 
-# @used-by :func:`agent_tools.completion._scan_child_trace_turn()`
+# @used-by :func:`Df.Harness.lib.completion_child_trace._handle_child_output_item()`
+# @used-by :func:`Df.Harness.lib.trace_effects._record_shell_issue_first()`
 # @used-by :func:`agent_tools.issue_first_bg._record_bg_seg_issues()`
-# @used-by :func:`agent_tools.platforms.trace_common.record_normalized_tool_effects()`
 # @used-by :func:`extract_antigravity_issue_first_events()`
-# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._scan_primary_turns()`
-# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._visit_subagent_rows()`
+# @used-by :meth:`Df.Harness.Platform.Codex.TurnScanner.TurnScanner.__handle_output_row()`
+# @used-by :meth:`Df.Harness.Platform.Codex.TurnScanner.TurnScanner.__handle_subagent_output()`
 def build_issue_action_events(
 	step: int,
 	cmd: str,
@@ -260,7 +262,7 @@ def _is_established_before(est: tuple[int, int | None], step: int, sub_step: int
 # 2026-11-23
 # "Implement core Issue-First verification engine in agent_tools/issue_first_gate.py":
 # https://github.com/dmitry-ai/harness/issues/143
-# @used-by :func:`agent_tools.completion._issue_first_status()`
+# @used-by :func:`Df.Harness.lib.completion_checks.dfh_issue_first_status()`
 # @used-by :func:`evaluate_pre_tool_use_issue_first()`
 # @used-by :meth:`test_comment_exemption_and_denied_writes.CommentExemptionAndDeniedWritesTests.test_issue_first_skips_denied_writes_and_reads_background_task_issue_actions()`
 # @used-by :meth:`test_issue_first_gate.IssueFirstGateCoreTests.test_chronological_state_machine_enforces_parent_issue_before_tests_and_code()`

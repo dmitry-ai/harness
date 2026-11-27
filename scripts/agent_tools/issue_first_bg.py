@@ -122,7 +122,7 @@ def extract_segment_issue_first_events(segment: list[dict], cwd: Path | None, bu
 		if isinstance(row, dict):
 			_process_segment_row(segment, pos, row, cwd, events, bg_cmds, build_write_fn, build_action_fn)
 	return events
-# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._scan_segment()`
+# @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__handle_system_message()`
 def handle_antigravity_bg_task_message(c_str: str, step_idx, seg: dict, parse_command_outcome) -> None:
 	m_fin = _BG_TASK_FINISHED_RE.search(c_str)
 	if m_fin:
