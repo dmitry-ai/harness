@@ -34,7 +34,7 @@ def _check_comparison(claim, index, refs):
 # @used-by :mod:`agent_tools.claims`
 def _comparison_structure(value, field, claim, evidence):
 	return ComparisonContract(value, field, claim, evidence).issues()
-# @used-by :func:`agent_tools.text_sources._evaluate()`
+# @used-by :meth:`Df.Harness.Text.IntakeSourceEvaluator.IntakeSourceEvaluator.evaluate()`
 # @used-by :mod:`agent_tools.claims`
 def _manifest_primary(root, ref):
 	return ManifestPrimaryVerifier(root, ref).verify()
@@ -48,7 +48,8 @@ def _quantity_matches(reference, decimal_value, unit, source_context=None):
 # @used-by :mod:`agent_tools.claims`
 def _text(value):
 	return isinstance(value, str) and bool(value.strip())
-# @used-by :func:`agent_tools.text_sources._evaluate()`
+# @used-by :meth:`Df.Harness.Text.IntakeSourceEvaluator.IntakeSourceEvaluator.evaluate()`
+# @used-by :meth:`Df.Harness.Text.SourceEvaluator.SourceEvaluator.evaluate()`
 # @used-by :mod:`agent_tools.claims`
 def _verify_quote(root, ref, *, observation=None):
 	from .evidence import verify_saved_quote
@@ -63,20 +64,24 @@ def _verify_quote(root, ref, *, observation=None):
 			raise ValueError('Source fragment and explicit locator disagree')
 		src = base + '#' + loc['value']
 	return verify_saved_quote(root, src, ref['quote'], mode=ref.get('quote_match', 'exact'), expected_hash=ref['source_sha256'], require_hash=True, observation=observation, documentation=bool(ref.get('documentation')), exception=ref.get('anchor_exception', {}), locator=loc, require_bound_observation=True, hash_error='Primary source bytes changed from source_sha256', absent_error='Exact quote is absent from the located primary source')
-# @used-by :func:`agent_tools.text_claims.evidence_inputs()`
-# @used-by :func:`agent_tools.text_claims.subset()`
+# @used-by :func:`Df.Harness.lib.text_claims.dfh_claim_subset()`
+# @used-by :func:`Df.Harness.lib.text_claims.dfh_evidence_inputs()`
 # @used-by :func:`claim_index()`
-# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.claim_snapshot()`
-# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.verify()`
+# @used-by :meth:`Df.Harness.Text.IntegrityVerifier.IntegrityVerifier.__find_snapshot()`
+# @used-by :meth:`Df.Harness.Text.IntegrityVerifier.IntegrityVerifier.__verify_target_artifacts()`
+# @used-by :meth:`Df.Harness.Text.IntegrityVerifier.IntegrityVerifier.claim_snapshot()`
 # @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_claim_index_includes_facts_and_all_five_stages()`
 # @used-by :mod:`agent_tools.claims`
 def all_claims(value):
 	return [claim for _, _, claim in claim_locations(value)]
-# @used-by :func:`agent_tools.text_claims.save_registry()`
-# @used-by :func:`agent_tools.text_claims.validate_map()`
 # @used-by :func:`test_evidence_contract.v3_analysis()`
-# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.claim_snapshot()`
-# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.verify()`
+# @used-by :meth:`Df.Harness.Text.ClaimMapValidator.ClaimMapValidator.__audit_block()`
+# @used-by :meth:`Df.Harness.Text.ClaimMapValidator.ClaimMapValidator.validate()`
+# @used-by :meth:`Df.Harness.Text.ClaimRegistryStore.ClaimRegistryStore.__refresh_dep_digests()`
+# @used-by :meth:`Df.Harness.Text.ClaimRegistryStore.ClaimRegistryStore.save()`
+# @used-by :meth:`Df.Harness.Text.IntegrityVerifier.IntegrityVerifier.__find_snapshot()`
+# @used-by :meth:`Df.Harness.Text.IntegrityVerifier.IntegrityVerifier.__verify_target_artifacts()`
+# @used-by :meth:`Df.Harness.Text.IntegrityVerifier.IntegrityVerifier.claim_snapshot()`
 # @used-by :meth:`test_evidence_contract.ClaimGraphValidatorTests.test_claim_graph_validator_memoizes_diamond_dag_and_dns_cache()`
 # @used-by :meth:`test_evidence_contract.ClaimGraphValidatorTests.test_collect_claim_closure_and_save_registry_single_structural_pass()`
 # @used-by :meth:`test_evidence_contract.EvidenceContractTests.price_analysis()`
@@ -93,9 +98,9 @@ def all_claims(value):
 # @used-by :mod:`agent_tools.claims`
 def claim_digest(claim):
 	return hashlib.sha256(json.dumps(claim, ensure_ascii=False, sort_keys=True, separators=(',', ':'), allow_nan=False).encode('utf-8')).hexdigest()
-# @used-by :func:`agent_tools.text_claims.save_registry()`
-# @used-by :func:`agent_tools.text_claims.subset()`
-# @used-by :func:`agent_tools.text_claims.validate_map()`
+# @used-by :func:`Df.Harness.lib.text_claims.dfh_claim_subset()`
+# @used-by :meth:`Df.Harness.Text.ClaimMapValidator.ClaimMapValidator.__load_registry()`
+# @used-by :meth:`Df.Harness.Text.ClaimRegistryStore.ClaimRegistryStore.save()`
 # @used-by :meth:`test_analysis_workflow.ProjectCase.review_package()`
 # @used-by :meth:`test_evidence_contract.ClaimGraphValidatorTests.test_collect_claim_closure_and_save_registry_single_structural_pass()`
 # @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_claim_index_includes_facts_and_all_five_stages()`
@@ -103,7 +108,7 @@ def claim_digest(claim):
 # @used-by :mod:`agent_tools.claims`
 def claim_index(value):
 	return {claim['id']: claim for claim in all_claims(value) if _text(claim.get('id'))}
-# @used-by :func:`agent_tools.text_claims.subset()`
+# @used-by :func:`Df.Harness.lib.text_claims.dfh_claim_subset()`
 # @used-by :func:`all_claims()`
 # @used-by :mod:`agent_tools.claims`
 def claim_locations(value):
@@ -112,15 +117,15 @@ def claim_locations(value):
 			for number, claim in enumerate(value.get(section, []) if isinstance(value.get(section), list) else ()):
 				if isinstance(claim, dict):
 					yield (f'/{section}/{number}', section, claim)
-# @used-by :func:`agent_tools.text_claims.primary_numbers()`
-# @used-by :func:`agent_tools.text_claims.subset()`
+# @used-by :func:`Df.Harness.lib.text_claims.dfh_claim_subset()`
+# @used-by :func:`Df.Harness.lib.text_claims.dfh_primary_numbers()`
 # @used-by :meth:`test_evidence_contract.ClaimGraphValidatorTests.test_collect_claim_closure_and_save_registry_single_structural_pass()`
 # @used-by :mod:`agent_tools.claims`
 def collect_claim_closure(seed_ids, index, *, include_addresses=False, unknown_prefix=None):
 	return ClosureCollector(seed_ids, index, include_addresses=include_addresses, unknown_prefix=unknown_prefix).collect()
-# @used-by :func:`agent_tools.text_claims.save_registry()`
-# @used-by :func:`agent_tools.text_claims.validate_map()`
-# @used-by :func:`agent_tools.text_sources.check_claim_sources()`
+# @used-by :func:`Df.Harness.lib.text_sources.dfh_check_claim_sources()`
+# @used-by :meth:`Df.Harness.Text.ClaimMapValidator.ClaimMapValidator.__load_registry()`
+# @used-by :meth:`Df.Harness.Text.ClaimRegistryStore.ClaimRegistryStore.save()`
 # @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_malformed_typed_metadata_returns_diagnostics()`
 # @used-by :meth:`test_schema_help_and_analysis_merge_m10.SchemaHelpAndAnalysisMergeM10Tests.test_validators_emit_actionable_hints()`
 # @used-by :mod:`agent_tools.claims`
@@ -130,9 +135,9 @@ def contract_issues(value):
 # @used-by :mod:`agent_tools.claims`
 def evaluate_safe_arithmetic(expr: str, env: dict[str, Decimal] | None=None) -> tuple[Decimal | None, set[str]]:
 	return SafeArithmetic(expr, env).evaluate()
-# @used-by :func:`agent_tools.text_claims.save_registry()`
-# @used-by :func:`agent_tools.text_claims.validate_map()`
-# @used-by :func:`agent_tools.text_sources.check_claim_sources()`
+# @used-by :func:`Df.Harness.lib.text_sources.dfh_check_claim_sources()`
+# @used-by :meth:`Df.Harness.Text.ClaimMapValidator.ClaimMapValidator.__load_registry()`
+# @used-by :meth:`Df.Harness.Text.ClaimRegistryStore.ClaimRegistryStore.save()`
 # @used-by :mod:`agent_tools.claims`
 def evidence_contract_issues(root, value, *, skip_structural=False):
 	return ClaimGraphValidator(value, root=root).evidence_issues(skip_structural=skip_structural)
@@ -151,9 +156,9 @@ def grounded_numbers_for_claim(claim, index=None, visited=None, _memo=None):
 # @used-by :mod:`agent_tools.source_grounding`
 def source_numeric_tokens(raw_text: str) -> set[str]:
 	return SourceNumericTokenizer(raw_text).tokenize()
-# @used-by :func:`agent_tools.text_claims.validate_map()`
 # @used-by :meth:`Df.Harness.Grounding.BlockLineAuditor.BlockLineAuditor.line_grounded_numbers_check()`
 # @used-by :meth:`Df.Harness.Grounding.LocalSourceAuditor.LocalSourceAuditor.__check_tier2_sole_evidence()`
+# @used-by :meth:`Df.Harness.Text.ClaimMapValidator.ClaimMapValidator.__audit_block()`
 # @used-by :meth:`test_source_admission.LinkPresentationTests.test_numeric_prose_in_a_link_label_still_needs_grounding()`
 # @used-by :meth:`test_source_admission.LinkPresentationTests.test_original_numeric_anchor_is_not_a_quantitative_claim()`
 # @used-by :meth:`test_source_admission.LinkPresentationTests.test_reference_links_and_balanced_parentheses_keep_the_same_behavior()`

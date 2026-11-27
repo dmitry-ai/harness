@@ -27,9 +27,9 @@ def _check_parallel_answer_md_guard(args: Any, path: Any) -> None:
 # @used-by :func:`Df.Harness.lib.cli_operation_defs._add_single_operation_parser()`
 # @used-by :func:`Df.Harness.lib.cli_registry_defs.dfh_add_registered_parsers()`
 # @used-by :func:`Df.Harness.lib.completion_commands.dfh_add_completion_parser_arguments()`
-# @used-by :func:`agent_tools.text_cli.main()`
 # @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__build_parser()`
 # @used-by :meth:`Df.Harness.Issue.BatchRunner.BatchRunner.register_subparsers()`
+# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__build_parser()`
 # @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__build_parser()`
 # @used-by :meth:`test_cli_common.CliCommonTests.test_declarative_arg_specs_and_routers_parse_expected_flags()`
 def dfh_add_arg_specs(parser: Any, specs: tuple | list) -> None:
@@ -74,8 +74,6 @@ def dfh_consume_unchanged_files(files: list[tuple[Path, bytes]]) -> list[str]:
 	return r
 # @used-by :func:`Df.Harness.lib.issue.dfh_emit_grounding_failure()`
 # @used-by :func:`agent_tools.github_issue.main()`
-# @used-by :func:`agent_tools.text_cli.findings_output()`
-# @used-by :func:`agent_tools.text_cli.main()`
 # @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__run_validate_links()`
 # @used-by :meth:`Df.Harness.Issue.BatchRunner.BatchRunner.run()`
 # @used-by :meth:`Df.Harness.Issue.CloseCommentValidator.CloseCommentValidator.validate()`
@@ -85,6 +83,10 @@ def dfh_consume_unchanged_files(files: list[tuple[Path, bytes]]) -> list[str]:
 # @used-by :meth:`Df.Harness.Issue.RepoAuditor.RepoAuditor.audit()`
 # @used-by :meth:`Df.Harness.Issue.RepoTransferRunner.RepoTransferRunner.transfer()`
 # @used-by :meth:`Df.Harness.Issue.Service.Service.__dump()`
+# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__dispatch()`
+# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__dispatch_flow()`
+# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__write_rendered()`
+# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.findings_output()`
 # @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.run()`
 # @used-by :mod:`agent_tools.issues.service`
 def dfh_dump_json(payload: Any, *, stream: Any=None) -> None:
@@ -130,17 +132,25 @@ def dfh_read_input_bytes(path: Any) -> bytes:
 	return r
 # @used-by :func:`Df.Harness.lib.cli_domain_ops._op_metrics()`
 # @used-by :func:`Df.Harness.lib.cli_domain_ops._op_question_finish()`
+# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__dispatch()`
+# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__handle_lint()`
+# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__review_source_handlers()`
+# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__workspace_handlers()`
 # @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_init()`
 # @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_validate_analysis()`
 # @used-by :meth:`test_df_harness_s11_wave2d.DfHarnessS11Wave2DTests.test_cli_subsystem_classes()`
-# @used-by :mod:`agent_tools.text_cli`
 def dfh_read_input_json(path: Any, *, encoding: str='utf-8-sig') -> Any:
 	return json.loads(dfh_read_input_text(path, encoding=encoding)) if None is not path else None
 # @used-by :func:`Df.Harness.lib.cli_domain_ops._op_resume()`
 # @used-by :func:`dfh_read_input_json()`
 # @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_check()`
 # @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__read_step_payloads()`
-# @used-by :mod:`agent_tools.text_cli`
+# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__dispatch()`
+# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__handle_lint()`
+# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__handle_source_or_render()`
+# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__review_source_handlers()`
+# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__workspace_handlers()`
+# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__write_rendered()`
 def dfh_read_input_text(path: Any, *, encoding: str='utf-8-sig') -> str:
 	return dfh_read_input_bytes(path).decode(encoding)
 # @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.run()`

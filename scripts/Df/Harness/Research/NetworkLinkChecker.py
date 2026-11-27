@@ -7,6 +7,7 @@ from Df.Harness.Research.HtmlReferences import HtmlReferences
 from Df.Harness.Research.Page import Page
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class NetworkLinkChecker:
+	# @used-by :func:`Df.Harness.lib.text_sources.dfh_check_source_links()`
 	# @used-by :func:`agent_tools.links.check_network()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_research.DfHarnessS11Wave2CResearchTests.test_links_markdown_lib_and_network_checker()`
 	def __init__(self, urls: list[str], *, anchors: bool=False, timeout: float=15, fetcher=None) -> None:
@@ -57,6 +58,7 @@ class NetworkLinkChecker:
 		else:
 			r = ('not-found-in-source', {'available_anchors': anchors[:100], 'anchor_count': len(anchors), 'source_bytes': len(text.encode('utf-8'))})
 		return r
+	# @used-by :func:`Df.Harness.lib.text_sources.dfh_check_source_links()`
 	# @used-by :func:`agent_tools.links.check_network()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_research.DfHarnessS11Wave2CResearchTests.test_links_markdown_lib_and_network_checker()`
 	def check(self) -> list[dict]:

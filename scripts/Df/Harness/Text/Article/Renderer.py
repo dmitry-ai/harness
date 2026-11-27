@@ -13,6 +13,7 @@ from Df.Harness.lib.text_sections import ARTICLE_NUMBER_KEY, ARTICLE_SOURCE_META
 _REF_RULES = frozenset({'REF-DANGLING', 'REF-LABEL', 'REF-RANGE', 'REF-BARE', 'KEY-UNRENDERED', 'ANCHOR-DUP'})
 class Renderer:
 	# @used-by :func:`agent_tools.article.render()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__transform_keyed()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_article_subsystem_roundtrip_and_audit()`
 	def __init__(self, source: str, previous: str | None=None) -> None:
 		self.__source = source

@@ -7,6 +7,7 @@ from Df.Harness.lib.text_sections import ANCHOR_LINK, ARTICLE_BARE_REF, ARTICLE_
 # 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class SourceExporter:
 	# @used-by :func:`agent_tools.article.to_source()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__transform_keyed()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_article_subsystem_roundtrip_and_audit()`
 	def __init__(self, text: str) -> None:
 		self.__text = text

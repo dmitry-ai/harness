@@ -212,8 +212,7 @@ class ProjectPaths:
 	# @used-by :func:`Df.Harness.lib.research.dfh_observed_use()`
 	# @used-by :func:`Df.Harness.lib.shadow_command.dfh_persist_shadow_replay_receipt()`
 	# @used-by :func:`Df.Harness.lib.storage.dfh_data_dir_for()`
-	# @used-by :func:`agent_tools.text_claims.save_registry()`
-	# @used-by :func:`agent_tools.text_workflow._folder()`
+	# @used-by :func:`Df.Harness.lib.text_workflow.dfh_text_folder()`
 	# @used-by :func:`agent_tools.worktree_flow.worktree_land()`
 	# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.__load_base()`
 	# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.save()`
@@ -236,8 +235,9 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Research.Collector.Collector.__persist_fresh()`
 	# @used-by :meth:`Df.Harness.Research.Collector.Collector.collect()`
 	# @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.default_slots_dir()`
+	# @used-by :meth:`Df.Harness.Text.ClaimRegistryStore.ClaimRegistryStore.save()`
+	# @used-by :meth:`Df.Harness.Text.IntegrityVerifier.IntegrityVerifier.__find_snapshot()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_context_config()`
-	# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.claim_snapshot()`
 	# @used-by :meth:`test_df_harness_s11_wave2d.DfHarnessS11Wave2DTests.test_path_subsystem_classes()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
 	@property
@@ -346,9 +346,8 @@ class ProjectPaths:
 		return Path(self.paths_str['journal_root_dir'])
 	# @used-by :func:`Df.Harness.lib.browser.dfh_save_cdp_identity()`
 	# @used-by :func:`Df.Harness.lib.completion_checks.dfh_factual_kb_note_issues()`
+	# @used-by :func:`Df.Harness.lib.text_claims.dfh_registry_path()`
 	# @used-by :func:`agent_tools.evidence.source_reference()`
-	# @used-by :func:`agent_tools.text_claims.registry_path()`
-	# @used-by :func:`agent_tools.text_sources._evaluate()`
 	# @used-by :meth:`Df.Harness.Analysis.LocalSourceResolver.LocalSourceResolver.resolve()`
 	# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.__load_base()`
 	# @used-by :meth:`Df.Harness.Analysis.Publisher.Publisher.__resolve_project_root()`
@@ -381,6 +380,8 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Research.SiteSummarizer.SiteSummarizer.summarize()`
 	# @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.__default_analysis()`
 	# @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.load_analysis()`
+	# @used-by :meth:`Df.Harness.Text.IntakeSourceEvaluator.IntakeSourceEvaluator.__resolve_local_source()`
+	# @used-by :meth:`Df.Harness.Text.SourceEvaluator.SourceEvaluator.__verify_dom_identity()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 	# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.__check_red_flags()`
@@ -551,6 +552,8 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_harness_s11_wave2c_issues`
 	# @used-by :mod:`test_df_harness_s11_wave2c_research`
 	# @used-by :mod:`test_df_harness_s11_wave2c_text_docs`
+	# @used-by :mod:`test_df_harness_s11_wave2c_text_flow`
+	# @used-by :mod:`test_df_harness_s11_wave2c`
 	# @used-by :mod:`test_df_harness_s11_wave2d_cli_cov`
 	# @used-by :mod:`test_df_harness_s11_wave2d_completion_cov`
 	# @used-by :mod:`test_df_harness_s11_wave2d_completion`
@@ -712,7 +715,6 @@ class ProjectPaths:
 	# @used-by :func:`Df.Harness.lib.request_binding.dfh_completion_project_id()`
 	# @used-by :func:`Df.Harness.lib.request_binding.dfh_native_project_fields()`
 	# @used-by :func:`Df.Harness.lib.request_binding.dfh_native_project_id()`
-	# @used-by :func:`agent_tools.text_sources._evaluate()`
 	# @used-by :func:`test_df_harness_s11_wave2a_workflow._seed_project()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__load_state()`
 	# @used-by :meth:`Df.Harness.Completion.BudgetEvaluator.BudgetEvaluator.run()`
@@ -729,6 +731,7 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__validate_inputs()`
 	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.maybe_promote_domain()`
 	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.__update_project_json()`
+	# @used-by :meth:`Df.Harness.Text.IntakeSourceEvaluator.IntakeSourceEvaluator.__load_verified_project_state()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 	# @used-by :meth:`Df.Harness.Workflow.WorkflowResumer.WorkflowResumer.__apply()`
 	@property

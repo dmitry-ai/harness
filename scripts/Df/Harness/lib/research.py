@@ -164,10 +164,37 @@ def dfh_extractor_version() -> str:
 # @used-by :meth:`Df.Harness.Research.Collector.Collector.__build_meta()`
 def dfh_fingerprint(value) -> str:
 	return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':'), allow_nan=False).encode('utf-8')).hexdigest()
+# @used-by :func:`Df.Harness.lib.text_claims._collect_ref_inputs()`
+# @used-by :func:`Df.Harness.lib.text_claims.dfh_registry_path()`
 # @used-by :func:`agent_tools.research.inside()`
 # @used-by :meth:`Df.Harness.Research.Collector.Collector.load_observation()`
 # @used-by :meth:`Df.Harness.Research.Extractor.Extractor.extract_file()`
 # @used-by :meth:`Df.Harness.Research.Extractor.Extractor.extract_observation()`
+# @used-by :meth:`Df.Harness.Text.ApprovalIntegrityChecker.ApprovalIntegrityChecker.__check_entry()`
+# @used-by :meth:`Df.Harness.Text.ApprovalIntegrityChecker.ApprovalIntegrityChecker.__check_native_proof()`
+# @used-by :meth:`Df.Harness.Text.ApprovalIntegrityChecker.ApprovalIntegrityChecker.check()`
+# @used-by :meth:`Df.Harness.Text.IntakeSourceEvaluator.IntakeSourceEvaluator.__resolve_local_source()`
+# @used-by :meth:`Df.Harness.Text.IntakeSourceEvaluator.IntakeSourceEvaluator.__verify_source_file()`
+# @used-by :meth:`Df.Harness.Text.IntegrityVerifier.IntegrityVerifier.__add_artifact()`
+# @used-by :meth:`Df.Harness.Text.IntegrityVerifier.IntegrityVerifier.__collect_applied()`
+# @used-by :meth:`Df.Harness.Text.IntegrityVerifier.IntegrityVerifier.__verify_target_artifacts()`
+# @used-by :meth:`Df.Harness.Text.IntegrityVerifier.IntegrityVerifier.reconciled_integrity()`
+# @used-by :meth:`Df.Harness.Text.IntegrityVerifier.IntegrityVerifier.verify_applied_successor()`
+# @used-by :meth:`Df.Harness.Text.ReviewAuthorizer.ReviewAuthorizer.__check_entry()`
+# @used-by :meth:`Df.Harness.Text.ReviewAuthorizer.ReviewAuthorizer.authorize()`
+# @used-by :meth:`Df.Harness.Text.ReviewPackageReader.ReviewPackageReader.read()`
+# @used-by :meth:`Df.Harness.Text.SourceEvaluator.SourceEvaluator.__verify_dom_identity()`
+# @used-by :meth:`Df.Harness.Text.SourceIntegrityChecker.SourceIntegrityChecker.check()`
+# @used-by :meth:`Df.Harness.Text.SourceReceiptReader.SourceReceiptReader.read()`
+# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.__check_gate_response()`
+# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.__collect_protected()`
+# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.__gate_applied_receipt()`
+# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.__gate_target()`
+# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.__validate_target_and_protected()`
+# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.document()`
+# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.read_check()`
+# @used-by :meth:`Df.Harness.Text.WorkspaceCheckRunner.WorkspaceCheckRunner.__check_replay()`
+# @used-by :meth:`Df.Harness.Text.WorkspaceCheckRunner.WorkspaceCheckRunner.__collect_target_and_lint_issues()`
 def dfh_inside(root, relative) -> Path:
 	root_p = Path(root).resolve()
 	target = (root_p / relative).resolve()
@@ -180,10 +207,23 @@ def dfh_inside(root, relative) -> Path:
 			raise ValueError(f'Path escapes project: {relative}')
 		r = mapped
 	return r
+# @used-by :func:`Df.Harness.lib.text_sources._write_attempt_if_newer()`
 # @used-by :func:`agent_tools.research.json_data()`
 # @used-by :func:`dfh_observed_use()`
 # @used-by :meth:`Df.Harness.Research.Collector.Collector.__persist_fresh()`
 # @used-by :meth:`Df.Harness.Research.Extractor.Extractor.__write_cached()`
+# @used-by :meth:`Df.Harness.Text.ClaimRegistryStore.ClaimRegistryStore.save()`
+# @used-by :meth:`Df.Harness.Text.ReviewPreparer.ReviewPreparer.prepare()`
+# @used-by :meth:`Df.Harness.Text.ReviewRecorder.ReviewRecorder.record()`
+# @used-by :meth:`Df.Harness.Text.SourceProber.SourceProber.probe()`
+# @used-by :meth:`Df.Harness.Text.SourceReceiptStore.SourceReceiptStore.save()`
+# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.__ensure_workspace_identity()`
+# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.__persist_applied()`
+# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.__reconcile_if_changed()`
+# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.begin()`
+# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.save_index()`
+# @used-by :meth:`Df.Harness.Text.WorkspaceCheckRunner.WorkspaceCheckRunner.__check_replay()`
+# @used-by :meth:`Df.Harness.Text.WorkspaceCheckRunner.WorkspaceCheckRunner.__persist_check()`
 def dfh_json_data(value) -> bytes:
 	return (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
 # @used-by :func:`agent_tools.links.markdown_link()`
@@ -228,9 +268,18 @@ def dfh_observed_use(root, result):
 		replace_bytes(path, dfh_json_data(value))
 	return result
 # @used-by :func:`Df.Harness.lib.markdown.dfh_display_address()`
+# @used-by :func:`Df.Harness.lib.text_sources.dfh_source_attempt()`
+# @used-by :func:`Df.Harness.lib.text_sources.dfh_source_urls()`
 # @used-by :func:`agent_tools.links.readable_reference()`
 # @used-by :func:`dfh_markdown_link()`
 # @used-by :meth:`Df.Harness.Research.LinkAuditor.LinkAuditor.readable_link_issues()`
+# @used-by :meth:`Df.Harness.Text.IntakeSourceEvaluator.IntakeSourceEvaluator.__resolve_local_source()`
+# @used-by :meth:`Df.Harness.Text.IntakeSourceEvaluator.IntakeSourceEvaluator.evaluate()`
+# @used-by :meth:`Df.Harness.Text.SourceEvaluator.SourceEvaluator.__check_freshness()`
+# @used-by :meth:`Df.Harness.Text.SourceEvaluator.SourceEvaluator.__validate_http_ref()`
+# @used-by :meth:`Df.Harness.Text.SourceEvaluator.SourceEvaluator.__validate_spec()`
+# @used-by :meth:`Df.Harness.Text.SourceEvaluator.SourceEvaluator.evaluate()`
+# @used-by :meth:`Df.Harness.Text.SourceReceiptStore.SourceReceiptStore.save()`
 def dfh_readable_reference(value: str | Path) -> str:
 	text = value.as_posix() if isinstance(value, Path) else value
 	base, fragment_sep, fragment = text.partition('#')

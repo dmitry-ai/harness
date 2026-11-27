@@ -79,7 +79,7 @@ def dfh_author_text(raw: str) -> str:
 def dfh_bold_spans(raw: str) -> list[tuple[int, int]]:
 	marks = [m.start() for m in re.finditer('\\*\\*', raw)]
 	return [(marks[i], marks[i + 1]) for i in range(0, len(marks) - 1, 2)]
-# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
+# @used-by :meth:`Df.Harness.Text.WorkspaceCheckRunner.WorkspaceCheckRunner.run()`
 # @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_text_core_linters_replayer_and_sections()`
 # @used-by :meth:`test_text_core.ReplayTests.test_changed_blocks_need_receipts_unchanged_moves_do_not()`
 def dfh_changed_command_lines(text: str, previous: str | None=None) -> list[int]:
@@ -248,9 +248,9 @@ def dfh_reference_document(text: str, match) -> str | None:
 	return ' '.join(prefix.group().split()) if prefix else None
 # @used-by :func:`Df.Harness.lib.text_sections._addressed_content_blocks()`
 # @used-by :func:`Df.Harness.lib.text_sections.dfh_scope_blocks()`
+# @used-by :func:`Df.Harness.lib.text_sources.dfh_check_source_links()`
+# @used-by :func:`Df.Harness.lib.text_sources.dfh_source_urls()`
 # @used-by :func:`agent_tools.article.render_map()`
-# @used-by :func:`agent_tools.text_sources.check_links()`
-# @used-by :func:`agent_tools.text_sources.source_urls()`
 # @used-by :func:`dfh_command_blocks()`
 # @used-by :meth:`Df.Harness.Grounding.ProbabilityClaimChecker.ProbabilityClaimChecker.check()`
 # @used-by :meth:`Df.Harness.Text.Article.Linter.Linter.lint()`

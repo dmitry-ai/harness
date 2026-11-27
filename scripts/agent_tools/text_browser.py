@@ -24,7 +24,6 @@ collect_cdp_dom._df_default_browser_facade = True
 # @used-by unused
 def collect_headless_dom(root, url, *, timeout=15, config=None, headless_shell=None):
 	return HeadlessDomCollector(root, url, timeout=timeout, config=config, headless_shell=headless_shell).collect()
-# @used-by :func:`agent_tools.text_cli.main()`
 # @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.extract()`
 # @used-by :meth:`test_text_browser.TextBrowserTests.check()`
 # @used-by :meth:`test_text_browser.TextBrowserTests.test_live_account_marker_is_separate_from_profile_and_caller_assertion()`

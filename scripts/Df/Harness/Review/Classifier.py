@@ -110,7 +110,7 @@ class Classifier:
 		if not req_flags.issubset(flags):
 			raise ValueError('Task flags omit typed significant work: ' + ', '.join(sorted(req_flags - set(flags))))
 		return {'risk': spec['risk'], 'minimum_risk': minimum, 'risk_basis': spec['basis'], 'risk_reasons': reasons, 'request_scope': spec['request_scope'], 'claims': manifest, 'task_flags': flags, 'minimum_task_flags': sorted(req_flags)}
-	# @used-by :func:`agent_tools.text_review.prepare()`
+	# @used-by :meth:`Df.Harness.Text.ReviewPreparer.ReviewPreparer.prepare()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_review_alignment_and_classifier_classes()`
 	# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_classifier_has_significant_flags_and_post_finalize_synthetic_claims()`
 	@staticmethod

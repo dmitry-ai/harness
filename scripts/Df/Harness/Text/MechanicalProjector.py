@@ -8,6 +8,7 @@ from Df.Harness.lib.text_sections import ANCHOR_LINK, dfh_parse_addressed, dfh_p
 # 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class MechanicalProjector:
 	# @used-by :func:`agent_tools.text_sections.mechanical_projection()`
+	# @used-by :meth:`Df.Harness.Text.WorkspaceScopeChecker.WorkspaceScopeChecker.check()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_text_core_linters_replayer_and_sections()`
 	def __init__(self, text: str, kind: str, mode: str) -> None:
 		self.__text = text
@@ -50,6 +51,7 @@ class MechanicalProjector:
 			item = re.sub('^\\s*\\d+(?:\\.\\d+)*\\.\\s*', '', item)
 		return item
 	# @used-by :func:`agent_tools.text_sections.mechanical_projection()`
+	# @used-by :meth:`Df.Harness.Text.WorkspaceScopeChecker.WorkspaceScopeChecker.check()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_text_core_linters_replayer_and_sections()`
 	def project(self) -> str:
 		lines = dfh_scan(self.__text)

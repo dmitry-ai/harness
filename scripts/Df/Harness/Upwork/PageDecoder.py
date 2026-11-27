@@ -111,13 +111,13 @@ class PageDecoder:
 	# @used-by :meth:`Df.Harness.Tdd.DiffContract.DiffContract.__parse_batch_blobs()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffExecutability.DiffExecutability.__decode_git_blob()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffExecutability.DiffExecutability.__git_diff_entries()`
+	# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.read_check()`
+	# @used-by :meth:`Df.Harness.Text.WorkspaceCheckRunner.WorkspaceCheckRunner.run()`
+	# @used-by :meth:`Df.Harness.Text.WorkspaceScopeChecker.WorkspaceScopeChecker.__init__()`
 	# @used-by :meth:`Df.Harness.Upwork.AttachmentExtractor.AttachmentExtractor.classify()`
 	# @used-by :meth:`Df.Harness.Upwork.AttachmentExtractor.AttachmentExtractor.extract_markdown()`
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__capture_on_page()`
 	# @used-by :meth:`Df.Harness.Upwork.PdfLigatureRepairer.PdfLigatureRepairer.parse_streams()`
-	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
-	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.read_check()`
-	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.scope_issues()`
 	# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_antigravity_arch_record_review_works_on_bare_code_workspace_without_text_marker()`
 	# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_cli_prepare_input_record_needs_changes_and_check_text_roundtrip()`
 	# @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_prepare_input_record_and_check_roundtrip_with_module_cache()`

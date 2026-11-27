@@ -7,13 +7,13 @@ import hashlib
 # @used-by :func:`Df.Harness.lib.admission_ops.dfh_admission_binding()`
 # @used-by :func:`Df.Harness.lib.admission_ops.dfh_capture_admission()`
 # @used-by :func:`Df.Harness.lib.admission_ops.dfh_verify_admission()`
+# @used-by :func:`Df.Harness.lib.text_claims.dfh_text_digest()`
 # @used-by :func:`agent_tools.admission._digest()`
 # @used-by :func:`agent_tools.analysis.digest()`
 # @used-by :func:`agent_tools.intake._hash()`
 # @used-by :func:`agent_tools.project_card._digest()`
 # @used-by :func:`agent_tools.review.digest()`
 # @used-by :func:`agent_tools.snapshot.snapshot_draft()`
-# @used-by :func:`agent_tools.text_claims.digest()`
 # @used-by :func:`df_sha256_file()`
 # @used-by :func:`df_sha256_text()`
 # @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__check_snapshot()`

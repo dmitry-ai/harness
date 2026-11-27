@@ -11,7 +11,6 @@ from Df.Harness.Text.Proposal.Renderer import Renderer
 from Df.Harness.Text.Proposal.SourceExporter import SourceExporter
 from Df.Harness.lib.text_sections import KEYED_REF as KEY_REF, PROPOSAL_KEYED as KEYED, PROPOSAL_MARKDOWN_LINK as MARKDOWN_LINK, PROPOSAL_NUMBERED as NUMBERED, PROPOSAL_PREFIX as PREFIX, PROPOSAL_REF as REF, PROPOSAL_URL as URL
 from .text_core import Finding, Line
-# @used-by :func:`agent_tools.text_cli.main()`
 # @used-by :meth:`test_df_proposal.ProposalFieldTests.test_aggregate_room_cannot_hide_one_oversized_field()`
 # @used-by :meth:`test_df_proposal.ProposalFieldTests.test_browser_character_length_cannot_undercount_astral_unicode()`
 # @used-by :meth:`test_df_proposal.ProposalFieldTests.test_limits_count_exact_text_including_urls_and_newlines()`

@@ -9,6 +9,8 @@ from Df.Harness.lib.text_core import KEPT, REMOVAL, REPLACED, dfh_detect_languag
 # 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class ResponseChecker:
 	# @used-by :func:`agent_tools.text_core.check_response()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__dispatch()`
+	# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.__check_gate_response()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_diagnostics_scanner_and_response_checker()`
 	def __init__(self, path: Path, text: str | None=None, against=(), lexicon=None, journal: Path | None=None) -> None:
 		self.__path = path
@@ -71,6 +73,8 @@ class ResponseChecker:
 			r = matcher.ratio() if 0.9 <= matcher.quick_ratio() else 0.0
 		return r
 	# @used-by :func:`agent_tools.text_core.check_response()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__dispatch()`
+	# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.__check_gate_response()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_diagnostics_scanner_and_response_checker()`
 	def check(self) -> list[Finding]:
 		from agent_tools.metadata import strip_leading_metadata_header

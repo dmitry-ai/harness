@@ -199,8 +199,8 @@ def dfh_format_binding_diagnostic(expected_root, binding, *, expected_job_id=Non
 		parts.append(f"observed_job_ids={','.join(b['observed_job_ids'])}")
 	return ', '.join(parts)
 # @used-by :func:`Df.Harness.lib.trace_review.dfh_build_native_review_proof()`
-# @used-by :func:`agent_tools.text_review.prepare()`
-# @used-by :func:`agent_tools.text_review.read_package()`
+# @used-by :meth:`Df.Harness.Text.ReviewPackageReader.ReviewPackageReader.read()`
+# @used-by :meth:`Df.Harness.Text.ReviewPreparer.ReviewPreparer.__build_payload()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_review_project_id_and_fields_support_bare_code_workspace_for_arch_only()`
 def dfh_native_project_fields(root, *, role: str='AA') -> dict:
 	identifier = dfh_review_project_id(root, role=role)
@@ -268,7 +268,7 @@ def dfh_scoped_inputs(root, job_id: str, inputs, contexts=(), *, until=None):
 # @used-by :func:`_validate_text_project_marker()`
 # @used-by :func:`dfh_completion_project_id()`
 # @used-by :func:`test_arch_review_cli._init_text_workspace()`
-# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.begin()`
+# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.__ensure_workspace_identity()`
 # @used-by :meth:`test_text_native_binding.TextNativeBindingTests.setUp()`
 def dfh_text_project_id(root) -> str:
 	return dfh_raw_text_project_id(dfh_canonical_path(root))

@@ -26,7 +26,6 @@ def _document_urls(text: str):
 # @used-by :mod:`agent_tools.links`
 def chat_reply_link_issues(content: str, *, root: Path | None=None) -> list[str]:
 	return LinkAuditor.chat_reply_link_issues(content, root=root)
-# @used-by :func:`agent_tools.text_sources.check_links()`
 # @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__run_validate_links()`
 # @used-by :meth:`test_agent_tools.LinkTests.test_anchor_html_parser_handles_spacing_entities_and_case()`
 # @used-by :meth:`test_agent_tools.LinkTests.test_failed_cached_fetch_reports_each_anchor()`
@@ -84,10 +83,6 @@ def parse_markdown_headings(content: str) -> tuple[list[dict], set[str], set[str
 # @used-by :mod:`agent_tools.links`
 def readable_link_issues(content: str, *, allow_unencoded_file_uri: bool=False) -> list[str]:
 	return LinkAuditor.readable_link_issues(content, allow_unencoded_file_uri=allow_unencoded_file_uri)
-# @used-by :func:`agent_tools.text_sources._attempt()`
-# @used-by :func:`agent_tools.text_sources._evaluate()`
-# @used-by :func:`agent_tools.text_sources.save_source_check()`
-# @used-by :func:`agent_tools.text_sources.source_urls()`
 # @used-by :meth:`Df.Harness.Upwork.PdfExtractor.PdfExtractor.__text_element_raw()`
 # @used-by :meth:`test_readable_links.ReadableReferenceTests.test_original_file_uri_becomes_a_readable_local_reference()`
 # @used-by :meth:`test_readable_links.ReadableReferenceTests.test_query_signatures_delimiters_literal_percent_and_invalid_utf8_are_preserved()`
@@ -95,8 +90,6 @@ def readable_link_issues(content: str, *, allow_unencoded_file_uri: bool=False) 
 def readable_reference(value: str | Path) -> str:
 	return dfh_readable_reference(value)
 # @used-by :func:`Df.Harness.lib.completion_links.dfh_response_link_issues()`
-# @used-by :func:`agent_tools.text_sources.check_links()`
-# @used-by :func:`agent_tools.text_sources.source_urls()`
 # @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__run_validate_links()`
 # @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.__validate_doc_or_json_anchor()`
 # @used-by :meth:`test_agent_tools.LinkTests.test_code_samples_are_not_document_links()`

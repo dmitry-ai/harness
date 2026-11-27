@@ -13,7 +13,7 @@ from .storage import create_bytes, data_dir_for, journal_data_dir_for, locked, r
 # @used-by :func:`recover_step()`
 def _publish(directory: Path, step: int, state: dict, *, recovering: bool=False) -> None:
 	dfh_publish_step(directory, step, state, recovering=recovering, create_bytes_fn=create_bytes)
-# @used-by :func:`agent_tools.text_workflow.record_answer()`
+# @used-by :func:`Df.Harness.lib.text_workflow.dfh_record_text_answer()`
 # @used-by :func:`test_project_rename._seed_project_artifacts()`
 # @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.__resolve_steps()`
 # @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_record_answer_subtracts_overlapping_request_ids_and_excludes_stale_steps_from_title()`

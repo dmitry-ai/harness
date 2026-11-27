@@ -15,8 +15,6 @@ def check_code(lines, findings):
 # @used-by unused
 def check_prose(lines, kind, lang, findings, lexicon, bans):
 	ProseLinter(lines, kind, lang, findings, lexicon, bans).check()
-# @used-by :func:`agent_tools.text_cli.main()`
-# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.gate()`
 # @used-by :meth:`test_df_article.ResponseTests.test_procedural_filler()`
 # @used-by :meth:`test_df_article.ResponseTests.test_removal_claims_are_checked_against_the_file()`
 # @used-by :meth:`test_df_article.ResponseTests.test_repeated_answer_is_a_signal_only_for_the_later_answer()`
@@ -24,8 +22,6 @@ def check_prose(lines, kind, lang, findings, lexicon, bans):
 # @used-by :meth:`test_text_core.SharedMechanicsTests.test_identical_answer_does_not_prove_nonexecution()`
 def check_response(path: Path, text: str | None=None, against=(), lexicon=None, journal: Path | None=None) -> list[Finding]:
 	return ResponseChecker(path, text=text, against=against, lexicon=lexicon, journal=journal).check()
-# @used-by :func:`agent_tools.text_cli.main()`
-# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._check_replay()`
 # @used-by :meth:`test_text_core.ReplayTests.test_explicit_raw_contract_does_not_require_quote_wrapper()`
 # @used-by :meth:`test_text_core.ReplayTests.test_missing_output_uncovered_selector_and_empty_document_are_not_success()`
 # @used-by :meth:`test_text_core.ReplayTests.test_negative_grep_observation_requires_explicit_exit_contract()`

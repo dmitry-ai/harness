@@ -3,7 +3,6 @@ from __future__ import annotations
 # 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 from Df.Harness.Text.DiagnosticsScanner import DiagnosticsScanner as SourceDiagnosticsScanner
 from .runtime import PRIMARY
-# @used-by :func:`agent_tools.text_cli.main()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cleanup_custom_system_paths_stop_gate_and_claude_code_only_extensibility()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_disabled_codex_is_skipped_in_registration_workflow_cleanup_install_and_diagnostics()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_custom_overlay_end_to_end_context_workflow_text_diagnostics_and_completion_canonicalization()`

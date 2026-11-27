@@ -13,6 +13,7 @@ from agent_tools.storage import data_dir_for
 # 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class DiagnosticsScanner:
 	# @used-by :func:`agent_tools.text_diagnostics.diagnose_sources()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__review_source_handlers()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_diagnostics_scanner_and_response_checker()`
 	# @used-by :meth:`test_source_diagnostics_scanner.SourceDiagnosticsScannerTests.test_scanner_class_methods_and_wrapper_parity()`
 	# @used-by :meth:`test_source_diagnostics_scanner.SourceDiagnosticsScannerTests.test_scanner_detects_missing_manifest_target_and_invalid_receipt()`
@@ -262,6 +263,7 @@ class DiagnosticsScanner:
 			except (OSError, ValueError, UnicodeError) as exc:
 				self.__record_issue('INVALID-RECEIPT', receipt_path, str(exc))
 	# @used-by :func:`agent_tools.text_diagnostics.diagnose_sources()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__review_source_handlers()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_diagnostics_scanner_and_response_checker()`
 	# @used-by :meth:`test_source_diagnostics_scanner.SourceDiagnosticsScannerTests.test_scanner_class_methods_and_wrapper_parity()`
 	# @used-by :meth:`test_source_diagnostics_scanner.SourceDiagnosticsScannerTests.test_scanner_detects_missing_manifest_target_and_invalid_receipt()`

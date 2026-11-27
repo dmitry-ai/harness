@@ -41,8 +41,7 @@ class Later(datetime):
 	# @used-by :func:`Df.Harness.lib.completion_core.dfh_now()`
 	# @used-by :func:`Df.Harness.lib.research.dfh_observed_use()`
 	# @used-by :func:`Df.Harness.lib.runtime_context.dfh_request_day()`
-	# @used-by :func:`agent_tools.text_sources._attempt()`
-	# @used-by :func:`agent_tools.text_sources._evaluate()`
+	# @used-by :func:`Df.Harness.lib.text_sources._write_attempt_if_newer()`
 	# @used-by :func:`test_worktree_isolation_gate._write_turn()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.record_review()`
 	# @used-by :meth:`Df.Harness.Cleanup.Scanner.Scanner.__init__()`
@@ -64,6 +63,7 @@ class Later(datetime):
 	# @used-by :meth:`Df.Harness.Text.Browser.CdpDomCollector.CdpDomCollector.__collect_direct_port()`
 	# @used-by :meth:`Df.Harness.Text.Browser.GuardedCdp.GuardedCdp.capture_authenticated_dom()`
 	# @used-by :meth:`Df.Harness.Text.Browser.HeadlessDomCollector.HeadlessDomCollector.collect()`
+	# @used-by :meth:`Df.Harness.Text.SourceEvaluator.SourceEvaluator.__check_freshness()`
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__build_result()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__load_and_prepare_fs()`
 	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.utc_now()`

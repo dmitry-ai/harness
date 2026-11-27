@@ -18,6 +18,7 @@ class Collector:
 	# @used-by :meth:`Df.Harness.Research.BrowserCollector.BrowserCollector.__collect_single()`
 	# @used-by :meth:`Df.Harness.Research.DomCapturer.DomCapturer.capture()`
 	# @used-by :meth:`Df.Harness.Research.HttpCollector.HttpCollector.__collect_http_and_fallback()`
+	# @used-by :meth:`Df.Harness.Text.SourceProber.SourceProber.probe()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_research.DfHarnessS11Wave2CResearchTests.test_evidence_querier_and_grepper()`
 	def __init__(self, root, url: str, *, headers=None, scope: str='public', max_age: float=86400, refresh_reason=None, timeout: float=15, fetcher=None, observation_kind: str='http', context=None, extra_meta=None) -> None:
 		self.__root = Path(root).resolve()
@@ -107,6 +108,7 @@ class Collector:
 	# @used-by :meth:`Df.Harness.Research.BrowserCollector.BrowserCollector.__collect_single()`
 	# @used-by :meth:`Df.Harness.Research.DomCapturer.DomCapturer.capture()`
 	# @used-by :meth:`Df.Harness.Research.HttpCollector.HttpCollector.__collect_http_and_fallback()`
+	# @used-by :meth:`Df.Harness.Text.SourceProber.SourceProber.probe()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_research.DfHarnessS11Wave2CResearchTests.test_evidence_querier_and_grepper()`
 	def collect(self) -> dict:
 		from agent_tools.path_registry import project_paths
@@ -135,9 +137,13 @@ class Collector:
 				raise ValueError('Response exceeds 16 MiB')
 			r = Response(response.url, response.status, response.headers.get_content_type(), data, response.headers.get_content_charset() or 'utf-8', tuple(redirects.chain))
 		return r
+	# @used-by :func:`Df.Harness.lib.text_sources._write_attempt_if_newer()`
+	# @used-by :func:`Df.Harness.lib.text_sources.dfh_source_attempt()`
 	# @used-by :func:`agent_tools.research.load_observation()`
 	# @used-by :meth:`Collector.__try_cached()`
 	# @used-by :meth:`Df.Harness.Research.Extractor.Extractor.extract_observation()`
+	# @used-by :meth:`Df.Harness.Text.SourceEvaluator.SourceEvaluator.__check_freshness()`
+	# @used-by :meth:`Df.Harness.Text.SourceEvaluator.SourceEvaluator.evaluate()`
 	@staticmethod
 	def load_observation(root, reference: str) -> dict:
 		from agent_tools.path_registry import project_paths

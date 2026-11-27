@@ -15,6 +15,7 @@ class PreflightChecker:
 	# @used-by :meth:`Df.Harness.Text.Browser.GuardedCdp.GuardedCdp.__check()`
 	# @used-by :meth:`Df.Harness.Text.Browser.GuardedCdp.GuardedCdp.__refresh_owned()`
 	# @used-by :meth:`Df.Harness.Text.Browser.GuardedCdp.GuardedCdp.create_target()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__review_source_handlers()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_browser.DfHarnessS11Wave2CBrowserTests.test_preflight_guarded_cdp_tab_broker_and_collectors()`
 	def __init__(self, spec, *, config=None, http_get=None, cdp_call=None, require_target=True, cdp_session=None):
 		self.__spec = spec
@@ -270,6 +271,7 @@ class PreflightChecker:
 	# @used-by :meth:`Df.Harness.Text.Browser.GuardedCdp.GuardedCdp.__check()`
 	# @used-by :meth:`Df.Harness.Text.Browser.GuardedCdp.GuardedCdp.__refresh_owned()`
 	# @used-by :meth:`Df.Harness.Text.Browser.GuardedCdp.GuardedCdp.create_target()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__review_source_handlers()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_browser.DfHarnessS11Wave2CBrowserTests.test_preflight_guarded_cdp_tab_broker_and_collectors()`
 	def check(self) -> dict:
 		report = {'schema_version': 1, 'session_id': self.__spec.get('session_id'), 'valid': False, 'profile': {'status': 'unknown'}, 'target': {'status': 'unknown'}, 'account': {'status': 'unknown'}, 'issues': [], 'independent_http_allowed': True, 'limitation': 'Cooperative check of the configured live CDP endpoint; it does not prove server internals, model reading, or ownership of external calls'}

@@ -75,7 +75,8 @@ class SourceAdmissionTests(TextWorkspaceCase):
 	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_prepare_review()`
 	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_question_add()`
 	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_record_experiment()`
-	# @used-by :func:`agent_tools.text_cli.main()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__review_source_handlers()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__workspace_handlers()`
 	# @used-by :meth:`SourceAdmissionTests.saved()`
 	# @used-by :meth:`SourceAdmissionTests.test_a_200_redirect_to_a_challenge_is_not_the_intended_resource()`
 	# @used-by :meth:`SourceAdmissionTests.test_a_later_failed_probe_cannot_be_overridden_by_minting_an_older_success()`

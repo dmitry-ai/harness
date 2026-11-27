@@ -10,8 +10,8 @@ REVIEW_SCHEMA = 2
 SCOPES = ('identity', 'concerns', 'misconceptions', 'causes', 'methods', 'kb_consistency', 'response')
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class ReportValidator:
+	# @used-by :func:`Df.Harness.lib.text_review.dfh_text_review_issues()`
 	# @used-by :func:`agent_tools.review.report_issues()`
-	# @used-by :func:`agent_tools.text_review._issues()`
 	# @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__load_and_check()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_review_report_validator_classes()`
 	# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_report_validator_covers_falsifier_and_text_checks()`
@@ -42,8 +42,8 @@ class ReportValidator:
 	@staticmethod
 	def is_falsifier_report(data: dict) -> bool:
 		return 'falsifier' == data.get('review_mode') or ('disproved_claims' in data and 'claim_reviews' not in data)
+	# @used-by :func:`Df.Harness.lib.text_review.dfh_text_review_issues()`
 	# @used-by :func:`agent_tools.review.report_issues()`
-	# @used-by :func:`agent_tools.text_review._issues()`
 	# @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__load_and_check()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_review_report_validator_classes()`
 	# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_report_validator_covers_falsifier_and_text_checks()`

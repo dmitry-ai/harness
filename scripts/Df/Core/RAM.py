@@ -88,17 +88,14 @@ class RAM:
 	# @used-by :func:`Df.Harness.lib.runtime_snapshot_ops.dfh_has_git_head()`
 	# @used-by :func:`Df.Harness.lib.shadow_clone.dfh_cleanup_shadow_root()`
 	# @used-by :func:`Df.Harness.lib.storage.dfh_write_immutable_bytes()`
+	# @used-by :func:`Df.Harness.lib.text_claims.dfh_registry_path()`
+	# @used-by :func:`Df.Harness.lib.text_review.dfh_text_review_state()`
+	# @used-by :func:`Df.Harness.lib.text_sources.dfh_source_attempt()`
+	# @used-by :func:`Df.Harness.lib.text_workflow.dfh_has_linked_ancestor()`
+	# @used-by :func:`Df.Harness.lib.text_workflow.dfh_target_bytes()`
 	# @used-by :func:`Df.Harness.lib.trace_review.dfh_verify_review_proof_core()`
 	# @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
 	# @used-by :func:`agent_tools.snapshot.snapshot_draft()`
-	# @used-by :func:`agent_tools.text_claims.registry_path()`
-	# @used-by :func:`agent_tools.text_claims.save_registry()`
-	# @used-by :func:`agent_tools.text_cli.main()`
-	# @used-by :func:`agent_tools.text_review._state()`
-	# @used-by :func:`agent_tools.text_review.approval_integrity()`
-	# @used-by :func:`agent_tools.text_sources._attempt()`
-	# @used-by :func:`agent_tools.text_workflow._has_linked_ancestor()`
-	# @used-by :func:`agent_tools.text_workflow._target_bytes()`
 	# @used-by :func:`test_historical_admission._restore_tree_in_place()`
 	# @used-by :func:`test_project_rename._assert_renamed_journal_and_state()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__load_state()`
@@ -190,6 +187,12 @@ class RAM:
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__resolve_repo_binding()`
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.find_matching_recipes()`
 	# @used-by :meth:`Df.Harness.Tdd.WorktreeScope.WorktreeScope.canonical_scope_path()`
+	# @used-by :meth:`Df.Harness.Text.ApprovalIntegrityChecker.ApprovalIntegrityChecker.__check_native_proof()`
+	# @used-by :meth:`Df.Harness.Text.ClaimRegistryStore.ClaimRegistryStore.__persist()`
+	# @used-by :meth:`Df.Harness.Text.ClaimRegistryStore.ClaimRegistryStore.save()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__write_rendered()`
+	# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.__ensure_workspace_identity()`
+	# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.index()`
 	# @used-by :meth:`Df.Harness.Upwork.AttachmentDownloader.AttachmentDownloader.download()`
 	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_inspect()`
 	# @used-by :meth:`Df.Harness.Upwork.PdfExtractor.PdfExtractor._run_poppler()`
@@ -203,8 +206,6 @@ class RAM:
 	# @used-by :meth:`Df.Harness.Xref.Js.Tags.Tags.is_valid_external()`
 	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.is_valid_external_target()`
 	# @used-by :meth:`RAM.get()`
-	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.begin()`
-	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.index()`
 	# @used-by :meth:`test_agent_tools.ContextTests.test_missing_input_fails_and_dry_run_writes_nothing()`
 	# @used-by :meth:`test_agent_tools.JournalTests.test_empty_payload_has_no_side_effect()`
 	# @used-by :meth:`test_agent_tools.JournalTests.test_exact_bytes_and_no_keyword_authorization()`

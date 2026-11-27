@@ -144,6 +144,8 @@ class LinkAuditor:
 			if target != readable:
 				errors.append(f'LINK-5: Use a readable document link: {readable} (instead of {target})')
 		return errors
+	# @used-by :func:`Df.Harness.lib.text_sources.dfh_check_source_links()`
+	# @used-by :func:`Df.Harness.lib.text_sources.dfh_source_urls()`
 	# @used-by :func:`agent_tools.links.references()`
 	# @used-by :meth:`Df.Harness.Research.MarkdownExtractor.MarkdownExtractor.extract()`
 	# @used-by :meth:`LinkAuditor.__validate_target_fragment()`

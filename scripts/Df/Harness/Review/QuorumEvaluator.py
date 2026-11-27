@@ -18,13 +18,13 @@ class QuorumEvaluator:
 	# @used-by :func:`agent_tools.review.latest_for_subject()`
 	# @used-by :func:`agent_tools.review.quorum_satisfied()`
 	# @used-by :func:`agent_tools.review.significant_findings()`
-	# @used-by :func:`agent_tools.text_review.authorize()`
-	# @used-by :func:`agent_tools.text_review.prepare()`
-	# @used-by :func:`agent_tools.text_review.read_package()`
 	# @used-by :meth:`Df.Harness.Review.Classifier.Classifier.classify()`
 	# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.__build_data()`
 	# @used-by :meth:`Df.Harness.Review.PackageReader.PackageReader.__validate_current()`
 	# @used-by :meth:`Df.Harness.Review.ReviewAuthorizer.ReviewAuthorizer.authorize()`
+	# @used-by :meth:`Df.Harness.Text.ReviewAuthorizer.ReviewAuthorizer.authorize()`
+	# @used-by :meth:`Df.Harness.Text.ReviewPackageReader.ReviewPackageReader.read()`
+	# @used-by :meth:`Df.Harness.Text.ReviewPreparer.ReviewPreparer.__build_payload()`
 	# @used-by :meth:`Df.Harness.Workflow.StageStatusEvaluator.StageStatusEvaluator.__stage_current()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests._exercise_review_record_and_auth()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_review_quorum_and_authorizer_classes()`
@@ -48,14 +48,14 @@ class QuorumEvaluator:
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests._exercise_review_record_and_auth()`
 	def approved_claim_digests(self, *, exclude_package=None) -> set:
 		return ApprovedDigestCollector(self.root, self.state, self, exclude_package=exclude_package, analysis_fn=self.__analysis_fn).digests()
-	# @used-by :func:`agent_tools.text_review.authorize()`
 	# @used-by :meth:`Df.Harness.Review.ReviewAuthorizer.ReviewAuthorizer.__validate_entry()`
+	# @used-by :meth:`Df.Harness.Text.ReviewAuthorizer.ReviewAuthorizer.__check_entry()`
 	def entry_proof_current(self, entry: dict) -> bool:
 		from Df.Harness.Workflow.ReceiptVerifier import ReceiptVerifier
 		return ReceiptVerifier(self.root, {'inputs': entry.get('proof', {})}).is_current()
 	# @used-by :func:`agent_tools.review.findings_closed()`
-	# @used-by :func:`agent_tools.text_review.authorize()`
 	# @used-by :meth:`Df.Harness.Review.ReviewAuthorizer.ReviewAuthorizer.__validate_entry()`
+	# @used-by :meth:`Df.Harness.Text.ReviewAuthorizer.ReviewAuthorizer.__check_entry()`
 	def findings_closed(self, entry: dict) -> bool:
 		return FindingsClosureChecker(self.root, self, entry).closed()
 	# @used-by :func:`agent_tools.review.has_unhandled_verdicts()`
@@ -71,15 +71,15 @@ class QuorumEvaluator:
 	# @used-by :func:`agent_tools.review.quorum_satisfied()`
 	def quorum_satisfied(self, package: dict, latest: dict, eligible: list[dict], *, allow_falsifier_or_cached: bool=True) -> bool:
 		return QuorumChecker(self, package, latest, eligible, allow_falsifier_or_cached=allow_falsifier_or_cached).satisfied()
-	# @used-by :func:`agent_tools.text_review.authorize()`
 	# @used-by :meth:`Df.Harness.Review.ReviewAuthorizer.ReviewAuthorizer.authorize()`
+	# @used-by :meth:`Df.Harness.Text.ReviewAuthorizer.ReviewAuthorizer.authorize()`
 	# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_quorum_evaluator_selects_authorized_group_and_checks_approval_current()`
 	def select_authorized_group(self, groups: dict, *, allow_routine_self: bool=True, allow_falsifier_or_cached: bool=True):
 		return AuthorizedGroupSelector(self, groups, allow_routine_self=allow_routine_self, allow_falsifier_or_cached=allow_falsifier_or_cached).select()
 	# @used-by :func:`agent_tools.review.significant_findings()`
-	# @used-by :func:`agent_tools.text_review.prepare()`
-	# @used-by :func:`agent_tools.text_review.read_package()`
 	# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.__build_data()`
 	# @used-by :meth:`Df.Harness.Review.PackageReader.PackageReader.__validate_current()`
+	# @used-by :meth:`Df.Harness.Text.ReviewPackageReader.ReviewPackageReader.read()`
+	# @used-by :meth:`Df.Harness.Text.ReviewPreparer.ReviewPreparer.__build_payload()`
 	def significant_findings(self, subject: str) -> bool:
 		return SignificantFindingScanner(self.root, self.state, self, subject).has_significant()

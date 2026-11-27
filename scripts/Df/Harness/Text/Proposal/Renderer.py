@@ -9,6 +9,7 @@ from Df.Harness.lib.text_sections import PROPOSAL_NUMBER_KEY, dfh_build_render_r
 # 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class Renderer:
 	# @used-by :func:`agent_tools.proposal.render()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__transform_keyed()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_proposal_subsystem_roundtrip_and_fields()`
 	def __init__(self, source: str, previous: str | None=None) -> None:
 		self.__source = source

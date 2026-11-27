@@ -91,10 +91,13 @@ def classification(root, state, spec, response, value, *, exclude_package=None):
 # @used-by :mod:`agent_tools.review`
 def compute_claim_merkle_delta(root, manifest: list[dict], value: dict, evidence_inputs: dict) -> dict:
 	return MerkleDeltaCalculator(root, manifest, value, evidence_inputs).compute()
-# @used-by :func:`agent_tools.text_review.approval_integrity()`
-# @used-by :func:`agent_tools.text_review.authorize()`
-# @used-by :func:`agent_tools.text_review.prepare()`
-# @used-by :func:`agent_tools.text_review.read_package()`
+# @used-by :meth:`Df.Harness.Text.ApprovalIntegrityChecker.ApprovalIntegrityChecker.__check_entry()`
+# @used-by :meth:`Df.Harness.Text.ApprovalIntegrityChecker.ApprovalIntegrityChecker.__check_native_proof()`
+# @used-by :meth:`Df.Harness.Text.ApprovalIntegrityChecker.ApprovalIntegrityChecker.check()`
+# @used-by :meth:`Df.Harness.Text.ReviewAuthorizer.ReviewAuthorizer.authorize()`
+# @used-by :meth:`Df.Harness.Text.ReviewPackageReader.ReviewPackageReader.read()`
+# @used-by :meth:`Df.Harness.Text.ReviewPreparer.ReviewPreparer.__build_payload()`
+# @used-by :meth:`Df.Harness.Text.ReviewPreparer.ReviewPreparer.prepare()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 # @used-by :meth:`test_review_contract.ReviewContractTests.test_handwritten_empty_manifest_package_cannot_pass_record_review()`
 # @used-by :meth:`test_review_contract.ReviewContractTests.test_handwritten_routine_package_cannot_bypass_computed_risk()`
@@ -113,16 +116,16 @@ def findings_closed(root, entry):
 # @used-by :mod:`agent_tools.review`
 def has_unhandled_verdicts(root, state, package, latest):
 	return ReviewQuorumEvaluator(root, state, inside_fn=inside).has_unhandled_verdicts(package, latest)
-# @used-by :func:`agent_tools.text_cli.main()`
 # @used-by :func:`agent_tools.workflow.review_input()`
+# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__review_source_handlers()`
 # @used-by :meth:`test_review_contract.ReviewContractTests.test_review_input_returns_neutral_report_contract_with_all_options()`
 # @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_package_handler_registry_dispatches_custom_kind()`
 # @used-by :meth:`test_review_target_claim_and_wait_m5.ReviewTargetClaimAndWaitM5Tests.test_review_input_and_validator_expose_verbatim_target_claim_rule_and_diff()`
 # @used-by :mod:`agent_tools.review`
 def input_receipt(root, package):
 	return InputReceiptBuilder(root, package, package_reader=read_package, inside_fn=inside).build()
-# @used-by :func:`agent_tools.text_review._source_reviews()`
-# @used-by :func:`agent_tools.text_review.prepare()`
+# @used-by :func:`Df.Harness.lib.text_review.dfh_source_reviews()`
+# @used-by :meth:`Df.Harness.Text.ReviewPreparer.ReviewPreparer.prepare()`
 # @used-by :mod:`agent_tools.review`
 def is_nonempty_text(value):
 	return df_is_sne(value)
@@ -132,8 +135,8 @@ def latest_for_subject(state, package):
 # @used-by :mod:`agent_tools.review`
 def load_verified_claims_cache(root) -> dict:
 	return MerkleDeltaCalculator.load_cache(root)
-# @used-by :func:`agent_tools.text_review.approval_integrity()`
-# @used-by :func:`agent_tools.text_review.authorize()`
+# @used-by :meth:`Df.Harness.Text.ApprovalIntegrityChecker.ApprovalIntegrityChecker.__check_entry()`
+# @used-by :meth:`Df.Harness.Text.ReviewAuthorizer.ReviewAuthorizer.__check_entry()`
 # @used-by :mod:`agent_tools.review`
 def parse_report_object(text):
 	return ReportParser(text).parse()
@@ -142,7 +145,7 @@ def parse_report_object(text):
 # @used-by :mod:`agent_tools.review`
 def prepare(root, parent_id, spec, response):
 	return PackagePreparer(root, parent_id, spec, response, analysis_fn=_analysis, approved_fn=_approved_digests).prepare()
-# @used-by :func:`agent_tools.text_review.record()`
+# @used-by :meth:`Df.Harness.Text.ReviewRecorder.ReviewRecorder.record()`
 # @used-by :mod:`agent_tools.review`
 def prepare_verdict_record(root, report, *, parent_id, reviewer_id, native_evidence=None, allow_self=True, expected_risk=None, package_reader=None, issue_checker=None, reviews_dir_fn=None, artifact_prefix_fn=None, diff_error='Immutable review artifact differs; preserve the original and create a new attempt'):
 	reader = read_package if None is package_reader else package_reader
@@ -162,7 +165,7 @@ def quorum_satisfied(root, state, package, latest, eligible, *, allow_falsifier_
 # @used-by :mod:`agent_tools.review`
 def read_package(root, package, *, state=None, require_current=True):
 	return PackageReader(root, package, state=state, require_current=require_current, analysis_fn=_analysis, approved_fn=_approved_digests, inside_fn=inside).read_package()
-# @used-by :func:`agent_tools.text_review.read_package()`
+# @used-by :meth:`Df.Harness.Text.ReviewPackageReader.ReviewPackageReader.read()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 # @used-by :mod:`agent_tools.review`
 def read_package_envelope(root, reference, *, expected_kind=None, error_msg='Invalid immutable review package'):
@@ -188,14 +191,14 @@ def report_issues(data, package, *, candidate=None, require_envelope=False):
 # @used-by :mod:`agent_tools.review`
 def request_snapshot(state):
 	return [{'id': item['id'], 'text': item['text']} for item in state['requests']]
-# @used-by :func:`agent_tools.text_review.record()`
+# @used-by :meth:`Df.Harness.Text.ReviewRecorder.ReviewRecorder.record()`
 # @used-by :mod:`agent_tools.review`
 def resolve_addressed_reviews(root, data, package, independent, existing_reviews):
 	return AddressedReviewResolver(root, data, package, independent, existing_reviews).resolve_addressed()
 # @used-by :mod:`agent_tools.review`
 def significant_findings(root, state, subject):
 	return ReviewQuorumEvaluator(root, state).significant_findings(subject)
-# @used-by :func:`agent_tools.text_review.prepare()`
+# @used-by :meth:`Df.Harness.Text.ReviewPreparer.ReviewPreparer.__build_payload()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 # @used-by :mod:`agent_tools.review`
 def subject_digest(package):
@@ -206,8 +209,8 @@ def subject_digest(package):
 # @used-by :mod:`agent_tools.review`
 def update_verified_claims_cache(root, package: dict, value: dict | None=None) -> dict:
 	return MerkleCacheUpdater(root, package, value, analysis_fn=_analysis).update()
-# @used-by :func:`agent_tools.text_review.approval_integrity()`
-# @used-by :func:`agent_tools.text_review.authorize()`
+# @used-by :meth:`Df.Harness.Text.ApprovalIntegrityChecker.ApprovalIntegrityChecker.__check_native_proof()`
+# @used-by :meth:`Df.Harness.Text.ReviewAuthorizer.ReviewAuthorizer.__check_entry()`
 # @used-by :mod:`agent_tools.review`
 def verify_entry_native_proof(root, entry, *, error_msg='Saved report differs from the actual native authored final response'):
 	return NativeProofVerifier(root, entry, error_msg=error_msg).verify()

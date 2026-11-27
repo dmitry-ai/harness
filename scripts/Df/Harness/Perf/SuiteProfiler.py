@@ -35,7 +35,8 @@ class SuiteProfiler:
 	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_extract()`
 	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_extract_file()`
 	# @used-by :func:`agent_tools.perf.suite_profiler.profile_test_suite()`
-	# @used-by :func:`agent_tools.text_cli.main()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__handle_lint()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__review_source_handlers()`
 	# @used-by :meth:`SuiteProfiler.run_cli()`
 	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_perf_classes_profile_and_build_timesheets()`

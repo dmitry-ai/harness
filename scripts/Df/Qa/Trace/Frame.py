@@ -87,7 +87,6 @@ class Frame(O):
 	# @used-by :func:`Df.Harness.lib.text_sections.dfh_close_spans()`
 	# @used-by :func:`Df.Harness.lib.text_sections.dfh_scope_blocks()`
 	# @used-by :func:`Df.Harness.lib.text_sections.dfh_section_at()`
-	# @used-by :func:`agent_tools.text_cli.main()`
 	# @used-by :meth:`Df.Harness.Text.Article.GraphAuditor.GraphAuditor.__check_orphans()`
 	# @used-by :meth:`Df.Harness.Text.Article.GraphAuditor.GraphAuditor.__check_part1_and_part2()`
 	# @used-by :meth:`Df.Harness.Text.Article.GraphAuditor.GraphAuditor.__pop_component()`
@@ -97,13 +96,14 @@ class Frame(O):
 	# @used-by :meth:`Df.Harness.Text.Article.StructureAuditor.StructureAuditor.__check_group_counts()`
 	# @used-by :meth:`Df.Harness.Text.Article.StructureAuditor.StructureAuditor.__check_section_link()`
 	# @used-by :meth:`Df.Harness.Text.Article.StructureAuditor.StructureAuditor.__check_sections()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__dispatch()`
 	# @used-by :meth:`Df.Harness.Text.KeyedProseRewriter.KeyedProseRewriter.__convert()`
 	# @used-by :meth:`Df.Harness.Text.Proposal.Linter.Linter.__check_sequence()`
 	# @used-by :meth:`Df.Harness.Text.Proposal.Renderer.Renderer.__assign_numbers()`
 	# @used-by :meth:`Df.Harness.Text.Proposal.SourceExporter.SourceExporter.export()`
 	# @used-by :meth:`Df.Harness.Text.ResponseChecker.ResponseChecker.check()`
+	# @used-by :meth:`Df.Harness.Text.WorkspaceCheckRunner.WorkspaceCheckRunner.__collect_target_and_lint_issues()`
 	# @used-by :meth:`Df.Qa.Trace.Formatter.Formatter.__format()`
-	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
 	# @used-by :meth:`test_df_article.ReferenceArticleTests.test_reference_article_has_no_errors_and_only_known_warnings()`
 	def line(self) -> int:
 		return int(self['line'] or 0)

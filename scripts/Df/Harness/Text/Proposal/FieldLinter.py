@@ -5,12 +5,14 @@ from Df.Harness.Text.Finding import Finding
 # 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class FieldLinter:
 	# @used-by :func:`agent_tools.proposal.lint_fields()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__dispatch()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_proposal_subsystem_roundtrip_and_fields()`
 	def __init__(self, fields: Mapping[str, str], limits: Mapping[str, int], *, count_mode: str='utf16') -> None:
 		self.__fields = fields
 		self.__limits = limits
 		self.__count_mode = count_mode
 	# @used-by :func:`agent_tools.proposal.lint_fields()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__dispatch()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_proposal_subsystem_roundtrip_and_fields()`
 	def lint(self) -> list[Finding]:
 		if self.__count_mode not in ('utf16', 'unicode'):

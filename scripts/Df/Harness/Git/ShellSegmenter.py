@@ -35,12 +35,12 @@ class ShellSegmenter:
 	# @used-by :func:`Df.Harness.lib.rule_splitter._partition_rule_sections()`
 	# @used-by :func:`Df.Harness.lib.shadow_command._build_command_argv()`
 	# @used-by :func:`Df.Harness.lib.snapshot_canary_ops.dfh_inspect_fallback_timeout_spike()`
+	# @used-by :func:`Df.Harness.lib.text_claims.dfh_primary_numbers()`
 	# @used-by :func:`Df.Qa.lib.bt.main.df_bt_has()`
 	# @used-by :func:`Df.Qa.lib.diagnostics.df_webserver()`
 	# @used-by :func:`agent_tools.cli_output_json._body_without_header()`
 	# @used-by :func:`agent_tools.evidence.contains_quote()`
 	# @used-by :func:`agent_tools.shell_audit._split_shell_segments()`
-	# @used-by :func:`agent_tools.text_claims.primary_numbers()`
 	# @used-by :func:`test_issue_preflight_and_batch._make_fake_gh()`
 	# @used-by :meth:`Df.DotPyFinder.__resolve_target()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.InlineCalcVerifier.InlineCalcVerifier.__decimal_matches()`
@@ -125,6 +125,7 @@ class ShellSegmenter:
 	# @used-by :meth:`Df.Harness.Text.Proposal.Renderer.Renderer.__assign_numbers()`
 	# @used-by :meth:`Df.Harness.Text.ResponseChecker.ResponseChecker.__check_against()`
 	# @used-by :meth:`Df.Harness.Text.ResponseChecker.ResponseChecker.__similarity()`
+	# @used-by :meth:`Df.Harness.Text.WorkspaceScopeChecker.WorkspaceScopeChecker.__permitted_sections()`
 	# @used-by :meth:`Df.Harness.Upwork.JobUrlParser.JobUrlParser.extract_upwork_job_url_id()`
 	# @used-by :meth:`Df.Harness.Upwork.LoomVideoExtractor.LoomVideoExtractor.parse_webvtt_phrases()`
 	# @used-by :meth:`Df.Harness.Upwork.MarkdownTableSanitizer.MarkdownTableSanitizer.__is_heading()`
@@ -158,7 +159,6 @@ class ShellSegmenter:
 	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.__resolve_module_attr_in_repo()`
 	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.is_valid_external_target()`
 	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.resolve_stdlib_symbol()`
-	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.scope_issues()`
 	# @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_guidance_uses_current_canonical_loader_without_copying_rule_bodies()`
 	# @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests._init_and_register()`
 	# @used-by :meth:`test_df_article.SlopDetectionTests.test_orphan_analysis_paragraph_is_reported()`

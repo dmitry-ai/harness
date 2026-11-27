@@ -87,8 +87,8 @@ def dfh_close_spans(nodes: list, lines: list[Line]) -> None:
 	last = lines[-1].no if lines else 0
 	for current, nxt in zip(nodes, [*nodes[1:], None]):
 		current.end = nxt.line - 1 if None is not nxt else last
-# @used-by :func:`agent_tools.text_claims.validate_map()`
 # @used-by :func:`dfh_scope_blocks()`
+# @used-by :meth:`Df.Harness.Text.ClaimMapValidator.ClaimMapValidator.__run_validation()`
 # @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_text_core_linters_replayer_and_sections()`
 # @used-by :meth:`test_text_core.SharedMechanicsTests.test_article_reexports_single_shared_implementation()`
 # @used-by :meth:`test_text_workflow.TextMapTests.test_article_grouping_node_does_not_duplicate_its_child_claim()`
@@ -125,9 +125,9 @@ def dfh_iter_article_headings(lines: list[Line]):
 			match = PART.match(text)
 			part = match.group(1) if match else part
 # @used-by :func:`agent_tools.article.check_proposal()`
-# @used-by :func:`agent_tools.text_cli.main()`
 # @used-by :meth:`Df.Harness.Text.Article.Linter.Linter.lint()`
-# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
+# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__handle_lint()`
+# @used-by :meth:`Df.Harness.Text.WorkspaceCheckRunner.WorkspaceCheckRunner.__collect_target_and_lint_issues()`
 def dfh_lint_document(text: str, kind=None, path=None, profile=None, *, lang=None, lexicon=None, bans=None) -> list[Finding]:
 	resolved = kind or dfh_detect_kind(path, text)
 	if 'proposal' == resolved:
@@ -176,7 +176,7 @@ def dfh_reassemble_lines(template: str, lines: list[Line], values: list[str]) ->
 def dfh_proposal_number_refs(raw: str):
 	author = dfh_author_text(raw)
 	return (match for match in PROPOSAL_REF.finditer(author) if not dfh_external_section_ref(author, match))
-# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.scope_issues()`
+# @used-by :meth:`Df.Harness.Text.WorkspaceScopeChecker.WorkspaceScopeChecker.check()`
 def dfh_scope_blocks(text: str, kind: str) -> list[dict]:
 	if 'letter' == kind:
 		r = dfh_content_blocks(text, kind)

@@ -63,8 +63,8 @@ def contains_quote(text, quote, mode='exact'):
 # @used-by :mod:`agent_tools.workflow`
 def evidence_issues(root, value, *, skip_structural=False):
 	return EvidenceAuditor(root, value, skip_structural=skip_structural).issues()
-# @used-by :func:`agent_tools.text_claims.evidence_inputs()`
-# @used-by :func:`agent_tools.text_sources._evaluate()`
+# @used-by :func:`Df.Harness.lib.text_claims.dfh_evidence_inputs()`
+# @used-by :meth:`Df.Harness.Text.IntakeSourceEvaluator.IntakeSourceEvaluator.evaluate()`
 def local_file(root, reference):
 	return LocalSourceResolver(root, reference).resolve()
 # @used-by :func:`source_reference()`

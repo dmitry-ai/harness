@@ -7,6 +7,8 @@ from Df.Harness.lib.text_core import dfh_command_blocks, dfh_default_shell, dfh_
 # 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class CommandReplayer:
 	# @used-by :func:`agent_tools.text_core.replay()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__dispatch()`
+	# @used-by :meth:`Df.Harness.Text.WorkspaceCheckRunner.WorkspaceCheckRunner.__check_replay()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_text_core_linters_replayer_and_sections()`
 	def __init__(self, text: str, *, shell=None, timeout: float=60, only=None, expected_exit=None, contracts=None) -> None:
 		self.__text = text
@@ -49,6 +51,8 @@ class CommandReplayer:
 			r = self.__execute(shell, block['command'], record, expected, contract, wanted_exit)
 		return r
 	# @used-by :func:`agent_tools.text_core.replay()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__dispatch()`
+	# @used-by :meth:`Df.Harness.Text.WorkspaceCheckRunner.WorkspaceCheckRunner.__check_replay()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_text_core_linters_replayer_and_sections()`
 	def replay(self) -> list[dict]:
 		results, covered = ([], set())

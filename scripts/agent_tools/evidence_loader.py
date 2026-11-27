@@ -29,7 +29,7 @@ def load_observation_bundle(jfile: Path, data: dict, *, max_bytes: int) -> dict:
 # @used-by :mod:`agent_tools.evidence_loader`
 def load_observation_content(root, observation_ref: str, meta: dict, *, fragment: str='', need_sections: bool=True) -> dict:
 	return ObservationContentLoader(root, observation_ref, meta, fragment=fragment, need_sections=need_sections, extract_fn=extract_bytes).load()
-# @used-by :func:`agent_tools.text_sources.probe_links()`
+# @used-by :meth:`Df.Harness.Text.SourceProber.SourceProber.probe()`
 # @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_evidence_loader_full_probe_and_bundle_modes()`
 # @used-by :meth:`test_runtime_cache_and_evidence_fastpath_m9.RuntimeCacheAndEvidenceFastpathM9Tests.test_evidence_loader_reuses_saved_extracted_html_and_caches_fragment_parse()`
 # @used-by :mod:`agent_tools.evidence_loader`

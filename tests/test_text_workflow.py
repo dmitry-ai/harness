@@ -67,7 +67,7 @@ class TextWorkspaceCase(TemporaryCase):
 		path.write_bytes(text.encode('utf-8'))
 		r = path
 		return r
-	# @used-by :func:`agent_tools.text_cli.main()`
+	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__review_source_handlers()`
 	# @used-by :meth:`TextClaimRevisionTests.test_a_self_authored_note_is_not_a_native_reassessment_of_changed_evidence()`
 	# @used-by :meth:`TextClaimRevisionTests.test_changed_primary_bytes_invalidate_an_existing_semantic_check()`
 	# @used-by :meth:`TextClaimRevisionTests.test_primary_revision_marks_all_transitive_dependents_stale_and_archives_old_bytes()`

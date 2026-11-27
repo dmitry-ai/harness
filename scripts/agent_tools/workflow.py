@@ -102,7 +102,7 @@ def finish_question(root, ident, owner, outputs, gap=None, *, results=None):
 # @used-by :mod:`agent_tools.workflow`
 def handoff(root, ident, previous_owner, new_owner, reason):
 	return ResearchQuestionRegistry(root, update_fn=update).handoff(ident, previous_owner, new_owner, reason)
-# @used-by :func:`agent_tools.text_review.record()`
+# @used-by :meth:`Df.Harness.Text.ReviewRecorder.ReviewRecorder.record()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_overview_and_nested_kb_module_change_invalidates_review_receipt()`
 # @used-by :meth:`test_review_contract.ReviewContractTests.test_answer_change_and_new_request_need_new_review_even_without_kb_change()`
 # @used-by :mod:`agent_tools.workflow`
@@ -169,7 +169,7 @@ def kb_paths(root):
 # @used-by :mod:`agent_tools.workflow`
 def load(root):
 	return WorkflowStateEngine(root).load()
-# @used-by :func:`agent_tools.text_review.record()`
+# @used-by :meth:`Df.Harness.Text.ReviewRecorder.ReviewRecorder.record()`
 # @used-by :mod:`agent_tools.workflow`
 def now():
 	return HashCollector.utc_now()

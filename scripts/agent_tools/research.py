@@ -49,7 +49,6 @@ def classify_html_challenge(raw_html: str, *, parsed: dict | None=None, status: 
 # @used-by :mod:`agent_tools.research`
 def classify_network_error(exc):
 	return dfh_classify_network_error(exc)
-# @used-by :func:`agent_tools.text_sources.probe_links()`
 # @used-by :func:`test_evidence_contract.v3_analysis()`
 # @used-by :func:`test_runtime_cache_and_evidence_fastpath_m9._build_html_obs_project()`
 # @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_anchored_quote_from_another_section_is_rejected()`
@@ -194,14 +193,6 @@ def fetch(url, headers, timeout):
 # @used-by :func:`agent_tools.review.read_package()`
 # @used-by :func:`agent_tools.review.read_package_envelope()`
 # @used-by :func:`agent_tools.review.record()`
-# @used-by :func:`agent_tools.text_claims.evidence_inputs()`
-# @used-by :func:`agent_tools.text_claims.registry_path()`
-# @used-by :func:`agent_tools.text_review.approval_integrity()`
-# @used-by :func:`agent_tools.text_review.authorize()`
-# @used-by :func:`agent_tools.text_review.read_package()`
-# @used-by :func:`agent_tools.text_sources._evaluate()`
-# @used-by :func:`agent_tools.text_sources.read_source_check()`
-# @used-by :func:`agent_tools.text_sources.source_integrity()`
 # @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__check_intake()`
 # @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__load_state()`
 # @used-by :meth:`Df.Harness.Analysis.Saver.Saver.save()`
@@ -238,18 +229,6 @@ def fetch(url, headers, timeout):
 # @used-by :meth:`Df.Harness.Workflow.ReceiptVerifier.ReceiptVerifier.__resolve_artifact()`
 # @used-by :meth:`Df.Harness.Workflow.StatusSnapshotBuilder.StatusSnapshotBuilder.__proposals()`
 # @used-by :meth:`Df.Harness.Workflow.WorkflowResumer.WorkflowResumer.__apply()`
-# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._check_replay()`
-# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._gate_target()`
-# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._validate_begin_spec()`
-# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
-# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.document()`
-# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.gate()`
-# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.read_check()`
-# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier._add_artifact()`
-# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.applied_integrity()`
-# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.reconciled_integrity()`
-# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.verify()`
-# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.verify_applied_successor()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 # @used-by :mod:`agent_tools.research`
 def inside(root, relative):
@@ -261,12 +240,6 @@ def inside(root, relative):
 # @used-by :func:`Df.Harness.lib.cli_domain_ops.dfh_execute_collect()`
 # @used-by :func:`Df.Harness.lib.trace_review.dfh_make_tool_trace_event()`
 # @used-by :func:`Df.Harness.lib.trace_review.dfh_persist_review_proof()`
-# @used-by :func:`agent_tools.text_claims.save_registry()`
-# @used-by :func:`agent_tools.text_review.prepare()`
-# @used-by :func:`agent_tools.text_review.record()`
-# @used-by :func:`agent_tools.text_sources._attempt()`
-# @used-by :func:`agent_tools.text_sources.probe_links()`
-# @used-by :func:`agent_tools.text_sources.save_source_check()`
 # @used-by :func:`test_df_harness_s11_wave2a_review._sample_package()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__persist_review_index()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__register_package_index()`
@@ -286,11 +259,6 @@ def inside(root, relative):
 # @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.prepare()`
 # @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__write_artifacts()`
 # @used-by :meth:`Df.Harness.Workflow.StateUpdater.StateUpdater.update()`
-# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._check_replay()`
-# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.apply()`
-# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.begin()`
-# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
-# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.save_index()`
 # @used-by :meth:`test_df_harness_s11_wave2a_facade_exports.DfHarnessS11Wave2aFacadeExportsTests.test_review_facade_reexports_json_data()`
 # @used-by :meth:`test_falsifier_default_send_message_and_schedule_m8.FalsifierDefaultSendMessageAndScheduleM8Tests._native_record()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
@@ -312,8 +280,6 @@ def inside(root, relative):
 # @used-by :mod:`agent_tools.research`
 def json_data(value):
 	return dfh_json_data(value)
-# @used-by :func:`agent_tools.text_sources._attempt()`
-# @used-by :func:`agent_tools.text_sources._evaluate()`
 # @used-by :func:`test_runtime_cache_and_evidence_fastpath_m9._build_html_obs_project()`
 # @used-by :meth:`Df.Harness.Analysis.Claim.PrimaryCapabilities.PrimaryCapabilities.resolve()`
 # @used-by :meth:`Df.Harness.Analysis.EvidenceAuditor.EvidenceAuditor.__check_counter_source()`
