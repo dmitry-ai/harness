@@ -68,6 +68,7 @@ def _release_stream_lock(stream) -> None:
 # @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__create_new_group()`
 # @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__write_pending_step()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ProjectRegistrar.ProjectRegistrar.__upsert_project_file()`
+# @used-by :meth:`Df.Harness.Text.DraftSnapshotter.DraftSnapshotter.__capture_new()`
 def dfh_create_bytes(path: Path, data: bytes) -> None:
 	AtomicWriter(path, data, mode='create').run()
 # @used-by :func:`Df.Harness.lib.admission_ops.dfh_capture_admission()`
@@ -88,6 +89,7 @@ def dfh_create_bytes(path: Path, data: bytes) -> None:
 # @used-by :meth:`Df.Harness.Config.ProjectionPublisher.ProjectionPublisher.__write_backups_and_planned()`
 # @used-by :meth:`Df.Harness.Config.ProjectionPublisher.ProjectionPublisher.run()`
 # @used-by :meth:`Df.Harness.Runtime.LauncherRenderer.LauncherRenderer.__resolve_store()`
+# @used-by :meth:`Df.Harness.Text.DraftSnapshotter.DraftSnapshotter.snapshot()`
 # @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_codex_roles_and_proof_metadata_tail()`
 def dfh_data_dir_for(path: Path, *, exact_root: bool=False) -> Path:
 	from Df.Harness.lib.path_resolve import dfh_project_paths
@@ -139,6 +141,7 @@ def dfh_journal_data_dir_for(eff: Path) -> Path:
 # @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.run()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ProjectRegistrar.ProjectRegistrar.__register_single()`
 # @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.run()`
+# @used-by :meth:`Df.Harness.Text.DraftSnapshotter.DraftSnapshotter.snapshot()`
 @contextmanager
 def dfh_locked(path: Path, timeout: float=15, *, create: bool=True):
 	if create:
@@ -190,6 +193,7 @@ def dfh_read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=Fals
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ProjectRegistrar.ProjectRegistrar.__write_folders()`
 # @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.__activate_release()`
 # @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.__promote_locked()`
+# @used-by :meth:`Df.Harness.Text.DraftSnapshotter.DraftSnapshotter.__capture_new()`
 def dfh_replace_bytes(path: Path, data: bytes) -> None:
 	AtomicWriter(path, data, mode='replace').run()
 # @used-by :func:`Df.Harness.lib.completion_state.dfh_conflict()`

@@ -11,6 +11,7 @@ _HARNESS_CLI_RE = re.compile(r'(?:harness|upwork_project|df_github_issue|validat
 class Doc5RequirementChecker:
 	# @used-by :func:`agent_tools.doc5_context.turn_requires_doc5_problem_analysis()`
 	# @used-by :meth:`Df.Harness.Grounding.Doc5ContextDetector.Doc5ContextDetector.__requires_doc5()`
+	# @used-by :meth:`Df.Harness.Grounding.Doc5ReplayAuditor.Doc5ReplayAuditor.__resolve_checker()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_cli_command_and_doc5_requirement_auditors()`
 	def __init__(self, turn_context: dict | None) -> None:
 		self.__turn_context = turn_context
@@ -100,6 +101,7 @@ class Doc5RequirementChecker:
 		return r
 	# @used-by :func:`agent_tools.doc5_context.turn_requires_doc5_problem_analysis()`
 	# @used-by :meth:`Df.Harness.Grounding.Doc5ContextDetector.Doc5ContextDetector.__requires_doc5()`
+	# @used-by :meth:`Df.Harness.Grounding.Doc5ReplayAuditor.Doc5ReplayAuditor.__resolve_checker()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_cli_command_and_doc5_requirement_auditors()`
 	def is_required(self) -> bool:
 		r = False

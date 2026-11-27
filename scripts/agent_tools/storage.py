@@ -12,7 +12,6 @@ from Df.Harness.lib.storage import dfh_create_bytes, dfh_data_dir_for, dfh_iter_
 # @used-by :func:`agent_tools.journal.record_answer()`
 # @used-by :func:`agent_tools.journal.record_step()`
 # @used-by :func:`agent_tools.native_profiles._facade_ops()`
-# @used-by :func:`agent_tools.snapshot.snapshot_draft()`
 # @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__write_card()`
 # @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
 # @used-by :meth:`Df.Harness.Experiment.PlanPreparer.PlanPreparer.prepare_plan()`
@@ -40,7 +39,6 @@ def create_bytes(path: Path, data: bytes):
 	dfh_create_bytes(path, data)
 # @used-by :func:`Df.Harness.lib.text_core.dfh_find_bans()`
 # @used-by :func:`Df.Harness.lib.text_workflow.dfh_write_candidate_output()`
-# @used-by :func:`agent_tools.snapshot.snapshot_draft()`
 # @used-by :meth:`Df.Harness.Project.Context.ContextGenerator.ContextGenerator.generate()`
 # @used-by :meth:`Df.Harness.Text.DiagnosticsScanner.DiagnosticsScanner.__verify_projection_receipt()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_check_creates_no_lock_receipt_or_profile_files()`
@@ -65,7 +63,6 @@ def journal_data_dir_for(eff: Path) -> Path:
 # @used-by :func:`Df.Harness.lib.text_sources.dfh_source_attempt()`
 # @used-by :func:`Df.Harness.lib.text_workflow.dfh_write_candidate_output()`
 # @used-by :func:`agent_tools.completion._completion_ops()`
-# @used-by :func:`agent_tools.snapshot.snapshot_draft()`
 # @used-by :meth:`Df.Harness.Analysis.Merger.Merger.save()`
 # @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.publish()`
 # @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.sync()`
@@ -124,7 +121,6 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :func:`agent_tools.cleanup.remove_antigravity()`
 # @used-by :func:`agent_tools.cleanup.restore_antigravity()`
 # @used-by :func:`agent_tools.native_profiles._facade_ops()`
-# @used-by :func:`agent_tools.snapshot.snapshot_draft()`
 # @used-by :meth:`Df.Harness.Analysis.Merger.Merger.save()`
 # @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.__init__()`
 # @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__write_card()`

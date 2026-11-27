@@ -11,7 +11,7 @@ from ..runtime import platform_adapter_name, platform_name, settings
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 # @used-by :func:`agent_tools.completion._completion_ops()`
-# @used-by :func:`agent_tools.doc5_replay_audit._load_saved_turn_entry()`
+# @used-by :meth:`Df.Harness.Grounding.Doc5ReplayAuditor.Doc5ReplayAuditor.__load_saved_turn_entry()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.native_executor_metadata()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.native_requests()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.native_review_proof()`

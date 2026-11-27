@@ -17,7 +17,7 @@ def _row_outputs(rows: list[dict[str, Any]], pos: int) -> list[str]:
 # @used-by :mod:`agent_tools.doc5_context`
 def detect_df_analysis_mode(text: str, blocks: list[dict], requests: list | tuple, mode: str, *, turn_context: dict | None, prob_head_re, req_cmd_fn, explicit_fn) -> str:
 	return Doc5ContextDetector(text, blocks, requests, mode, turn_context=turn_context, prob_head_re=prob_head_re, req_cmd_fn=req_cmd_fn, explicit_fn=explicit_fn).detect()
-# @used-by :func:`agent_tools.doc5_replay_audit._audit_one_fixture()`
+# @used-by :func:`agent_tools.doc5_replay_audit.audit_feature_turn_corpus()`
 # @used-by :func:`agent_tools.doc5_replay_audit.audit_local_saved_turns()`
 # @used-by :meth:`test_cli_output_json.CliOutputJsonAndDoc5Tests.test_excluded_fetchers_and_readonly_linters_do_not_trigger_doc5()`
 # @used-by :meth:`test_cli_output_json.CliOutputJsonAndDoc5Tests.test_local_repo_scoping_ignores_external_upstream_issues_and_preserves_fallback()`

@@ -528,6 +528,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_dotpy_bootstrap`
 	# @used-by :mod:`test_df_harness_dedup_s8`
 	# @used-by :mod:`test_df_harness_lib_s10`
+	# @used-by :mod:`test_df_harness_s11_final_338`
 	# @used-by :mod:`test_df_harness_s11_wave2a_facade_exports`
 	# @used-by :mod:`test_df_harness_s11_wave2a_project_ext`
 	# @used-by :mod:`test_df_harness_s11_wave2a_review`
@@ -854,10 +855,10 @@ class ProjectPaths:
 	# @used-by :func:`Df.Harness.lib.hook_markdown_ops.dfh_check_turn_budget_gate()`
 	# @used-by :func:`Df.Harness.lib.journal.dfh_turns_dir()`
 	# @used-by :func:`Df.Harness.lib.path_resolve._workspace_is_explicitly_tracked()`
-	# @used-by :func:`agent_tools.doc5_replay_audit.audit_local_saved_turns()`
 	# @used-by :meth:`Df.Harness.Completion.BudgetEvaluator.BudgetEvaluator.run()`
 	# @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__check_df_issue_turn_intent()`
 	# @used-by :meth:`Df.Harness.Git.TransientWaitRunner.TransientWaitRunner.__active_turn_paths()`
+	# @used-by :meth:`Df.Harness.Grounding.Doc5ReplayAuditor.Doc5ReplayAuditor.audit_saved_turns()`
 	# @used-by :meth:`Df.Harness.Issue.CompetingTurnChecker.CompetingTurnChecker.__candidate_turns_dirs()`
 	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.__target_for_project_root()`
 	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.issue_target_for_path()`

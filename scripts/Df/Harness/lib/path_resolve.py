@@ -218,6 +218,7 @@ def dfh_load_registry(registry_path: str | Path | None=None, *, primary: str | P
 # @used-by :meth:`Df.Harness.Completion.BudgetEvaluator.BudgetEvaluator.run()`
 # @used-by :meth:`Df.Harness.Config.NativeBuilder.NativeBuilder.__prepare_codex_outputs()`
 # @used-by :meth:`Df.Harness.Config.ProjectionPublisher.ProjectionPublisher.__finalize_codex_receipt()`
+# @used-by :meth:`Df.Harness.Grounding.Doc5ReplayAuditor.Doc5ReplayAuditor.audit_saved_turns()`
 # @used-by :meth:`Df.Harness.Path.PathReporter.PathReporter.__build_project_report()`
 # @used-by :meth:`Df.Harness.Path.SimilarProjectAuditor.SimilarProjectAuditor.__eval_overlay_peers()`
 # @used-by :meth:`Df.Harness.Path.SimilarProjectAuditor.SimilarProjectAuditor.__match_roots()`

@@ -91,7 +91,6 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :func:`Df.Harness.lib.text_core.dfh_reference_document()`
 	# @used-by :func:`Df.Harness.lib.text_core.dfh_sentences()`
 	# @used-by :func:`Df.Harness.lib.text_sections.dfh_content_blocks()`
-	# @used-by :func:`agent_tools.cli_output_json.extract_top_level_json_objects()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.QuantityMatcher.QuantityMatcher.__check_excerpt()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.QuantityMatcher.QuantityMatcher.__collect_unit_cands()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.QuantityMatcher.QuantityMatcher.__sign_before()`
@@ -99,6 +98,7 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :meth:`Df.Harness.Gate.CodeStyleAnalyzer.CodeStyleAnalyzer.__scan_tokens()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__trailing_comment_urls()`
 	# @used-by :meth:`Df.Harness.Git.IssueActionExtractor.IssueActionExtractor.__decode_text()`
+	# @used-by :meth:`Df.Harness.Grounding.CliOutputJsonParser.CliOutputJsonParser.extract_objects()`
 	# @used-by :meth:`Df.Harness.Grounding.DomainFactExtractor.DomainFactExtractor.__extract_kv_matches()`
 	# @used-by :meth:`Df.Harness.Grounding.DomainFactExtractor.DomainFactExtractor.ticket_message_issues()`
 	# @used-by :meth:`Df.Harness.Grounding.ScatterBannerAuditor.ScatterBannerAuditor.__has_unnegated_match()`

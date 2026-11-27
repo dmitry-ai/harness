@@ -38,7 +38,6 @@ class ShellSegmenter:
 	# @used-by :func:`Df.Harness.lib.text_claims.dfh_primary_numbers()`
 	# @used-by :func:`Df.Qa.lib.bt.main.df_bt_has()`
 	# @used-by :func:`Df.Qa.lib.diagnostics.df_webserver()`
-	# @used-by :func:`agent_tools.cli_output_json._body_without_header()`
 	# @used-by :func:`agent_tools.evidence.contains_quote()`
 	# @used-by :func:`agent_tools.shell_audit._split_shell_segments()`
 	# @used-by :func:`test_df_harness_s11_wave2c_cov_browser._make_broker_sess()`
@@ -82,6 +81,7 @@ class ShellSegmenter:
 	# @used-by :meth:`Df.Harness.Grounding.BlockLineAuditor.BlockLineAuditor.__check_blockquote()`
 	# @used-by :meth:`Df.Harness.Grounding.BlockLineAuditor.BlockLineAuditor.__check_guillemet_quote()`
 	# @used-by :meth:`Df.Harness.Grounding.BlockLineAuditor.BlockLineAuditor.audit_lines()`
+	# @used-by :meth:`Df.Harness.Grounding.CliOutputJsonParser.CliOutputJsonParser.__body_without_header()`
 	# @used-by :meth:`Df.Harness.Grounding.DomainFactExtractor.DomainFactExtractor.extract_domain_entities()`
 	# @used-by :meth:`Df.Harness.Grounding.EvidenceBundleIngestor.EvidenceBundleIngestor.__record_direct_payload()`
 	# @used-by :meth:`Df.Harness.Grounding.EvidenceBundleIngestor.EvidenceBundleIngestor.__record_topic_entry()`

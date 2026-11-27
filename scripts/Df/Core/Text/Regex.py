@@ -165,7 +165,6 @@ class Regex(O):
 	# @used-by :func:`Df.Harness.lib.trace_common.dfh_local_uri_to_path()`
 	# @used-by :func:`Df.Harness.lib.uri.dfh_local_uri_to_path()`
 	# @used-by :func:`Df.Qa.lib.validation.check.df_is_email()`
-	# @used-by :func:`agent_tools.cli_output_json._truncated_top_level_failure()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.QuantityMatcher.QuantityMatcher.__collect_unit_cands()`
 	# @used-by :meth:`Df.Harness.Arch.SpecValidator.SpecValidator.__parse_field_line()`
 	# @used-by :meth:`Df.Harness.Experiment.CallChainParser.CallChainParser.__tokenize()`
@@ -184,6 +183,7 @@ class Regex(O):
 	# @used-by :meth:`Df.Harness.Git.HostPathNormalizer.HostPathNormalizer.normalize()`
 	# @used-by :meth:`Df.Harness.Grounding.BlockLineAuditor.BlockLineAuditor.__check_technical_spans()`
 	# @used-by :meth:`Df.Harness.Grounding.CliCommandAuditor.CliCommandAuditor.__extract_recommended()`
+	# @used-by :meth:`Df.Harness.Grounding.CliOutputJsonParser.CliOutputJsonParser.__truncated_top_level_failure()`
 	# @used-by :meth:`Df.Harness.Grounding.DomainFactExtractor.DomainFactExtractor.__collect_dict_fact_tuples()`
 	# @used-by :meth:`Df.Harness.Grounding.EvidenceBundleIngestor.EvidenceBundleIngestor.discourse_topic_key()`
 	# @used-by :meth:`Df.Harness.Grounding.LocaleVerifier.LocaleVerifier.__extract_inline_chunks()`

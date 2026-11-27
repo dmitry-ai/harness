@@ -130,7 +130,6 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 # @used-by :func:`Df.Harness.lib.text_claims.dfh_registry_path()`
 # @used-by :func:`Df.Harness.lib.text_workflow.dfh_text_folder()`
 # @used-by :func:`Df.Harness.lib.worktree.dfh_prepare_worktrees_base_dir()`
-# @used-by :func:`agent_tools.doc5_replay_audit.audit_local_saved_turns()`
 # @used-by :func:`agent_tools.evidence.source_reference()`
 # @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
 # @used-by :func:`agent_tools.worktree_flow.worktree_land()`

@@ -28,6 +28,7 @@ def _reserve_foreign(backend: Path, proj: Path, cid: str, req_text: str, resp_te
 		_seed_ag_conversation(backend, proj, cid, req_text, resp_text, status=final_status, not_fully_idle=0 if 'CASCADE_RUN_STATUS_IDLE' == final_status else 1)
 	return beg
 # @used-by :func:`_reserve_foreign()`
+# @used-by :func:`test_df_harness_s11_final_338._seed_saved_turns()`
 # @used-by :meth:`StopEmergencyCaptureAndForeignSyncTests.test_begin_syncs_idle_open_foreign_reservation_and_skips_conflict_failed_and_running()`
 # @used-by :meth:`StopEmergencyCaptureAndForeignSyncTests.test_stop_gate_fail_open_persists_emergency_capture_and_sync_avoids_duplicate()`
 # @used-by :meth:`test_doc5_replay_audit.Doc5ReplayAuditTests.test_audit_local_saved_turns_flags_false_positives_and_passes_clean_history()`

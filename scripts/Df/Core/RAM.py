@@ -95,7 +95,6 @@ class RAM:
 	# @used-by :func:`Df.Harness.lib.text_workflow.dfh_target_bytes()`
 	# @used-by :func:`Df.Harness.lib.trace_review.dfh_verify_review_proof_core()`
 	# @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
-	# @used-by :func:`agent_tools.snapshot.snapshot_draft()`
 	# @used-by :func:`test_historical_admission._restore_tree_in_place()`
 	# @used-by :func:`test_project_rename._assert_renamed_journal_and_state()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__load_state()`
@@ -191,6 +190,7 @@ class RAM:
 	# @used-by :meth:`Df.Harness.Text.ClaimRegistryStore.ClaimRegistryStore.__persist()`
 	# @used-by :meth:`Df.Harness.Text.ClaimRegistryStore.ClaimRegistryStore.save()`
 	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__write_rendered()`
+	# @used-by :meth:`Df.Harness.Text.DraftSnapshotter.DraftSnapshotter.snapshot()`
 	# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.__ensure_workspace_identity()`
 	# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.index()`
 	# @used-by :meth:`Df.Harness.Upwork.AttachmentDownloader.AttachmentDownloader.download()`
