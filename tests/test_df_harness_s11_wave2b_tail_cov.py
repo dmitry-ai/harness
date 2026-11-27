@@ -40,12 +40,14 @@ from Df.Harness.Xref.Python.Model import Model as PyModel
 # 2026-11-27 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
 # @used-by :func:`_init_repo()`
 # @used-by :meth:`DfHarnessS11Wave2bTailCovTests.test_gate_registry_repo_tag_and_rules_auditor()`
+# @used-by :meth:`DfHarnessS11Wave2bTailCovTests.test_mechanical_exemption_clean_disk_and_last_commit()`
 # @used-by :meth:`DfHarnessS11Wave2bTailCovTests.test_tdd_diff_contract_coverage_and_executability()`
 # @used-by :meth:`DfHarnessS11Wave2bTailCovTests.test_tdd_enforcement_evaluator_events_and_worktree()`
 # @used-by :meth:`DfHarnessS11Wave2bTailCovTests.test_tdd_exemption_mechanical_ratchet_and_substantive()`
 def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
 	return subprocess.run(['git', '--no-optional-locks', *args], cwd=cwd, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=15, check=True)
 # @used-by :meth:`DfHarnessS11Wave2bTailCovTests.test_gate_registry_repo_tag_and_rules_auditor()`
+# @used-by :meth:`DfHarnessS11Wave2bTailCovTests.test_mechanical_exemption_clean_disk_and_last_commit()`
 # @used-by :meth:`DfHarnessS11Wave2bTailCovTests.test_tdd_diff_contract_coverage_and_executability()`
 # @used-by :meth:`DfHarnessS11Wave2bTailCovTests.test_tdd_enforcement_evaluator_events_and_worktree()`
 # @used-by :meth:`DfHarnessS11Wave2bTailCovTests.test_tdd_exemption_mechanical_ratchet_and_substantive()`
@@ -116,6 +118,21 @@ class DfHarnessS11Wave2bTailCovTests(unittest.TestCase):
 			self.assertIsNone(w_err)
 			self.assertIsNone(e_err)
 			self.assertIsInstance(s_errs, list)
+	# 2026-11-27 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
+	# @used-by :mod:`unittest`
+	def test_mechanical_exemption_clean_disk_and_last_commit(self) -> None:
+		with tempfile.TemporaryDirectory() as td:
+			repo = Path(td).resolve() / 'repo'
+			_init_repo(repo)
+			_git(repo, 'remote', 'add', 'origin', 'https://github.com/o/r.git')
+			(repo / '\ua616/data/turns').mkdir(parents=True, exist_ok=True)
+			iss = 'https://github.com/o/r/issues/1'
+			(repo / 'a.py').write_text('x = 2\n', encoding='utf-8')
+			_git(repo, 'add', 'a.py')
+			_git(repo, 'commit', '-m', iss)
+			rec = MechanicalExemption.record_exemption(repo, repo=repo, issue_url=iss, pattern='x = 1', replacement='x = 2', reason='Mechanical constant migration approved for last-commit coverage', turn_key='tk2')
+			self.assertTrue(rec['valid'])
+			self.assertTrue(MechanicalExemption.is_git_file_exempt(repo, 'a.py', use_index=False, project_root=repo))
 	# @used-by :mod:`unittest`
 	def test_perf_ag_timesheet_and_parallel_runner_timeout(self) -> None:
 		with tempfile.TemporaryDirectory() as td:

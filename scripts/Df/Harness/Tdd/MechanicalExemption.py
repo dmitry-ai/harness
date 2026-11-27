@@ -212,6 +212,7 @@ class MechanicalExemption:
 					r.extend((it for it in MechanicalExemption.__load_recipe_entries(rf) if MechanicalExemption.__recipe_matches_repo(it, repo_posix, repo_slug, msg_norm)))
 		return r
 	# @used-by :func:`agent_tools.tdd.mechanical.is_git_file_mechanical_exempt()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_mechanical_exemption_clean_disk_and_last_commit()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_exemption_mechanical_ratchet_and_substantive()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_exemption_mechanical_and_ratchet_guard()`
 	@staticmethod
@@ -258,6 +259,7 @@ class MechanicalExemption:
 	def matches_recipe(old_text: str | None, new_text: str | None, recipe: dict) -> bool:
 		return MechanicalExemption.matches_any_recipes(old_text, new_text, (recipe,))
 	# @used-by :func:`agent_tools.tdd.mechanical.record_mechanical_exemption()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_mechanical_exemption_clean_disk_and_last_commit()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_exemption_mechanical_and_ratchet_guard()`
 	@staticmethod
 	def record_exemption(project_root: str | Path, *, repo: str | Path | None=None, issue_url: str, pattern: str, replacement: str, reason: str, is_regex: bool=False, ignore_case: bool=False, conversation: str | None=None, turn_key: str | None=None) -> dict:
