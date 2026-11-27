@@ -21,6 +21,9 @@ class ShellSegmenter:
 	# @used-by :func:`Df.Core.lib.text.parse.df_parse_colon()`
 	# @used-by :func:`Df.Harness.lib.ag_inputs._extract_event_direct_uuids()`
 	# @used-by :func:`Df.Harness.lib.env_isolation_ops._find_test_method()`
+	# @used-by :func:`Df.Harness.lib.grounding.dfh_norm_quote_text()`
+	# @used-by :func:`Df.Harness.lib.grounding.dfh_quote_segments_present()`
+	# @used-by :func:`Df.Harness.lib.grounding.dfh_resolve_local_href()`
 	# @used-by :func:`Df.Harness.lib.hook_runtime_ops.dfh_scan_doc4_sentence_issues()`
 	# @used-by :func:`Df.Harness.lib.hook_subagent_ops._process_row_message()`
 	# @used-by :func:`Df.Harness.lib.hook_verif_ops.dfh_is_shadow_replay_cmd()`
@@ -37,22 +40,13 @@ class ShellSegmenter:
 	# @used-by :func:`agent_tools.article.check_graph()`
 	# @used-by :func:`agent_tools.cli_output_json._body_without_header()`
 	# @used-by :func:`agent_tools.evidence.contains_quote()`
-	# @used-by :func:`agent_tools.grounding_domains.extract_domain_entities()`
-	# @used-by :func:`agent_tools.grounding_helpers.audit_block_lines()`
 	# @used-by :func:`agent_tools.proposal._check_references()`
 	# @used-by :func:`agent_tools.proposal._parent_name()`
 	# @used-by :func:`agent_tools.proposal.parse_blocks()`
 	# @used-by :func:`agent_tools.proposal.render()`
 	# @used-by :func:`agent_tools.research._summarize_observation_bundle()`
 	# @used-by :func:`agent_tools.research.extract_bytes()`
-	# @used-by :func:`agent_tools.response_grounding._is_descriptive_title_label()`
 	# @used-by :func:`agent_tools.shell_audit._split_shell_segments()`
-	# @used-by :func:`agent_tools.source_grounding._char_script()`
-	# @used-by :func:`agent_tools.source_grounding._locale_to_target()`
-	# @used-by :func:`agent_tools.source_grounding.extract_authored_prose()`
-	# @used-by :func:`agent_tools.source_grounding.norm_quote_text()`
-	# @used-by :func:`agent_tools.source_grounding.quote_segments_present()`
-	# @used-by :func:`agent_tools.source_grounding.resolve_local_href()`
 	# @used-by :func:`agent_tools.text_claims.primary_numbers()`
 	# @used-by :func:`agent_tools.text_core.check_response()`
 	# @used-by :func:`agent_tools.text_sections.mechanical_projection()`
@@ -91,6 +85,20 @@ class ShellSegmenter:
 	# @used-by :meth:`Df.Harness.Git.WorktreeCommandGuard.WorktreeCommandGuard.__has_managed_delete()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeCommandGuard.WorktreeCommandGuard.check()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeExcludeManager.WorktreeExcludeManager.__tracked_entries()`
+	# @used-by :meth:`Df.Harness.Grounding.BlockLineAuditor.BlockLineAuditor.__check_backtick_and_guillemet_quotes()`
+	# @used-by :meth:`Df.Harness.Grounding.BlockLineAuditor.BlockLineAuditor.__check_blockquote()`
+	# @used-by :meth:`Df.Harness.Grounding.BlockLineAuditor.BlockLineAuditor.__check_guillemet_quote()`
+	# @used-by :meth:`Df.Harness.Grounding.BlockLineAuditor.BlockLineAuditor.audit_lines()`
+	# @used-by :meth:`Df.Harness.Grounding.DomainFactExtractor.DomainFactExtractor.extract_domain_entities()`
+	# @used-by :meth:`Df.Harness.Grounding.EvidenceBundleIngestor.EvidenceBundleIngestor.__record_direct_payload()`
+	# @used-by :meth:`Df.Harness.Grounding.EvidenceBundleIngestor.EvidenceBundleIngestor.__record_topic_entry()`
+	# @used-by :meth:`Df.Harness.Grounding.LocaleVerifier.LocaleVerifier.__char_script()`
+	# @used-by :meth:`Df.Harness.Grounding.LocaleVerifier.LocaleVerifier.__extract_body_prose()`
+	# @used-by :meth:`Df.Harness.Grounding.LocaleVerifier.LocaleVerifier.__locale_to_target()`
+	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__check_external_refs()`
+	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__extract_inline_block_refs()`
+	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.is_descriptive_title_label()`
+	# @used-by :meth:`Df.Harness.Grounding.Tier0Index.Tier0Index.__match_entry_entities()`
 	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.has_enumerated_slop_title()`
 	# @used-by :meth:`Df.Harness.Issue.ReadCache.ReadCache.__extract_diff_header_path()`
 	# @used-by :meth:`Df.Harness.Issue.ReadCache.ReadCache.__parse_log_index()`
@@ -148,12 +156,6 @@ class ShellSegmenter:
 	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.is_valid_external_target()`
 	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.resolve_stdlib_symbol()`
 	# @used-by :meth:`agent_tools.research.HTMLData.handle_endtag()`
-	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_external_refs()`
-	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._extract_markdown_refs()`
-	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._ingest_json_observations()`
-	# @used-by :meth:`agent_tools.source_grounding.LocalSourceGroundingAuditor._check_blockquote()`
-	# @used-by :meth:`agent_tools.source_grounding.LocalSourceGroundingAuditor._check_prose_line()`
-	# @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex.discover_entities()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.scope_issues()`
 	# @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_guidance_uses_current_canonical_loader_without_copying_rule_bodies()`
 	# @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests._init_and_register()`

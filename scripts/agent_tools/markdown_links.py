@@ -76,7 +76,7 @@ def inline_links(tokens, *, include_images: bool=True):
 # https://github.com/dmitry-ai/harness/issues/76
 # @used-by :func:`inline_links()`
 # @used-by :func:`numeric_text()`
-# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._extract_markdown_refs()`
+# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__extract_inline_block_refs()`
 # @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_markdown_parser_and_inline_segments_shared()`
 def iter_inline_segments(tokens, *, include_images: bool=True):
 	label_types = ('text', 'code_inline', 'image') if include_images else ('text', 'code_inline')
@@ -123,11 +123,11 @@ def numeric_text(text):
 # 2026-11-23
 # "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 # https://github.com/dmitry-ai/harness/issues/76
+# @used-by :func:`Df.Harness.lib.grounding.dfh_markdown_parser()`
 # @used-by :func:`agent_tools.article.check_link_style()`
 # @used-by :func:`agent_tools.links.parse_markdown_headings()`
 # @used-by :func:`agent_tools.links.readable_link_issues()`
 # @used-by :func:`agent_tools.links.references()`
-# @used-by :func:`agent_tools.source_grounding.markdown_parser()`
 # @used-by :func:`numeric_text()`
 # @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__authored_targets()`
 # @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_markdown_parser_and_inline_segments_shared()`

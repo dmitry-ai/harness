@@ -156,7 +156,6 @@ class AnswerPreparer:
 	# @used-by :func:`Df.Harness.lib.hook_addon_ops.dfh_check_runner_addon_observability()`
 	# @used-by :func:`Df.Harness.lib.hook_crash_ops.dfh_check_runner_hook_crashes()`
 	# @used-by :func:`Df.Harness.lib.hook_verif_ops.dfh_check_runner_verification_observability()`
-	# @used-by :func:`agent_tools.scope_deferral.check_runner_scope_deferral()`
 	# @used-by :meth:`AnswerPreparer.__authorize_and_sync_workflow()`
 	# @used-by :meth:`AnswerPreparer.__check_evicted_citations()`
 	# @used-by :meth:`AnswerPreparer.__check_reprepare_and_conflict()`
@@ -166,6 +165,7 @@ class AnswerPreparer:
 	# @used-by :meth:`AnswerPreparer._record_journal_entry()`
 	# @used-by :meth:`AnswerPreparer.run()`
 	# @used-by :meth:`Df.Harness.Arch.Evaluator.Evaluator.check_runner()`
+	# @used-by :meth:`Df.Harness.Grounding.ScopeDeferralEvaluator.ScopeDeferralEvaluator.check_runner()`
 	def _fail_gate(self, gate_id: str, detail: str, *, admission_failed: bool=False, status: str | None=None, extra: dict | None=None, cause: BaseException | None=None) -> None:
 		now_fn = self.__ops.get('now') or dfh_now
 		persist_fn = self.__ops.get('persist') or (lambda p, v: dfh_persist(p, v, ops=self.__ops))

@@ -29,10 +29,10 @@ def extract_bg_task_ids(text: str) -> list[str]:
 # @used-by :func:`Df.Harness.lib.completion_child_trace.dfh_scan_child_trace_turn()`
 # @used-by :func:`Df.Harness.lib.hook_verif_ops._inspect_shadow_call()`
 # @used-by :func:`Df.Harness.lib.hook_verif_ops.dfh_classify_shadow_output()`
-# @used-by :func:`agent_tools.cli_command_grounding._is_passing_output()`
-# @used-by :func:`agent_tools.cli_command_grounding._record_call_outcome()`
-# @used-by :func:`agent_tools.doc5_context._inspect_call_failure()`
-# @used-by :func:`agent_tools.doc5_context._is_failed_cli_output()`
+# @used-by :meth:`Df.Harness.Grounding.CliCommandAuditor.CliCommandAuditor.__record_call_outcome()`
+# @used-by :meth:`Df.Harness.Grounding.CliCommandAuditor.CliCommandAuditor.is_passing_output()`
+# @used-by :meth:`Df.Harness.Grounding.Doc5RequirementChecker.Doc5RequirementChecker.__inspect_call_failure()`
+# @used-by :meth:`Df.Harness.Grounding.Doc5RequirementChecker.Doc5RequirementChecker.is_failed_cli_output()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__handle_system_message()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__visit_subagent_row()`
 # @used-by :meth:`Df.Harness.Platform.Codex.TurnScanner.TurnScanner.__handle_output_row()`

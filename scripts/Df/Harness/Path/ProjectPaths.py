@@ -255,6 +255,7 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.verify()`
 	# @used-by :meth:`Df.Harness.Experiment.RunLoader.RunLoader.__load_raw()`
 	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__write_run()`
+	# @used-by :meth:`Df.Harness.Grounding.EvidenceBundleIngestor.EvidenceBundleIngestor.__evidence_dirs()`
 	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.__target_for_project_root()`
 	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.evidence_issue_files()`
 	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.issue_target_for_path()`
@@ -273,7 +274,6 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
 	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.evidence_paths()`
 	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.kb_paths()`
-	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._ingest_evidence_files()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
 	@property
 	def evidence_dir(self) -> Path:
@@ -290,11 +290,10 @@ class ProjectPaths:
 	# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_paths_and_uri()`
 	def expand(self, template: str) -> str:
 		return self.__resolve_rel_to_root(template)
-	# @used-by :func:`agent_tools.source_grounding.load_fact_ledger()`
+	# @used-by :func:`Df.Harness.lib.grounding.dfh_load_fact_ledger()`
 	@property
 	def facts_json(self) -> Path:
 		return Path(self.paths_str['facts_json'])
-	# @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex.__init__()`
 	@property
 	def grounding_cache_json(self) -> Path:
 		return Path(self.paths_str['grounding_cache_json'])
@@ -364,6 +363,9 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Experiment.ResultValidator.ResultValidator.__check_run()`
 	# @used-by :meth:`Df.Harness.Experiment.RunLoader.RunLoader.__load_raw()`
 	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__write_run()`
+	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__check_kb_membership()`
+	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__collect_client_urls()`
+	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__collect_kb_urls()`
 	# @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.sync()`
 	# @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.assemble()`
 	# @used-by :meth:`Df.Harness.Project.Context.LetterDiscoverer.LetterDiscoverer.default_config()`
@@ -381,20 +383,18 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 	# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.__check_red_flags()`
 	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.kb_paths()`
-	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
-	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
 	@property
 	def kb_dir(self) -> Path:
 		return Path(self.paths_str['kb_dir'])
+	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__collect_client_urls()`
+	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__collect_kb_urls()`
 	# @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.sync()`
 	# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.__write_kb_pages()`
 	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync_initial()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.evidence_paths()`
-	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
-	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
 	@property
@@ -411,6 +411,7 @@ class ProjectPaths:
 	# @used-by :func:`Df.Harness.lib.completion_checks.dfh_is_client_deliverable_path()`
 	# @used-by :func:`Df.Harness.lib.completion_links._normalize_file_href_path()`
 	# @used-by :func:`Df.Harness.lib.config_blocks.dfh_has_linked_ancestor()`
+	# @used-by :func:`Df.Harness.lib.grounding_md.dfh_is_documentation_url()`
 	# @used-by :func:`Df.Harness.lib.journal_upgrade._assert_not_linked_tree()`
 	# @used-by :func:`Df.Harness.lib.native_links.dfh_absolute()`
 	# @used-by :func:`Df.Harness.lib.native_links.dfh_direct_link_matches_target()`
@@ -435,7 +436,6 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.links.validate_file()`
 	# @used-by :func:`agent_tools.markdown_links.decode_file_uri()`
 	# @used-by :func:`agent_tools.markdown_links.display_address()`
-	# @used-by :func:`agent_tools.statements.is_documentation_url()`
 	# @used-by :func:`agent_tools.text_browser._endpoint_with_meta()`
 	# @used-by :func:`check_pre_invocation._ensure_scripts_on_path()`
 	# @used-by :func:`check_stop_gate._ensure_scripts_on_path()`
@@ -543,6 +543,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_harness_s11_wave2b`
 	# @used-by :mod:`test_df_harness_s11_wave2c_cross_wave`
 	# @used-by :mod:`test_df_harness_s11_wave2c_git`
+	# @used-by :mod:`test_df_harness_s11_wave2c_grounding`
 	# @used-by :mod:`test_df_harness_s11_wave2c_issues`
 	# @used-by :mod:`test_df_harness_s11_wave2d_cli_cov`
 	# @used-by :mod:`test_df_harness_s11_wave2d_completion_cov`
@@ -710,6 +711,8 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__load_state()`
 	# @used-by :meth:`Df.Harness.Completion.BudgetEvaluator.BudgetEvaluator.run()`
 	# @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__match_upwork_root()`
+	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__check_kb_membership()`
+	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__collect_client_urls()`
 	# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.__lookup_name_from_project_json()`
 	# @used-by :meth:`Df.Harness.Platform.Antigravity.ProjectRegistrar.ProjectRegistrar.__resolve_day()`
 	# @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.sync()`
@@ -722,8 +725,6 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.__update_project_json()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 	# @used-by :meth:`Df.Harness.Workflow.WorkflowResumer.WorkflowResumer.__apply()`
-	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
-	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
 	@property
 	def project_json(self) -> Path:
 		return Path(self.paths_str['project_json'])

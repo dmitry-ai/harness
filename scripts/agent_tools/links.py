@@ -79,9 +79,9 @@ def markdown_link(label: str | None, target: str | Path) -> str:
 # https://github.com/dmitry-ai/harness/issues/230
 # 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
 # @used-by :func:`Df.Harness.lib.completion_links.dfh_response_link_issues()`
+# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__init__()`
 # @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.record()`
 # @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.run()`
-# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor.__init__()`
 # @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_chat_reply_link_issues_allows_unencoded_file_uri_and_rejects_encoded()`
 # @used-by :meth:`test_repo_link_gate.RepoLinkGateTests.test_rejects_file_uri_to_github_repo_and_allows_non_repo_and_gitignored_files()`
 # @used-by :meth:`test_repo_link_gate.RepoLinkGateTests.test_validates_github_blob_and_tree_tags_paths_lines_and_anchors()`
@@ -91,7 +91,7 @@ def chat_reply_link_issues(content: str, *, root: Path | None=None) -> list[str]
 # 2026-11-23
 # "Unify local Tier 0 source hydration, HTTP/DOM Evidence observation loading, CommonMark helpers, and file:// path parsing across source_grounding.py, response_grounding.py, evidence.py, links.py, text_sources.py, and markdown_links.py":
 # https://github.com/dmitry-ai/harness/issues/76
-# @used-by :func:`agent_tools.source_grounding.resolve_local_href()`
+# @used-by :func:`Df.Harness.lib.grounding.dfh_resolve_local_href()`
 # @used-by :meth:`Df.Harness.Analysis.LocalSourceResolver.LocalSourceResolver.resolve()`
 # @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_decode_file_uri_handles_windows_relative_and_remote()`
 def decode_file_uri(reference: str, *, reject_remote: bool=False) -> str:
@@ -200,9 +200,9 @@ class HTMLReferences(HTMLParser):
 # @used-by :func:`_document_urls()`
 # @used-by :func:`agent_tools.text_sections.mechanical_projection()`
 # @used-by :func:`references()`
-# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
-# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
-# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._extract_markdown_refs()`
+# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__collect_kb_urls()`
+# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__record_client_text_urls()`
+# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__record_text_urls()`
 def _bare_urls(text: str):
 	for match in re.finditer('https?://[^\\s<>`"\\x00-\\x1f]+', text):
 		url = match.group().rstrip('.,;!?')

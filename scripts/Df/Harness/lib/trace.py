@@ -17,6 +17,8 @@ def _parse_call_args(raw_args: Any) -> dict[str, Any]:
 # @used-by :func:`agent_tools.cli_command_grounding._cmd_from_tool_call()`
 # @used-by :func:`agent_tools.doc5_context._cmd_from_call()`
 # @used-by :func:`agent_tools.verification_observability._cmd_from_call()`
+# @used-by :meth:`Df.Harness.Grounding.CliCommandAuditor.CliCommandAuditor.__record_call_outcome()`
+# @used-by :meth:`Df.Harness.Grounding.Doc5RequirementChecker.Doc5RequirementChecker.__inspect_call_failure()`
 # @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_trace_and_timesheet_helpers()`
 def dfh_cmd_from_call(call: dict[str, Any]) -> str:
 	name = str(call.get('name') or '')
@@ -49,6 +51,8 @@ def dfh_read_ag_rows(path: Path) -> list[dict[str, Any]]:
 # @used-by :func:`agent_tools.cli_command_grounding._collect_row_outputs()`
 # @used-by :func:`agent_tools.doc5_context._row_outputs()`
 # @used-by :func:`agent_tools.verification_observability._row_outputs()`
+# @used-by :meth:`Df.Harness.Grounding.CliCommandAuditor.CliCommandAuditor.__collect_passing_commands()`
+# @used-by :meth:`Df.Harness.Grounding.Doc5RequirementChecker.Doc5RequirementChecker.__earliest_cli_failure_step()`
 # @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_trace_and_timesheet_helpers()`
 def dfh_row_outputs(rows: list[dict[str, Any]], pos: int) -> list[str]:
 	r: list[str] = []

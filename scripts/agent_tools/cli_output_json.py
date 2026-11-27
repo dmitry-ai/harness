@@ -54,8 +54,8 @@ def extract_top_level_json_objects(text: str) -> tuple[list[dict[str, Any]], boo
 			trunc_fail = True
 	return (objs, trunc_fail)
 # @used-by :func:`Df.Harness.lib.hook_verif_ops.dfh_classify_shadow_output()`
-# @used-by :func:`agent_tools.cli_command_grounding._is_passing_output()`
-# @used-by :func:`agent_tools.doc5_context._is_failed_cli_output()`
+# @used-by :meth:`Df.Harness.Grounding.CliCommandAuditor.CliCommandAuditor.is_passing_output()`
+# @used-by :meth:`Df.Harness.Grounding.Doc5RequirementChecker.Doc5RequirementChecker.is_failed_cli_output()`
 # @used-by :meth:`test_cli_output_json.CliOutputJsonAndDoc5Tests.test_top_level_json_parser_ignores_nested_valid_false_and_catches_top_level_failures()`
 # @used-by :mod:`agent_tools.cli_output_json`
 def top_level_json_has_failure(text: str) -> bool:

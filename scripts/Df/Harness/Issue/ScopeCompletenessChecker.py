@@ -25,13 +25,13 @@ class ScopeCompletenessChecker:
 	# @used-by :func:`agent_tools.issues.scope_completeness.flag_parent_and_deferred_children()`
 	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.check_multi_subtask_decomposition()`
 	def check(self, code_repo: Path, parent_nums: set[int]) -> None:
-		from agent_tools.scope_deferral import find_explicit_stop_consent
+		from Df.Harness.Grounding.ScopeDeferralEvaluator import ScopeDeferralEvaluator
 		for pnum in sorted(parent_nums):
 			self.__flag_unclosed_parent(code_repo, pnum)
 		deferred = self.find_open_deferred_children()
 		if deferred:
 			recorded = list(getattr(self.__auditor, 'deferred_children', ()))
-			has_consent = None is not find_explicit_stop_consent(self.__auditor.turn, self.__auditor.turn_state)
+			has_consent = None is not ScopeDeferralEvaluator.find_explicit_stop_consent(self.__auditor.turn, self.__auditor.turn_state)
 			for pnum, child_urls in sorted(deferred.items()):
 				p_url = f'https://github.com/{self.__slug}/issues/{pnum}'
 				recorded.append({'repo': self.__slug, 'parent_number': pnum, 'parent_url': p_url, 'children': child_urls})

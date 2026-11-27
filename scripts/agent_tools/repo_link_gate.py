@@ -15,7 +15,7 @@ def chat_repo_link_issues(content: str, *, root: Path | None=None) -> list[str]:
 # @used-by :mod:`agent_tools.repo_link_gate`
 def file_repo_link_issues(doc_path: Path, content: str, *, repo_root: Path | None=None) -> list[str]:
 	return RepoLinkGate.check_file(doc_path, content, repo_root=repo_root)
-# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor.validate()`
+# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.validate()`
 # @used-by :mod:`agent_tools.repo_link_gate`
 def hydrate_local_repo_urls(auditor) -> set[str]:
 	return RepoLinkResolver.hydrate_local_urls(auditor)
@@ -23,7 +23,7 @@ def hydrate_local_repo_urls(auditor) -> set[str]:
 # @used-by :mod:`agent_tools.repo_link_gate`
 def is_skipped_repo_link_doc(path: Path | str) -> bool:
 	return RepoLinkResolver.is_skipped_doc(path)
-# @used-by :func:`agent_tools.grounding_helpers._collect_local_repo_ext_entries()`
+# @used-by :meth:`Df.Harness.Grounding.ActiveCorpusBuilder.ActiveCorpusBuilder.collect_local_repo_entries()`
 # @used-by :mod:`agent_tools.repo_link_gate`
 def resolve_local_github_blob(root: Path | None, url: str) -> tuple[str, str] | None:
 	return RepoLinkResolver(root).resolve_blob(url)

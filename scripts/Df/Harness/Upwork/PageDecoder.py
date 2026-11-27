@@ -88,6 +88,8 @@ class PageDecoder:
 	# @used-by :meth:`Df.Harness.Git.WorktreeStatusInspector.WorktreeStatusInspector.__current_branch()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeStatusInspector.WorktreeStatusInspector.__rev_distance()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeStatusInspector.WorktreeStatusInspector.inspect()`
+	# @used-by :meth:`Df.Harness.Grounding.Tier0Index.Tier0Index.__read_and_index_entry()`
+	# @used-by :meth:`Df.Harness.Grounding.Tier0Index.Tier0Index.__read_raw_for_stat()`
 	# @used-by :meth:`Df.Harness.Issue.DirtyIssueFirstScanner.DirtyIssueFirstScanner.__parse_dirty_porcelain()`
 	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.read_utf8_no_bom_file()`
 	# @used-by :meth:`Df.Harness.Issue.ReadCache.ReadCache.__dirty_entries()`
@@ -114,9 +116,6 @@ class PageDecoder:
 	# @used-by :meth:`Df.Harness.Upwork.AttachmentExtractor.AttachmentExtractor.extract_markdown()`
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__capture_on_page()`
 	# @used-by :meth:`Df.Harness.Upwork.PdfLigatureRepairer.PdfLigatureRepairer.parse_streams()`
-	# @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex._stat_and_read()`
-	# @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex.ensure_entry()`
-	# @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex.load_source_info()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.read_check()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.scope_issues()`

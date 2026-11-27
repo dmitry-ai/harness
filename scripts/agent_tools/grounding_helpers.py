@@ -1,144 +1,22 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from pathlib import Path
-from urllib.parse import urldefrag
-# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
-from Df.Core.lib.array.other.unique_fast import dfa_unique_fast
-# 2026-11-26 "Enforce pre-flight comment grounding and add batch GitHub issue commands": https://github.com/dmitry-ai/harness/issues/353
-import re
-_TEST_SUMMARY_RES = (
-	re.compile(r'(?i)\bRan\s+\d+(?:,\d{3})*\s+tests?(?:\s+in\s+\d+(?:\.\d+)?\s*m?s)?\b'),
-	re.compile(r'(?i)\b\d+(?:,\d{3})*(?:\s*/\s*\d+(?:,\d{3})*)?\s+(?:tests?\s+)?(?:passed|passing|failed|failing|skipped|errors?|warnings?|xfailed|xpassed|ok)\b(?:\s*,\s*\d+(?:,\d{3})*\s+(?:passed|failed|skipped|errors?|warnings?|xfailed|xpassed)\b)*(?:\s+in\s+\d+(?:\.\d+)?\s*m?s\b)?'),
-	re.compile(r'(?i)\b\d+(?:,\d{3})*\s*/\s*\d+(?:,\d{3})*\s+(?:test\s+)?(?:modules?|tests?|suites?|files?|checks?|cases?)\b'),
-	re.compile(r'(?i)\b(?:workers|passed|skipped|failed|failures|errors|total_tests|total_modules|passed_modules|failed_modules|exit_code|returncode|issue_count)\s*=\s*\d+(?:\.\d+)?\b'),
-)
-# @used-by :func:`audit_active_block()`
-# @used-by :func:`build_active_corpus_cached()`
+from Df.Harness.Grounding.ActiveCorpusBuilder import ActiveCorpusBuilder
+from Df.Harness.Grounding.BlockLineAuditor import BlockLineAuditor
+from Df.Harness.lib.grounding import dfh_clean_line_for_number_grounding
+# 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
+# @used-by unused
 def _assemble_corpus(infos: list[dict], ext_entries: list[tuple[str, str, set[str]]]) -> tuple[list[dict], str, str, set[str]]:
-	raw_parts: list[str] = []
-	norm_parts: list[str] = []
-	ev_nums: set[str] = set()
-	for inf in infos:
-		raw_parts.append(inf['raw'])
-		if inf['norm']:
-			norm_parts.append(inf['norm'])
-		ev_nums.update(inf['nums'])
-	for raw, norm, nums in ext_entries:
-		if raw:
-			raw_parts.append(raw)
-		if norm:
-			norm_parts.append(norm)
-		ev_nums.update(nums)
-	return (infos, '\n'.join(raw_parts), ' '.join(norm_parts), ev_nums)
-# @used-by :func:`build_active_corpus_cached()`
-def _load_ext_url_entry(bucket: dict, nu: str, norm_fn, num_fn) -> tuple[str, str, set[str]]:
-	r = bucket['urls'].get(nu)
-	if None is r:
-		blobs = [str(t) for t in ((bucket['obs'] or {}).get(nu) or ()) if t]
-		raw = '\n'.join(blobs)
-		r = (raw, norm_fn(raw) if raw else '', num_fn(raw) if raw else set())
-		bucket['urls'][nu] = r
-	return r
-# @used-by :func:`build_active_corpus_cached()`
-def _norm_ext_urls(active_exts: list[str]) -> tuple[str, ...]:
-	seen: list[str] = []
-	for u in active_exts:
-		s = (u or '').strip()
-		if s:
-			nu = urldefrag(s)[0].rstrip('/')
-			if nu not in seen:
-				seen.append(nu)
-	return tuple(seen)
-# @used-by :func:`build_active_corpus_cached()`
-def _obs_bucket(cache: dict, observed_texts: dict | None) -> dict:
-	store = cache.setdefault('__obs_buckets__', {})
-	oid = 0 if None is observed_texts else id(observed_texts)
-	bucket = store.get(oid)
-	if None is bucket or bucket['obs'] is not observed_texts:
-		bucket = {'obs': observed_texts, 'urls': {}, 'corpora': {}}
-		store[oid] = bucket
-	return bucket
-# @used-by :func:`audit_block_lines()`
-def _tag_new_errors(errors: list[str], start_idx: int, line_no: int | None) -> None:
-	if None is not line_no:
-		suffix = f' (line {line_no})'
-		for idx in range(start_idx, len(errors)):
-			if '(line ' not in errors[idx]:
-				errors[idx] = errors[idx] + suffix
-# 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
-# @used-by :func:`audit_active_block()`
-def _collect_local_repo_ext_entries(auditor, active_exts: list[str], norm_fn, num_fn) -> tuple[list[tuple[str, str, set[str]]], list[str]]:
-	from .repo_link_gate import resolve_local_github_blob
-	entries: list[tuple[str, str, set[str]]] = []
-	labels: list[str] = []
-	for url in active_exts:
-		if url.lower().startswith('https://github.com/'):
-			resolved = resolve_local_github_blob(auditor.root, url)
-			if None is not resolved:
-				label, raw = resolved
-				labels.append(label)
-				entries.append((raw, norm_fn(raw) if raw else '', num_fn(raw) if raw else set()))
-	return (entries, labels)
-# @used-by :meth:`agent_tools.source_grounding.LocalSourceGroundingAuditor._audit_block()`
+	return ActiveCorpusBuilder.assemble(infos, ext_entries)
+# @used-by unused
 def audit_active_block(auditor, block, filtered_locals: list[Path], ext_urls: list[str], active_primary: list[Path], norm_fn, num_fn) -> None:
-	if active_primary:
-		infos, combined_raw, combined_norm, ev_nums, src_label = auditor._build_active_corpus(filtered_locals, ext_urls, active_primary)
-		audit_block_lines(auditor, block, infos, combined_raw, combined_norm, ev_nums, src_label)
-	else:
-		# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
-		active_exts = dfa_unique_fast(ext_urls + auditor.section_ext_urls)
-		repo_entries, labels = _collect_local_repo_ext_entries(auditor, active_exts, norm_fn, num_fn)
-		if repo_entries:
-			infos, combined_raw, combined_norm, ev_nums = _assemble_corpus([], repo_entries)
-			audit_block_lines(auditor, block, infos, combined_raw, combined_norm, ev_nums, ', '.join(labels[:2]))
-		else:
-			auditor._check_unlinked_deliverable_metrics(block.content)
-# 2026-11-24
-# "Skip blocking grounding on scratch drafts and add line locations to diagnostics":
-# https://github.com/dmitry-ai/harness/issues/214
-# @used-by :func:`audit_active_block()`
+	BlockLineAuditor(auditor, block, filtered_locals, ext_urls, active_primary, norm_fn, num_fn).audit()
+# @used-by unused
 def audit_block_lines(auditor, block, infos: list[dict], combined_raw: str, combined_norm: str, ev_nums: set[str], src_label: str) -> None:
-	bmap = getattr(block, 'map', None)
-	base_line = (int(bmap[0]) + 1) if isinstance(bmap, (list, tuple)) and bmap else None
-	if 0 < auditor.quote_depth:
-		before = len(auditor.errors)
-		auditor._check_blockquote(block.content, combined_norm, src_label)
-		_tag_new_errors(auditor.errors, before, base_line)
-	else:
-		ticket_infos = [inf for inf in infos if inf['is_ticket_source']]
-		valid_msg_nums = {n for inf in ticket_infos for n in inf['msg_nums']}
-		bound_ticket_ids = {inf['ticket_id'] for inf in ticket_infos if inf['ticket_id']}
-		any_cyrillic_source = any((inf['has_cyrillic'] for inf in infos))
-		for offset, line in enumerate(block.content.split('\n')):
-			before = len(auditor.errors)
-			auditor._check_prose_line(line.strip(), infos, combined_raw, combined_norm, ev_nums, src_label, ticket_infos, valid_msg_nums, bound_ticket_ids, any_cyrillic_source)
-			_tag_new_errors(auditor.errors, before, None if None is base_line else base_line + offset)
-# 2026-11-24
-# "Cache normalized text and numeric tokens in source_grounding active corpus":
-# https://github.com/dmitry-ai/harness/issues/216
-# @used-by :meth:`agent_tools.source_grounding.LocalSourceGroundingAuditor._build_active_corpus()`
+	BlockLineAuditor.audit_lines(auditor, block, infos, combined_raw, combined_norm, ev_nums, src_label)
+# @used-by unused
 def build_active_corpus_cached(auditor, active_locals: list[Path], active_exts: list[str], active_primary: list[Path], norm_fn, num_fn) -> tuple[list[dict], str, str, set[str], str]:
-	norm_exts = _norm_ext_urls(active_exts)
-	bucket = _obs_bucket(auditor.cache, auditor.observed_texts)
-	ckey = (tuple(active_locals), norm_exts)
-	cached = bucket['corpora'].get(ckey)
-	if None is cached:
-		infos = [auditor.index.load_source_info(p, auditor.cache) for p in active_locals]
-		ext_entries = [_load_ext_url_entry(bucket, nu, norm_fn, num_fn) for nu in norm_exts] if auditor.observed_texts else []
-		cached = _assemble_corpus(infos, ext_entries)
-		bucket['corpora'][ckey] = cached
-	infos, combined_raw, combined_norm, ev_nums = cached
-	label = ', '.join((auditor.index.locator_for(p) for p in active_primary[:2]))
-	return (infos, combined_raw, combined_norm, ev_nums, label)
-# 2026-11-26 "Enforce pre-flight comment grounding and add batch GitHub issue commands": https://github.com/dmitry-ai/harness/issues/353
-# @used-by :func:`agent_tools.source_grounding._line_grounded_numbers_check()`
+	return ActiveCorpusBuilder(auditor, active_locals, active_exts, active_primary, norm_fn, num_fn).build()
+# @used-by unused
 def clean_line_for_number_grounding(sline: str, *, is_ticket: bool=False) -> str:
-	cleaned = re.sub(r'\[[^\]]*\]\([^)]*\)', ' ', sline)
-	cleaned = re.sub(r'https?://\S+|file://\S+', ' ', cleaned)
-	cleaned = cleaned.replace('`', ' ')
-	cleaned = re.sub(r'\b\d+(?:[.,]\d+)?\s*%', ' ', cleaned)
-	cleaned = re.sub(r'(?i)\b(?:line|lines|\u0441\u0442\u0440\u043e\u043a\w*)\s+\d+(?:\s*[\u2013\u2014-]\s*\d+)?', ' ', cleaned)
-	if not is_ticket:
-		for pat in _TEST_SUMMARY_RES:
-			cleaned = pat.sub(' ', cleaned)
-	return cleaned
+	return dfh_clean_line_for_number_grounding(sline, is_ticket=is_ticket)

@@ -111,9 +111,9 @@ def dfh_has_recorded_hook_issue(root: Path, turn: dict[str, Any], value: dict[st
 	return any((_issue_evidence_mentions_crash(evidence_issue_files(root, slug, f'issue-{num}.json'), crashes) for slug, num in _collect_issue_refs(turn, value)))
 # @used-by :func:`Df.Harness.lib.hook_addon_ops.dfh_detect_suppressed_worktree_errors()`
 # @used-by :func:`Df.Harness.lib.hook_verif_ops.dfh_detect_shadow_replay_runs()`
-# @used-by :func:`agent_tools.cli_command_grounding._collect_passing_trace_commands()`
-# @used-by :func:`agent_tools.doc5_context._earliest_cli_failure_step()`
 # @used-by :func:`dfh_detect_hook_crashes()`
+# @used-by :meth:`Df.Harness.Grounding.CliCommandAuditor.CliCommandAuditor.__collect_passing_commands()`
+# @used-by :meth:`Df.Harness.Grounding.Doc5RequirementChecker.Doc5RequirementChecker.__earliest_cli_failure_step()`
 # @used-by :mod:`agent_tools.hook_crash_audit`
 def dfh_load_turn_rows(native: dict[str, Any] | None, turn: dict[str, Any] | None) -> list[dict[str, Any]]:
 	src = Path(str((native or {}).get('source_file') or '')) if (native or {}).get('source_file') else None

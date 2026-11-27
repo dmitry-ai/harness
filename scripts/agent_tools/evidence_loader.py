@@ -19,7 +19,7 @@ def is_valid_observation_status(meta: dict) -> bool:
 # @used-by :mod:`agent_tools.evidence_loader`
 def load_analysis_card_validation(root, path: Path, prevalidated, *, analysis_issues_fn, evidence_issues_fn) -> tuple[dict | None, list, list]:
 	return CardValidationLoader(root, path, prevalidated, analysis_issues_fn=analysis_issues_fn, evidence_issues_fn=evidence_issues_fn).load()
-# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._ingest_observation_bundle()`
+# @used-by :meth:`Df.Harness.Grounding.EvidenceBundleIngestor.EvidenceBundleIngestor.__ingest_observation_bundle()`
 # @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_evidence_loader_full_probe_and_bundle_modes()`
 # @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_evidence_loader_rejects_empty_shell_bundle()`
 # @used-by :mod:`agent_tools.evidence_loader`

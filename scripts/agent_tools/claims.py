@@ -136,7 +136,7 @@ def evaluate_safe_arithmetic(expr: str, env: dict[str, Decimal] | None=None) -> 
 # @used-by :mod:`agent_tools.claims`
 def evidence_contract_issues(root, value, *, skip_structural=False):
 	return ClaimGraphValidator(value, root=root).evidence_issues(skip_structural=skip_structural)
-# @used-by :func:`agent_tools.source_grounding._line_grounded_numbers_check()`
+# @used-by :meth:`Df.Harness.Grounding.BlockLineAuditor.BlockLineAuditor.line_grounded_numbers_check()`
 # @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue46_ast_arithmetic_grounding()`
 # @used-by :mod:`agent_tools.claims`
 def extract_verified_inline_calc_numbers(text: str, grounded_nums: set[str]) -> tuple[set[str], list[str]]:
@@ -144,14 +144,16 @@ def extract_verified_inline_calc_numbers(text: str, grounded_nums: set[str]) -> 
 # @used-by :mod:`agent_tools.claims`
 def grounded_numbers_for_claim(claim, index=None, visited=None, _memo=None):
 	return NumericGrounding(claim, index, visited, _memo).grounded_numbers()
+# @used-by :meth:`Df.Harness.Grounding.ActiveCorpusBuilder.ActiveCorpusBuilder.resolve_text_helpers()`
+# @used-by :meth:`Df.Harness.Grounding.Tier0Index.Tier0Index.__build_hydrated_info()`
 # @used-by :meth:`test_turn_completion.ResponseEvidenceAuditorTests.test_multi_segment_quote_and_thousand_grouped_numeric_tokens()`
 # @used-by :mod:`agent_tools.claims`
 # @used-by :mod:`agent_tools.source_grounding`
 def source_numeric_tokens(raw_text: str) -> set[str]:
 	return SourceNumericTokenizer(raw_text).tokenize()
-# @used-by :func:`agent_tools.source_grounding._line_grounded_numbers_check()`
 # @used-by :func:`agent_tools.text_claims.validate_map()`
-# @used-by :meth:`agent_tools.source_grounding.LocalSourceGroundingAuditor._check_tier2_sole_evidence()`
+# @used-by :meth:`Df.Harness.Grounding.BlockLineAuditor.BlockLineAuditor.line_grounded_numbers_check()`
+# @used-by :meth:`Df.Harness.Grounding.LocalSourceAuditor.LocalSourceAuditor.__check_tier2_sole_evidence()`
 # @used-by :meth:`test_source_admission.LinkPresentationTests.test_numeric_prose_in_a_link_label_still_needs_grounding()`
 # @used-by :meth:`test_source_admission.LinkPresentationTests.test_original_numeric_anchor_is_not_a_quantitative_claim()`
 # @used-by :meth:`test_source_admission.LinkPresentationTests.test_reference_links_and_balanced_parentheses_keep_the_same_behavior()`

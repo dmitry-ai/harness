@@ -122,8 +122,8 @@ def normalize_path_str(raw: str, *, preserve_trailing_slash: bool=False) -> str:
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_similar_projects_groups_symmetric_overlays_affiliated_paths_and_validation()`
 def paths_report(project: str | Path | None=None, *, expand: str | None=None, check: bool=False, registry: PathRegistry | None=None) -> dict[str, Any]:
 	return PathReporter(project, expand=expand, check=check, registry=registry).run()
+# @used-by :func:`Df.Harness.lib.grounding.dfh_load_fact_ledger()`
 # @used-by :func:`Df.Harness.lib.worktree.dfh_prepare_worktrees_base_dir()`
-# @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
 # @used-by :func:`agent_tools.doc5_replay_audit.audit_local_saved_turns()`
 # @used-by :func:`agent_tools.evidence.source_reference()`
 # @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
@@ -134,7 +134,6 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 # @used-by :func:`agent_tools.research.extract_observation()`
 # @used-by :func:`agent_tools.research.load_observation()`
 # @used-by :func:`agent_tools.research.observed_use()`
-# @used-by :func:`agent_tools.source_grounding.load_fact_ledger()`
 # @used-by :func:`agent_tools.text_browser._endpoint_lock()`
 # @used-by :func:`agent_tools.text_browser.save_cdp_identity()`
 # @used-by :func:`agent_tools.text_claims.registry_path()`
@@ -175,6 +174,11 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 # @used-by :meth:`Df.Harness.Git.TransientWaitRunner.TransientWaitRunner.__workspace_code_repos()`
 # @used-by :meth:`Df.Harness.Git.WorktreePathResolver.WorktreePathResolver.__resolve_deleted()`
 # @used-by :meth:`Df.Harness.Git.WorktreeRebaseVerifier.WorktreeRebaseVerifier.__run_land_checks()`
+# @used-by :meth:`Df.Harness.Grounding.Doc5RequirementChecker.Doc5RequirementChecker.__workspace_repo_slugs()`
+# @used-by :meth:`Df.Harness.Grounding.EvidenceBundleIngestor.EvidenceBundleIngestor.__evidence_dirs()`
+# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__check_kb_membership()`
+# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__collect_client_urls()`
+# @used-by :meth:`Df.Harness.Grounding.Tier0Index.Tier0Index.__init__()`
 # @used-by :meth:`Df.Harness.Issue.AcceptanceGate.AcceptanceGate.__load_receipt()`
 # @used-by :meth:`Df.Harness.Issue.CommentGrounder.CommentGrounder.__resolve_root()`
 # @used-by :meth:`Df.Harness.Issue.CompetingTurnChecker.CompetingTurnChecker.__candidate_turns_dirs()`
@@ -270,10 +274,6 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 # @used-by :meth:`Df.Harness.Workflow.StateUpdater.StateUpdater.__init__()`
 # @used-by :meth:`Df.Harness.Workflow.StatusSnapshotBuilder.StatusSnapshotBuilder.__init__()`
 # @used-by :meth:`Df.Harness.Workflow.WorkflowResumer.WorkflowResumer.resume()`
-# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
-# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
-# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._ingest_evidence_files()`
-# @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex.__init__()`
 # @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._scan_ancestry_scope()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.__init__()`
 # @used-by :meth:`test_blocked_report_hygiene_and_doc5_m2.BlockedReportHygieneAndDoc5M2Tests.test_blocked_report_records_journal_despite_hygiene_failures_and_allows_doc5()`

@@ -52,9 +52,9 @@ class Linter:
 				out.append({'code': 'UNBALANCED_INLINE_BACKTICKS', 'line': lno, 'message': f"Line {lno} has an odd number of inline backticks ({line.count('`')})"})
 		if in_fence:
 			out.append({'code': 'UNCLOSED_CODE_FENCE', 'message': 'Markdown has an unclosed ``` fenced code block'})
+		from Df.Harness.lib.grounding_md import dfh_find_markdown_table_lines
 		from agent_tools.repo_link_gate import chat_repo_link_issues
-		from agent_tools.statements import find_markdown_table_lines
-		for tbl_ln in find_markdown_table_lines(text):
+		for tbl_ln in dfh_find_markdown_table_lines(text):
 			out.append({'code': 'MARKDOWN_TABLE_FORBIDDEN', 'line': tbl_ln, 'message': f'Line {tbl_ln} contains a Markdown table, which is forbidden by DOC-4; rewrite as structured prose or a list'})
 		for repo_err in chat_repo_link_issues(text):
 			out.append({'code': 'REPO_LINK_FORBIDDEN', 'message': repo_err})
@@ -219,7 +219,7 @@ class Linter:
 		return r
 	# @used-by :func:`agent_tools.github_issue.lint_issue_markdown()`
 	def lint(self, text: str, *, is_title: bool=False, target_locale: str='en-US', container_text: str | None=None, check_structure_policy: bool=True, parent_number: int | None=None, repo: str | None=None, self_number: int | None=None) -> list[dict[str, Any]]:
-		from agent_tools.source_grounding import verify_target_locale
+		from Df.Harness.Grounding.LocaleVerifier import LocaleVerifier
 		r: list[dict[str, Any]] = []
 		if not isinstance(text, str) or not text.strip():
 			r.append({'code': 'EMPTY_TEXT', 'message': 'Text is empty or whitespace-only'})
@@ -229,7 +229,7 @@ class Linter:
 			self.__check_encoding_and_patterns(text, r)
 			if not is_title:
 				self.__check_body_blocks(text, r, check_structure_policy=check_structure_policy, parent_number=parent_number, repo=repo, self_number=self_number)
-			r.extend(verify_target_locale(text, target_locale=target_locale, container_text=container_text, is_title=is_title))
+			r.extend(LocaleVerifier(text, target_locale=target_locale, container_text=container_text, is_title=is_title).verify())
 		return r
 	# @used-by :func:`agent_tools.github_issue.normalize_newlines()`
 	# @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_normalize_and_trim_delegation_to_df()`

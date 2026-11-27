@@ -324,7 +324,6 @@ class ClientTextWorkspace:
 	# @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_profile_agents()`
 	# @used-by :func:`_index()`
 	# @used-by :func:`agent_tools.git_ignore.merge_managed_git_ignore()`
-	# @used-by :func:`agent_tools.grounding_helpers.build_active_corpus_cached()`
 	# @used-by :func:`agent_tools.text_core.check_code()`
 	# @used-by :func:`gate_paths()`
 	# @used-by :meth:`ClientTextWorkspace.apply()`

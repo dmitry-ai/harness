@@ -86,7 +86,6 @@ class RAM:
 	# @used-by :func:`Df.Harness.lib.shadow_clone.dfh_cleanup_shadow_root()`
 	# @used-by :func:`Df.Harness.lib.storage.dfh_write_immutable_bytes()`
 	# @used-by :func:`Df.Harness.lib.trace_review.dfh_verify_review_proof_core()`
-	# @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
 	# @used-by :func:`agent_tools.links.validate_file()`
 	# @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
 	# @used-by :func:`agent_tools.research._write_cached_extraction()`
@@ -140,6 +139,7 @@ class RAM:
 	# @used-by :meth:`Df.Harness.Git.WorktreeRemovalGuard.WorktreeRemovalGuard.remove()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeTransaction.WorktreeTransaction.__stage_into_worktree()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeTransaction.WorktreeTransaction.remove()`
+	# @used-by :meth:`Df.Harness.Grounding.Doc5RequirementChecker.Doc5RequirementChecker.__workspace_repo_slugs()`
 	# @used-by :meth:`Df.Harness.Issue.DirtyIssueFirstScanner.DirtyIssueFirstScanner.scan()`
 	# @used-by :meth:`Df.Harness.Issue.IssueFirstPreToolEvaluator.IssueFirstPreToolEvaluator.__find_git_repo_root()`
 	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__check_repo_commits_and_files()`
@@ -379,9 +379,9 @@ class RAM:
 	# 2017-08-11
 	# https://github.com/mage2pro/core/blob/11.6.1/Core/RAM.php#L38-L42
 	# @used-by :func:`Df.Harness.lib.cleanup_store_ops.dfh_codex_glob_scope()`
+	# @used-by :func:`Df.Harness.lib.grounding.dfh_read_only_grounding()`
 	# @used-by :func:`Df.Harness.lib.runtime_cache.dfh_skip_shell_violations()`
 	# @used-by :func:`Df.Harness.lib.runtime_context.dfh_using()`
-	# @used-by :func:`agent_tools.source_grounding.read_only_grounding()`
 	# @used-by :meth:`test_df_core_base.DfCoreBaseTests.test_cache_dfc_dfcf_and_ram()`
 	def reset(self) -> None:
 		self.__data = {}
@@ -390,9 +390,9 @@ class RAM:
 	# https://github.com/mage2pro/core/blob/11.6.1/Core/RAM.php#L44-L65
 	# @used-by :func:`Df.Core.lib.cache.dfcf.dfcf()`
 	# @used-by :func:`Df.Harness.lib.cleanup_store_ops.dfh_codex_glob_scope()`
+	# @used-by :func:`Df.Harness.lib.grounding.dfh_read_only_grounding()`
 	# @used-by :func:`Df.Harness.lib.runtime_cache.dfh_skip_shell_violations()`
 	# @used-by :func:`Df.Harness.lib.runtime_context.dfh_using()`
-	# @used-by :func:`agent_tools.source_grounding.read_only_grounding()`
 	# @used-by :meth:`Df.Harness.TestRunner.ParallelRunner.ParallelRunner.__stop_siblings()`
 	# @used-by :meth:`Df.Harness.TestRunner.SuiteRunner.SuiteRunner.__run_unittest_suite()`
 	# @used-by :meth:`test_context_and_storage_determinism.ContextAndStorageDeterminismTests.test_locked_create_on_held_zero_byte_lock_waits_without_permission_error()`

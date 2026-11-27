@@ -88,13 +88,9 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :func:`agent_tools.article.check_link_style()`
 	# @used-by :func:`agent_tools.article.check_structure()`
 	# @used-by :func:`agent_tools.cli_output_json.extract_top_level_json_objects()`
-	# @used-by :func:`agent_tools.grounding_domains.extract_fact_tuples()`
-	# @used-by :func:`agent_tools.grounding_domains.ticket_message_issues()`
 	# @used-by :func:`agent_tools.links.parse_markdown_headings()`
 	# @used-by :func:`agent_tools.research._grep_section_windows()`
 	# @used-by :func:`agent_tools.research.extract_markdown()`
-	# @used-by :func:`agent_tools.scatter_banner._has_unnegated_match()`
-	# @used-by :func:`agent_tools.scatter_banner._proposal_slice()`
 	# @used-by :func:`agent_tools.text_core._excerpt()`
 	# @used-by :func:`agent_tools.text_core.bold_spans()`
 	# @used-by :func:`agent_tools.text_core.check_response()`
@@ -109,6 +105,10 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :meth:`Df.Harness.Gate.CodeStyleAnalyzer.CodeStyleAnalyzer.__scan_tokens()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__trailing_comment_urls()`
 	# @used-by :meth:`Df.Harness.Git.IssueActionExtractor.IssueActionExtractor.__decode_text()`
+	# @used-by :meth:`Df.Harness.Grounding.DomainFactExtractor.DomainFactExtractor.__extract_kv_matches()`
+	# @used-by :meth:`Df.Harness.Grounding.DomainFactExtractor.DomainFactExtractor.ticket_message_issues()`
+	# @used-by :meth:`Df.Harness.Grounding.ScatterBannerAuditor.ScatterBannerAuditor.__has_unnegated_match()`
+	# @used-by :meth:`Df.Harness.Grounding.ScatterBannerAuditor.ScatterBannerAuditor.__proposal_slice()`
 	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.has_enumerated_slop_title()`
 	# @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.replace_section2()`
 	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.lex_php()`

@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from Df.Harness.Git.RepoGate import RepoGate
 from Df.Harness.Git.WorktreePathResolver import WorktreePathResolver
+from Df.Harness.Grounding.LocalSourceAuditor import LocalSourceAuditor
 from Df.Harness.Issue.CompetingTurnChecker import CompetingTurnChecker
 from Df.Harness.Issue.EvidenceWorkspace import EvidenceWorkspace
 from Df.Harness.Issue.Linter import Linter
@@ -12,7 +13,6 @@ from Df.Harness.Issue.RepoLocator import V2_CODE_RELS
 from Df.Harness.Issue.ScopeCompletenessChecker import ScopeCompletenessChecker
 from Df.Harness.lib.issue_turn import dfh_extract_implemented_m_roots, dfh_filter_turn_state_items, dfh_merge_turn_issue_item, dfh_verify_multi_subtask_counts
 from Df.Harness.lib.shell import ISSUE_LINKED_CODE_SUFFIXES, dfh_extract_comment_issue_urls, dfh_extract_issue_urls, dfh_parse_issue_url
-from agent_tools.source_grounding import local_source_grounding_issues
 import json
 import re
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
@@ -70,7 +70,7 @@ class TurnAuditor:
 					for err in self.linter.lint(c_body, is_title=False, container_text=container_text, check_structure_policy=False):
 						code, msg = (err.get('code'), err.get('message'))
 						self.violations.append(f'GitHub comment {issue_url}#issuecomment-{cid} lint error ({code}): {msg}')
-					for g_err in local_source_grounding_issues(self.root, c_body, doc_path=cp):
+					for g_err in LocalSourceAuditor(self.root, c_body, doc_path=cp).run():
 						self.violations.append(f'GitHub comment {issue_url}#issuecomment-{cid} grounding error: {g_err}')
 	# @used-by :meth:`TurnAuditor.audit()`
 	def __check_diagnostic_audit_filing(self) -> None:
@@ -211,7 +211,7 @@ class TurnAuditor:
 			for err in self.linter.lint(b_txt, is_title=False, parent_number=eff_p, repo=slug, self_number=num):
 				code, msg = (err.get('code'), err.get('message'))
 				self.violations.append(f'GitHub issue {issue_url} body lint error ({code}): {msg}')
-			self.violations.extend((f'GitHub issue {issue_url} body grounding error: {g_err}' for g_err in local_source_grounding_issues(self.root, b_txt, doc_path=p)))
+			self.violations.extend((f'GitHub issue {issue_url} body grounding error: {g_err}' for g_err in LocalSourceAuditor(self.root, b_txt, doc_path=p).run()))
 	# @used-by :meth:`TurnAuditor.check_multi_subtask_decomposition()`
 	def __parent_linked_committed_urls(self, slug: str, req_urls: list[str], committed_urls: set[str]) -> list[str]:
 		return [c_url for c_url in req_urls if c_url in committed_urls and (parsed := dfh_parse_issue_url(c_url)) and parsed[0].lower() == slug.lower() and (None is not self.resolve_parent_number(parsed[0], parsed[1]))]

@@ -74,7 +74,8 @@ def extract_loom_video(url: str, timeout: float=15.0, opener=None) -> dict:
 def extract_pdf_markdown(raw_bytes: bytes, pdf_path=None) -> str:
 	return PdfMarkdownExtractor(raw_bytes, pdf_path=pdf_path, poppler_finder=_find_poppler_tool).extract()
 # @used-by :func:`agent_tools.text_sources._evaluate()`
-# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
+# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__expand_upwork_job_urls()`
+# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__record_client_text_urls()`
 # @used-by :mod:`agent_tools.upwork_data`
 def extract_upwork_job_url_id(url: str, *, allow_query_or_fragment: bool=False) -> str | None:
 	return JobUrlParser.extract_upwork_job_url_id(url, allow_query_or_fragment=allow_query_or_fragment)

@@ -61,8 +61,8 @@ def render_metadata_header(data: dict[str, Any]) -> str:
 # @used-by :func:`Df.Harness.lib.hook_stop_ops._record_emergency_files()`
 # @used-by :func:`Df.Harness.lib.hook_stop_ops.dfh_evaluate_prepared_match()`
 # @used-by :func:`Df.Harness.lib.journal_core.dfh_norm_journal_response_text()`
-# @used-by :func:`agent_tools.statements.validate_df_analysis()`
 # @used-by :func:`agent_tools.text_core.check_response()`
+# @used-by :meth:`Df.Harness.Grounding.DfAnalysisValidator.DfAnalysisValidator.validate()`
 # @used-by :meth:`Df.Harness.Review.ReviewAuthorizer.ReviewAuthorizer.authorize()`
 # @used-by :meth:`Df.Harness.Shadow.ReplayPipeline.ReplayPipeline.__load_candidate()`
 # @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.__load_latest_reply()`

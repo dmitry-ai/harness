@@ -1,9 +1,10 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from pathlib import Path
+from Df.Harness.Grounding.LocalSourceAuditor import LocalSourceAuditor
+from Df.Harness.lib.grounding import dfh_read_only_grounding
 from Df.Harness.lib.issue import dfh_emit_grounding_failure
 from agent_tools.cli_common import dump_json
-from agent_tools.source_grounding import local_source_grounding_issues, read_only_grounding
 import argparse
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class CommentGrounder:
@@ -46,8 +47,8 @@ class CommentGrounder:
 		if isinstance(text, str) and text.strip():
 			ground_root = self.__resolve_root()
 			if None is not ground_root:
-				with read_only_grounding():
-					r = local_source_grounding_issues(ground_root, text)
+				with dfh_read_only_grounding():
+					r = LocalSourceAuditor(ground_root, text).run()
 		return r
 	# @used-by :func:`agent_tools.issues.comment_grounding.check_comment_preflight()`
 	# @used-by :meth:`Df.Harness.Issue.Service.Service.cmd_comment()`

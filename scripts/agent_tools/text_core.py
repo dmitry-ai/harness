@@ -69,7 +69,6 @@ class Line:
 # @used-by :func:`agent_tools.article.render()`
 # @used-by :func:`agent_tools.article.render_map()`
 # @used-by :func:`agent_tools.article.to_source()`
-# @used-by :func:`agent_tools.causal_checks.unsupported_probability_claims()`
 # @used-by :func:`agent_tools.proposal._lines()`
 # @used-by :func:`agent_tools.proposal.lint_text()`
 # @used-by :func:`agent_tools.proposal.render()`
@@ -81,6 +80,7 @@ class Line:
 # @used-by :func:`agent_tools.text_sources.source_urls()`
 # @used-by :func:`check_response()`
 # @used-by :func:`command_blocks()`
+# @used-by :meth:`Df.Harness.Grounding.ProbabilityClaimChecker.ProbabilityClaimChecker.check()`
 # @used-by :meth:`test_source_admission.LinkPresentationTests.findings()`
 # @used-by :meth:`test_text_core.SharedMechanicsTests.test_fence_contents_end_only_at_matching_fence()`
 # @used-by :meth:`test_text_core.SharedMechanicsTests.test_hashed_asset_is_a_warning_not_proof_of_an_error()`

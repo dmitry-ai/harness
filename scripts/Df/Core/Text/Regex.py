@@ -126,6 +126,12 @@ class Regex(O):
 	# @used-by :func:`Df.Harness.lib.completion_links._validate_single_href()`
 	# @used-by :func:`Df.Harness.lib.config_blocks._collect_root_edits()`
 	# @used-by :func:`Df.Harness.lib.config_blocks.dfh_frontmatter()`
+	# @used-by :func:`Df.Harness.lib.grounding_md._is_table_header_pair()`
+	# @used-by :func:`Df.Harness.lib.grounding_md._parse_list_items()`
+	# @used-by :func:`Df.Harness.lib.grounding_md.dfh_extract_top_sections()`
+	# @used-by :func:`Df.Harness.lib.grounding_md.dfh_mask_fenced_lines()`
+	# @used-by :func:`Df.Harness.lib.grounding_md.dfh_parse_explicit_items()`
+	# @used-by :func:`Df.Harness.lib.grounding_md.dfh_parse_section_items()`
 	# @used-by :func:`Df.Harness.lib.hook_runtime_ops._scan_hook_line()`
 	# @used-by :func:`Df.Harness.lib.hook_runtime_ops._scan_workflow_line()`
 	# @used-by :func:`Df.Harness.lib.hook_runtime_ops._update_fence()`
@@ -156,25 +162,12 @@ class Regex(O):
 	# @used-by :func:`agent_tools.article.parse_sections()`
 	# @used-by :func:`agent_tools.article.render()`
 	# @used-by :func:`agent_tools.article.to_source()`
-	# @used-by :func:`agent_tools.cli_command_grounding._extract_recommended_commands()`
 	# @used-by :func:`agent_tools.cli_output_json._truncated_top_level_failure()`
-	# @used-by :func:`agent_tools.grounding_domains._collect_json_fact_tuples()`
 	# @used-by :func:`agent_tools.links.parse_markdown_headings()`
 	# @used-by :func:`agent_tools.links.readable_reference()`
 	# @used-by :func:`agent_tools.links.validate_file()`
 	# @used-by :func:`agent_tools.markdown_links.decode_file_uri()`
-	# @used-by :func:`agent_tools.problem_tracks.extract_problem_blocks()`
 	# @used-by :func:`agent_tools.research._summarize_json_collections()`
-	# @used-by :func:`agent_tools.response_grounding._discourse_topic_key()`
-	# @used-by :func:`agent_tools.scatter_banner._fenced_banner_at_start()`
-	# @used-by :func:`agent_tools.scatter_banner._parse_standalone_recommendations()`
-	# @used-by :func:`agent_tools.source_grounding.extract_authored_prose()`
-	# @used-by :func:`agent_tools.statements._extract_top_sections()`
-	# @used-by :func:`agent_tools.statements._is_table_header_pair()`
-	# @used-by :func:`agent_tools.statements._mask_fenced_lines()`
-	# @used-by :func:`agent_tools.statements._parse_explicit_items()`
-	# @used-by :func:`agent_tools.statements._parse_list_items()`
-	# @used-by :func:`agent_tools.statements._parse_section_items()`
 	# @used-by :func:`agent_tools.text_core.check_markdown_lists()`
 	# @used-by :func:`agent_tools.text_core.check_prose()`
 	# @used-by :func:`agent_tools.text_core.command_blocks()`
@@ -200,6 +193,14 @@ class Regex(O):
 	# @used-by :meth:`Df.Harness.Git.BlobSizeValidator.BlobSizeValidator.__collect_push_revs()`
 	# @used-by :meth:`Df.Harness.Git.GitSegmentExtractor.GitSegmentExtractor.extract()`
 	# @used-by :meth:`Df.Harness.Git.HostPathNormalizer.HostPathNormalizer.normalize()`
+	# @used-by :meth:`Df.Harness.Grounding.BlockLineAuditor.BlockLineAuditor.__check_technical_spans()`
+	# @used-by :meth:`Df.Harness.Grounding.CliCommandAuditor.CliCommandAuditor.__extract_recommended()`
+	# @used-by :meth:`Df.Harness.Grounding.DomainFactExtractor.DomainFactExtractor.__collect_dict_fact_tuples()`
+	# @used-by :meth:`Df.Harness.Grounding.EvidenceBundleIngestor.EvidenceBundleIngestor.discourse_topic_key()`
+	# @used-by :meth:`Df.Harness.Grounding.LocaleVerifier.LocaleVerifier.__extract_inline_chunks()`
+	# @used-by :meth:`Df.Harness.Grounding.ProblemTrackAuditor.ProblemTrackAuditor.extract_blocks()`
+	# @used-by :meth:`Df.Harness.Grounding.ScatterBannerAuditor.ScatterBannerAuditor.__fenced_banner_at_start()`
+	# @used-by :meth:`Df.Harness.Grounding.ScatterBannerAuditor.ScatterBannerAuditor.__parse_standalone()`
 	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.__check_body_blocks()`
 	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.__collect_m_subtask_groups()`
 	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.validate_repo()`
@@ -249,7 +250,6 @@ class Regex(O):
 	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.parse_tag_line()`
 	# @used-by :meth:`Regex.matchInt()`
 	# @used-by :meth:`Regex.test()`
-	# @used-by :meth:`agent_tools.source_grounding.LocalSourceGroundingAuditor._check_prose_line()`
 	# @used-by :meth:`test_df_core_text_misc.DfCoreTextMiscTests.test_text_helpers_part1()`
 	def match(self) -> str | list[str] | None | bool:
 		return dfc(self, self.__execMatch)

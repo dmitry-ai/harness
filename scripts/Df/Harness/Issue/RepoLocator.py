@@ -20,6 +20,7 @@ class RepoLocator:
 	# @used-by :func:`agent_tools.issues.repo_locator.find_local_code_repo()`
 	# @used-by :func:`agent_tools.issues.repo_locator.origin_repo_slug()`
 	# @used-by :func:`agent_tools.issues.repo_locator.repo_matches_slug()`
+	# @used-by :meth:`Df.Harness.Grounding.Doc5RequirementChecker.Doc5RequirementChecker.__workspace_repo_slugs()`
 	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.find_local_code_repo()`
 	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.origin_repo_slug()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_dirty_scanner_read_cache_and_locator()`
@@ -205,6 +206,7 @@ class RepoLocator:
 			r = self.__search_fn(repo, seen) if None is not self.__search_fn else self.search_registry_and_roots(repo, seen)
 		return r
 	# @used-by :func:`agent_tools.issues.repo_locator.origin_repo_slug()`
+	# @used-by :meth:`Df.Harness.Grounding.Doc5RequirementChecker.Doc5RequirementChecker.__workspace_repo_slugs()`
 	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.origin_repo_slug()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_dirty_scanner_read_cache_and_locator()`
 	def origin_repo_slug(self, code_repo: Path) -> str | None:
