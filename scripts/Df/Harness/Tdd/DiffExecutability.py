@@ -16,6 +16,7 @@ class DiffExecutability:
 	NON_EXECUTABLE_CATEGORIES = frozenset({'comment_only', 'mechanical_exempt', 'non_code', 'unchanged', 'whitespace_only'})
 	__NO_TESTS_SLOP_RE = re.compile(r'(?i)\b(?:hurry|faster|lazy|skip\s+tests?\s+(?:because|to\s+save)|bypass\s+(?:tdd|tests?|gate))\b')
 	__NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_tdd_and_xref_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_diff_executability_and_coverage()`
 	def classify(self, path: str | Path, old_text: str | None, new_text: str | None, *, repo_root: Path | None=None, message: str | None=None, project_root: Path | None=None) -> dict[str, Any]:
 		cat = DiffExecutability.classify_text_diff(path, old_text, new_text, repo_root=repo_root, message=message, project_root=project_root)

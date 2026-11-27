@@ -1,200 +1,24 @@
 # 2026-11-23 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
-from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
-import os
 from pathlib import Path
-import re
-import subprocess
-import sys
-import tempfile
-import threading
-import time
-from Df.Harness.lib.cli import dfh_default_workers
-# 2026-11-24
-# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
-# https://github.com/dmitry-ai/harness/issues/206
-from .process_tree import POPEN_TREE_KWARGS, kill_process_tree
-# 2026-11-26 "Add host test-worker semaphore and worksteal pytest mode": https://github.com/dmitry-ai/harness/issues/354
-from .pytest_worksteal_runner import resolve_runner_mode, run_pytest_for_suite
+from Df.Harness.TestRunner.SuiteRunner import SuiteRunner
 from .worker_semaphore import worker_slot_budget
+# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
+# 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
+# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
+def _default_workers() -> int:
+	return SuiteRunner.default_workers()
+# @used-by unused
+def discover_test_modules(tests_dir: Path | str | None=None, *, pattern: str='test_*.py', modules: list[str] | tuple[str, ...] | None=None) -> tuple[Path, list[Path]]:
+	return SuiteRunner.discover_modules(tests_dir, pattern=pattern, modules=modules)
+# @used-by :func:`agent_tools.cli_registry._format_run_tests()`
+def format_text_report(report: dict) -> str:
+	return SuiteRunner.format_text(report)
 # 2026-11-23
 # "Add parallel fail-fast run-tests runner with module timeouts and TDD gate registration":
 # https://github.com/dmitry-ai/harness/issues/160
-_NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
-_RAN_RE = re.compile(r'(?m)^Ran\s+(\d+)\s+tests?\s+in\s+')
-_SKIP_DIRS = frozenset({'.git', '__pycache__', 'node_modules', 'venv', '.venv', '\ua616', '\ua66e', '\U0001f56e'})
-_SKIPPED_RE = re.compile(r'\bskipped=(\d+)\b')
-# 2026-11-26 "Create Df/Harness library for shared Harness helpers": https://github.com/dmitry-ai/harness/issues/379
-# @used-by :func:`run_test_suite()`
-# @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_harness_callers_delegate_to_df_harness_helpers()`
-def _default_workers() -> int:
-	return dfh_default_workers(8)
-# 2026-11-24
-# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
-# https://github.com/dmitry-ai/harness/issues/206
-# @used-by :func:`_run_module_worker()`
-# @used-by :func:`_terminate_active()`
-def _kill_process_tree(proc: subprocess.Popen) -> None:
-	kill_process_tree(proc)
-# @used-by :func:`discover_test_modules()`
-def _module_matches_filters(mod: Path, base_dir: Path, filters: list[str]) -> bool:
-	rel = mod.relative_to(base_dir).as_posix().lower()
-	name = mod.name.lower()
-	stem = mod.stem.lower()
-	return any((f in (rel, name, stem) or rel.endswith('/' + f) for f in filters))
-# @used-by :func:`_run_module_worker()`
-def _parse_unittest_counts(text: str) -> tuple[int, int]:
-	ran = sum((int(m.group(1)) for m in _RAN_RE.finditer(text or '')))
-	skipped = sum((int(m.group(1)) for m in _SKIPPED_RE.finditer(text or '')))
-	return (ran, skipped)
-# @used-by :func:`discover_test_modules()`
-def _resolve_tests_dir(raw_dir: Path | str | None) -> Path:
-	base = Path(raw_dir).resolve() if None is not raw_dir else (Path(__file__).resolve().parents[2] / 'tests').resolve()
-	if not base.is_dir():
-		raise FileNotFoundError(f'Test directory not found: {base}')
-	sub_tests = base / 'tests'
-	if sub_tests.is_dir() and (not any(base.glob('test_*.py'))):
-		base = sub_tests.resolve()
-	return base
-# @used-by :func:`_run_unittest_suite()`
-def _run_module_worker(mod_path: Path, top_dir: Path, *, failfast: bool, module_timeout: float, stop_event: threading.Event, active_lock: threading.Lock, active_procs: set[subprocess.Popen]) -> dict:
-	rel = mod_path.relative_to(top_dir).as_posix()
-	if stop_event.is_set():
-		r = {'module': rel, 'status': 'cancelled', 'returncode': None, 'elapsed': 0.0, 'tests': 0, 'skipped': 0, 'output': ''}
-	else:
-		cmd = [sys.executable, '-m', 'unittest', 'discover', '-s', str(mod_path.parent), '-t', str(top_dir), '-p', mod_path.name, '-b']
-		if failfast:
-			cmd.append('-f')
-		started = time.monotonic()
-		timed_out, cancelled = (False, False)
-		with tempfile.TemporaryFile() as out_file:
-			# 2026-11-24
-			# "Deduplicate historical admission fixtures and guard optional temp fsync":
-			# https://github.com/dmitry-ai/harness/issues/177
-			# 2026-11-24
-			# "Detach inherited stdin pipes in Harness test runners and Git hook helpers":
-			# https://github.com/dmitry-ai/harness/issues/204
-			# 2026-11-24
-			# "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
-			# https://github.com/dmitry-ai/harness/issues/206
-			# 2026-11-26 "Add host test-worker semaphore and worksteal pytest mode": https://github.com/dmitry-ai/harness/issues/354
-			proc = subprocess.Popen(cmd, cwd=str(top_dir.parent), stdin=subprocess.DEVNULL, stdout=out_file, stderr=subprocess.STDOUT, env={'HARNESS_TEST_NO_FSYNC': '1', **os.environ, 'HARNESS_TEST_IN_WORKER': '1'}, **POPEN_TREE_KWARGS)
-			with active_lock:
-				active_procs.add(proc)
-			try:
-				while None is proc.poll():
-					if stop_event.is_set():
-						cancelled = True
-						_kill_process_tree(proc)
-						break
-					if (time.monotonic() - started) >= module_timeout:
-						timed_out = True
-						_kill_process_tree(proc)
-						break
-					time.sleep(0.05)
-				rc = proc.wait(timeout=5)
-			finally:
-				with active_lock:
-					active_procs.discard(proc)
-			out_file.seek(0)
-			output = out_file.read().decode('utf-8', errors='replace')
-		elapsed = round(time.monotonic() - started, 3)
-		tests, skipped = _parse_unittest_counts(output)
-		status = 'timeout' if timed_out else 'cancelled' if cancelled else 'passed' if 0 == rc else 'failed'
-		r = {'module': rel, 'status': status, 'returncode': rc, 'elapsed': elapsed, 'tests': tests, 'skipped': skipped, 'output': output}
-	return r
-# 2026-11-26 "Add host test-worker semaphore and worksteal pytest mode": https://github.com/dmitry-ai/harness/issues/354
-# @used-by :func:`run_test_suite()`
-def _run_unittest_suite(base: Path, ordered: list[Path], *, eff_workers: int, failfast: bool, module_timeout: float) -> list[dict]:
-	stop_event, active_lock, active_procs, results, aborted = (threading.Event(), threading.Lock(), set(), [], False)
-	executor = ThreadPoolExecutor(max_workers=eff_workers)
-	try:
-		pending = {executor.submit(_run_module_worker, mod, base, failfast=failfast, module_timeout=float(module_timeout), stop_event=stop_event, active_lock=active_lock, active_procs=active_procs): mod for mod in ordered}
-		while pending and (not aborted):
-			done, pending = wait(pending, return_when=FIRST_COMPLETED)
-			for fut in done:
-				res = fut.result()
-				results.append(res)
-				if failfast and res['status'] in ('failed', 'timeout'):
-					aborted = True
-					break
-	finally:
-		if aborted:
-			stop_event.set()
-			_terminate_active(active_lock, active_procs)
-		executor.shutdown(wait=True, cancel_futures=aborted)
-	return results
-# 2026-11-26 "Add host test-worker semaphore and worksteal pytest mode": https://github.com/dmitry-ai/harness/issues/354
-# @used-by :func:`run_test_suite()`
-def _summarize_suite(base: Path, ordered: list[Path], results: list[dict], *, eff_workers: int, failfast: bool, module_timeout: float, elapsed: float) -> dict:
-	passed = sum((1 for x in results if 'passed' == x['status']))
-	failed = sum((1 for x in results if 'failed' == x['status']))
-	timed_out = sum((1 for x in results if 'timeout' == x['status']))
-	total_tests = sum((int(x['tests']) for x in results))
-	skipped_tests = sum((int(x['skipped']) for x in results))
-	ok = (0 == failed) and (0 == timed_out) and (passed == len(ordered)) and (0 < total_tests)
-	return {'cancelled_modules': len(ordered) - passed - failed - timed_out, 'elapsed': elapsed, 'exit_code': 0 if ok else 1, 'failed_modules': failed, 'failfast': bool(failfast), 'module_timeout': float(module_timeout), 'ok': ok, 'passed_modules': passed, 'results': results, 'runner': 'unittest', 'scheduled_order': [m.relative_to(base).as_posix() for m in ordered], 'skipped_tests': skipped_tests, 'tests_dir': base.as_posix(), 'timed_out_modules': timed_out, 'total_modules': len(ordered), 'total_tests': total_tests, 'workers': eff_workers}
-# @used-by :func:`_run_unittest_suite()`
-def _terminate_active(active_lock: threading.Lock, active_procs: set[subprocess.Popen]) -> None:
-	with active_lock:
-		procs = list(active_procs)
-	for proc in procs:
-		_kill_process_tree(proc)
-# @used-by :func:`run_test_suite()`
-# @used-by :meth:`Df.Harness.Perf.SuiteProfiler.SuiteProfiler.profile()`
-def discover_test_modules(tests_dir: Path | str | None=None, *, pattern: str='test_*.py', modules: list[str] | tuple[str, ...] | None=None) -> tuple[Path, list[Path]]:
-	base = _resolve_tests_dir(tests_dir)
-	found: list[Path] = []
-	for cand in base.rglob(pattern):
-		if cand.is_file() and (not any((part in _SKIP_DIRS for part in cand.relative_to(base).parts[:-1]))):
-			found.append(cand.resolve())
-	norm_filters = [str(m).strip().replace('\\', '/').lower() for m in (modules or ()) if str(m).strip()]
-	if norm_filters:
-		found = [m for m in found if _module_matches_filters(m, base, norm_filters)]
-	ordered = sorted(found, key=lambda p: (-p.stat().st_size, p.relative_to(base).as_posix()))
-	return (base, ordered)
-# @used-by :func:`agent_tools.cli_registry._format_run_tests()`
-def format_text_report(report: dict) -> str:
-	lines: list[str] = []
-	for item in report.get('results') or []:
-		st = item.get('status')
-		if 'timeout' == st:
-			lines.append(f"TIMEOUT: {item['module']} exceeded --module-timeout={report['module_timeout']}s ({item['elapsed']:.3f}s)")
-			if item.get('output'):
-				lines.append(item['output'].rstrip())
-		elif 'failed' == st:
-			lines.append(f"FAIL: {item['module']} (exit {item['returncode']}, {item['elapsed']:.3f}s)")
-			if item.get('output'):
-				lines.append(item['output'].rstrip())
-	lines.append('-' * 70)
-	lines.append(f"Ran {report['total_tests']} tests in {report['elapsed']:.3f}s ({report['passed_modules']}/{report['total_modules']} modules, workers={report['workers']})")
-	lines.append('')
-	if report['ok']:
-		skip_part = f" (skipped={report['skipped_tests']})" if report['skipped_tests'] else ''
-		lines.append(f'OK{skip_part}')
-	else:
-		parts = []
-		if report['failed_modules']:
-			parts.append(f"failures={report['failed_modules']}")
-		if report['timed_out_modules']:
-			parts.append(f"timeouts={report['timed_out_modules']}")
-		lines.append(f"FAILED ({', '.join(parts) or 'error'})")
-	return '\n'.join(lines) + '\n'
-# 2026-11-26 "Add host test-worker semaphore and worksteal pytest mode": https://github.com/dmitry-ai/harness/issues/354
 # @used-by :func:`agent_tools.cli_registry._exec_run_tests()`
 # @used-by :meth:`test_worker_semaphore_and_xdist.WorkerSemaphoreAndXdistTests.test_nested_worker_slot_budget_skips_self_throttling_against_parent_lease()`
 # @used-by :meth:`test_worker_semaphore_and_xdist.WorkerSemaphoreAndXdistTests.test_pytest_worksteal_runner_and_cli_runner_option()`
 def run_test_suite(tests_dir: Path | str | None=None, *, workers: int | None=None, module_timeout: float=300.0, failfast: bool=True, pattern: str='test_*.py', modules: list[str] | tuple[str, ...] | None=None, runner: str='auto') -> dict:
-	base, ordered = discover_test_modules(tests_dir, pattern=pattern, modules=modules)
-	if not ordered:
-		raise ValueError(f'No test modules matched pattern {pattern!r} in {base}')
-	req_workers = min(max(1, int(workers)) if None is not workers else _default_workers(), len(ordered))
-	started = time.monotonic()
-	with worker_slot_budget(req_workers) as lease:
-		eff_workers = min(max(1, int(lease['granted'])), len(ordered))
-		if 'pytest' == resolve_runner_mode(runner):
-			r = run_pytest_for_suite(base, ordered, workers=eff_workers, failfast=failfast, module_timeout=module_timeout)
-		else:
-			results = _run_unittest_suite(base, ordered, eff_workers=eff_workers, failfast=failfast, module_timeout=module_timeout)
-			r = _summarize_suite(base, ordered, results, eff_workers=eff_workers, failfast=failfast, module_timeout=module_timeout, elapsed=round(time.monotonic() - started, 3))
-	return r
+	return SuiteRunner(tests_dir, workers=workers, module_timeout=module_timeout, failfast=failfast, pattern=pattern, modules=modules, runner=runner, slot_budget_fn=worker_slot_budget).run()

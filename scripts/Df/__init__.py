@@ -24,8 +24,8 @@ class DotPyFinder(MetaPathFinder):
 			elif py_file.is_file() and base.is_dir():
 				r = (py_file, base)
 		return r
-	# @used-by :func:`agent_tools.pytest_worksteal_runner.xdist_available()`
 	# @used-by :meth:`Harness.Tdd.DiffCoverage.DiffCoverage.__pytest_argv()`
+	# @used-by :meth:`Harness.TestRunner.PytestWorkstealRunner.PytestWorkstealRunner.xdist_available()`
 	# @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_doctor_and_turn_begin_exclude_addons_health()`
 	def find_spec(self, fullname: str, path=None, target=None) -> ModuleSpec | None:
 		hit = self.__resolve_target(fullname)

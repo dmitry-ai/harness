@@ -1,35 +1,14 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
-import os
-import signal
-import subprocess
-# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
 from Df.Core.lib.state import df_is_windows
+from Df.Harness.TestRunner.ProcessTree import ProcessTree
+import subprocess
 # 2026-11-24
 # "Unify process-tree termination in parallel_runner and enforce AST subprocess hygiene in pre-commit":
 # https://github.com/dmitry-ai/harness/issues/206
-_NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
-# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
-POPEN_TREE_KWARGS: dict = {'creationflags': _NO_WINDOW} if df_is_windows() else {'start_new_session': True}
-# @used-by :func:`agent_tools.parallel_runner._kill_proc_tree()`
-# @used-by :func:`agent_tools.pytest_worksteal_runner.run_pytest_worksteal()`
-# @used-by :func:`agent_tools.suite_runner._kill_process_tree()`
-# @used-by :func:`agent_tools.watchdog_runner._kill_watchdog_tree()`
+# 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
+_NO_WINDOW = ProcessTree.NO_WINDOW
+POPEN_TREE_KWARGS: dict = ProcessTree.POPEN_TREE_KWARGS
+# @used-by unused
 def kill_process_tree(proc: subprocess.Popen, *, wait_timeout: float=5.0) -> None:
-	if None is proc.poll():
-		# 2026-11-26 "Replace duplicated Harness logic with Df helpers": https://github.com/dmitry-ai/harness/issues/337
-		if df_is_windows():
-			subprocess.run(['taskkill', '/F', '/T', '/PID', str(proc.pid)], stdin=subprocess.DEVNULL, capture_output=True, check=False, timeout=15, creationflags=_NO_WINDOW)
-		else:
-			try:
-				os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-			except OSError:
-				pass
-		try:
-			proc.kill()
-		except OSError:
-			pass
-		try:
-			proc.wait(timeout=wait_timeout)
-		except (OSError, subprocess.TimeoutExpired):
-			pass
+	ProcessTree(proc, wait_timeout=wait_timeout).kill()

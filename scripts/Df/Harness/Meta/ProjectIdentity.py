@@ -9,6 +9,7 @@ import tempfile
 class ProjectIdentity:
 	PROJECTS_DIR_CACHE: dict[tuple[str, int], list[dict[str, Any]]] = {}
 	# @used-by :func:`agent_tools.meta.identity.resolve_project_identity()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	# @used-by :mod:`Df.Harness.Meta.Builders`
 	def __init__(self, root: str | Path, *, ag_paths: dict[str, Any] | None=None, project_id: str | None=None) -> None:
@@ -118,8 +119,6 @@ class ProjectIdentity:
 	# @used-by :func:`agent_tools.source_grounding.resolve_local_href()`
 	# @used-by :func:`agent_tools.stop_subagent_check._query_summary_children()`
 	# @used-by :func:`agent_tools.storage._should_skip_fsync()`
-	# @used-by :func:`agent_tools.suite_runner._resolve_tests_dir()`
-	# @used-by :func:`agent_tools.suite_runner.discover_test_modules()`
 	# @used-by :func:`agent_tools.text_browser.resolve_headless_shell()`
 	# @used-by :func:`agent_tools.text_claims.registry_path()`
 	# @used-by :func:`agent_tools.text_cli.main()`
@@ -179,6 +178,7 @@ class ProjectIdentity:
 	# @used-by :meth:`Df.Harness.Meta.Blocks.Blocks.build_trace()`
 	# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.__turn_state_candidate()`
 	# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.ag_transcript_file()`
+	# @used-by :meth:`Df.Harness.Perf.SuiteWorker.SuiteWorker.__discover_suite()`
 	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.__resolve_deleted_worktree_scope()`
 	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.resolve_code_scope()`
 	# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.__resolve_shell_target()`
@@ -192,6 +192,8 @@ class ProjectIdentity:
 	# @used-by :meth:`Df.Harness.Tdd.Exemption.Exemption.__resolve_scope_rel_path()`
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__resolve_existing_repo()`
 	# @used-by :meth:`Df.Harness.Tdd.WorktreeScope.WorktreeScope.__norm_lower()`
+	# @used-by :meth:`Df.Harness.TestRunner.SuiteRunner.SuiteRunner.__resolve_tests_dir()`
+	# @used-by :meth:`Df.Harness.TestRunner.SuiteRunner.SuiteRunner.discover_modules()`
 	# @used-by :meth:`ProjectIdentity.__push_project_dir()`
 	# @used-by :meth:`ProjectIdentity.is_temp_path()`
 	# @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
@@ -242,6 +244,7 @@ class ProjectIdentity:
 	# @used-by :meth:`test_cleanup_lifecycle.CleanupLifecycleTests.test_renamed_from_paths_preserve_projects_with_old_path_conversations()`
 	# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
 	# @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_quoted_and_non_leading_upwork_init_never_override_or_poison_and_support_cross_platform_commands()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	# @used-by :meth:`test_git_ignore.GlobalGitIgnoreTests.test_doctor_reports_and_validates_global_git_ignore()`
 	# @used-by :meth:`test_git_ignore.GlobalGitIgnoreTests.test_resolve_global_git_ignore_path_precedence()`

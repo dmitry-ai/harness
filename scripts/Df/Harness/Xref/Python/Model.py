@@ -219,6 +219,7 @@ class Model:
 	# @used-by :func:`agent_tools.xref.python_model.index_python_file()`
 	# @used-by :meth:`Df.Harness.Xref.Python.Syncer.Syncer.check_file_local()`
 	# @used-by :meth:`Model.build_repo_index()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_tdd_and_xref_classes()`
 	@staticmethod
 	def index_file(rel_posix: str, module_name: str, source: str) -> dict:
 		lines = (source or '').splitlines()

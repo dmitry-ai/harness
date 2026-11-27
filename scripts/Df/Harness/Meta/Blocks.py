@@ -12,12 +12,14 @@ import sys
 class Blocks:
 	# @used-by :func:`agent_tools.meta.blocks._journal_step_paths()`
 	# @used-by :meth:`Blocks.build_journal_trace()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	def __init__(self, journal_dir: Path, steps: list[int]) -> None:
 		self.__journal_dir = journal_dir
 		self.__steps = steps
 	# @used-by :func:`agent_tools.meta.blocks._journal_step_paths()`
 	# @used-by :meth:`Blocks.build_journal_trace()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	def step_paths(self) -> tuple[str | list[str] | None, str | list[str] | None]:
 		from agent_tools import journal

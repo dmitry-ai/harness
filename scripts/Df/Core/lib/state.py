@@ -16,15 +16,15 @@ def df_is_localhost() -> bool:
 # @used-by :func:`agent_tools.git_gate._ancestor_process_names()`
 # @used-by :func:`agent_tools.git_gate.cleanup_stale_credential_locks()`
 # @used-by :func:`agent_tools.landing_lease._pid_is_alive()`
-# @used-by :func:`agent_tools.process_tree.kill_process_tree()`
 # @used-by :func:`agent_tools.storage.create_bytes()`
 # @used-by :func:`agent_tools.storage.locked()`
 # @used-by :func:`agent_tools.text_core.default_shell()`
-# @used-by :func:`agent_tools.watchdog_runner.run_test_watchdog()`
 # @used-by :func:`agent_tools.worktree_guard._query_win32_processes()`
 # @used-by :meth:`Df.Harness.Gate.WorktreeIsolationGate.WorktreeIsolationGate.__resolve_target_path()`
+# @used-by :meth:`Df.Harness.TestRunner.ProcessTree.ProcessTree.kill()`
+# @used-by :meth:`Df.Harness.TestRunner.WatchdogRunner.WatchdogRunner.__build_popen_kwargs()`
 # @used-by :meth:`test_df_core_base.DfCoreBaseTests.test_cli_state_and_hash()`
 # @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_first_last_starts_with_and_is_windows_delegation_to_df()`
-# @used-by :mod:`agent_tools.process_tree`
+# @used-by :mod:`Df.Harness.TestRunner.ProcessTree`
 def df_is_windows() -> bool:
 	return dfcf(lambda: 'WIN' == sys.platform[:3].upper())

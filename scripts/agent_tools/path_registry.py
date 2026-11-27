@@ -1703,6 +1703,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_harness_s11_wave2b_meta`
 	# @used-by :mod:`test_df_harness_s11_wave2b_tdd`
 	# @used-by :mod:`test_df_harness_s11_wave2b_xref`
+	# @used-by :mod:`test_df_harness_s11_wave2b`
 	# @used-by :mod:`test_df_harness_s11_wave2e_arch`
 	# @used-by :mod:`test_df_qa`
 	# @used-by :mod:`test_df_upstream_fixes`
@@ -1916,9 +1917,9 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.text_claims.save_registry()`
 	# @used-by :func:`agent_tools.text_workflow._folder()`
 	# @used-by :func:`agent_tools.upwork_project.configure_project()`
-	# @used-by :func:`agent_tools.worker_semaphore.default_slots_dir()`
 	# @used-by :func:`agent_tools.worktree_flow.worktree_land()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__arch_dir()`
+	# @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.default_slots_dir()`
 	# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.claim_snapshot()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
 	@property
@@ -2386,7 +2387,6 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.upwork_project.default_context_config()`
 # @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`agent_tools.upwork_project.run()`
-# @used-by :func:`agent_tools.worker_semaphore.default_slots_dir()`
 # @used-by :func:`agent_tools.workflow.evidence_paths()`
 # @used-by :func:`agent_tools.workflow.kb_paths()`
 # @used-by :func:`agent_tools.worktree_flow._resolve_deleted_worktree_file()`
@@ -2415,6 +2415,7 @@ class ProjectPaths:
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__candidate_recipe_dirs()`
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 # @used-by :meth:`Df.Harness.Tdd.RatchetGuard.RatchetGuard.turn_receipt_dirs()`
+# @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.default_slots_dir()`
 # @used-by :meth:`agent_tools.completion.AnswerPreparationRunner.__init__()`
 # @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.__init__()`
 # @used-by :meth:`agent_tools.experiments.ExperimentRunValidator._verify_saved_artifacts()`

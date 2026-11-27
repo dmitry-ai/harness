@@ -25,6 +25,7 @@ class Builders:
 	}
 	# @used-by :func:`agent_tools.meta.builders.build_github_issue_metadata()`
 	# @used-by :meth:`Builders.build_problem()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	def __init__(self, project_root: str | Path | None=None, *, env: dict[str, str] | None=None, now: datetime | str | None=None, tz=None) -> None:
 		self.__project_root = project_root
@@ -33,6 +34,7 @@ class Builders:
 		self.__tz = tz
 	# @used-by :func:`agent_tools.meta.builders.build_github_issue_metadata()`
 	# @used-by :meth:`Builders.build_problem()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	def build_github_issue(self, *, issue_url: str) -> dict[str, Any]:
 		from agent_tools.path_registry import canonicalize_root_dir

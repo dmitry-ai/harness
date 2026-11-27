@@ -8,11 +8,13 @@ class Lexer:
 	__WORD_RE = re.compile(r'[A-Za-z_$][A-Za-z0-9_$]*')
 	# @used-by :func:`agent_tools.xref.java_lex.tokenize_java()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Model.Model.index_file()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_tdd_and_xref_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_xref.DfHarnessS11Wave2bXrefTests.test_java_xref_classes_tokenize_index_graph_and_sync()`
 	def __init__(self, source: str) -> None:
 		self.__source = source
 	# @used-by :func:`agent_tools.xref.java_lex.tokenize_java()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Model.Model.index_file()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_tdd_and_xref_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_xref.DfHarnessS11Wave2bXrefTests.test_java_xref_classes_tokenize_index_graph_and_sync()`
 	def tokenize(self) -> list[tuple[str, str, int]]:
 		toks: list[tuple[str, str, int]] = []

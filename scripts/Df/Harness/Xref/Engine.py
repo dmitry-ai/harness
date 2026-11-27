@@ -9,12 +9,14 @@ class Engine:
 	# @used-by :func:`agent_tools.xref.run_xref_check()`
 	# @used-by :meth:`Df.Harness.Gate.XrefStagedGate.XrefStagedGate.verify()`
 	# @used-by :meth:`Df.Harness.Gate.XrefWorktreeGate.XrefWorktreeGate.verify()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_tdd_and_xref_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_xref.DfHarnessS11Wave2bXrefTests.test_python_xref_classes_and_engine_roundtrip()`
 	def __init__(self, repo_root: Path | str) -> None:
 		self.__repo_root = Path(repo_root).resolve()
 	# @used-by :func:`agent_tools.xref.run_xref_check()`
 	# @used-by :meth:`Df.Harness.Gate.XrefStagedGate.XrefStagedGate.verify()`
 	# @used-by :meth:`Df.Harness.Gate.XrefWorktreeGate.XrefWorktreeGate.verify()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_tdd_and_xref_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_xref.DfHarnessS11Wave2bXrefTests.test_python_xref_classes_and_engine_roundtrip()`
 	def check(self, *, lang: str='all', files: list[str] | None=None, overrides_map: dict[str, str] | None=None) -> dict:
 		runners = {'java': JavaSyncer.check_repo, 'js': JsSyncer.check_repo, 'python': PythonSyncer.check_repo}

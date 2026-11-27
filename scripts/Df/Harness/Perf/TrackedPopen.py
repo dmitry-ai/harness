@@ -65,8 +65,8 @@ class TrackedPopen(subprocess.Popen):
 	def restore(orig_popen: Any, orig_sleep: Any) -> None:
 		subprocess.Popen, time.sleep = (orig_popen, orig_sleep)
 		TrackedPopen.__ACTIVE_STATS = None
-	# @used-by :func:`agent_tools.parallel_runner._read_proc_output()`
 	# @used-by :func:`test_stdin_detachment._run_with_open_stdin()`
+	# @used-by :meth:`Df.Harness.TestRunner.ParallelRunner.ParallelRunner.__read_proc_output()`
 	# @used-by :meth:`subprocess.Popen.communicate()`
 	# @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_single_process_watchdog_and_hung_timeout_lkg_fallback()`
 	# @used-by :meth:`test_watchdog_and_timeout_gate.WatchdogAndTimeoutGateTests.test_watchdog_cli_detaches_open_stdin_pipe_and_preserves_exit_code()`
@@ -79,11 +79,11 @@ class TrackedPopen(subprocess.Popen):
 			self.__perf_finish()
 		return r
 	# @used-by :func:`agent_tools.cli_registry._exec_land_acquire()`
-	# @used-by :func:`agent_tools.process_tree.kill_process_tree()`
-	# @used-by :func:`agent_tools.pytest_worksteal_runner.run_pytest_worksteal()`
-	# @used-by :func:`agent_tools.suite_runner._run_module_worker()`
-	# @used-by :func:`agent_tools.watchdog_runner._poll_until_exit()`
 	# @used-by :func:`test_stdin_detachment._kill_tree()`
+	# @used-by :meth:`Df.Harness.TestRunner.ProcessTree.ProcessTree.__finish_kill()`
+	# @used-by :meth:`Df.Harness.TestRunner.PytestWorkstealRunner.PytestWorkstealRunner.run()`
+	# @used-by :meth:`Df.Harness.TestRunner.SuiteRunner.SuiteRunner.__poll_module_proc()`
+	# @used-by :meth:`Df.Harness.TestRunner.WatchdogRunner.WatchdogRunner.__poll_until_exit()`
 	# @used-by :meth:`agent_tools.text_browser.CDPSession.close()`
 	# @used-by :meth:`agent_tools.text_browser.ManagedHeadlessShell.close()`
 	# @used-by :meth:`subprocess.Popen.wait()`

@@ -65,6 +65,7 @@ class PythonIntegrity:
 	# @used-by :meth:`Df.Harness.Gate.CodeSizeStagedGate.CodeSizeStagedGate.verify()`
 	# @used-by :meth:`PythonIntegrity.verify_directory()`
 	# @used-by :meth:`PythonIntegrity.verify_file()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_gate_classes_enforce_python_and_pretool_checks()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
 	@staticmethod
 	def check(path: str | Path, source: str) -> list[str]:

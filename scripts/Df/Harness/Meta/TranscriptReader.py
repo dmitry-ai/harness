@@ -12,6 +12,7 @@ class TranscriptReader:
 	__SKIP_STATE_SUFFIXES = ('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json')
 	# @used-by :func:`agent_tools.meta.transcripts._extract_ag_transcript_info()`
 	# @used-by :meth:`TranscriptReader.resolve_ag_model_and_effort()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	# @used-by :mod:`Df.Harness.Meta.Builders`
 	def __init__(self, transcript_path: str | Path | None, *, fallback_read_fn=None) -> None:
@@ -19,6 +20,7 @@ class TranscriptReader:
 		self.__fallback_read_fn = fallback_read_fn
 	# @used-by :func:`agent_tools.meta.transcripts._extract_ag_transcript_info()`
 	# @used-by :meth:`TranscriptReader.resolve_ag_model_and_effort()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	# @used-by :mod:`Df.Harness.Meta.Builders`
 	def extract_ag_info(self, *, start_step: int | None=None, end_step: int | None=None, final_step: int | None=None) -> dict[str, Any]:

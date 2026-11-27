@@ -12,12 +12,14 @@ class MetricsSummarizer:
 	__ERROR_RES_RE = re.compile(r'Encountered error in step execution|failed to read file|cannot find the file', re.I)
 	# @used-by :func:`agent_tools.metrics.summarize()`
 	# @used-by :meth:`MetricsSummarizer.summarize_instance()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	def __init__(self, paths, bindings=None) -> None:
 		self.__paths = list(paths)
 		self.__bindings = bindings
 	# @used-by :func:`agent_tools.metrics.summarize()`
 	# @used-by :meth:`MetricsSummarizer.summarize_instance()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_meta_classes_render_headers_identity_transcripts_and_metrics()`
 	def summarize(self) -> dict:
 		formats = MetricsSummarizer.__detect_codex_formats(self.__paths)

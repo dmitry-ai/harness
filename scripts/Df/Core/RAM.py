@@ -369,11 +369,11 @@ class RAM:
 	# https://github.com/mage2pro/core/blob/11.6.1/Core/RAM.php#L44-L65
 	# @used-by :func:`Df.Core.lib.cache.dfcf.dfcf()`
 	# @used-by :func:`agent_tools.cleanup._codex_glob_scope()`
-	# @used-by :func:`agent_tools.parallel_runner._stop_siblings()`
 	# @used-by :func:`agent_tools.runtime.using()`
 	# @used-by :func:`agent_tools.runtime_cache.skip_shell_violations()`
 	# @used-by :func:`agent_tools.source_grounding.read_only_grounding()`
-	# @used-by :func:`agent_tools.suite_runner._run_unittest_suite()`
+	# @used-by :meth:`Df.Harness.TestRunner.ParallelRunner.ParallelRunner.__stop_siblings()`
+	# @used-by :meth:`Df.Harness.TestRunner.SuiteRunner.SuiteRunner.__run_unittest_suite()`
 	# @used-by :meth:`test_context_and_storage_determinism.ContextAndStorageDeterminismTests.test_locked_create_on_held_zero_byte_lock_waits_without_permission_error()`
 	# @used-by :meth:`test_df_core_base.DfCoreBaseTests.test_cache_dfc_dfcf_and_ram()`
 	# @used-by :meth:`test_registration_portability.RegistrationTests.test_slow_previous_success_does_not_erase_a_newer_failed_attempt()`

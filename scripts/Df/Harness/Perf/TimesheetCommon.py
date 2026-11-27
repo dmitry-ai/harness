@@ -20,11 +20,13 @@ class TimesheetCommon:
 	__UNITTEST_RE = re.compile(r'Ran\s+(\d+)\s+tests?\s+in\s+([0-9]+(?:\.[0-9]+)?)s')
 	# @used-by :func:`agent_tools.perf.timesheet_common.load_jsonl_rows()`
 	# @used-by :meth:`Df.Harness.Perf.TimesheetBuilder.TimesheetBuilder.build()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_perf_classes_profile_and_build_timesheets()`
 	def __init__(self, path: Path) -> None:
 		self.__path = Path(path)
 	# @used-by :func:`agent_tools.perf.timesheet_common.load_jsonl_rows()`
 	# @used-by :meth:`Df.Harness.Perf.TimesheetBuilder.TimesheetBuilder.build()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_perf_classes_profile_and_build_timesheets()`
 	def load_jsonl_rows(self) -> tuple[str, list[dict[str, Any]]]:
 		raw = self.__path.read_bytes()

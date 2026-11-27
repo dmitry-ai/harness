@@ -75,7 +75,7 @@ def _pid_alive_nt(pid: int) -> bool:
 		r = ok and 259 == code.value
 	return r
 # @used-by :func:`_is_entry_alive()`
-# @used-by :func:`agent_tools.worker_semaphore._read_live_slots()`
+# @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.__read_live_slots()`
 def _pid_is_alive(pid: int) -> bool:
 	if 0 >= int(pid):
 		r = False

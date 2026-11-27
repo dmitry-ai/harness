@@ -10,6 +10,7 @@ import json
 class TimesheetBuilder:
 	# @used-by :func:`agent_tools.perf.timesheet.build_timesheet()`
 	# @used-by :meth:`TimesheetBuilder.run_cli()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_perf_classes_profile_and_build_timesheets()`
 	def __init__(self, trace_path: str | Path, *, conversation_id: str | None=None, summary_db: str | Path | None=None, turn_start_step: int | None=None, turn_end_step: int | None=None, top_gaps_limit: int=10) -> None:
 		self.__trace_path = Path(trace_path).resolve()
@@ -20,6 +21,7 @@ class TimesheetBuilder:
 		self.__top_gaps_limit = top_gaps_limit
 	# @used-by :func:`agent_tools.perf.timesheet.build_timesheet()`
 	# @used-by :meth:`TimesheetBuilder.run_cli()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_perf_classes_profile_and_build_timesheets()`
 	def build(self) -> dict[str, Any]:
 		digest, all_rows = TimesheetCommon(self.__trace_path).load_jsonl_rows()

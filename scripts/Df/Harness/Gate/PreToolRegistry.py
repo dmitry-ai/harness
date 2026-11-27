@@ -33,6 +33,7 @@ class PreToolRegistry:
 	__NON_PRE_TOOL_MODULES = frozenset({'answer_checks', 'stop_checks'})
 	# @used-by :func:`agent_tools.gates.run_pre_tool_gates()`
 	# @used-by :meth:`PreToolRegistry.discover()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_gate_classes_enforce_python_and_pretool_checks()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
 	def __init__(self, pkg_name: str='agent_tools.gates', pkg_dir: Path | None=None) -> None:
 		self.__pkg_name = pkg_name
@@ -114,7 +115,6 @@ class PreToolRegistry:
 			r = any((tool_name.startswith(pat[:-1]) if pat.endswith('*') else tool_name == pat for pat in tools))
 		return r
 	# @used-by :func:`agent_tools.gates.discover_pre_tool_gates()`
-	# @used-by :meth:`Df.Harness.Perf.SuiteWorker.SuiteWorker.run()`
 	# @used-by :meth:`PreToolRegistry.run()`
 	@staticmethod
 	def discover(*, tool_name: str | None=None, extra_dirs: list[Path] | tuple[Path, ...] | None=None, pkg_name: str='agent_tools.gates', pkg_dir: Path | None=None) -> list[dict]:
@@ -126,6 +126,7 @@ class PreToolRegistry:
 			gates.sort(key=lambda item: (item['priority'], item['name']))
 		return gates
 	# @used-by :func:`agent_tools.gates.run_pre_tool_gates()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_gate_classes_enforce_python_and_pretool_checks()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
 	def run(self, name: str, args: dict, payload: dict, *, extra_dirs: list[Path] | tuple[Path, ...] | None=None) -> dict:
 		r = {'decision': 'allow'}

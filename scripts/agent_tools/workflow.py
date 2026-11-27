@@ -317,7 +317,6 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.native_profiles._retire_shared_roles()`
 	# @used-by :func:`agent_tools.native_profiles._role_config()`
 	# @used-by :func:`agent_tools.native_profiles._shared_plan()`
-	# @used-by :func:`agent_tools.parallel_runner._run_single_module()`
 	# @used-by :func:`agent_tools.path_registry._candidate_discovery_roots()`
 	# @used-by :func:`agent_tools.path_registry._is_registered_single_project()`
 	# @used-by :func:`agent_tools.path_registry._validate_similar_project_groups()`
@@ -341,7 +340,6 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.schema_help._check_one_assertion()`
 	# @used-by :func:`agent_tools.stop_subagent_check._apply_call()`
 	# @used-by :func:`agent_tools.stop_subagent_check._process_manage_subagents()`
-	# @used-by :func:`agent_tools.suite_runner._run_module_worker()`
 	# @used-by :func:`agent_tools.text_browser._verify_context_anchor()`
 	# @used-by :func:`agent_tools.text_claims.primary_numbers()`
 	# @used-by :func:`agent_tools.text_claims.save_registry()`
@@ -378,6 +376,8 @@ class ResearchQuestionRegistry:
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__diff_added_lines()`
 	# @used-by :meth:`Df.Harness.Tdd.SubstantiveTestChecker.SubstantiveTestChecker.__collect_read_wrapper_params()`
 	# @used-by :meth:`Df.Harness.Tdd.WorktreeScope.WorktreeScope.extract_command_worktree_ids()`
+	# @used-by :meth:`Df.Harness.TestRunner.ParallelRunner.ParallelRunner.__spawn_and_wait_module()`
+	# @used-by :meth:`Df.Harness.TestRunner.SuiteRunner.SuiteRunner.__execute_module_proc()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Graph.Graph.__link_java_method()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Model.Model.__consume_modifiers()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Model.Model.discover_files()`

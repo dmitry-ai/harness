@@ -9,12 +9,14 @@ from agent_tools.platforms.trace_common import parse_tool_args
 class CodexTimesheetAnalyzer:
 	# @used-by :func:`agent_tools.perf.timesheet_codex.analyze_codex_rows()`
 	# @used-by :meth:`Df.Harness.Perf.TimesheetBuilder.TimesheetBuilder.build()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_perf_classes_profile_and_build_timesheets()`
 	def __init__(self, rows: list[dict[str, Any]], *, top_gaps_limit: int=10) -> None:
 		self.__rows = rows
 		self.__top_gaps_limit = top_gaps_limit
 	# @used-by :func:`agent_tools.perf.timesheet_codex.analyze_codex_rows()`
 	# @used-by :meth:`Df.Harness.Perf.TimesheetBuilder.TimesheetBuilder.build()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_perf_classes_profile_and_build_timesheets()`
 	def analyze(self) -> dict[str, Any]:
 		st = CodexTimesheetAnalyzer.__init_cx_state()

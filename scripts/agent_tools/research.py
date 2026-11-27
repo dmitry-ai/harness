@@ -694,10 +694,10 @@ class HTMLData(HTMLParser):
 		if not tags.intersection(('script', 'style', 'head')):
 			self.text.append(value)
 			self.position += len(value)
-	# @used-by :func:`agent_tools.parallel_runner._run_unittest_modules()`
-	# @used-by :func:`agent_tools.suite_runner._run_unittest_suite()`
 	# @used-by :func:`extract_bytes()`
 	# @used-by :meth:`Df.Harness.Perf.SuiteProfiler.SuiteProfiler.profile()`
+	# @used-by :meth:`Df.Harness.TestRunner.ParallelRunner.ParallelRunner.__run_unittest_modules()`
+	# @used-by :meth:`Df.Harness.TestRunner.SuiteRunner.SuiteRunner.__run_unittest_suite()`
 	# @used-by :meth:`test_registration_portability.RegistrationTests.test_slow_previous_success_does_not_erase_a_newer_failed_attempt()`
 	def result(self):
 		plain = ''.join(self.text)

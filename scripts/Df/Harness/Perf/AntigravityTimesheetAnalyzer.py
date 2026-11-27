@@ -17,6 +17,7 @@ class AntigravityTimesheetAnalyzer:
 	__TRUNC_RE = re.compile(r"tool's output was truncated|truncated due to being too long", re.I)
 	# @used-by :func:`agent_tools.perf.timesheet_ag.analyze_antigravity_rows()`
 	# @used-by :meth:`Df.Harness.Perf.TimesheetBuilder.TimesheetBuilder.build()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_perf_classes_profile_and_build_timesheets()`
 	def __init__(self, rows: list[dict[str, Any]], *, last_user_ts: str | None=None, last_mod_ts: str | None=None, top_gaps_limit: int=10) -> None:
 		self.__rows = rows
@@ -25,6 +26,7 @@ class AntigravityTimesheetAnalyzer:
 		self.__top_gaps_limit = top_gaps_limit
 	# @used-by :func:`agent_tools.perf.timesheet_ag.analyze_antigravity_rows()`
 	# @used-by :meth:`Df.Harness.Perf.TimesheetBuilder.TimesheetBuilder.build()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_perf_classes_profile_and_build_timesheets()`
 	def analyze(self) -> dict[str, Any]:
 		st = AntigravityTimesheetAnalyzer.__init_ag_state()

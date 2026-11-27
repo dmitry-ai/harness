@@ -3,8 +3,8 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
+from Df.Harness.TestRunner.SuiteRunner import SuiteRunner
 from Df.Harness.lib.cli import dfh_default_workers
-from agent_tools.suite_runner import discover_test_modules
 import json
 import os
 import platform
@@ -18,6 +18,7 @@ class SuiteProfiler:
 	__SUM_KEYS = ('dur_s', 'popen_count', 'popen_s', 'git_count', 'git_s', 'python_count', 'python_s', 'other_proc_count', 'other_proc_s', 'sleep_count', 'sleep_s')
 	# @used-by :func:`agent_tools.perf.suite_profiler.profile_test_suite()`
 	# @used-by :meth:`SuiteProfiler.run_cli()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_perf_classes_profile_and_build_timesheets()`
 	def __init__(self, tests_dir: Path | str | None=None, *, workers: int | None=None, module_timeout: float=300.0, pattern: str='test_*.py', modules: list[str] | tuple[str, ...] | None=None, enable_cprofile: bool=False, top_n: int=15, cprofile_top: int=25) -> None:
 		self.__tests_dir = tests_dir
@@ -35,9 +36,10 @@ class SuiteProfiler:
 	# @used-by :func:`agent_tools.perf.suite_profiler.profile_test_suite()`
 	# @used-by :func:`agent_tools.text_cli.main()`
 	# @used-by :meth:`SuiteProfiler.run_cli()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_perf_classes_profile_and_build_timesheets()`
 	def profile(self) -> dict[str, Any]:
-		base, ordered = discover_test_modules(self.__tests_dir, pattern=self.__pattern, modules=self.__modules)
+		base, ordered = SuiteRunner.discover_modules(self.__tests_dir, pattern=self.__pattern, modules=self.__modules)
 		if not ordered:
 			raise ValueError(f'No test modules matched pattern {self.__pattern!r} in {base}')
 		eff_workers = min(max(1, int(self.__workers)) if None is not self.__workers else SuiteProfiler.default_workers(), len(ordered))

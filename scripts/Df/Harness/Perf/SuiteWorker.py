@@ -15,6 +15,7 @@ import unittest
 class SuiteWorker:
 	# @used-by :func:`agent_tools.perf.suite_worker.run_module_profile()`
 	# @used-by :meth:`SuiteWorker.main()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_perf_classes_profile_and_build_timesheets()`
 	def __init__(self, mod_path: Path, top_dir: Path, *, cprofile_top: int=0) -> None:
 		self.__mod_path = Path(mod_path)
@@ -22,6 +23,7 @@ class SuiteWorker:
 		self.__cprofile_top = cprofile_top
 	# @used-by :func:`agent_tools.perf.suite_worker.run_module_profile()`
 	# @used-by :meth:`SuiteWorker.main()`
+	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_perf_classes_profile_and_build_timesheets()`
 	def run(self) -> dict[str, Any]:
 		rel = self.__mod_path.relative_to(self.__top_dir).as_posix()
@@ -29,7 +31,7 @@ class SuiteWorker:
 		orig_popen, orig_sleep = TrackedPopen.install(stats)
 		try:
 			t_load0 = time.perf_counter()
-			suite = unittest.defaultTestLoader.discover(str(self.__mod_path.parent), pattern=self.__mod_path.name, top_level_dir=str(self.__top_dir))
+			suite = SuiteWorker.__discover_suite(self.__mod_path, self.__top_dir)
 			load_s = round(max(0.0, time.perf_counter() - t_load0), 4)
 			import_stats = TimedResult.diff_stats(TimedResult.blank_stats(), stats)
 			result = TimedResult(stats, rel)
@@ -41,6 +43,15 @@ class SuiteWorker:
 			TrackedPopen.restore(orig_popen, orig_sleep)
 		cp_rows = SuiteWorker.__extract_cprofile(prof, self.__cprofile_top) if None is not prof else []
 		return {'file': rel, 'load_s': load_s, 'run_s': run_s, 'tests_run': result.testsRun, 'failures': len(result.failures), 'errors': len(result.errors), 'skipped': len(result.skipped), 'import_stats': import_stats, 'tests': result.records, 'cprofile': cp_rows}
+	# @used-by :meth:`SuiteWorker.run()`
+	@staticmethod
+	def __discover_suite(mod_path: Path, top_dir: Path) -> unittest.TestSuite:
+		mod_name = mod_path.stem
+		cached = sys.modules.get(mod_name)
+		cached_file = getattr(cached, '__file__', None) if None is not cached else None
+		if cached_file and Path(str(cached_file)).resolve() != mod_path.resolve():
+			sys.modules.pop(mod_name, None)
+		return unittest.TestLoader().discover(str(mod_path.parent), pattern=mod_path.name, top_level_dir=str(top_dir))
 	# @used-by :meth:`SuiteWorker.run()`
 	@staticmethod
 	def __extract_cprofile(prof: cProfile.Profile, top_n: int) -> list[dict[str, Any]]:
@@ -96,6 +107,7 @@ class SuiteWorker:
 	# @used-by :mod:`test_df_harness_s11_wave2b_meta`
 	# @used-by :mod:`test_df_harness_s11_wave2b_tdd`
 	# @used-by :mod:`test_df_harness_s11_wave2b_xref`
+	# @used-by :mod:`test_df_harness_s11_wave2b`
 	# @used-by :mod:`test_df_harness_s11_wave2e_arch`
 	# @used-by :mod:`test_df_qa`
 	# @used-by :mod:`test_df_upstream_fixes`
