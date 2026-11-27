@@ -120,6 +120,9 @@ class PythonIntegrityGateTests(unittest.TestCase):
 			'\tLATER = 5\n'
 		)
 		self.assertEqual([], check_python_integrity('scripts/ok.py', valid_src))
+		# 2026-11-28 "Allow Python 3.15 PEP 649 annotation globals in PythonIntegrity": https://github.com/dmitry-ai/harness/issues/432
+		cond_ann_src = 'if True:\n\tCOND_MAP: dict[str, int] = {}\nelse:\n\tCOND_MAP = {}\n'
+		self.assertEqual([], check_python_integrity('scripts/cond_ann.py', cond_ann_src))
 		self.assertEqual([], check_python_integrity('scripts/star.py', 'from math import *\nX = sin(1)\n'))
 		self.assertEqual([], verify_directory_python_integrity(HARNESS_ROOT / 'scripts'))
 	# @used-by :mod:`unittest`

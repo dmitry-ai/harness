@@ -9,7 +9,8 @@ import symtable
 import tempfile
 # 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
 class PythonIntegrity:
-	__BUILTIN_NAMES = frozenset(dir(builtins)) | frozenset({'__all__', '__annotations__', '__builtins__', '__cached__', '__class__', '__doc__', '__file__', '__loader__', '__module__', '__name__', '__package__', '__path__', '__qualname__', '__spec__', '__warningregistry__'})
+	# 2026-11-28 "Allow Python 3.15 PEP 649 annotation globals in PythonIntegrity": https://github.com/dmitry-ai/harness/issues/432
+	__BUILTIN_NAMES = frozenset(dir(builtins)) | frozenset({'__all__', '__annotate__', '__annotate_func__', '__annotations__', '__builtins__', '__cached__', '__class__', '__conditional_annotations__', '__doc__', '__file__', '__loader__', '__module__', '__name__', '__package__', '__path__', '__qualname__', '__spec__', '__warningregistry__'})
 	__SKIP_PARTS = frozenset({'.git', '__pycache__', 'node_modules', '\ua616', '\ua66e'})
 	# @used-by :meth:`PythonIntegrity.check()`
 	@staticmethod
