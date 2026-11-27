@@ -65,6 +65,7 @@ class RegistrationStatusChecker:
 	# @used-by :func:`agent_tools.workflow._target_complete()`
 	# @used-by :meth:`RegistrationStatusChecker.__target_entry()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_workflow_stage_engine_and_helpers()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_z_workflow_remaining_branches()`
 	@classmethod
 	def target_complete(cls, target: str, item) -> bool:
 		if not isinstance(item, dict):

@@ -166,7 +166,7 @@ def resolve_cleanup_log_root(*, config: dict | None=None, log_root: str | Path |
 		default_log = Path(ovr_log) if ovr_log else ws / str(store_value('workspace_cleanup_log_rel'))
 		r = default_log.absolute()
 	return r
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__run_cleanup_report()`
 def run_cleanup_report_cli(args) -> dict[str, Any]:
 	from . import cleanup
 	source_path = getattr(args, 'answer_file', None) or getattr(args, 'answer', '-')

@@ -103,7 +103,6 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :func:`agent_tools.text_core.reference_document()`
 	# @used-by :func:`agent_tools.text_core.sentences()`
 	# @used-by :func:`agent_tools.text_sections.content_blocks()`
-	# @used-by :func:`agent_tools.upwork_data.discover_pdf_ligature_repairs()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.QuantityMatcher.QuantityMatcher.__check_excerpt()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.QuantityMatcher.QuantityMatcher.__collect_unit_cands()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.QuantityMatcher.QuantityMatcher.__sign_before()`
@@ -115,6 +114,7 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :meth:`Df.Harness.Tdd.MarkupCommentLexer.MarkupCommentLexer.__consume_astro_frontmatter()`
 	# @used-by :meth:`Df.Harness.Tdd.MarkupCommentLexer.MarkupCommentLexer.lex_sfc()`
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__consume_partial_match()`
+	# @used-by :meth:`Df.Harness.Upwork.PdfLigatureRepairer.PdfLigatureRepairer.__collect_stream_repairs()`
 	# @used-by :meth:`TextClaimRevisionTests.test_changed_primary_bytes_invalidate_an_existing_semantic_check()`
 	# @used-by :meth:`TextMapTests.test_limited_claim_rejects_lazy_conditional_qualification()`
 	# @used-by :meth:`TextMapTests.test_standalone_proposal_map_needs_no_five_analysis_stages()`

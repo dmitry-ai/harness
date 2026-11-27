@@ -495,6 +495,7 @@ def _project_item_matches_root(item, root: Path) -> tuple[bool, bool]:
 # @used-by :meth:`test_onboarding.RegistrationTests.test_parallel_registration_retains_all_assignments()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 # @used-by :meth:`test_registration_portability.RegistrationTests.ag()`
+# @used-by :mod:`agent_tools.upwork_project`
 def register_antigravity_project(project_dir, domain_or_topic, date_str=None, projects_dir=ANTIGRAVITY_PROJECTS_DIR, folders_json_path=None, preferred_id=None):
 	root, projects = (Path(project_dir).resolve(), Path(projects_dir))
 	if date_str:
@@ -1215,6 +1216,7 @@ def verify_native_proof(root, native, package=None):
 # https://github.com/dmitry-ai/harness/issues/86
 # @used-by :func:`agent_tools.project_rename._build_ag_registrar()`
 # @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init__()`
 # @used-by :meth:`test_cleanup_audit.CleanupAuditTests._make_old_project()`
 # @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests._init_and_register()`
 # @used-by :meth:`test_cleanup_lifecycle.CleanupLifecycleTests._make_project()`
@@ -1222,6 +1224,7 @@ def verify_native_proof(root, native, package=None):
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cleanup_per_instance_folders_json_uninitialized_instance_and_stop_gate_a6()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cleanup_skips_disabled_codex_and_checks_all_enabled_antigravity_instances()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_dynamic_folders_json_and_cleanup_without_homes()`
+# @used-by :mod:`agent_tools.upwork_project`
 def register(project_dir, domain_or_topic, date_str=None, *, projects_dir=None, folders_json_path=None):
 	if None is not projects_dir or None is not folders_json_path:
 		return register_antigravity_project(project_dir, domain_or_topic, date_str, projects_dir=projects_dir or ANTIGRAVITY_PROJECTS_DIR, folders_json_path=_resolve_folders_json(folders_json_path))

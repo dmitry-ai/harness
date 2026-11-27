@@ -298,8 +298,8 @@ def _index(project):
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
-# @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`drain_incoming()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_init()`
 # @used-by :meth:`test_intake.IntakeTests.commit()`
 def commit_capture(capture, *, incoming_root=INCOMING, daily_root=DAILY, apply=False):
 	# 2026-11-19
@@ -384,7 +384,7 @@ def commit_capture(capture, *, incoming_root=INCOMING, daily_root=DAILY, apply=F
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__run_intake_drain()`
 def drain_incoming(capture=None, *, incoming_root=INCOMING, daily_root=DAILY, apply=False):
 	incoming = _plain(incoming_root)
 	paths = [Path(capture)] if None is not capture else sorted(incoming.iterdir()) if incoming.exists() else []

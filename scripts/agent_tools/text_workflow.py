@@ -155,7 +155,6 @@ class ClientTextWorkspace:
 			raise ValueError('Draft snapshot would overwrite protected draft.prev.md; all protected bytes preserved')
 		return (target, current, protected)
 	# @used-by :func:`agent_tools.cli_registry._exec_repo_tag_retro()`
-	# @used-by :func:`agent_tools.upwork_project.run()`
 	# @used-by :func:`apply()`
 	# @used-by :meth:`test_text_workflow.TextTransactionTests.test_workspace_and_integrity_verifier_single_pass_invariants()`
 	def apply(self, reference):
@@ -327,7 +326,6 @@ class ClientTextWorkspace:
 	# @used-by :func:`agent_tools.native_profiles._profile_agents()`
 	# @used-by :func:`agent_tools.native_profiles._role_config()`
 	# @used-by :func:`agent_tools.text_core.check_code()`
-	# @used-by :func:`agent_tools.upwork_data.parse_webvtt_phrases()`
 	# @used-by :func:`gate_paths()`
 	# @used-by :meth:`ClientTextWorkspace.apply()`
 	# @used-by :meth:`ClientTextWorkspace.begin()`
@@ -338,6 +336,7 @@ class ClientTextWorkspace:
 	# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.__finalize_ag_info()`
 	# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.extract_codex_info()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__replace_existing()`
+	# @used-by :meth:`Df.Harness.Upwork.LoomVideoExtractor.LoomVideoExtractor.__parse_vtt_block()`
 	# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.__apply()`
 	# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.__write_stage_receipt()`
 	# @used-by :meth:`agent_tools.shell_audit.ShellCommandInspector._parse_commit_flag_bundle()`

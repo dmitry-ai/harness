@@ -208,7 +208,7 @@ def sync_website_card(root, value, *, selections=None, check=False):
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
-# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 def sync_initial_website(root, snapshot, hypothesis=None):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -246,21 +246,25 @@ def sync_initial_website(root, snapshot, hypothesis=None):
 	return sync_block(root, overview_md, 'websites', content, source=source)
 # @used-by :func:`_load_media_descriptions()`
 # @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
-# @used-by :func:`agent_tools.upwork_project.configure_project()`
-# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
-# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
-# @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`build_project_extra_sources()`
 # @used-by :func:`populate_agent_kb()`
 # @used-by :func:`sync_website_card()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_inspect()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_context_config()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_manifests()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.__resolve_or_make_new()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__load_and_prepare_fs()`
 def json_bytes(value):
 	return (json.dumps(value, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
 # 2026-10-14
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
-# @used-by :func:`agent_tools.upwork_project.configure_project()`
-# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`populate_agent_kb()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_context_config()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_manifests()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.configure()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 def create_once(path: Path, content: str):
 	path.parent.mkdir(parents=True, exist_ok=True)
 	if not path.exists():
@@ -279,9 +283,9 @@ def create_once(path: Path, content: str):
 # 2026-11-14
 # "Decompose workflow.py and knowledge.py into WorkflowStateEngine, ResearchQuestionRegistry, and ProjectHealthAuditor with shared attachment inventory":
 # https://github.com/dmitry-ai/harness/issues/74
-# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`build_project_extra_sources()`
 # @used-by :func:`sync_project_attachments_and_kb()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 def sync_source_folder_attachments(project_root: Path, saved_attachments: list[dict] | None=None, asset_evidence: list[dict] | None=None) -> list[dict]:
 	return AttachmentInventory(project_root).sync(saved_attachments, asset_evidence)
 # 2026-10-17
@@ -314,9 +318,9 @@ def _load_media_descriptions(project_root: Path, overrides: dict | None=None) ->
 # 2026-10-17
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
-# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`populate_agent_kb()`
 # @used-by :func:`sync_project_attachments_and_kb()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 def build_project_extra_sources(project_root: Path, data: dict, assets: list[dict] | None=None, *, fetch_videos: bool=True) -> list[dict]:
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
@@ -452,7 +456,7 @@ def _render_evidence_md(asset_evidence: list[dict], extra_sources: list[dict], p
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
-# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 def populate_agent_kb(project_root: Path, data: dict):
 	# 2026-11-19
 	# "Wire project path overlays across Harness subsystems with paths CLI and regression tests":

@@ -19,7 +19,7 @@ def parse_rule_frontmatter(text: str) -> dict[str, str]:
 def render_codex_loader(primary: Path, local=(), *, restore_global: bool=True, display_root: Path | None=None) -> str:
 	return RulesManifest.render_codex_loader(primary, local, restore_global=restore_global, display_root=display_root)
 # @used-by :func:`agent_tools.cli_registry._exec_rules_audit()`
-# @used-by :func:`agent_tools.upwork_project.doctor()`
+# @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.audit()`
 # @used-by :meth:`test_rules_audit.RulesAuditTests.test_doctor_and_rules_audit_default_to_active_checkout_rules()`
 # @used-by :mod:`agent_tools.rules_manifest`
 def resolve_rules_primary(primary: str | Path | None, fallback: Path) -> Path:
@@ -27,7 +27,7 @@ def resolve_rules_primary(primary: str | Path | None, fallback: Path) -> Path:
 # @used-by :mod:`agent_tools.rules_manifest`
 def scan_shared_rules(primary: Path) -> list[dict]:
 	return RulesManifest.scan_rules(primary)
-# @used-by :func:`agent_tools.upwork_project.doctor()`
+# @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.audit()`
 # @used-by :mod:`agent_tools.rules_manifest`
 def validate_shared_rules_for_doctor(primary: Path, *, max_file_bytes: int=6000, max_always_on_bytes: int | None=24000, max_always_on_tokens: int | None=7000) -> tuple[list[Path], dict[str, int], dict]:
 	return RulesManifest(primary, max_file_bytes=max_file_bytes, max_always_on_bytes=max_always_on_bytes, max_always_on_tokens=max_always_on_tokens).validate_for_doctor()

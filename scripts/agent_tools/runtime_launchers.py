@@ -271,9 +271,9 @@ def git_hook_shell_wrapper(hook_name: str) -> str:
 		'fi\n'
 		f'python "$LAUNCHER" --hook {hook_name} "$@"\n'
 	)
-# @used-by :func:`agent_tools.upwork_project.harness_hook_runner_source()`
 # @used-by :func:`test_hook_runner_e2e_budget._stage_snapshot_runner()`
 # @used-by :func:`test_hook_runner_watchdog._seed_two_releases()`
+# @used-by :meth:`Df.Harness.Upwork.GlobalCustomizationManager.GlobalCustomizationManager.harness_hook_runner_source()`
 # @used-by :meth:`test_hook_runner_watchdog.HookRunnerWatchdogTests.test_watchdog_env_override_terminates_hung_child_process_and_keeps_ascii_header()`
 # @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_lkg_fallback_runs_previous_release_when_current_crashes()`
 # @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_promote_exports_snapshot_surviving_live_tree_corruption_and_preserving_anchor()`

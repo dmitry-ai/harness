@@ -104,7 +104,6 @@ def _is_linked(path: Path, stop_at: Path | None=None) -> bool:
 # @used-by :func:`agent_tools.research.inside()`
 # @used-by :func:`agent_tools.shadow_replay_clone._journal_identity_matcher()`
 # @used-by :func:`agent_tools.shadow_replay_clone._wrapped_shadow_registry()`
-# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
 # @used-by :func:`canonicalize_root_dir()`
 # @used-by :func:`evaluate_similar_project_touches()`
 # @used-by :func:`is_tracked_workspace()`
@@ -113,6 +112,7 @@ def _is_linked(path: Path, stop_at: Path | None=None) -> bool:
 # @used-by :func:`resolve_project_root()`
 # @used-by :func:`same_project_root()`
 # @used-by :func:`workspace_override()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.__resolve_indexed()`
 # @used-by :meth:`PathRegistry.__init__()`
 # @used-by :meth:`ProjectPaths.__init__()`
 # @used-by :meth:`ProjectPaths._register_reverse_links()`
@@ -589,8 +589,6 @@ def _env_fingerprint(env: dict[str, str] | None) -> tuple:
 # @used-by :func:`agent_tools.runtime._expand_path()`
 # @used-by :func:`agent_tools.runtime_cache._load_uncached_settings()`
 # @used-by :func:`agent_tools.shadow_replay_clone.shadow_isolation_context()`
-# @used-by :func:`agent_tools.upwork_project.doctor()`
-# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
 # @used-by :func:`canonicalize_root_dir()`
 # @used-by :func:`default_platform_paths()`
 # @used-by :func:`derive_platform_system_paths()`
@@ -607,6 +605,8 @@ def _env_fingerprint(env: dict[str, str] | None) -> tuple:
 # @used-by :func:`tool_value()`
 # @used-by :func:`var_value()`
 # @used-by :func:`workspace_override()`
+# @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.audit()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.__resolve_indexed()`
 # @used-by :meth:`ProjectPaths.__init__()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_custom_overlay_end_to_end_context_workflow_text_diagnostics_and_completion_canonicalization()`
@@ -669,7 +669,7 @@ def store_value(name: str, *, registry: PathRegistry | None=None) -> Any:
 	return deepcopy(reg.harness_stores[name])
 # @used-by :func:`agent_tools.intake._project()`
 # @used-by :func:`agent_tools.project_rename._update_projects_index()`
-# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.resolve_or_create()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.run()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._target_for_project_root()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.evidence_issue_files()`
@@ -705,9 +705,9 @@ def tool_path(name: str, *, project_root: str | Path | None=None, registry: Path
 	return Path(val)
 # @used-by :func:`agent_tools.git_gate.cleanup_stale_credential_locks()`
 # @used-by :func:`agent_tools.text_core.default_shell()`
-# @used-by :func:`agent_tools.upwork_data._find_poppler_tool()`
 # @used-by :func:`git_shim._normalize_arg_token()`
 # @used-by :func:`git_shim.resolve_system_git()`
+# @used-by :meth:`Df.Harness.Upwork.PdfExtractor.PdfExtractor.find_poppler_tool()`
 def tool_list(name: str, *, project_root: str | Path | None=None, registry: PathRegistry | None=None) -> list[str]:
 	val = tool_value(name, project_root=project_root, registry=registry)
 	if isinstance(val, list):
@@ -739,8 +739,8 @@ def relocated_roots(*, registry: PathRegistry | None=None) -> dict[str, str]:
 # https://github.com/dmitry-ai/harness/issues/103
 # @used-by :func:`agent_tools.configuration._project_rule_paths()`
 # @used-by :func:`agent_tools.native_profiles._relocated_primaries()`
-# @used-by :func:`agent_tools.upwork_project.check_configuration()`
-# @used-by :func:`agent_tools.upwork_project.configure_project()`
+# @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.check()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.configure()`
 def relocated_harness_code_dirs(*, primary: str | Path | None=None, registry: PathRegistry | None=None) -> tuple[Path, ...]:
 	reg = registry or load_registry()
 	cur_code = Path(os.path.abspath(primary)) if None is not primary else (Path(reg.resolved_variables.get('HARNESS_CODE', '')).resolve() if reg.resolved_variables.get('HARNESS_CODE') else None)
@@ -850,9 +850,9 @@ def derive_platform_system_paths(adapter_kind: str, explicit_paths: dict[str, st
 # @used-by :func:`agent_tools.platforms.antigravity._proof_paths()`
 # @used-by :func:`agent_tools.platforms.antigravity.native_tool_trace()`
 # @used-by :func:`agent_tools.runtime.resolve_antigravity_paths()`
-# @used-by :func:`agent_tools.upwork_project.antigravity_global_config_dirs()`
 # @used-by :func:`check_pre_invocation._resolve_ag_paths()`
 # @used-by :func:`check_stop_gate._resolve_stop_paths()`
+# @used-by :meth:`Df.Harness.Upwork.GlobalCustomizationManager.GlobalCustomizationManager.antigravity_global_config_dirs()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_redirected_userprofile_separates_os_user_home_preserves_sandboxes_and_auto_detects_a6()`
 # @used-by :mod:`agent_tools.platforms.antigravity`
@@ -1308,11 +1308,11 @@ def _find_local_marker_root(start: Path, reg: PathRegistry) -> tuple[int | None,
 	return (None, None)
 # @used-by :func:`agent_tools.issues.comment_grounding._resolve_grounding_root()`
 # @used-by :func:`agent_tools.issues.service_helpers.resolve_metadata_project_root()`
-# @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`check_markdown_slop._infer_project_root()`
 # @used-by :func:`is_tracked_workspace()`
 # @used-by :func:`project_paths()`
 # @used-by :meth:`Df.Harness.Analysis.Publisher.Publisher.__resolve_project_root()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_journal_upgrade()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_mid_process_overlay_creation_and_edit_invalidate_reverse_links_and_stay_fast()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
@@ -1563,9 +1563,9 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.knowledge.build_project_extra_sources()`
 	# @used-by :func:`agent_tools.knowledge.sync_initial_website()`
 	# @used-by :func:`agent_tools.knowledge.sync_website_card()`
-	# @used-by :func:`agent_tools.upwork_project.default_context_config()`
 	# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.sync()`
 	# @used-by :meth:`Df.Harness.Project.DriftAuditor.DriftAuditor.audit()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
 	def rel_to_root(self, target: str | Path) -> str:
 		p = Path(target).resolve()
 		return p.relative_to(self.root).as_posix() if p.is_relative_to(self.root) else p.as_posix()
@@ -1613,11 +1613,6 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.shadow_replay._ensure_scripts_path()`
 	# @used-by :func:`agent_tools.statements.is_documentation_url()`
 	# @used-by :func:`agent_tools.text_browser._endpoint_with_meta()`
-	# @used-by :func:`agent_tools.upwork_data.extract_upwork_job_url_id()`
-	# @used-by :func:`agent_tools.upwork_extract.download_attachment()`
-	# @used-by :func:`agent_tools.upwork_project.default_context_config()`
-	# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
-	# @used-by :func:`agent_tools.upwork_project.run()`
 	# @used-by :func:`check_pre_invocation._ensure_scripts_on_path()`
 	# @used-by :func:`check_stop_gate._ensure_scripts_on_path()`
 	# @used-by :func:`check_stop_gate._resolve_stop_paths()`
@@ -1636,6 +1631,11 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__find_uncovered()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffCoverageHook.DiffCoverageHook.prepare_env()`
 	# @used-by :meth:`Df.Harness.Tdd.OutcomeParser.OutcomeParser.uri_to_local_path()`
+	# @used-by :meth:`Df.Harness.Upwork.AttachmentDownloader.AttachmentDownloader.__build_headers()`
+	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_init()`
+	# @used-by :meth:`Df.Harness.Upwork.JobUrlParser.JobUrlParser.extract_upwork_job_url_id()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 	# @used-by :meth:`Df.Harness.Workflow.ProgressPublisher.ProgressPublisher.__question_lines()`
 	# @used-by :meth:`Df.Harness.Workflow.ProgressPublisher.ProgressPublisher.publish()`
 	# @used-by :meth:`PathRegistry.__init__()`
@@ -1698,6 +1698,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_harness_dedup_s8`
 	# @used-by :mod:`test_df_harness_lib_s10`
 	# @used-by :mod:`test_df_harness_s11_wave2a_review`
+	# @used-by :mod:`test_df_harness_s11_wave2a_upwork`
 	# @used-by :mod:`test_df_harness_s11_wave2a_workflow`
 	# @used-by :mod:`test_df_harness_s11_wave2a`
 	# @used-by :mod:`test_df_harness_s11_wave2b_gate_cov`
@@ -1871,8 +1872,9 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.configuration._project_rule_paths()`
 	# @used-by :func:`agent_tools.configuration.build_native()`
 	# @used-by :func:`agent_tools.configuration.configure_codex_project()`
-	# @used-by :func:`agent_tools.upwork_project.check_configuration()`
-	# @used-by :func:`agent_tools.upwork_project.configure_project()`
+	# @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.check()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__prepare_agents_dirs()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_context_config()`
 	# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._scan_ancestry_scope()`
 	@property
 	def agents_config_dir(self) -> Path:
@@ -1916,7 +1918,6 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.text_browser._endpoint_lock()`
 	# @used-by :func:`agent_tools.text_claims.save_registry()`
 	# @used-by :func:`agent_tools.text_workflow._folder()`
-	# @used-by :func:`agent_tools.upwork_project.configure_project()`
 	# @used-by :func:`agent_tools.worktree_flow.worktree_land()`
 	# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.__load_base()`
 	# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.save()`
@@ -1928,6 +1929,7 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Project.RegistrationAttemptStarter.RegistrationAttemptStarter.begin()`
 	# @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.save()`
 	# @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.default_slots_dir()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_context_config()`
 	# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.claim_snapshot()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
 	@property
@@ -1954,8 +1956,6 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.text_browser.save_cdp_identity()`
 	# @used-by :func:`agent_tools.text_claims.registry_path()`
 	# @used-by :func:`agent_tools.text_sources._evaluate()`
-	# @used-by :func:`agent_tools.upwork_project.default_context_config()`
-	# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 	# @used-by :meth:`Df.Harness.Analysis.LocalSourceResolver.LocalSourceResolver.resolve()`
 	# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.__load_base()`
 	# @used-by :meth:`Df.Harness.Analysis.Publisher.Publisher.__resolve_project_root()`
@@ -1968,6 +1968,8 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Project.FinalizeDriftGuard.FinalizeDriftGuard.require()`
 	# @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.__default_analysis()`
 	# @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.load_analysis()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 	# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.__check_red_flags()`
 	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.kb_paths()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
@@ -1979,8 +1981,8 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.knowledge.populate_agent_kb()`
 	# @used-by :func:`agent_tools.knowledge.sync_initial_website()`
 	# @used-by :func:`agent_tools.knowledge.sync_project_attachments_and_kb()`
-	# @used-by :func:`agent_tools.upwork_project.default_context_config()`
-	# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.evidence_paths()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
@@ -2010,7 +2012,6 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.research.evidence_query()`
 	# @used-by :func:`agent_tools.research.extract_file()`
 	# @used-by :func:`agent_tools.text_browser.save_cdp_identity()`
-	# @used-by :func:`agent_tools.upwork_project.default_context_config()`
 	# @used-by :func:`test_df_harness_s11_wave2a_workflow._seed_project()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__load_state()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.verify()`
@@ -2021,6 +2022,7 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.__write_candidate()`
 	# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.prepare()`
 	# @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__write_artifacts()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
 	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.evidence_paths()`
 	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.kb_paths()`
 	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._target_for_project_root()`
@@ -2079,7 +2081,7 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.journal._sync_overlay_journal_slot()`
 	# @used-by :func:`agent_tools.journal.ensure_project_journal_upgraded()`
 	# @used-by :func:`agent_tools.path_cache._fast_sig()`
-	# @used-by :func:`agent_tools.upwork_project.run()`
+	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_journal_upgrade()`
 	@property
 	def journal_root_dir(self) -> Path:
 		return Path(self.paths_str['journal_root_dir'])
@@ -2089,10 +2091,10 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.journal.resolve_journal_dir()`
 	# @used-by :func:`agent_tools.journal_integrity.check_project_journal_problems()`
 	# @used-by :func:`agent_tools.path_cache._fast_sig()`
-	# @used-by :func:`agent_tools.upwork_project.default_context_config()`
-	# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
-	# @used-by :func:`agent_tools.upwork_project.run()`
 	# @used-by :func:`is_tracked_workspace()`
+	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_journal_upgrade()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 	# @used-by :meth:`ProjectPaths.__init__()`
 	# @used-by :meth:`ProjectPaths.to_dict()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
@@ -2105,7 +2107,7 @@ class ProjectPaths:
 				return matches[-1]
 		return Path(self.paths_str['journal_dir'])
 	# @used-by :func:`agent_tools.journal.ensure_project_journal_upgraded()`
-	# @used-by :func:`agent_tools.upwork_project.run()`
+	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_journal_upgrade()`
 	# @used-by :meth:`ProjectPaths.__init__()`
 	# @used-by :meth:`ProjectPaths.journal_dir()`
 	@property
@@ -2113,12 +2115,12 @@ class ProjectPaths:
 		return self.paths_str.get('journal_glob')
 	# @used-by :func:`agent_tools.context.default_context_config()`
 	# @used-by :func:`agent_tools.context.generate()`
-	# @used-by :func:`agent_tools.upwork_project.default_context_config()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
 	@property
 	def context_output(self) -> Path:
 		return Path(self.paths_str['context_output'])
-	# @used-by :func:`agent_tools.upwork_project.configure_project()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_context_config()`
 	@property
 	def context_config(self) -> Path:
 		return Path(self.paths_str['context_config'])
@@ -2139,7 +2141,6 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.project_rename.maybe_promote_project_domain()`
 	# @used-by :func:`agent_tools.project_rename_state._update_project_json()`
 	# @used-by :func:`agent_tools.text_sources._evaluate()`
-	# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 	# @used-by :func:`is_tracked_workspace()`
 	# @used-by :func:`test_df_harness_s11_wave2a_workflow._seed_project()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__load_state()`
@@ -2147,6 +2148,7 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.__lookup_name_from_project_json()`
 	# @used-by :meth:`Df.Harness.Project.DriftAuditor.DriftAuditor.audit()`
 	# @used-by :meth:`Df.Harness.Project.RegistrationExpectation.RegistrationExpectation.build()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 	# @used-by :meth:`Df.Harness.Workflow.WorkflowResumer.WorkflowResumer.__apply()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
@@ -2375,11 +2377,6 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.text_claims.save_registry()`
 # @used-by :func:`agent_tools.text_sources._evaluate()`
 # @used-by :func:`agent_tools.text_workflow._folder()`
-# @used-by :func:`agent_tools.upwork_project.check_configuration()`
-# @used-by :func:`agent_tools.upwork_project.configure_project()`
-# @used-by :func:`agent_tools.upwork_project.default_context_config()`
-# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
-# @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`agent_tools.worktree_flow._resolve_deleted_worktree_file()`
 # @used-by :func:`agent_tools.worktree_flow._run_land_checks()`
 # @used-by :func:`agent_tools.worktree_flow.worktree_land()`
@@ -2437,6 +2434,11 @@ class ProjectPaths:
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 # @used-by :meth:`Df.Harness.Tdd.RatchetGuard.RatchetGuard.turn_receipt_dirs()`
 # @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.default_slots_dir()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_journal_upgrade()`
+# @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.check()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.configure()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 # @used-by :meth:`Df.Harness.Workflow.AnalysisCardAuditor.AnalysisCardAuditor.__init__()`
 # @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.record()`
 # @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.__init__()`
@@ -2705,8 +2707,8 @@ def evaluate_similar_project_touches(touched_repo_files: list[Path] | tuple[Path
 # 2026-11-19
 # "Add declarative path registry paths.json with template variable resolution and runtime.json integration":
 # https://github.com/dmitry-ai/harness/issues/95
-# @used-by :func:`agent_tools.upwork_project.doctor()`
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__run_paths()`
+# @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.audit()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_live_registry_and_runtime_contain_no_hardcoded_host_paths_outside_r_and_validate_five_overlays()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_similar_projects_groups_symmetric_overlays_affiliated_paths_and_validation()`
 def paths_report(project: str | Path | None=None, *, expand: str | None=None, check: bool=False, registry: PathRegistry | None=None) -> dict[str, Any]:

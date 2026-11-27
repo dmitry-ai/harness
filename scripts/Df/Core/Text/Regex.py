@@ -180,14 +180,6 @@ class Regex(O):
 	# @used-by :func:`agent_tools.text_sections.mechanical_projection()`
 	# @used-by :func:`agent_tools.text_sections.part_at()`
 	# @used-by :func:`agent_tools.text_sections.scope_blocks()`
-	# @used-by :func:`agent_tools.upwork_data.canonical_video_url()`
-	# @used-by :func:`agent_tools.upwork_data.detect_client_videos()`
-	# @used-by :func:`agent_tools.upwork_data.extract_upwork_job_url_id()`
-	# @used-by :func:`agent_tools.upwork_data.parse_webvtt_phrases()`
-	# @used-by :func:`agent_tools.upwork_data.sanitize_kb_markdown()`
-	# @used-by :func:`agent_tools.upwork_data.structure_job_description()`
-	# @used-by :func:`agent_tools.upwork_extract.attachment_path()`
-	# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
 	# @used-by :func:`split_project_rules.split_rules()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.QuantityMatcher.QuantityMatcher.__collect_unit_cands()`
 	# @used-by :meth:`Df.Harness.Arch.SpecValidator.SpecValidator.__parse_field_line()`
@@ -217,6 +209,20 @@ class Regex(O):
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__vbs_step()`
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.lex_batch()`
 	# @used-by :meth:`Df.Harness.Tdd.ServiceExempt.ServiceExempt.__is_service_command()`
+	# @used-by :meth:`Df.Harness.Upwork.AttachmentDownloader.AttachmentDownloader.attachment_path()`
+	# @used-by :meth:`Df.Harness.Upwork.DocxExtractor.DocxExtractor.__parse_paragraph()`
+	# @used-by :meth:`Df.Harness.Upwork.DocxExtractor.DocxExtractor.__render_link()`
+	# @used-by :meth:`Df.Harness.Upwork.JobUrlParser.JobUrlParser.extract_upwork_job_url_id()`
+	# @used-by :meth:`Df.Harness.Upwork.LoomVideoExtractor.LoomVideoExtractor.__parse_vtt_block()`
+	# @used-by :meth:`Df.Harness.Upwork.MarkdownTableSanitizer.MarkdownTableSanitizer.__is_heading()`
+	# @used-by :meth:`Df.Harness.Upwork.MarkdownTableSanitizer.MarkdownTableSanitizer.__process_line()`
+	# @used-by :meth:`Df.Harness.Upwork.MarkdownTableSanitizer.MarkdownTableSanitizer.sanitize_kb_markdown()`
+	# @used-by :meth:`Df.Harness.Upwork.PdfExtractor.PdfExtractor.__build_blocks()`
+	# @used-by :meth:`Df.Harness.Upwork.PdfExtractor.PdfExtractor.__detect_bold_fonts()`
+	# @used-by :meth:`Df.Harness.Upwork.PdfExtractor.PdfExtractor.__render_blocks()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.__find_existing()`
+	# @used-by :meth:`Df.Harness.Upwork.VideoDetector.VideoDetector.__scan_text_urls()`
+	# @used-by :meth:`Df.Harness.Upwork.VideoDetector.VideoDetector.canonical_video_url()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Lexer.Lexer.__tokenize_java_word_or_punct()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Tags.Tags.__build_link_entry()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Tags.Tags.__classify_javadoc_line()`
@@ -237,11 +243,6 @@ class Regex(O):
 	# @used-by :meth:`agent_tools.path_registry.ProjectPaths._resolve_rel_to_root()`
 	# @used-by :meth:`agent_tools.shell_audit.ShellCommandInspector._iter_git_segments()`
 	# @used-by :meth:`agent_tools.source_grounding.LocalSourceGroundingAuditor._check_prose_line()`
-	# @used-by :meth:`agent_tools.upwork_data.DocxMarkdownExtractor._parse_paragraph()`
-	# @used-by :meth:`agent_tools.upwork_data.DocxMarkdownExtractor._render_link()`
-	# @used-by :meth:`agent_tools.upwork_data.PdfMarkdownExtractor._build_blocks()`
-	# @used-by :meth:`agent_tools.upwork_data.PdfMarkdownExtractor._detect_bold_fonts()`
-	# @used-by :meth:`agent_tools.upwork_data.PdfMarkdownExtractor._render_blocks()`
 	# @used-by :meth:`test_df_core_text_misc.DfCoreTextMiscTests.test_text_helpers_part1()`
 	def match(self) -> str | list[str] | None | bool:
 		return dfc(self, self.__execMatch)

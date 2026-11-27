@@ -16,6 +16,7 @@ if str(SCRIPTS) not in sys.path:
 # @used-by :meth:`DfHarnessS11Wave2aWorkflowTests.test_workflow_stage_engine_and_helpers()`
 # @used-by :meth:`DfHarnessS11Wave2aWorkflowTests.test_z_workflow_adopt_answer_complete_and_finalize()`
 # @used-by :meth:`DfHarnessS11Wave2aWorkflowTests.test_z_workflow_attachment_auditor_branches()`
+# @used-by :meth:`DfHarnessS11Wave2aWorkflowTests.test_z_workflow_remaining_branches()`
 def _seed_project(root: Path) -> Path:
 	from agent_tools.path_registry import project_paths
 	pp = project_paths(root, exact_root=True)
@@ -170,5 +171,27 @@ class DfHarnessS11Wave2aWorkflowTests(unittest.TestCase):
 			(root / '\ua616/KB/Project.md').write_text('Description in `shot.png`\n~~~markdown\nbad\n~~~\nDescription in https://loom.com/share/abc12345\n', encoding='utf-8')
 			codes = {i['code'] for i in AttachmentAuditor(root).issues()}
 			self.assertTrue({'attachment.kb_missing', 'attachment.image_incomplete', 'attachment.video_incomplete'}.issubset(codes))
+	# @used-by :mod:`unittest`
+	def test_z_workflow_remaining_branches(self) -> None:
+		from Df.Harness.Workflow.QuestionRegistry import QuestionRegistry
+		from Df.Harness.Workflow.RegistrationStatusChecker import RegistrationStatusChecker
+		from Df.Harness.Workflow.StageEngine import StageEngine
+		from Df.Harness.Workflow.StageStatusEvaluator import StageStatusEvaluator
+		self.assertTrue(RegistrationStatusChecker.target_complete('codex', {'profiles': {'C1': {'ready': True}}, 'profile': 'C1'}))
+		with tempfile.TemporaryDirectory() as tmp:
+			root = Path(tmp).resolve()
+			snap_rel = _seed_project(root).relative_to(root).as_posix()
+			eng = StageEngine(root)
+			self.assertEqual('~01wf', eng.update({'action': 'ping'}, lambda s: None)['job_id'])
+			reg = QuestionRegistry(root)
+			req = [{'id': 'R-1', 'claim': 'Site responds', 'property': 'content', 'method': 'http', 'scope': {'objects': ['https://example.com']}, 'conditions': {'session': {'mode': 'unknown'}}, 'expected': '200', 'falsification': '500', 'discriminating_test': 'GET', 'completion_criterion': 'Saved', 'alternatives': ['CDN'], 'assertions': []}]
+			reg.add('Q-9', 'Check', 'High', 'Saved', [snap_rel], ['\ua616/KB/out.md'], requirements=req)
+			reg.claim('Q-9', 'w1')
+			with self.assertRaises(ValueError):
+				reg.finish('Q-9', 'w1', ['\ua616/KB/out.md'], gap='gap', results=[])
+			fin_state = {'requests': [{'id': 'r1', 'response_prepared': True}], 'questions': {}, 'reviews': [], 'stages': {'finalize': {'status': 'complete', 'request_ids': ['r1'], 'review_approval': {}}}}
+			with mock.patch('Df.Harness.Review.QuorumEvaluator.QuorumEvaluator.approval_current', return_value=True):
+				statuses = StageStatusEvaluator(root, fin_state, receipt_fn=lambda _: True, reg_fn=lambda: {'complete': True}).evaluate()
+			self.assertEqual('pending', statuses['capture'])
 if '__main__' == __name__:
 	unittest.main()

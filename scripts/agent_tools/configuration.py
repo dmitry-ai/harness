@@ -250,7 +250,7 @@ def _loader(primary, local=(), *, restore_global=True, display_root=None):
 # 2026-11-18
 # "Externalize agent environments and per-instance system paths into runtime.json":
 # https://github.com/dmitry-ai/harness/issues/86
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__run_policy_instructions()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_disabled_codex_is_skipped_in_registration_workflow_cleanup_install_and_diagnostics()`
 # @used-by :meth:`test_portability.ProjectionTests.test_global_instructions_are_read_safely_and_local_override_keeps_its_priority()`
 def global_codex_instructions():
@@ -327,8 +327,8 @@ def _primary_settings(primary):
 # 2026-10-16
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
-# @used-by :func:`agent_tools.upwork_project.check_configuration()`
-# @used-by :func:`agent_tools.upwork_project.configure_project()`
+# @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.check()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.configure()`
 # @used-by :meth:`test_portability.ProjectionTests.test_project_rules_feed_both_systems_and_detect_stale_codex_projection()`
 def configure_codex_project(root, primary=PRIMARY, job_url=None, label=None, *, check=False):
 	# 2026-11-02
@@ -388,7 +388,7 @@ def _frontmatter(path):
 # 2026-10-16
 # "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation":
 # https://github.com/dmitry-ai/harness/issues/6
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__run_build_native()`
 # @used-by :meth:`test_agents_loader.AgentsLoaderTests.build()`
 # @used-by :meth:`test_df_article.LexiconAndProjectionTests.test_build_native_uses_shared_skills_without_project_wrappers()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cleanup_custom_system_paths_stop_gate_and_claude_code_only_extensibility()`
@@ -492,16 +492,16 @@ def has_linked_ancestor(path, *, include_self=True):
 	resolved = Path(os.path.abspath(path))
 	candidates = (resolved, *resolved.parents) if include_self else resolved.parents
 	return next((item for item in candidates if is_linked_path(item)), None)
-# @used-by :func:`agent_tools.upwork_project.configure_project()`
 # @used-by :func:`has_linked_ancestor()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__prepare_agents_dirs()`
 # @used-by :mod:`agent_tools.native_profiles`
 def is_linked_path(path):
 	candidate = Path(path)
 	return candidate.is_symlink() or bool(getattr(candidate, 'is_junction', lambda: False)())
 # @used-by :func:`_project_rule_paths()`
 # @used-by :func:`agent_tools.native_profiles._antigravity_plan()`
-# @used-by :func:`agent_tools.upwork_project.check_configuration()`
-# @used-by :func:`agent_tools.upwork_project.configure_project()`
+# @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.__check_kind()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_manifests()`
 # @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._scan_discovery_manifests()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 def load_discovery_manifest(path, *, missing_ok=True, entries_error='Manifest needs an entries list', check_inherits=False):
@@ -521,8 +521,8 @@ def load_project_receipt(target, *, by_path=False, error_message='Project native
 	if not isinstance(data, dict):
 		raise ValueError(error_message)
 	return (path, raw, data)
-# @used-by :func:`agent_tools.upwork_project.check_configuration()`
-# @used-by :func:`agent_tools.upwork_project.configure_project()`
+# @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.__check_kind()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_manifests()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 def project_discovery_entries(primary, kind, *, require_dir=False):
 	shared = Path(primary) / kind

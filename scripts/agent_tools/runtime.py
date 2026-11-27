@@ -127,13 +127,13 @@ def _validate_runtime(value):
 # @used-by :func:`agent_tools.text_browser.resolve_cdp_port()`
 # @used-by :func:`agent_tools.text_browser.resolve_headless_shell()`
 # @used-by :func:`agent_tools.text_core.default_shell()`
-# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
 # @used-by :func:`agent_tools.upwork_project.antigravity_global_config_dirs()`
 # @used-by :func:`agent_tools.upwork_project.check_configuration()`
 # @used-by :func:`agent_tools.upwork_project.configure_project()`
 # @used-by :func:`agent_tools.upwork_project.doctor()`
 # @used-by :func:`agent_tools.upwork_project.instances_report()`
 # @used-by :func:`agent_tools.upwork_project.main()`
+# @used-by :func:`agent_tools.upwork_project.register_project()`
 # @used-by :func:`all_instances()`
 # @used-by :func:`check_pre_invocation._resolve_ag_paths()`
 # @used-by :func:`check_stop_gate._resolve_stop_paths()`
@@ -154,6 +154,15 @@ def _validate_runtime(value):
 # @used-by :func:`resolve_codex_paths()`
 # @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.resolve_ag_paths_safe()`
 # @used-by :meth:`Df.Harness.Project.Registry.Registry.__init__()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.main()`
+# @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.__init__()`
+# @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.__init__()`
+# @used-by :meth:`Df.Harness.Upwork.GlobalCustomizationManager.GlobalCustomizationManager.antigravity_global_config_dirs()`
+# @used-by :meth:`Df.Harness.Upwork.InstancesReporter.InstancesReporter.__init__()`
+# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.extract()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__init__()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.resolve_or_create()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.initialize()`
 # @used-by :meth:`Df.Harness.Workflow.RegistrationStatusChecker.RegistrationStatusChecker.status()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
 # @used-by :meth:`agent_tools.text_browser.CDPSession.__init__()`
@@ -271,7 +280,6 @@ def default_system_paths(platform, inst_id, inst_cfg, plat_cfg=None):
 	return derive_platform_system_paths(adapter_kind, explicit, home=home_exp, user_data_dir=udd_exp, plat_cfg=plat_cfg)
 # @used-by :func:`agent_tools.configuration.global_codex_instructions()`
 # @used-by :func:`agent_tools.native_profiles.install_native_profiles()`
-# @used-by :func:`agent_tools.upwork_project.antigravity_global_config_dirs()`
 # @used-by :func:`all_instances()`
 # @used-by :func:`extract_platform_homes()`
 # @used-by :func:`find_conversation_instance()`
@@ -281,7 +289,9 @@ def default_system_paths(platform, inst_id, inst_cfg, plat_cfg=None):
 # @used-by :func:`registration_profile_name()`
 # @used-by :func:`resolve_antigravity_paths()`
 # @used-by :func:`resolve_codex_paths()`
+# @used-by :meth:`Df.Harness.Upwork.GlobalCustomizationManager.GlobalCustomizationManager.antigravity_global_config_dirs()`
 # @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._scan_codex_profiles()`
+# @used-by :mod:`agent_tools.upwork_project`
 def extract_platform_instances(plat_cfg, *, platform='', include_disabled=False):
 	if not isinstance(plat_cfg, dict):
 		return {}
@@ -385,27 +395,30 @@ def platform_enabled(platform, *, config=None):
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_dynamic_folders_json_and_cleanup_without_homes()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_live_runtime_declares_environments_instances_enabled_states_and_system_paths()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_platform_enabled_false_disables_all_instances_of_environment()`
+# @used-by :mod:`agent_tools.upwork_project`
 def platform_instances(platform, *, config=None, include_disabled=False):
 	resolved_id, cfg = _resolve_platform_cfg(platform, config=config)
 	if None is cfg:
 		raise ValueError(f'Unknown Upwork platform: {platform}')
 	return extract_platform_instances(cfg, platform=resolved_id, include_disabled=include_disabled)
-# @used-by :func:`agent_tools.upwork_project.main()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__build_parser()`
+# @used-by :mod:`agent_tools.upwork_project`
 def platform_homes(platform, *, config=None, include_disabled=False):
 	resolved_id, cfg = _resolve_platform_cfg(platform, config=config)
 	if None is cfg:
 		raise ValueError(f'Unknown Upwork platform: {platform}')
 	return extract_platform_homes(cfg, platform=resolved_id, include_disabled=include_disabled)
-# @used-by :func:`agent_tools.upwork_project.antigravity_global_config_dirs()`
 # @used-by :func:`all_instances()`
 # @used-by :func:`enabled_platforms()`
 # @used-by :func:`platform_name()`
 # @used-by :meth:`Df.Harness.Project.Registry.Registry.__resolve_targets()`
+# @used-by :meth:`Df.Harness.Upwork.GlobalCustomizationManager.GlobalCustomizationManager.antigravity_global_config_dirs()`
 # @used-by :meth:`Df.Harness.Workflow.RegistrationStatusChecker.RegistrationStatusChecker.status()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_live_runtime_declares_environments_instances_enabled_states_and_system_paths()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_platform_enabled_false_disables_all_instances_of_environment()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_single_enabled_codex_instance_works_with_shared_catalog_superset()`
+# @used-by :mod:`agent_tools.upwork_project`
 def platform_active(platform, *, config=None):
 	cfg_all = config or settings()
 	resolved_id, plat_cfg = _resolve_platform_cfg(platform, config=cfg_all)
@@ -419,16 +432,17 @@ def platform_active(platform, *, config=None):
 def enabled_platforms(*, config=None):
 	cfg_all = config or settings()
 	return [name for name in cfg_all['platforms'] if platform_active(name, config=cfg_all)]
-# @used-by :func:`agent_tools.upwork_project.instances_report()`
-# @used-by :func:`agent_tools.upwork_project.main()`
 # @used-by :func:`instance_paths()`
 # @used-by :func:`platform_name()`
 # @used-by :func:`resolve_antigravity_paths()`
 # @used-by :func:`resolve_codex_home()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__resolve_instance_match()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.resolve_target()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.main()`
+# @used-by :meth:`Df.Harness.Upwork.InstancesReporter.InstancesReporter.report()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_custom_adapter_platform_keys_and_instruction_snapshot()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_platform_enabled_false_disables_all_instances_of_environment()`
+# @used-by :mod:`agent_tools.upwork_project`
 def instance_entry(instance_id, *, platform=None, config=None, include_disabled=True):
 	cfg_all = config or settings()
 	matches = []
@@ -459,10 +473,11 @@ def _exists_flag(path_str):
 	if _has_glob_wildcard(text):
 		return any((Path(match).exists() for match in glob.glob(text, recursive=True)))
 	return Path(text).exists()
-# @used-by :func:`agent_tools.upwork_project.doctor()`
-# @used-by :func:`agent_tools.upwork_project.instances_report()`
+# @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.audit()`
+# @used-by :meth:`Df.Harness.Upwork.InstancesReporter.InstancesReporter.report()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_custom_adapter_platform_keys_and_instruction_snapshot()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_future_environment_claude_code_is_supported_without_roles_or_adapters()`
+# @used-by :mod:`agent_tools.upwork_project`
 def all_instances(*, config=None, platform=None, include_disabled=True, check_exists=False):
 	cfg_all = config or settings()
 	if platform:
@@ -567,7 +582,6 @@ def _codex_home_conversation_trace(home_dir, conversation_id, *, system_paths=No
 		if matches:
 			return str(matches[0])
 	return None
-# @used-by :func:`agent_tools.upwork_project.instances_report()`
 # @used-by :func:`resolve_antigravity_paths()`
 # @used-by :func:`resolve_codex_home()`
 # @used-by :func:`resolve_codex_paths()`
@@ -575,8 +589,10 @@ def _codex_home_conversation_trace(home_dir, conversation_id, *, system_paths=No
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.resolve_target()`
 # @used-by :meth:`Df.Harness.Perf.TimesheetCommon.TimesheetCommon.__lookup_conversation_trace()`
 # @used-by :meth:`Df.Harness.Perf.TimesheetCommon.TimesheetCommon.__lookup_summary_db_optional()`
+# @used-by :meth:`Df.Harness.Upwork.InstancesReporter.InstancesReporter.report()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cross_instance_handoff_and_audit_resolve_antigravity_and_disabled_codex_traces()`
+# @used-by :mod:`agent_tools.upwork_project`
 def find_conversation_instance(conversation_id, *, platform=None, config=None, include_disabled=True):
 	cfg_all = config or settings()
 	if platform:
@@ -818,15 +834,16 @@ def resolve_codex_paths(backend=None, *, instance=None, conversation_id=None, co
 # @used-by :func:`agent_tools.completion.issue_first_check_turn()`
 # @used-by :func:`agent_tools.completion.tdd_check_turn()`
 # @used-by :func:`agent_tools.platforms.adapter()`
-# @used-by :func:`agent_tools.upwork_project.doctor()`
-# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`platform_settings()`
 # @used-by :func:`using()`
 # @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.__init__()`
 # @used-by :meth:`Df.Harness.Project.Registry.Registry.register()`
 # @used-by :meth:`Df.Harness.Review.InputReceiptBuilder.InputReceiptBuilder.build()`
+# @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.__resolve_platform_cfg()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.initialize()`
 # @used-by :meth:`Df.Harness.Workflow.RegistrationStatusChecker.RegistrationStatusChecker.status()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
+# @used-by :mod:`agent_tools.upwork_project`
 def platform_name(value=None, *, config=None):
 	cfg_all = config or settings()
 	plats = cfg_all['platforms']
@@ -926,13 +943,18 @@ def registration_profile_name(value=None, *, config=None):
 # @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`role_settings()`
 # @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.resolve_codex_paths_safe()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__init__()`
+# @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.__init__()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init__()`
 # @used-by :meth:`test_continuation_binding.CodexContinuationTests.selected()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.selected()`
 # @used-by :meth:`test_portability.ProjectionTests.test_native_toml_preserves_settings_and_resolves_models_from_one_config()`
+# @used-by :mod:`agent_tools.upwork_project`
 def platform_settings(name=None):
 	return deepcopy(settings()['platforms'][platform_name(name)])
-# @used-by :func:`agent_tools.upwork_project.doctor()`
+# @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.audit()`
 # @used-by :meth:`test_portability.ProjectionTests.test_native_toml_preserves_settings_and_resolves_models_from_one_config()`
+# @used-by :mod:`agent_tools.upwork_project`
 def role_settings(platform, role, seen=()):
 	if role in seen:
 		raise ValueError('Cyclic model role inheritance')
@@ -949,7 +971,7 @@ def role_settings(platform, role, seen=()):
 			raise ValueError(f'Missing model/effort for {platform}/{role}')
 		r = value
 	return r
-# @used-by :func:`agent_tools.upwork_project.main()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.main()`
 # @used-by :meth:`test_cleanup.CleanupTests.test_legacy_discovery_failure_with_conversations_is_preserved_without_an_issue()`
 # @used-by :meth:`test_cleanup.CleanupTests.test_preview_is_read_only_and_apply_cleans_both_platforms_preserving_entire_archive()`
 # @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_native_workspace_supports_self_review_and_empty_metadata_keeps_legacy_job_id()`
@@ -957,6 +979,7 @@ def role_settings(platform, role, seen=()):
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_future_environment_claude_code_is_supported_without_roles_or_adapters()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.selected()`
 # @used-by :meth:`test_registration_portability.RegistrationProfileTests.test_registration_only_fallback_does_not_relax_native_evidence_profile()`
+# @used-by :mod:`agent_tools.upwork_project`
 @contextmanager
 def using(platform=None, profile=None, instance=None):
 	first, second, third = (_platform.set(platform_name(platform)), _profile.set(profile), _instance.set(instance))
@@ -969,9 +992,10 @@ def using(platform=None, profile=None, instance=None):
 # @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
 # @used-by :func:`agent_tools.platforms.codex.register()`
 # @used-by :func:`agent_tools.project_rename._sync_antigravity_native_files()`
-# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
-# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
 # @used-by :meth:`Df.Harness.Project.RegistrationExpectation.RegistrationExpectation.build()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.resolve_or_create()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.initialize()`
+# @used-by :mod:`agent_tools.upwork_project`
 def request_day(value=None):
 	from datetime import date, datetime
 	from zoneinfo import ZoneInfo

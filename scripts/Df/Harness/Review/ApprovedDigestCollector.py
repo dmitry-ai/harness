@@ -9,6 +9,7 @@ _REVIEW_SCHEMA = 2
 class ApprovedDigestCollector:
 	# @used-by :meth:`Df.Harness.Review.QuorumEvaluator.QuorumEvaluator.approved_claim_digests()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_review_quorum_and_authorizer_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_approved_digest_collector_add_claims()`
 	def __init__(self, root, state: dict, evaluator, *, exclude_package=None, analysis_fn=None) -> None:
 		self.__root = root
 		self.__state = state
@@ -61,6 +62,7 @@ class ApprovedDigestCollector:
 					self.__add_claims(package, cur_ev, ev_exact, index, out)
 	# @used-by :meth:`Df.Harness.Review.QuorumEvaluator.QuorumEvaluator.approved_claim_digests()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_review_quorum_and_authorizer_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_approved_digest_collector_add_claims()`
 	def digests(self) -> set:
 		from Df.Harness.Workflow.HashCollector import HashCollector
 		r: set = set()

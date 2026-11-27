@@ -16,15 +16,12 @@ def _begin(root, platform, intent):
 # @used-by :mod:`agent_tools.registration`
 def _expected(project, label=None, day=None):
 	return RegistrationExpectation(project, label, day).build()
-# @used-by :func:`agent_tools.upwork_project.register_project()`
 # @used-by :meth:`test_registration_portability.RegistrationTests.test_single_adapter_entry_point_preserves_failure_semantics_and_receipt()`
 # @used-by :meth:`test_registration_portability.RegistrationTests.test_single_success_only_calls_the_selected_adapter()`
 # @used-by :mod:`agent_tools.registration`
 def register_project(project, label=None, day=None, *, platform=None):
 	return Registry(project, label, day, settings_fn=settings).register(platform=platform, single=True)
 # @used-by :func:`agent_tools.project_rename._sync_registrations()`
-# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
-# @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`test_project_rename._assert_renamed_registrations()`
 # @used-by :func:`test_project_rename._seed_dual_antigravity()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_disabled_codex_is_skipped_in_registration_workflow_cleanup_install_and_diagnostics()`
@@ -39,7 +36,6 @@ def register_project(project, label=None, day=None, *, platform=None):
 # @used-by :mod:`agent_tools.registration`
 def register_projects(project, label=None, day=None, *, platform=None, targets=None, registrars=None):
 	return Registry(project, label, day, settings_fn=settings).register(platform=platform, targets=targets, registrars=registrars, single=False)
-# @used-by :func:`agent_tools.upwork_project.save_registration()`
 # @used-by :meth:`test_registration_portability.RegistrationTests.test_legacy_success_and_direct_save_keep_native_identity_after_failure()`
 # @used-by :mod:`agent_tools.registration`
 def save_registration(root, platform, result):

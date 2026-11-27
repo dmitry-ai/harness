@@ -18,14 +18,14 @@ class WorkflowResumer:
 		self.__update_fn = update_fn
 	# @used-by :meth:`WorkflowResumer.resume()`
 	def __apply(self, pp, state: dict) -> None:
-		from agent_tools.upwork_data import normalize_job_id
+		from Df.Harness.Upwork.JobUrlParser import JobUrlParser
 		state['legacy'] = False
 		if None is not self.__request:
 			state['requests'].append({'id': uuid.uuid4().hex, 'time': HashCollector.utc_now(), 'text': self.__request})
 		pj = json.loads(pp.project_json.read_text(encoding='utf-8'))
 		source = inside(pp.root, pj['snapshot'])
 		data = json.loads(source.read_text(encoding='utf-8'))
-		if normalize_job_id(data.get('job_id')) != pj['job_id'] or not data.get('title') or (not data.get('description')):
+		if JobUrlParser.normalize_job_id(data.get('job_id')) != pj['job_id'] or not data.get('title') or (not data.get('description')):
 			raise ValueError('Existing capture does not match this project')
 		if re.fullmatch('[a-f0-9]{64}', source.stem) and HashCollector.file_hash(source) != source.stem:
 			raise ValueError('Immutable capture hash differs')

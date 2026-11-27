@@ -691,7 +691,7 @@ class ProjectCleanupScanner:
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__run_cleanup()`
 # @used-by :meth:`test_cleanup.CleanupTests.run_cleanup()`
 # @used-by :meth:`test_cleanup_audit.CleanupAuditTests.test_apply_persists_sidecar_manifest_with_rollback_snapshots_while_dry_run_stays_readonly()`
 # @used-by :meth:`test_cleanup_audit.CleanupAuditTests.test_cleanup_report_writes_metadata_header_links_manifest_and_consumes_scratch_file()`

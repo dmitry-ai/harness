@@ -111,11 +111,11 @@ def _endpoint(session):
 	endpoint, _, _ = _endpoint_with_meta(session)
 	return endpoint
 # @used-by :func:`_verify_context_anchor()`
-# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
 # @used-by :func:`browser_anchor_status()`
 # @used-by :func:`collect_cdp_dom()`
 # @used-by :func:`discover_cdp_browser()`
 # @used-by :func:`preflight()`
+# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__resolve_target()`
 # @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
 # @used-by :meth:`ManagedHeadlessShell.__enter__()`
 def _checked_ws(value, endpoint):
@@ -191,11 +191,11 @@ def _transport(config, override):
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
 class CDPSession:
-	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
 	# @used-by :func:`browser_anchor_status()`
 	# @used-by :func:`collect_cdp_dom()`
 	# @used-by :func:`collect_headless_dom()`
 	# @used-by :func:`preflight()`
+	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__run_mux()`
 	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
 	# @used-by :meth:`GuardedCDP.create_target()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
@@ -206,11 +206,11 @@ class CDPSession:
 		self._proc = None
 		self._req_id = 0
 		self._session_targets = {}
-	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
 	# @used-by :func:`browser_anchor_status()`
 	# @used-by :func:`collect_cdp_dom()`
 	# @used-by :func:`collect_headless_dom()`
 	# @used-by :func:`preflight()`
+	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__run_mux()`
 	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
 	# @used-by :meth:`GuardedCDP.create_target()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
@@ -230,11 +230,11 @@ class CDPSession:
 				self.close()
 				raise RuntimeError('CDP session did not report ready')
 		return self
-	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
 	# @used-by :func:`browser_anchor_status()`
 	# @used-by :func:`collect_cdp_dom()`
 	# @used-by :func:`collect_headless_dom()`
 	# @used-by :func:`preflight()`
+	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__run_mux()`
 	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
 	# @used-by :meth:`GuardedCDP.create_target()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
@@ -242,10 +242,10 @@ class CDPSession:
 		self.close()
 		return False
 	# @used-by :func:`_verify_context_anchor()`
-	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
 	# @used-by :func:`browser_anchor_status()`
 	# @used-by :func:`collect_cdp_dom()`
 	# @used-by :func:`collect_headless_dom()`
+	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__run_mux()`
 	# @used-by :meth:`GuardedCDP._broker_create_tab()`
 	# @used-by :meth:`GuardedCDP._broker_remove_tab()`
 	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
@@ -288,10 +288,10 @@ class CDPSession:
 					except OSError:
 						pass
 	# @used-by :func:`_verify_context_anchor()`
-	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
 	# @used-by :func:`browser_anchor_status()`
 	# @used-by :func:`collect_cdp_dom()`
 	# @used-by :func:`collect_headless_dom()`
+	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__run_mux()`
 	# @used-by :meth:`GuardedCDP._broker_create_tab()`
 	# @used-by :meth:`GuardedCDP._broker_remove_tab()`
 	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
@@ -306,13 +306,14 @@ class CDPSession:
 	# @used-by :func:`_poll_dom_on_session()`
 	# @used-by :func:`_query_target_infos()`
 	# @used-by :func:`_verify_context_anchor()`
-	# @used-by :func:`agent_tools.upwork_extract._eval_session()`
-	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
 	# @used-by :func:`browser_anchor_status()`
 	# @used-by :func:`collect_cdp_dom()`
 	# @used-by :func:`collect_headless_dom()`
 	# @used-by :meth:`CDPSession.attach_target()`
 	# @used-by :meth:`CDPSession.detach_target()`
+	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__create_temp_tab()`
+	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__download_assets()`
+	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.eval_session()`
 	# @used-by :meth:`GuardedCDP._broker_create_tab()`
 	# @used-by :meth:`GuardedCDP._broker_remove_tab()`
 	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
@@ -465,8 +466,8 @@ def resolve_headless_shell(config=None):
 def headless_mcp_args(config=None):
 	exe = resolve_headless_shell(config)
 	return ['--headless', '--isolated', f'--executablePath={exe.as_posix()}']
-# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
 # @used-by :func:`preflight()`
+# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__resolve_target()`
 # @used-by :meth:`GuardedCDP._broker_create_tab()`
 def _query_target_infos(cdp_sess, fallback_targets):
 	infos = []
@@ -553,8 +554,8 @@ def _verify_context_anchor(prof_cfg, target_infos, targets, endpoint, cdp_sess, 
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
 # @used-by :func:`agent_tools.text_cli.main()`
-# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
 # @used-by :func:`browser_anchor_status()`
+# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.extract()`
 # @used-by :meth:`GuardedCDP._check()`
 # @used-by :meth:`GuardedCDP.call()`
 # @used-by :meth:`GuardedCDP.create_target()`
@@ -760,9 +761,9 @@ def _poll_dom_on_session(cdp_sess, session_id, timeout, *, single_pass=False):
 # https://github.com/dmitry-ai/harness/issues/13
 class GuardedCDP:
 	# @used-by :func:`agent_tools.research.capture_dom()`
-	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
 	# @used-by :func:`collect_cdp_dom()`
 	# @used-by :func:`test_text_browser.dom_fixture()`
+	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.extract()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.guard()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.test_m2a_extension_manifest_key_and_multi_profile_tab_broker_isolation()`
 	def __init__(self, root, spec, *, config=None, http_get=None, cdp_call=None):
@@ -778,7 +779,7 @@ class GuardedCDP:
 		self._cdp_override = cdp_call
 		self.call_native = _transport(self.config, cdp_call)
 		self._owned = {}
-	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.extract()`
 	# @used-by :meth:`GuardedCDP.call()`
 	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
 	# @used-by :meth:`GuardedCDP.create_target()`
@@ -810,7 +811,7 @@ class GuardedCDP:
 	# 2026-11-16
 	# "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 	# https://github.com/dmitry-ai/harness/issues/80
-	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__create_temp_tab()`
 	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
 	# @used-by :meth:`GuardedCDP.create_target()`
 	def _broker_create_tab(self, cdp_sess, anchor_target_id, verified_ctx, url, endpoint):
@@ -851,7 +852,7 @@ class GuardedCDP:
 			raise
 		finally:
 			cdp_sess.detach_target(anchor_sid)
-	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
+	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__run_mux()`
 	# @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
 	def _broker_remove_tab(self, cdp_sess, anchor_target_id, ext_tab_id, target_id):
 		closed = False
@@ -1199,7 +1200,7 @@ def collect_cdp_dom(root, url, *, cdp_port=None, session_id=None, timeout=15, co
 # 2026-11-16
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__run_browser_anchor()`
 def browser_anchor_status(*, session_id=None, init_sentinel_tab=None, config=None, http_get=None, cdp_call=None):
 	cfg = settings() if None is config else deepcopy(config)
 	sid = session_id or cfg.get('text', {}).get('browser', {}).get('primary_session_id') or 'chrome-default'
@@ -1230,10 +1231,10 @@ def browser_anchor_status(*, session_id=None, init_sentinel_tab=None, config=Non
 # 2026-11-13
 # "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
 # https://github.com/dmitry-ai/harness/issues/66
-# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
 # @used-by :func:`browser_anchor_status()`
 # @used-by :func:`collect_cdp_dom()`
 # @used-by :func:`preflight()`
+# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__run_mux()`
 # @used-by :meth:`test_text_browser.TextBrowserTests.test_collect_plan_delegates_to_collect_http_and_shared_cdp_primitives()`
 def discover_cdp_browser(endpoint, get):
 	version, targets = (get(endpoint + '/json/version'), get(endpoint + '/json/list'))

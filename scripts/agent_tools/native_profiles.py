@@ -1132,10 +1132,10 @@ def build_shared_native(primary=PRIMARY, *, check=False):
 # 2026-11-24
 # "Manage Harness ephemeral Git exclusions in install-global and doctor":
 # https://github.com/dmitry-ai/harness/issues/198
-# @used-by :func:`agent_tools.upwork_project._install_profile_customizations()`
-# @used-by :func:`agent_tools.upwork_project.check_global_customizations()`
-# @used-by :func:`agent_tools.upwork_project.install_global_customizations()`
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__run_install_global()`
+# @used-by :meth:`Df.Harness.Upwork.GlobalCustomizationManager.GlobalCustomizationManager.check_global()`
+# @used-by :meth:`Df.Harness.Upwork.GlobalCustomizationManager.GlobalCustomizationManager.install_global()`
+# @used-by :meth:`Df.Harness.Upwork.GlobalCustomizationManager.GlobalCustomizationManager.install_profile_customizations()`
 # @used-by :meth:`test_git_ignore.GlobalGitIgnoreTests.test_doctor_reports_and_validates_global_git_ignore()`
 # @used-by :meth:`test_git_ignore.GlobalGitIgnoreTests.test_install_global_check_and_apply_preserve_user_rules_and_are_idempotent()`
 # @used-by :meth:`test_git_ignore.GlobalGitIgnoreTests.test_isolated_synthetic_primary_skips_host_git_ignore_mutation()`

@@ -10,6 +10,7 @@ import uuid
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class RegistrationStore:
 	# @used-by :func:`agent_tools.registration.save_registration()`
+	# @used-by :func:`agent_tools.upwork_project.save_registration()`
 	# @used-by :meth:`Df.Harness.Project.Registry.Registry.__attempt()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_registration_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_z_project_sync_and_schema_paths()`
@@ -66,6 +67,7 @@ class RegistrationStore:
 			r = {k: deepcopy(v) for k, v in previous.items() if k not in ('intent', 'attempt', 'attempts', 'attempt_history', 'last_success')}
 		return r
 	# @used-by :func:`agent_tools.registration.save_registration()`
+	# @used-by :func:`agent_tools.upwork_project.save_registration()`
 	# @used-by :meth:`Df.Harness.Project.Registry.Registry.__attempt()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_registration_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_z_project_sync_and_schema_paths()`

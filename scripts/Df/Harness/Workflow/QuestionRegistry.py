@@ -22,6 +22,7 @@ class QuestionRegistry:
 	# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_workflow_classes_and_shared_attachment_inventory()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_workflow_question_registry_and_auditors()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_z_workflow_adopt_answer_complete_and_finalize()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_z_workflow_remaining_branches()`
 	def __init__(self, root, *, update_fn=None) -> None:
 		from agent_tools.path_registry import project_paths
 		self.pp = project_paths(root, exact_root=True)
@@ -30,11 +31,13 @@ class QuestionRegistry:
 	# @used-by :func:`agent_tools.workflow.add_question()`
 	# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_workflow_classes_and_shared_attachment_inventory()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_z_workflow_adopt_answer_complete_and_finalize()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_z_workflow_remaining_branches()`
 	def add(self, ident: str, question: str, impact: str, done_when: str, inputs: list, outputs: list, *, requirements=None) -> dict:
 		return QuestionAdder(self.root, ident, question, impact, done_when, inputs, outputs, requirements=requirements, update_fn=self.__update_fn).add()
 	# @used-by :func:`agent_tools.workflow.claim_question()`
 	# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_workflow_classes_and_shared_attachment_inventory()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_z_workflow_adopt_answer_complete_and_finalize()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_z_workflow_remaining_branches()`
 	def claim(self, ident: str, owner: str) -> dict:
 		return QuestionClaimer(self.root, ident, owner, update_fn=self.__update_fn).claim()
 	# @used-by :func:`agent_tools.workflow.question_contract_issues()`
@@ -51,6 +54,7 @@ class QuestionRegistry:
 		return all((q['status'] in ('complete', 'gap') and ReceiptVerifier(self.root, {'inputs': q['inputs'], 'outputs': q['results']}).is_current() and (not self.contract_issues(q)) for q in state['questions'].values()))
 	# @used-by :func:`agent_tools.workflow.finish_question()`
 	# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_workflow_classes_and_shared_attachment_inventory()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_z_workflow_remaining_branches()`
 	def finish(self, ident: str, owner: str, outputs: list, gap=None, *, results=None) -> dict:
 		return QuestionFinisher(self.root, ident, owner, outputs, gap=gap, results=results, update_fn=self.__update_fn).finish()
 	# @used-by :func:`agent_tools.workflow.handoff()`

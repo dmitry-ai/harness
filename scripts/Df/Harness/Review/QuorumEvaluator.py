@@ -28,6 +28,7 @@ class QuorumEvaluator:
 	# @used-by :meth:`Df.Harness.Workflow.StageStatusEvaluator.StageStatusEvaluator.__stage_current()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests._exercise_review_record_and_auth()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_review_quorum_and_authorizer_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_approved_digest_collector_add_claims()`
 	# @used-by :meth:`test_review_contract.ReviewDecompositionTests.test_quorum_evaluator_selects_authorized_group_and_checks_approval_current()`
 	def __init__(self, root, state: dict, *, analysis_fn=None, package_reader=None, inside_fn=None) -> None:
 		self.root = Path(root).resolve()

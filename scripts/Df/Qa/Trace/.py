@@ -53,6 +53,7 @@ class Trace:
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__trailing_comment_urls()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__compute_payload()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__replace_existing()`
+	# @used-by :meth:`Df.Harness.Upwork.DocxExtractor.DocxExtractor.__normalize_heading_levels()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Lexer.Lexer.__tokenize_java_atom()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Lexer.Lexer.__tokenize_java_step()`
 	# @used-by :meth:`Df.Harness.Xref.Js.Lexer.Lexer.__tokenize_js_step()`
@@ -61,7 +62,6 @@ class Trace:
 	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._clause_has_triple_enumeration()`
 	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._has_backtick_enumeration()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.scope_issues()`
-	# @used-by :meth:`agent_tools.upwork_data.DocxMarkdownExtractor._normalize_heading_levels()`
 	# @used-by :meth:`test_github_issue.TestGitHubIssueTool.test_create_prepends_tab_indented_json_metadata_header_and_supports_opt_out()`
 	# @used-by :meth:`test_metadata.MetadataFormattingAndCollectionTests.test_render_prepend_extract_and_strip_tab_indented_json_header()`
 	# @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_headers_submodule_roundtrips_and_ignores_non_harness_json()`

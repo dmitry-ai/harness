@@ -12,6 +12,7 @@ class StageStatusEvaluator:
 	# @used-by :meth:`Df.Harness.Workflow.StateUpdater.StateUpdater.update()`
 	# @used-by :meth:`Df.Harness.Workflow.StatusSnapshotBuilder.StatusSnapshotBuilder.build()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_workflow_stage_engine_and_helpers()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_z_workflow_remaining_branches()`
 	def __init__(self, root, state: dict, *, receipt_fn=None, reg_fn=None) -> None:
 		self.__root = root
 		self.__state = state
@@ -43,6 +44,7 @@ class StageStatusEvaluator:
 	# @used-by :meth:`Df.Harness.Workflow.StateUpdater.StateUpdater.update()`
 	# @used-by :meth:`Df.Harness.Workflow.StatusSnapshotBuilder.StatusSnapshotBuilder.build()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_workflow_stage_engine_and_helpers()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_z_workflow_remaining_branches()`
 	def evaluate(self) -> dict[str, str]:
 		r, dep_ok = ({}, True)
 		for stage in STAGES:

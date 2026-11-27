@@ -16,15 +16,15 @@ class AttachmentAuditor:
 		self.__root = self.__pp.root
 	# @used-by :meth:`AttachmentAuditor.issues()`
 	def __check_attachment(self, att: dict, inv: dict, targets: tuple, doc_markdowns: list, out: list[dict]) -> None:
-		from agent_tools.upwork_data import classify_attachment, extract_attachment_markdown
+		from Df.Harness.Upwork.AttachmentExtractor import AttachmentExtractor
 		fname, sha, ev_path = (att['filename'], att['sha256'], att['evidence_path'])
 		payload = ev_path.read_bytes()
 		if not inv['source_by_sha'].get(sha):
 			out.append(Diagnostics().problem('attachment.source_missing', f'source/{fname}', f'Attached file {fname} must be saved in the root source/ folder (§2.1); run sync-attachments', file=ev_path))
-		kind = classify_attachment(fname, payload)
+		kind = AttachmentExtractor.classify(fname, payload)
 		markers = (f'Description in `{fname}`', f'\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435 \u0432 `{fname}`')
 		if 'document' == kind:
-			doc_markdowns.append(extract_attachment_markdown(ev_path, payload))
+			doc_markdowns.append(AttachmentExtractor.extract_markdown(ev_path, payload))
 			for label, target_file, target_text in targets:
 				if not any((hm in target_text for hm in markers)):
 					out.append(Diagnostics().problem('attachment.kb_missing', label, f'Attached document {fname} is missing from {label} (§2.2); run sync-attachments', file=target_file))
@@ -45,8 +45,8 @@ class AttachmentAuditor:
 	# @used-by :meth:`AttachmentAuditor.issues()`
 	@staticmethod
 	def __check_videos(snap: dict, doc_markdowns: list, inv: dict, targets: tuple, out: list[dict]) -> None:
-		from agent_tools.upwork_data import detect_client_videos
-		for video in detect_client_videos(snap.get('description') or '', doc_markdowns, [{'filename': a['filename'], 'sha256': a['sha256']} for a in inv['attachments']]):
+		from Df.Harness.Upwork.VideoDetector import VideoDetector
+		for video in VideoDetector.detect(snap.get('description') or '', doc_markdowns, [{'filename': a['filename'], 'sha256': a['sha256']} for a in inv['attachments']]):
 			heading = video['heading']
 			for label, target_file, target_text in targets:
 				if heading not in target_text:

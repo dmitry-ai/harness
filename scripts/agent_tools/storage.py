@@ -71,14 +71,14 @@ def _stage_atomic_write(path: Path, data: bytes, commit):
 # @used-by :func:`agent_tools.snapshot.snapshot_draft()`
 # @used-by :func:`agent_tools.text_claims.save_registry()`
 # @used-by :func:`agent_tools.text_workflow.write_candidate_output()`
-# @used-by :func:`agent_tools.upwork_extract.download_attachment()`
-# @used-by :func:`agent_tools.upwork_project.configure_project()`
-# @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`write_immutable_bytes()`
 # @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__write_card()`
 # @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
 # @used-by :meth:`Df.Harness.Experiment.PlanPreparer.PlanPreparer.prepare_plan()`
 # @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__write_run()`
+# @used-by :meth:`Df.Harness.Upwork.AttachmentDownloader.AttachmentDownloader.download()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_inspect()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_context_config()`
 # @used-by :meth:`agent_tools.knowledge.AttachmentInventory._register_bytes()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.apply()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_failed_second_write_recovers_with_token()`
@@ -218,8 +218,6 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 # @used-by :func:`agent_tools.text_review.record()`
 # @used-by :func:`agent_tools.text_sources._attempt()`
 # @used-by :func:`agent_tools.text_workflow.write_candidate_output()`
-# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
-# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
 # @used-by :meth:`Df.Harness.Analysis.Merger.Merger.save()`
 # @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.publish()`
 # @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.sync()`
@@ -232,6 +230,8 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 # @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.save()`
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 # @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.__try_reserve_once()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.resolve_or_create()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.initialize()`
 # @used-by :meth:`Df.Harness.Workflow.StateUpdater.StateUpdater.update()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner._apply_removal()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.run()`
@@ -348,9 +348,6 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :func:`agent_tools.text_sources._attempt()`
 # @used-by :func:`agent_tools.text_workflow.write_candidate_output()`
 # @used-by :func:`agent_tools.trace_event_cache._save_disk_index()`
-# @used-by :func:`agent_tools.upwork_project.configure_project()`
-# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
-# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
 # @used-by :meth:`Df.Harness.Analysis.Merger.Merger.save()`
 # @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.__init__()`
 # @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__write_card()`
@@ -365,6 +362,11 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 # @used-by :meth:`Df.Harness.TestRunner.ParallelRunner.ParallelRunner.__save_timings()`
 # @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.__try_reserve_once()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_context_config()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_manifests()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.__resolve_or_make_new()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__load_and_prepare_fs()`
 # @used-by :meth:`Df.Harness.Workflow.StateUpdater.StateUpdater.update()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._update_single_turn_locked()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.persist_issue_evidence()`

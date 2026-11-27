@@ -36,7 +36,7 @@ def _readable_escapes(value: str) -> str:
 # @used-by :func:`agent_tools.text_sources.source_urls()`
 # @used-by :func:`markdown_link()`
 # @used-by :func:`readable_link_issues()`
-# @used-by :meth:`agent_tools.upwork_data.PdfMarkdownExtractor._collect_visual_lines()`
+# @used-by :meth:`Df.Harness.Upwork.PdfExtractor.PdfExtractor.__text_element_raw()`
 # @used-by :meth:`test_readable_links.ReadableReferenceTests.test_original_file_uri_becomes_a_readable_local_reference()`
 # @used-by :meth:`test_readable_links.ReadableReferenceTests.test_query_signatures_delimiters_literal_percent_and_invalid_utf8_are_preserved()`
 def readable_reference(value: str | Path) -> str:
@@ -55,11 +55,11 @@ def readable_reference(value: str | Path) -> str:
 # @used-by :func:`agent_tools.knowledge._render_projects_md()`
 # @used-by :func:`agent_tools.knowledge.sync_initial_website()`
 # @used-by :func:`agent_tools.knowledge.sync_website_card()`
-# @used-by :func:`agent_tools.upwork_data.format_kb_project_md()`
 # @used-by :meth:`Df.Harness.Analysis.Renderer.Renderer.render()`
+# @used-by :meth:`Df.Harness.Upwork.DocxExtractor.DocxExtractor.__render_link()`
+# @used-by :meth:`Df.Harness.Upwork.KbProjectMdFormatter.KbProjectMdFormatter.__site_text()`
+# @used-by :meth:`Df.Harness.Upwork.PdfExtractor.PdfExtractor.__text_element_raw()`
 # @used-by :meth:`Df.Harness.Workflow.ProgressPublisher.ProgressPublisher.publish()`
-# @used-by :meth:`agent_tools.upwork_data.DocxMarkdownExtractor._render_link()`
-# @used-by :meth:`agent_tools.upwork_data.PdfMarkdownExtractor._collect_visual_lines()`
 # @used-by :meth:`test_readable_links.ReadableReferenceTests.test_cli_readability_check_catches_original_encoding_and_accepts_readable_destination()`
 # @used-by :meth:`test_readable_links.ReadableReferenceTests.test_original_file_uri_becomes_a_readable_local_reference()`
 # @used-by :meth:`test_readable_links.ReadableReferenceTests.test_query_signatures_delimiters_literal_percent_and_invalid_utf8_are_preserved()`

@@ -12,7 +12,7 @@ import sys
 # @used-by :func:`agent_tools.issues.batch_commands.register_issue_subparsers()`
 # @used-by :func:`agent_tools.operations.add_parsers()`
 # @used-by :func:`agent_tools.text_cli.main()`
-# @used-by :func:`agent_tools.upwork_project.main()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__build_parser()`
 # @used-by :meth:`test_cli_common.CliCommonTests.test_declarative_arg_specs_and_routers_parse_expected_flags()`
 def add_arg_specs(parser, specs: tuple | list) -> None:
 	for flags, kwargs in specs:
@@ -63,7 +63,7 @@ def consume_unchanged_files(files: list[tuple[Path, bytes]]) -> list[str]:
 # @used-by :func:`agent_tools.issues.repo_commands.run_transfer_repo()`
 # @used-by :func:`agent_tools.text_cli.findings_output()`
 # @used-by :func:`agent_tools.text_cli.main()`
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.run()`
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService._edit_parent_only()`
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService._execute_edit()`
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService._finalize_close()`
@@ -113,7 +113,7 @@ def load_operation_input(args, path) -> bytes:
 # 2026-11-24
 # "Add deterministic reactive wait primitive for transient repository and journal contention":
 # https://github.com/dmitry-ai/harness/issues/199
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.run()`
 # @used-by :meth:`test_review_target_claim_and_wait_m5.ReviewTargetClaimAndWaitM5Tests.test_native_review_proof_retryable_flag_and_bounded_wait_for_final_response()`
 def operation_error_payload(exc: BaseException) -> dict:
 	from .repo_wait import is_transient_contention_error
@@ -134,7 +134,8 @@ def read_input_bytes(path) -> bytes:
 	return r
 # @used-by :func:`agent_tools.cli_domains._op_metrics()`
 # @used-by :func:`agent_tools.cli_domains._op_question_finish()`
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_init()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_validate_analysis()`
 # @used-by :mod:`agent_tools.text_cli`
 def read_input_json(path, *, encoding: str='utf-8-sig'):
 	return json.loads(read_input_text(path, encoding=encoding)) if None is not path else None
@@ -145,7 +146,7 @@ def read_input_json(path, *, encoding: str='utf-8-sig'):
 # @used-by :mod:`agent_tools.text_cli`
 def read_input_text(path, *, encoding: str='utf-8-sig') -> str:
 	return read_input_bytes(path).decode(encoding)
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.run()`
 # @used-by :meth:`test_cli_common.CliCommonTests.test_declarative_arg_specs_and_routers_parse_expected_flags()`
 def result_exit_code(result: dict, *, extra_failures: tuple=()) -> int:
 	failed = False is result.get('valid') or False is result.get('complete') or 'conflict' == result.get('status') or any(extra_failures)

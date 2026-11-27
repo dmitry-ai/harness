@@ -256,7 +256,6 @@ def detect_journal_version(directory: Path) -> int:
 # @used-by :func:`agent_tools.shadow_replay._find_reply_path()`
 # @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`
 # @used-by :func:`agent_tools.text_core.check_response()`
-# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`answer_groups()`
 # @used-by :func:`find_orphan_or_overwritten_steps()`
 # @used-by :func:`get_existing_step_ids()`
@@ -267,6 +266,7 @@ def detect_journal_version(directory: Path) -> int:
 # @used-by :func:`step_errors()`
 # @used-by :func:`verify_answer()`
 # @used-by :meth:`Df.Harness.Meta.Blocks.Blocks.step_paths()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 # @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.__load_latest_reply()`
 # @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.__saved_answers()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._finalize_segment()`
@@ -1273,8 +1273,8 @@ def _unit_needs_upgrade(src_jdir: Path, dst_jdir: Path) -> bool:
 # 2026-11-21
 # "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
 # https://github.com/dmitry-ai/harness/issues/108
-# @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`ensure_project_journal_upgraded()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_journal_upgrade()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_o_journal_20_entry_bucketing_and_partial_range_normalization()`
 def upgrade_journal(journal_root: str | Path, *, project_root: str | Path | None=None, dry_run: bool=False) -> dict:
 	from .path_registry import clear_registry_cache, discover_overlay_file, project_paths
@@ -1366,8 +1366,8 @@ def upgrade_journal(journal_root: str | Path, *, project_root: str | Path | None
 		return _execute()
 # @used-by :func:`agent_tools.completion.begin()`
 # @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_locked()`
-# @used-by :func:`agent_tools.upwork_project.configure_project()`
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_journal_upgrade()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.configure()`
 # @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.record()`
 # @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.adopt()`
 # @used-by :meth:`Df.Harness.Workflow.WorkflowResumer.WorkflowResumer.resume()`

@@ -4,6 +4,7 @@ from pathlib import Path
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class LabelStateUpdater:
 	# @used-by :func:`agent_tools.project_labels.update_state_label()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_diagnostics_and_label_classes()`
 	def __init__(self, state: dict, root: Path, snapshot: Path, day, label_kind: str) -> None:
 		self.__state = state
@@ -12,6 +13,7 @@ class LabelStateUpdater:
 		self.__day = day
 		self.__label_kind = label_kind
 	# @used-by :func:`agent_tools.project_labels.update_state_label()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_diagnostics_and_label_classes()`
 	def update(self) -> None:
 		day_val = self.__day.isoformat() if hasattr(self.__day, 'isoformat') else str(self.__day)

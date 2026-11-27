@@ -12,8 +12,10 @@ class LabelValidator:
 	# @used-by :func:`agent_tools.project_labels.validate_domain_label()`
 	# @used-by :func:`agent_tools.project_labels.validate_label_safe()`
 	# @used-by :func:`agent_tools.project_labels.validate_topic_label()`
+	# @used-by :func:`agent_tools.upwork_project.validate_label()`
 	# @used-by :meth:`Df.Harness.Project.InitLabelResolver.InitLabelResolver.__resolve_domain()`
 	# @used-by :meth:`Df.Harness.Project.InitLabelResolver.InitLabelResolver.resolve()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.resolve_or_create()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_diagnostics_and_label_classes()`
 	def __init__(self, value: str) -> None:
 		self.__value = value
@@ -49,8 +51,10 @@ class LabelValidator:
 	# @used-by :func:`agent_tools.project_labels.validate_domain_label()`
 	# @used-by :func:`agent_tools.project_labels.validate_label_safe()`
 	# @used-by :func:`agent_tools.project_labels.validate_topic_label()`
+	# @used-by :func:`agent_tools.upwork_project.validate_label()`
 	# @used-by :meth:`Df.Harness.Project.InitLabelResolver.InitLabelResolver.__resolve_domain()`
 	# @used-by :meth:`Df.Harness.Project.InitLabelResolver.InitLabelResolver.resolve()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.resolve_or_create()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_diagnostics_and_label_classes()`
 	def validate(self, *, kind: str='safe') -> str:
 		clean = self.__check_safe()

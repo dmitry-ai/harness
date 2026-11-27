@@ -49,8 +49,8 @@ class Finding:
 	# @used-by :func:`agent_tools.platforms.trace_common.current_turn_requests()`
 	# @used-by :func:`agent_tools.text_cli.findings_output()`
 	# @used-by :func:`agent_tools.text_cli.main()`
-	# @used-by :func:`agent_tools.upwork_project.run()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__format_arch_check()`
+	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__emit_validation_result()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.gate()`
 	# @used-by :meth:`test_df_article.ReferenceArticleTests.test_reference_article_has_no_errors_and_only_known_warnings()`

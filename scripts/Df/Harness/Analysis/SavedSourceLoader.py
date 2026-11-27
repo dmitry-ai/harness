@@ -28,8 +28,8 @@ class SavedSourceLoader:
 		self.__extract_fn = extract_fn
 	# @used-by :meth:`SavedSourceLoader.__load_local()`
 	def __load_document(self, file: Path, raw: bytes, fragment: str, sha: str) -> dict:
-		from agent_tools.upwork_data import extract_attachment_markdown
-		md_text = extract_attachment_markdown(file, raw)
+		from Df.Harness.Upwork.AttachmentExtractor import AttachmentExtractor
+		md_text = AttachmentExtractor.extract_markdown(file, raw)
 		if fragment:
 			md_text = self.__markdown_section(md_text, fragment)
 		plain_text = re.sub('\\[([^\\]]+)\\]\\([^)]+\\)', '\\1', md_text).replace('**', '')

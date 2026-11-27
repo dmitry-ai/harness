@@ -1729,8 +1729,8 @@ def sync_conversation_title(root, conversation=None, *, platform=None, backend=N
 # 2026-11-26
 # "Harden follow-up launcher handoff and journal reservation integrity":
 # https://github.com/dmitry-ai/harness/issues/269
-# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`begin()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__maybe_handoff()`
 # @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_handoff_launcher_turn_cascades_followup_without_job_url_and_clears_reservation()`
 def handoff_launcher_turn(launcher_root, target_root, job_id, *, conversation_id=None) -> list[dict]:
 	from .journal_integrity import collect_handed_off_conversations, turn_matches_handoff

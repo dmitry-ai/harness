@@ -290,15 +290,15 @@ def _register_runtime_builtins() -> None:
 	# https://github.com/dmitry-ai/harness/issues/287
 	register_command('xref-check', 'Validate navigable cross-reference annotations (@used-by, @uses, @see, @override)', (('repo', {'type': Path}), ('--lang', {'choices': ('all', 'python', 'js', 'java'), 'default': 'all'}), ('--file', {'action': 'append', 'default': []}), ('--format', {'choices': ('json', 'text'), 'default': 'json'})), _exec_xref_check, exit_code_fn=lambda res: 0 if res.get('valid') else 2, text_fn=_format_xref)
 	register_command('xref-sync', 'Synchronize navigable @used-by and @override/@see cross-reference annotations', (('repo', {'type': Path}), ('--lang', {'choices': ('all', 'python', 'js', 'java'), 'default': 'all'}), ('--dry-run', {'action': 'store_true'}), ('--file', {'action': 'append', 'default': []}), ('--format', {'choices': ('json', 'text'), 'default': 'json'})), _exec_xref_sync, text_fn=_format_xref)
-# @used-by :func:`agent_tools.upwork_project.main()`
 # @used-by :func:`test_arch_review_cli._run_arch_cli()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__build_parser()`
 # @used-by :meth:`test_tdd_mechanical_exemption.MechanicalExemptionTests.test_cli_parser_dispatches_tdd_exempt_mechanical_with_turn_key()`
 def add_registered_parsers(sub) -> None:
 	_ensure_builtin_plugins()
 	for name, entry in sorted(_REGISTRY.items()):
 		add_arg_specs(sub.add_parser(name, help=entry['help']), entry['specs'])
-# @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`test_arch_review_cli._run_arch_cli()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__execute()`
 def dispatch_registered(args, dump_fn: Callable, exit_fn: Callable) -> tuple[bool, int | None]:
 	_ensure_builtin_plugins()
 	entry = _REGISTRY.get(args.command)

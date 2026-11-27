@@ -10,7 +10,6 @@ from Df.Harness.Analysis.Saver import Saver
 from Df.Harness.Analysis.Validator import SECTIONS, Validator
 from .diagnostics import require_valid
 from .storage import replace_bytes
-# @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`agent_tools.workflow.check_project()`
 # @used-by :func:`validate_analysis()`
 # @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_many_independent_errors_are_reported_with_fields_and_ids()`
@@ -58,7 +57,6 @@ def digest(data):
 def iter_arguments(value):
 	return Validator.iter_arguments(value)
 # @used-by :func:`agent_tools.cli_domains._op_render_analysis()`
-# @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`test_finalized_project_contract._seed_pre_review()`
 # @used-by :func:`test_project_domain_drift._save_and_publish()`
 # @used-by :func:`test_project_rename._seed_project_artifacts()`
@@ -133,7 +131,6 @@ def source_uri(argument, registry):
 # @used-by :mod:`agent_tools.analysis`
 def valid_gap(gap):
 	return isinstance(gap, dict) and gap.get('status') in ('not_found', 'unavailable') and isinstance(gap.get('reviewed_sources'), list) and bool(gap['reviewed_sources']) and all((isinstance(x, str) and x.strip() for x in gap['reviewed_sources'])) and isinstance(gap.get('limitations'), str) and bool(gap['limitations'].strip())
-# @used-by :func:`agent_tools.upwork_data.format_kb_project_md()`
 # @used-by :meth:`test_onboarding.EvidenceTests.test_analysis_links_causes_to_concerns_and_methods_to_causes()`
 # @used-by :meth:`test_onboarding.EvidenceTests.test_malformed_analysis_has_actionable_errors()`
 # @used-by :meth:`test_onboarding.EvidenceTests.test_missing_counterevidence_probability_or_documentation_anchor_is_rejected()`

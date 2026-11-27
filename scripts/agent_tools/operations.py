@@ -157,7 +157,7 @@ def _load_consumed_json(args, path, fn, *extra_args, **extra_kwargs):
 	payload = _operation_input(args, path)
 	result = fn(*extra_args, json.loads(payload.decode('utf-8-sig')), **extra_kwargs)
 	return _consumed(args, path, payload, result)
-# @used-by :func:`agent_tools.upwork_project.main()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__build_parser()`
 # @used-by :meth:`test_text_integration.TextBoundaryTests.test_dom_cli_dispatch_keeps_the_explicit_authorized_session()`
 def add_parsers(sub):
 	from .completion import add_parser_arguments
@@ -198,7 +198,7 @@ def add_parsers(sub):
 # "Wire project path overlays across Harness subsystems with paths CLI and regression tests":
 # https://github.com/dmitry-ai/harness/issues/96
 # @used-by :func:`agent_tools.cli_domains._op_render_analysis()`
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.run()`
 def analysis_root(file):
 	from .path_registry import canonicalize_root_dir
 	file = Path(file).resolve()
@@ -211,7 +211,7 @@ def analysis_root(file):
 # 2026-11-23
 # "Replace monolithic CLI router with declarative registry and modular docs":
 # https://github.com/dmitry-ai/harness/issues/168
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.run()`
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_html_links_json_summary_non_destructive_collect_and_scratch_cleanliness()`
 # @used-by :meth:`test_cli_registry.CliRegistryTests.test_operation_handlers_cover_all_non_completion_commands()`
 # @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_collect_receipt_preserves_plan_after_input_is_consumed()`

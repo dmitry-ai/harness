@@ -33,6 +33,7 @@ def _sample_requirement(req_id: str='EXP-1', method: str='http', prop: str='mark
 # @used-by :meth:`DfHarnessS11Wave2aReviewTests.test_review_merkle_and_predicates()`
 # @used-by :meth:`DfHarnessS11Wave2aReviewTests.test_review_package_and_recording_classes()`
 # @used-by :meth:`DfHarnessS11Wave2aReviewTests.test_review_quorum_and_authorizer_classes()`
+# @used-by :meth:`DfHarnessS11Wave2aReviewTests.test_z_approved_digest_collector_add_claims()`
 def _sample_package(root: Path, *, risk: str='significant', review_mode: str='falsifier') -> tuple[str, str, dict]:
 	cand_dir = root / '\ua616/KB/Evidence/Reviews/Candidates'
 	cand_dir.mkdir(parents=True, exist_ok=True)
@@ -370,5 +371,21 @@ class DfHarnessS11Wave2aReviewTests(unittest.TestCase):
 		self.assertTrue(errs)
 		addr, _ = AddressedReviewResolver(root, {'result': 'approved', 'addresses_reviews': [{'review_id': 'r0', 'basis': 'Addressed', 'evidence': [snap_rel]}]}, pkg, True, [{'id': 'r0', 'subject_sha256': pkg['subject_sha256']}]).resolve_addressed()
 		self.assertEqual(['r0'], addr)
+	# @used-by :mod:`unittest`
+	def test_z_approved_digest_collector_add_claims(self) -> None:
+		from Df.Harness.Review.ApprovedDigestCollector import ApprovedDigestCollector
+		from Df.Harness.Review.QuorumEvaluator import QuorumEvaluator
+		with tempfile.TemporaryDirectory() as tmp:
+			root = Path(tmp).resolve()
+			pkg_rel, _, pkg = _sample_package(root)
+			pkg['evidence_inputs'] = {}
+			(root / pkg_rel).write_text(json.dumps(pkg), encoding='utf-8')
+			entry = {'id': 'rev-1', 'schema_version': 2, 'result': 'approved', 'independent': True, 'package': pkg_rel, 'subject_sha256': pkg['subject_sha256'], 'reviewer_id': 'aa-1', 'findings': [], 'dispositions': []}
+			st = {'reviews': [entry], 'stages': {'finalize': {'status': 'complete'}}}
+			ev = QuorumEvaluator(root, st)
+			with mock.patch.object(QuorumEvaluator, 'entry_proof_current', return_value=True), mock.patch.object(QuorumEvaluator, 'findings_closed', return_value=True), mock.patch.object(QuorumEvaluator, 'quorum_satisfied', return_value=True), mock.patch('Df.Harness.Workflow.HashCollector.HashCollector.collect', return_value={}):
+				self.assertTrue(ApprovedDigestCollector(root, st, ev).digests())
+			with mock.patch.object(QuorumEvaluator, 'entry_proof_current', return_value=True), mock.patch.object(QuorumEvaluator, 'findings_closed', return_value=True), mock.patch.object(QuorumEvaluator, 'quorum_satisfied', return_value=True), mock.patch('Df.Harness.Workflow.HashCollector.HashCollector.collect', return_value={'other': 'x'}):
+				self.assertIsInstance(ApprovedDigestCollector(root, st, ev, analysis_fn=lambda _: {'facts': []}).digests(), set)
 if '__main__' == __name__:
 	unittest.main()

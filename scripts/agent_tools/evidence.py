@@ -19,7 +19,6 @@ def contains_quote(text, quote, mode='exact'):
 		r = ' '.join(quote.split()) in ' '.join(text.split())
 	return r
 # @used-by :func:`agent_tools.review._analysis()`
-# @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`agent_tools.workflow.check_project()`
 # @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_anchored_quote_from_another_section_is_rejected()`
 # @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_content_addressed_primary_evidence_tampering_is_detected()`

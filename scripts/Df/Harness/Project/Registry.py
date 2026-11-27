@@ -11,6 +11,9 @@ from agent_tools.runtime import platform_active, platform_name, settings
 class Registry:
 	# @used-by :func:`agent_tools.registration.register_project()`
 	# @used-by :func:`agent_tools.registration.register_projects()`
+	# @used-by :func:`agent_tools.upwork_project.register_project()`
+	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_register()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__maybe_register()`
 	# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.complete()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_registration_classes()`
 	def __init__(self, project, label=None, day=None, *, settings_fn=None) -> None:
@@ -49,6 +52,9 @@ class Registry:
 		return chosen
 	# @used-by :func:`agent_tools.registration.register_project()`
 	# @used-by :func:`agent_tools.registration.register_projects()`
+	# @used-by :func:`agent_tools.upwork_project.register_project()`
+	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_register()`
+	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__maybe_register()`
 	# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.complete()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_registration_classes()`
 	def register(self, *, platform=None, targets=None, registrars=None, single: bool=False) -> dict:

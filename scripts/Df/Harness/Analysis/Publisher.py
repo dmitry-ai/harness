@@ -11,6 +11,7 @@ import json
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class Publisher:
 	# @used-by :func:`agent_tools.analysis.publish_analysis()`
+	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__emit_validation_result()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_analysis_merger_and_lifecycle_classes()`
 	def __init__(self, source, target=None) -> None:
 		self.__source = Path(source).resolve()
@@ -26,6 +27,7 @@ class Publisher:
 			raise ValueError('Publish a reconciled schema 3 candidate from its project \ua616/KB/Analysis.json')
 		return self.__source.parents[2] if self.__source != expected_source and is_standard else proj_root
 	# @used-by :func:`agent_tools.analysis.publish_analysis()`
+	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__emit_validation_result()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_analysis_merger_and_lifecycle_classes()`
 	def publish(self) -> dict:
 		from agent_tools.knowledge import sync_website_card

@@ -33,6 +33,7 @@ class StageEngine:
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_workflow_question_registry_and_auditors()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_workflow_stage_engine_and_helpers()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_z_workflow_adopt_answer_complete_and_finalize()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_z_workflow_remaining_branches()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 	# @used-by :meth:`test_project_rename.ProjectRenameTests.test_rename_preserves_launcher_handoff_reg_hash_and_review_lineage()`
 	def __init__(self, root, *, update_fn=None, check_project_fn=None, authorize_fn=None, drift_fn=None) -> None:
@@ -126,6 +127,7 @@ class StageEngine:
 	def unadopt_requests(self, conversation_id=None, request_ids=None) -> dict:
 		return RequestUnadopter(self.root, conversation_id=conversation_id, request_ids=request_ids, engine=self, update_fn=self.__update_fn).unadopt()
 	# @used-by :func:`agent_tools.workflow.update()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_z_workflow_remaining_branches()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 	def update(self, event: dict, change) -> dict:
 		return StateUpdater(self.root, event, change, engine=self).update()
