@@ -355,20 +355,6 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.upwork_data.detect_client_videos()`
 	# @used-by :func:`agent_tools.upwork_data.extract_client_names()`
 	# @used-by :func:`agent_tools.worktree_guard.find_worktree_lock_holders()`
-	# @used-by :func:`agent_tools.xref.java_graph._link_java_method()`
-	# @used-by :func:`agent_tools.xref.java_model._consume_modifiers()`
-	# @used-by :func:`agent_tools.xref.java_model.discover_java_files()`
-	# @used-by :func:`agent_tools.xref.js_graph.find_js_overridden_method()`
-	# @used-by :func:`agent_tools.xref.js_model._add_def()`
-	# @used-by :func:`agent_tools.xref.js_model._collect_js_rels()`
-	# @used-by :func:`agent_tools.xref.js_model._parse_class_body()`
-	# @used-by :func:`agent_tools.xref.js_model._parse_top_class()`
-	# @used-by :func:`agent_tools.xref.python_model._collect_file_ast()`
-	# @used-by :func:`agent_tools.xref.python_model._record_top_assign()`
-	# @used-by :func:`agent_tools.xref.python_model._walk_body()`
-	# @used-by :func:`agent_tools.xref.python_model._walk_class()`
-	# @used-by :func:`agent_tools.xref.python_model.discover_python_files()`
-	# @used-by :func:`agent_tools.xref.python_overrides._check_repo_ancestors()`
 	# @used-by :func:`split_project_rules.split_rules()`
 	# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.arch_index_paths()`
 	# @used-by :meth:`Df.Harness.Gate.AnswerChecksGate.AnswerChecksGate.run()`
@@ -392,6 +378,20 @@ class ResearchQuestionRegistry:
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__diff_added_lines()`
 	# @used-by :meth:`Df.Harness.Tdd.SubstantiveTestChecker.SubstantiveTestChecker.__collect_read_wrapper_params()`
 	# @used-by :meth:`Df.Harness.Tdd.WorktreeScope.WorktreeScope.extract_command_worktree_ids()`
+	# @used-by :meth:`Df.Harness.Xref.Java.Graph.Graph.__link_java_method()`
+	# @used-by :meth:`Df.Harness.Xref.Java.Model.Model.__consume_modifiers()`
+	# @used-by :meth:`Df.Harness.Xref.Java.Model.Model.discover_files()`
+	# @used-by :meth:`Df.Harness.Xref.Js.Graph.Graph.find_overridden_method()`
+	# @used-by :meth:`Df.Harness.Xref.Js.Model.Model.__add_def()`
+	# @used-by :meth:`Df.Harness.Xref.Js.Model.Model.__collect_js_rels()`
+	# @used-by :meth:`Df.Harness.Xref.Js.Model.Model.__parse_class_body()`
+	# @used-by :meth:`Df.Harness.Xref.Js.Model.Model.__parse_top_class()`
+	# @used-by :meth:`Df.Harness.Xref.Python.Model.Model.__collect_file_ast()`
+	# @used-by :meth:`Df.Harness.Xref.Python.Model.Model.__record_top_assign()`
+	# @used-by :meth:`Df.Harness.Xref.Python.Model.Model.__walk_body()`
+	# @used-by :meth:`Df.Harness.Xref.Python.Model.Model.__walk_class()`
+	# @used-by :meth:`Df.Harness.Xref.Python.Model.Model.discover_files()`
+	# @used-by :meth:`Df.Harness.Xref.Python.Overrides.Overrides.__check_repo_ancestors()`
 	# @used-by :meth:`ResearchQuestionRegistry.contract_issues()`
 	# @used-by :meth:`agent_tools.claims.ClaimGraphValidator._check_claim_dependencies_and_caps()`
 	# @used-by :meth:`agent_tools.claims.ClaimGraphValidator._check_claim_structure()`
@@ -1100,10 +1100,6 @@ class WorkflowStateEngine:
 	# @used-by :func:`agent_tools.worktree_flow._attach_land_telemetry()`
 	# @used-by :func:`agent_tools.worktree_flow._enrich_worktree_entry()`
 	# @used-by :func:`agent_tools.worktree_flow._push_and_finish_land()`
-	# @used-by :func:`agent_tools.xref.java_graph._scan_plugin_xml_classes()`
-	# @used-by :func:`agent_tools.xref.java_sync._expected_java_used_by()`
-	# @used-by :func:`agent_tools.xref.js_sync._expected_js_used_by()`
-	# @used-by :func:`agent_tools.xref.python_sync._expected_used_by_lines()`
 	# @used-by :func:`git_fixture_cache.run_harness_inprocess()`
 	# @used-by :func:`test_evidence_contract.v3_analysis()`
 	# @used-by :func:`test_issue_close_acceptance._run_close_cli()`
@@ -1122,6 +1118,10 @@ class WorkflowStateEngine:
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.__track_bg_command_outputs()`
 	# @used-by :meth:`Df.Harness.Tdd.Exemption.Exemption.__verify_single_file_issue_urls()`
 	# @used-by :meth:`Df.Harness.Tdd.SubstantiveTestChecker.SubstantiveTestChecker.__collect_repo_anchor_vars()`
+	# @used-by :meth:`Df.Harness.Xref.Java.Graph.Graph.__scan_plugin_xml_classes()`
+	# @used-by :meth:`Df.Harness.Xref.Java.Syncer.Syncer.__expected_java_used_by()`
+	# @used-by :meth:`Df.Harness.Xref.Js.Syncer.Syncer.__expected_js_used_by()`
+	# @used-by :meth:`Df.Harness.Xref.Python.Syncer.Syncer.__expected_used_by_lines()`
 	# @used-by :meth:`ResearchQuestionRegistry._apply_claim()`
 	# @used-by :meth:`ResearchQuestionRegistry._apply_finish()`
 	# @used-by :meth:`ResearchQuestionRegistry._apply_handoff()`

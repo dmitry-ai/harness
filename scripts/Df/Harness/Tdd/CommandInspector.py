@@ -62,9 +62,10 @@ class CommandInspector:
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__update_scope_from_test_cmd()`
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.build_command_event()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_classifier_commands_and_lexers()`
-	def __init__(self, cmd: str, *, scope_root: Path | None=None) -> None:
+	def __init__(self, cmd: str, *, scope_root: Path | None=None, unique_fn=None) -> None:
 		self.__cmd = cmd
 		self.__scope_root = scope_root
+		self.__unique_fn = unique_fn
 	# @used-by :func:`agent_tools.tdd.commands.classify_test_command()`
 	# @used-by :meth:`Df.Harness.Gate.FailfastGate.FailfastGate.evaluate()`
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__update_scope_from_test_cmd()`
@@ -85,7 +86,8 @@ class CommandInspector:
 						targets.extend(CommandInspector.extract_cmd_paths(s))
 			if is_test and (not is_full) and None is not self.__scope_root and 1 >= CodeClassifier.count_repo_test_files(self.__scope_root):
 				is_full = True
-			r = {'is_full_suite': is_full, 'is_test_cmd': is_test, 'rigged_failure': bool(CommandInspector.RIGGED_FAILURE_RE.search(self.__cmd)), 'target_paths': dfa_unique_fast(targets)}
+			uniq = self.__unique_fn if None is not self.__unique_fn else dfa_unique_fast
+			r = {'is_full_suite': is_full, 'is_test_cmd': is_test, 'rigged_failure': bool(CommandInspector.RIGGED_FAILURE_RE.search(self.__cmd)), 'target_paths': uniq(targets)}
 		return r
 	# @used-by :meth:`CommandInspector.classify_test_command()`
 	@staticmethod

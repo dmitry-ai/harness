@@ -3,8 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from Df.Core.lib.fs import df_path_suffix
 from Df.Core.lib.git import df_git_root
+from Df.Harness.Xref.Java.Syncer import Syncer as JavaSyncer
+from Df.Harness.Xref.Js.Syncer import Syncer as JsSyncer
+from Df.Harness.Xref.Python.Syncer import Syncer as PythonSyncer
 from agent_tools.shell_audit import normalize_host_path
-from agent_tools.xref import check_java_file_local, check_js_file_local, check_python_file_local
 import os
 import re
 import tempfile
@@ -166,7 +168,7 @@ class XrefChecker:
 		if None is lang:
 			r: list[str] = []
 		else:
-			checker = {'java': check_java_file_local, 'js': check_js_file_local, 'python': check_python_file_local}[lang]
+			checker = {'java': JavaSyncer.check_file_local, 'js': JsSyncer.check_file_local, 'python': PythonSyncer.check_file_local}[lang]
 			strict_existing = None is self.__baseline_source or XrefChecker.has_xref_marker(self.__baseline_source)
 			r = [XrefChecker.format_error(e) for e in checker(rel, self.__source, baseline_source=self.__baseline_source, strict_existing=strict_existing)]
 		return r

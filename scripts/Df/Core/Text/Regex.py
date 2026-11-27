@@ -191,15 +191,6 @@ class Regex(O):
 	# @used-by :func:`agent_tools.upwork_data.structure_job_description()`
 	# @used-by :func:`agent_tools.upwork_extract.attachment_path()`
 	# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
-	# @used-by :func:`agent_tools.xref.java_lex._tokenize_java_word_or_punct()`
-	# @used-by :func:`agent_tools.xref.java_tags._build_link_entry()`
-	# @used-by :func:`agent_tools.xref.java_tags._classify_javadoc_line()`
-	# @used-by :func:`agent_tools.xref.js_lex._tokenize_js_word_or_punct()`
-	# @used-by :func:`agent_tools.xref.js_tags._resolve_import_link()`
-	# @used-by :func:`agent_tools.xref.js_tags._validate_jsdoc_entry()`
-	# @used-by :func:`agent_tools.xref.js_tags.parse_jsdoc_tag_line()`
-	# @used-by :func:`agent_tools.xref.python_tags._validate_tag_entry()`
-	# @used-by :func:`agent_tools.xref.python_tags.parse_tag_line()`
 	# @used-by :func:`split_project_rules.split_rules()`
 	# @used-by :meth:`Df.Harness.Arch.SpecValidator.SpecValidator.__parse_field_line()`
 	# @used-by :meth:`Df.Harness.Gate.FailfastGate.FailfastGate.missing_timeout_guard()`
@@ -225,6 +216,15 @@ class Regex(O):
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__vbs_step()`
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.lex_batch()`
 	# @used-by :meth:`Df.Harness.Tdd.ServiceExempt.ServiceExempt.__is_service_command()`
+	# @used-by :meth:`Df.Harness.Xref.Java.Lexer.Lexer.__tokenize_java_word_or_punct()`
+	# @used-by :meth:`Df.Harness.Xref.Java.Tags.Tags.__build_link_entry()`
+	# @used-by :meth:`Df.Harness.Xref.Java.Tags.Tags.__classify_javadoc_line()`
+	# @used-by :meth:`Df.Harness.Xref.Js.Lexer.Lexer.__tokenize_js_word_or_punct()`
+	# @used-by :meth:`Df.Harness.Xref.Js.Tags.Tags.__resolve_import_link()`
+	# @used-by :meth:`Df.Harness.Xref.Js.Tags.Tags.__validate_jsdoc_entry()`
+	# @used-by :meth:`Df.Harness.Xref.Js.Tags.Tags.parse_jsdoc_tag_line()`
+	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.__validate_tag_entry()`
+	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.parse_tag_line()`
 	# @used-by :meth:`Regex.matchInt()`
 	# @used-by :meth:`Regex.test()`
 	# @used-by :meth:`agent_tools.experiments.BrowserTraceInspector._tokenize()`

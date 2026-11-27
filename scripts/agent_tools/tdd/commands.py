@@ -2,6 +2,7 @@
 from __future__ import annotations
 from pathlib import Path
 # 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
+from Df.Core.lib.array.other.unique_fast import dfa_unique_fast
 from Df.Harness.Tdd.CommandInspector import CommandInspector
 _HARNESS_WATCHDOG_PREFIX_RE = CommandInspector.HARNESS_WATCHDOG_PREFIX_RE
 _RIGGED_FAILURE_RE = CommandInspector.RIGGED_FAILURE_RE
@@ -30,7 +31,7 @@ def _single_test_file_in_args(seg: str) -> bool:
 # @used-by :mod:`agent_tools.tdd_gate`
 # @used-by :mod:`agent_tools.tdd`
 def classify_test_command(cmd: str, *, scope_root: Path | None=None) -> dict:
-	return CommandInspector(cmd, scope_root=scope_root).classify_test_command()
+	return CommandInspector(cmd, scope_root=scope_root, unique_fn=dfa_unique_fast).classify_test_command()
 # @used-by :func:`agent_tools.platforms.trace_common.record_normalized_tool_effects()`
 # @used-by :meth:`test_issue_first_gate.IssueFirstGateCoreTests.test_shell_write_targets_detects_test_production_and_doc_writes()`
 # @used-by :meth:`test_shell_herestring_write_targets_m4.ShellHerestringWriteTargetsM4Tests.test_ignores_arrows_and_html_inside_powershell_herestring()`

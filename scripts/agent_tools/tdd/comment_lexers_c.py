@@ -2,7 +2,6 @@
 from __future__ import annotations
 # 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
 from Df.Harness.Tdd.CLikeCommentLexer import CLikeCommentLexer
-# @used-by :func:`agent_tools.xref.js_lex._tokenize_js_atom()`
 # @used-by :mod:`agent_tools.tdd.comment_lexers_c`
 def can_start_regex(tokens: list[str]) -> bool:
 	return CLikeCommentLexer.can_start_regex(tokens)

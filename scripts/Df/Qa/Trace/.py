@@ -50,11 +50,11 @@ class Trace:
 	# @used-by :func:`agent_tools.text_core.check_code()`
 	# @used-by :func:`agent_tools.text_core.check_prose()`
 	# @used-by :func:`agent_tools.text_sections.content_blocks()`
-	# @used-by :func:`agent_tools.xref.java_lex._tokenize_java_atom()`
-	# @used-by :func:`agent_tools.xref.java_lex._tokenize_java_step()`
-	# @used-by :func:`agent_tools.xref.js_lex._tokenize_js_step()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__scan_brace_end()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__trailing_comment_urls()`
+	# @used-by :meth:`Df.Harness.Xref.Java.Lexer.Lexer.__tokenize_java_atom()`
+	# @used-by :meth:`Df.Harness.Xref.Java.Lexer.Lexer.__tokenize_java_step()`
+	# @used-by :meth:`Df.Harness.Xref.Js.Lexer.Lexer.__tokenize_js_step()`
 	# @used-by :meth:`Trace.__len__()`
 	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._check_body_blocks()`
 	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._clause_has_triple_enumeration()`

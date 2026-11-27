@@ -148,9 +148,6 @@ class RAM:
 	# @used-by :func:`agent_tools.worktree_flow.worktree_cleanup()`
 	# @used-by :func:`agent_tools.worktree_guard._remove_tree_strict()`
 	# @used-by :func:`agent_tools.worktree_guard.remove_worktree_fail_closed()`
-	# @used-by :func:`agent_tools.xref.java_tags.is_valid_java_external()`
-	# @used-by :func:`agent_tools.xref.js_tags.is_valid_js_external()`
-	# @used-by :func:`agent_tools.xref.python_tags.is_valid_external_target()`
 	# @used-by :func:`split_project_rules.main()`
 	# @used-by :func:`split_project_rules.split_rules()`
 	# @used-by :func:`test_historical_admission._restore_tree_in_place()`
@@ -170,6 +167,9 @@ class RAM:
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__resolve_repo_binding()`
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.find_matching_recipes()`
 	# @used-by :meth:`Df.Harness.Tdd.WorktreeScope.WorktreeScope.canonical_scope_path()`
+	# @used-by :meth:`Df.Harness.Xref.Java.Tags.Tags.is_valid_external()`
+	# @used-by :meth:`Df.Harness.Xref.Js.Tags.Tags.is_valid_external()`
+	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.is_valid_external_target()`
 	# @used-by :meth:`RAM.get()`
 	# @used-by :meth:`agent_tools.git_gate.GitRepoGate._extract_added_diff_urls()`
 	# @used-by :meth:`agent_tools.git_gate.GitRepoGate.is_issue_tracked()`

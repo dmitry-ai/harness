@@ -2,6 +2,7 @@
 from __future__ import annotations
 from pathlib import Path
 # 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
+from Df.Core.lib.array.first import df_first
 from Df.Harness.Tdd.OutcomeParser import OutcomeParser
 _BG_HEADER_SPLIT_RE = OutcomeParser.BG_HEADER_SPLIT_RE
 _BG_TASK_FINISHED_RE = OutcomeParser.BG_TASK_FINISHED_RE
@@ -45,5 +46,5 @@ def extract_bg_task_ids(text: str) -> list[str]:
 # @used-by :mod:`agent_tools.tdd_gate`
 # @used-by :mod:`agent_tools.tdd`
 def parse_command_outcome(outputs: list[str] | tuple[str, ...] | str, *, task_log_paths: list[Path] | None=None) -> dict:
-	return OutcomeParser(outputs, task_log_paths=task_log_paths).parse()
+	return OutcomeParser(outputs, task_log_paths=task_log_paths, first_fn=df_first).parse()
 __all__ = ['_BG_HEADER_SPLIT_RE', '_BG_TASK_FINISHED_RE', '_BG_TASK_ID_RE', '_BG_TASK_LOG_RE', '_EXIT_CODE_RE', '_INVOCATION_ERROR_RE', '_OUTPUT_BODY_SPLIT_RE', '_ZERO_TESTS_RE', '_infer_exit_code_from_log_text', '_uri_to_local_path', 'extract_bg_task_ids', 'parse_command_outcome']

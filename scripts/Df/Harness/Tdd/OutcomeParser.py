@@ -35,9 +35,10 @@ class OutcomeParser:
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.__record_bg_task_completion()`
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.build_command_event()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
-	def __init__(self, outputs: list[str] | tuple[str, ...] | str, *, task_log_paths: list[Path] | None=None) -> None:
+	def __init__(self, outputs: list[str] | tuple[str, ...] | str, *, task_log_paths: list[Path] | None=None, first_fn=None) -> None:
 		self.__outputs = outputs
 		self.__task_log_paths = task_log_paths
+		self.__first_fn = first_fn
 	# @used-by :func:`agent_tools.article.check_link_style()`
 	# @used-by :func:`agent_tools.claims.evaluate_safe_arithmetic()`
 	# @used-by :func:`agent_tools.contract_invariants.audit_readable_link_call_sites()`
@@ -49,7 +50,6 @@ class OutcomeParser:
 	# @used-by :func:`agent_tools.markdown_links.numeric_text()`
 	# @used-by :func:`agent_tools.source_grounding.extract_authored_prose()`
 	# @used-by :func:`agent_tools.tdd.outcomes.parse_command_outcome()`
-	# @used-by :func:`agent_tools.xref.python_model.index_python_file()`
 	# @used-by :meth:`Df.Harness.Arch.TriggerClassifier.TriggerClassifier.__extract_python_symbols()`
 	# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.analyze()`
 	# @used-by :meth:`Df.Harness.Gate.CodeStyleAnalyzer.CodeStyleAnalyzer.analyze()`
@@ -62,6 +62,7 @@ class OutcomeParser:
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.build_command_event()`
 	# @used-by :meth:`Df.Harness.Tdd.SubstantiveTestChecker.SubstantiveTestChecker.__py_has_ast_assertion()`
 	# @used-by :meth:`Df.Harness.Tdd.SubstantiveTestChecker.SubstantiveTestChecker.__py_source_text_issues()`
+	# @used-by :meth:`Df.Harness.Xref.Python.Model.Model.index_file()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._extract_markdown_refs()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
 	# @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_s11_arch_invariants_and_zero_class_facades()`
@@ -71,7 +72,7 @@ class OutcomeParser:
 	def parse(self) -> dict:
 		parts = [self.__outputs] if isinstance(self.__outputs, str) else [str(o) for o in (self.__outputs or ()) if o]
 		combined = '\n'.join(parts)
-		bg_task_id, bg_log_path = OutcomeParser.__extract_bg_meta(combined)
+		bg_task_id, bg_log_path = OutcomeParser.__extract_bg_meta(combined, self.__first_fn)
 		exit_code = OutcomeParser.__header_exit_code(parts)
 		extra_log_text = ''
 		if None is exit_code:
@@ -96,9 +97,9 @@ class OutcomeParser:
 		return r
 	# @used-by :meth:`OutcomeParser.parse()`
 	@staticmethod
-	def __extract_bg_meta(combined: str) -> tuple[str | None, str | None]:
+	def __extract_bg_meta(combined: str, first_fn=None) -> tuple[str | None, str | None]:
 		tids = OutcomeParser.extract_bg_task_ids(combined)
-		bg_tid = df_first(tids)
+		bg_tid = (first_fn if None is not first_fn else df_first)(tids)
 		m_log = OutcomeParser.BG_TASK_LOG_RE.search(combined)
 		lp = OutcomeParser.uri_to_local_path(m_log.group(1)) if m_log else None
 		return (bg_tid, str(lp) if None is not lp else None)

@@ -97,13 +97,13 @@ class Catalog:
 				break
 		return r
 	# @used-by :func:`agent_tools.arch.catalog.catalog_pattern_names()`
-	# @used-by :func:`agent_tools.xref.python_model._add_import_node()`
 	# @used-by :func:`test_df_harness_s11_wave2e_arch._arch_backward_imports()`
 	# @used-by :meth:`Df.Harness.Arch.StructureVisitor.StructureVisitor.visit_Import()`
 	# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.__is_override_import()`
 	# @used-by :meth:`Df.Harness.Gate.PythonIntegrity.PythonIntegrity.__collect_defined_globals()`
 	# @used-by :meth:`Df.Harness.Gate.PythonIntegrity.PythonIntegrity.__has_wildcard_import()`
 	# @used-by :meth:`Df.Harness.Gate.SubprocessHygieneChecker.SubprocessHygieneChecker.__collect_subprocess_bindings()`
+	# @used-by :meth:`Df.Harness.Xref.Python.Model.Model.add_import_node()`
 	# @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_catalog_and_spec_validator_resolve_patterns_and_idiom_exceptions()`
 	@classmethod
 	def names(cls, *, catalog: dict | None=None) -> set[str]:

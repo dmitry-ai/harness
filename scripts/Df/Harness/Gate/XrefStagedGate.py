@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from Df.Harness.Gate.XrefChecker import XrefChecker
 from Df.Harness.Tdd.Enforcement import Enforcement
-from agent_tools.xref import run_xref_check
+from Df.Harness.Xref.Engine import Engine
 # 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
 class XrefStagedGate:
 	# @used-by :func:`agent_tools.xref_gate.verify_staged_xref()`
@@ -38,7 +38,7 @@ class XrefStagedGate:
 			for lang in langs:
 				lang_ov = {k: v for k, v in overrides.items() if lang == XrefChecker.lang_for_rel(k)}
 				if self.__strict or XrefChecker.is_repo_lang_synced(self.__repo, lang, changed_rels):
-					errs.extend((XrefChecker.format_error(e) for e in run_xref_check(self.__repo, lang=lang, overrides_map=lang_ov)['issues']))
+					errs.extend((XrefChecker.format_error(e) for e in Engine(self.__repo).check(lang=lang, overrides_map=lang_ov)['issues']))
 				else:
 					errs.extend(XrefChecker.verify_legacy_changed_files(self.__repo, lang, list(lang_ov), lang_ov, Enforcement.git_head_text))
 		return errs

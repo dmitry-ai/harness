@@ -77,6 +77,8 @@ class CommentScanners:
 	# @used-by :meth:`Df.Harness.Tdd.ExtCommentLexer.ExtCommentLexer.__sass_step()`
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__hash_block_step()`
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__sql_step()`
+	# @used-by :meth:`Df.Harness.Xref.Java.Lexer.Lexer.__tokenize_java_step()`
+	# @used-by :meth:`Df.Harness.Xref.Js.Lexer.Lexer.__tokenize_js_step()`
 	@staticmethod
 	def scan_block_comment(src: str, pos: int, open_tok: str, close_tok: str, *, nested: bool=False) -> int:
 		n = len(src)
@@ -140,6 +142,7 @@ class CommentScanners:
 	# @used-by :func:`agent_tools.tdd.comment_scanners.scan_js_regex()`
 	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.__c_like_special_step()`
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__hash_here_or_regex()`
+	# @used-by :meth:`Df.Harness.Xref.Js.Lexer.Lexer.__tokenize_js_atom()`
 	@staticmethod
 	def scan_js_regex(src: str, pos: int) -> int:
 		i, n, in_cls, r = (pos + 1, len(src), False, -1)
@@ -182,6 +185,8 @@ class CommentScanners:
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__hash_step()`
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__sql_step()`
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__vbs_step()`
+	# @used-by :meth:`Df.Harness.Xref.Java.Lexer.Lexer.__tokenize_java_step()`
+	# @used-by :meth:`Df.Harness.Xref.Js.Lexer.Lexer.__tokenize_js_step()`
 	@staticmethod
 	def scan_line_comment(src: str, pos: int, *, stop_tag: str='') -> int:
 		n = len(src)
@@ -222,6 +227,8 @@ class CommentScanners:
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__hash_quote_step()`
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__sql_step()`
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__vbs_step()`
+	# @used-by :meth:`Df.Harness.Xref.Java.Lexer.Lexer.__tokenize_java_atom()`
+	# @used-by :meth:`Df.Harness.Xref.Js.Lexer.Lexer.__tokenize_js_atom()`
 	@staticmethod
 	def scan_quoted(src: str, pos: int, quote: str, *, backslash: bool=True, doubled: bool=False, allow_nl: bool=True, backtick: bool=False) -> int:
 		n = len(src)
@@ -246,6 +253,7 @@ class CommentScanners:
 	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.__c_like_prefix_string()`
 	# @used-by :meth:`Df.Harness.Tdd.ExtCommentLexer.ExtCommentLexer.__fsharp_step()`
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__hash_quote_step()`
+	# @used-by :meth:`Df.Harness.Xref.Java.Lexer.Lexer.__tokenize_java_atom()`
 	@staticmethod
 	def scan_triple_quote(src: str, pos: int, quote: str) -> int:
 		marker = quote * 3

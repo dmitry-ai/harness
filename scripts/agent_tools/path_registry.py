@@ -1701,6 +1701,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_harness_lib_s10`
 	# @used-by :mod:`test_df_harness_s11_wave2b_gate`
 	# @used-by :mod:`test_df_harness_s11_wave2b_tdd`
+	# @used-by :mod:`test_df_harness_s11_wave2b_xref`
 	# @used-by :mod:`test_df_harness_s11_wave2e_arch`
 	# @used-by :mod:`test_df_qa`
 	# @used-by :mod:`test_df_upstream_fixes`

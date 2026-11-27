@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from Df.Core.lib.git import df_git_read_text
 from Df.Harness.Gate.XrefChecker import XrefChecker
-from agent_tools.xref import run_xref_check
+from Df.Harness.Xref.Engine import Engine
 # 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
 class XrefWorktreeGate:
 	# @used-by :func:`agent_tools.xref_gate.verify_worktree_xref_changes()`
@@ -26,7 +26,7 @@ class XrefWorktreeGate:
 			changed_set = set(changed)
 			for lang in langs:
 				if self.__strict or XrefChecker.is_repo_lang_synced(self.__wt, lang, changed_set):
-					errs.extend((XrefChecker.format_error(e) for e in run_xref_check(self.__wt, lang=lang)['issues']))
+					errs.extend((XrefChecker.format_error(e) for e in Engine(self.__wt).check(lang=lang)['issues']))
 				else:
 					cur_texts = {rel: (self.__wt / rel).read_text(encoding='utf-8', errors='replace') for rel in changed if lang == XrefChecker.lang_for_rel(rel) and (self.__wt / rel).is_file()}
 					errs.extend(XrefChecker.verify_legacy_changed_files(self.__wt, lang, list(cur_texts), cur_texts, lambda r, p: df_git_read_text(r, 'show', f'{self.__target_branch}:{p}')))

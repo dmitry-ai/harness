@@ -208,6 +208,7 @@ class CLikeCommentLexer:
 	# @used-by :func:`agent_tools.tdd.comment_lexers_c.can_start_regex()`
 	# @used-by :meth:`CLikeCommentLexer.__c_like_special_step()`
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__hash_here_or_regex()`
+	# @used-by :meth:`Df.Harness.Xref.Js.Lexer.Lexer.__tokenize_js_atom()`
 	@staticmethod
 	def can_start_regex(tokens: list[str]) -> bool:
 		prev = next((t for t in reversed(tokens) if '\n' != t), '')
