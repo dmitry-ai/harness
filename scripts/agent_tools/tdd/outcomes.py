@@ -21,21 +21,21 @@ def _infer_exit_code_from_log_text(text: str) -> int | None:
 def _uri_to_local_path(uri: str) -> Path | None:
 	return OutcomeParser.uri_to_local_path(uri)
 # @used-by :func:`agent_tools.issue_first_bg._register_bg_issue_tasks()`
-# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._record_tool_calls()`
+# @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__update_bg_tasks()`
 # @used-by :mod:`agent_tools.tdd.outcomes`
 def extract_bg_task_ids(text: str) -> list[str]:
 	return OutcomeParser.extract_bg_task_ids(text)
+# @used-by :func:`Df.Harness.lib.completion_child_trace.dfh_scan_child_trace_turn()`
+# @used-by :func:`Df.Harness.lib.hook_verif_ops._inspect_shadow_call()`
+# @used-by :func:`Df.Harness.lib.hook_verif_ops.dfh_classify_shadow_output()`
 # @used-by :func:`agent_tools.cli_command_grounding._is_passing_output()`
 # @used-by :func:`agent_tools.cli_command_grounding._record_call_outcome()`
-# @used-by :func:`agent_tools.completion._scan_child_trace_turn()`
 # @used-by :func:`agent_tools.doc5_context._inspect_call_failure()`
 # @used-by :func:`agent_tools.doc5_context._is_failed_cli_output()`
-# @used-by :func:`agent_tools.verification_observability._classify_shadow_output()`
-# @used-by :func:`agent_tools.verification_observability._inspect_shadow_call()`
-# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._record_subagent_calls()`
-# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._scan_segment()`
-# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._scan_primary_turns()`
-# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._visit_subagent_rows()`
+# @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__handle_system_message()`
+# @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__visit_subagent_row()`
+# @used-by :meth:`Df.Harness.Platform.Codex.TurnScanner.TurnScanner.__handle_output_row()`
+# @used-by :meth:`Df.Harness.Platform.Codex.TurnScanner.TurnScanner.__handle_subagent_output()`
 # @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_first_last_starts_with_and_is_windows_delegation_to_df()`
 # @used-by :meth:`test_pytest_xdist_runner.PytestXdistRunnerTests.test_parse_command_outcome_handles_pytest_xdist_pass_fail_and_exit_code_5()`
 # @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_outcomes_module_behavior_and_parity()`

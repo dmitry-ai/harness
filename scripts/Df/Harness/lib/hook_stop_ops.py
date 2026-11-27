@@ -33,6 +33,7 @@ def _build_emergency_response(root: Path, native: dict[str, Any], turn: dict[str
 	j_sec['FILE-3 Warning'] = reason
 	return prepend_metadata_header(raw_text, meta)
 # @used-by :func:`dfh_resolve_ag_hook_paths()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_stop_gate_continuation_guard_and_emergency_capture()`
 def _fallback_ag_hook_paths(t_path: Path | None, backend_override: Path | None, *, swallow_errors: bool) -> tuple[Path, Path, Path, Path, Path]:
 	if None is not backend_override:
 		backend = Path(backend_override).resolve()
@@ -51,6 +52,7 @@ def _fallback_ag_hook_paths(t_path: Path | None, backend_override: Path | None, 
 		r = _fallback_default_ag_paths(swallow_errors)
 	return r
 # @used-by :func:`_fallback_ag_hook_paths()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_stop_gate_continuation_guard_and_emergency_capture()`
 def _fallback_default_ag_paths(swallow_errors: bool) -> tuple[Path, Path, Path, Path, Path]:
 	try:
 		defaults = dfh_default_platform_paths('antigravity')
@@ -63,6 +65,7 @@ def _fallback_default_ag_paths(swallow_errors: bool) -> tuple[Path, Path, Path, 
 		projects_dir = backend.parent / 'config/projects'
 	return (backend, backend / 'brain', backend / 'conversation_summaries.db', backend / 'conversations', projects_dir)
 # @used-by :func:`_resolve_ag_from_settings()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_stop_gate_continuation_guard_and_emergency_capture()`
 def _match_ag_instance_by_transcript(t_res: Path, ag_insts: dict, conversation_id: str, cfg: dict) -> dict | None:
 	r: dict | None = None
 	for inst in ag_insts.values():
@@ -136,6 +139,7 @@ def dfh_evaluate_continuation_reentry(gfile: Path, fp: str, last_user_step: int,
 	return r
 # @used-by :func:`check_stop_gate._evaluate_prepared_match()`
 # @used-by :meth:`Df.Harness.Hook.StopGate.StopGate.__evaluate_matched_state()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_stop_gate_continuation_guard_and_emergency_capture()`
 def dfh_evaluate_prepared_match(matched_state: dict, last_planner_text: str) -> dict:
 	r = {'decision': 'allow'}
 	prep = matched_state.get('prepared')
@@ -199,6 +203,7 @@ def dfh_guard_file_path(t_dir: Path, session_id: str, last_user_step: int, match
 	safe_key = re.sub(r'[^A-Za-z0-9_.-]+', '_', raw_key).strip('_') or 'stop'
 	return t_dir / 'stop-guards' / f'{safe_key}.json'
 # @used-by :func:`Df.Harness.lib.turn_routing_ops._handoff_rank()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_stop_gate_continuation_guard_and_emergency_capture()`
 # @used-by :mod:`agent_tools.stop_hook_guard`
 def dfh_handoff_matches_user_step(st: dict, rows: list[dict], last_user_step: int, *, user_text: str | None=None) -> bool:
 	from Df.Harness.lib.request_binding import dfh_extract_leading_upwork_init_ids
@@ -233,6 +238,7 @@ def dfh_is_continuation_reentry(payload: dict, prev: dict[str, Any], last_user_s
 	step_advanced = same_turn and isinstance(last_step, int) and isinstance(prev.get('last_step'), int) and (last_step > prev['last_step'])
 	return bool(payload.get('continuationActive')) or step_advanced
 # @used-by :meth:`Df.Harness.Hook.StopGate.StopGate.__load_state_context()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_stop_gate_continuation_guard_and_emergency_capture()`
 # @used-by :mod:`agent_tools.stop_hook_guard`
 def dfh_is_journal_opt_out(payload: dict, rows: list[dict], last_user_step: int, matched_state: dict | None) -> bool:
 	if isinstance(matched_state, dict) and False is matched_state.get('journal_required'):
@@ -245,6 +251,7 @@ def dfh_is_journal_opt_out(payload: dict, rows: list[dict], last_user_step: int,
 		r = any((bool(_OPT_OUT_RE.search(t)) for t in texts if t))
 	return r
 # @used-by :meth:`Df.Harness.Hook.ContinuationGuard.ContinuationGuard.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_stop_gate_continuation_guard_and_emergency_capture()`
 # @used-by :mod:`agent_tools.stop_hook_guard`
 def dfh_load_guard(path: Path) -> dict[str, Any]:
 	r: dict[str, Any] = {}
@@ -265,6 +272,7 @@ def dfh_max_segment_step(segment: list[dict] | None, last_user_step: int) -> int
 		r = max(steps) if steps else last_user_step
 	return r
 # @used-by :meth:`Df.Harness.Hook.EmergencyCapturer.EmergencyCapturer.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_hook_emergency_and_path_tail()`
 # @used-by :mod:`agent_tools.stop_emergency_capture`
 def dfh_record_emergency_locked(root: Path, native: dict[str, Any], turn: dict[str, Any], raw_text: str, reason: str) -> dict[str, Any] | None:
 	from Df.Harness.lib.completion_core import dfh_journal_dir, dfh_recorded
@@ -297,6 +305,7 @@ def dfh_resolve_ag_hook_paths(conversation_id: str, t_path: Path | None=None, ba
 	return r
 # @used-by :func:`dfh_evaluate_continuation_reentry()`
 # @used-by :meth:`Df.Harness.Hook.ContinuationGuard.ContinuationGuard.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_stop_gate_continuation_guard_and_emergency_capture()`
 # @used-by :mod:`agent_tools.stop_hook_guard`
 def dfh_save_guard(path: Path, data: dict[str, Any]) -> None:
 	try:
@@ -317,6 +326,7 @@ def dfh_tracked_workspace(root: Path, *, projects_dirs=None) -> tuple[bool, Path
 		r = (tracked, root)
 	return r
 # @used-by :meth:`Df.Harness.Hook.ContinuationGuard.ContinuationGuard.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_stop_gate_continuation_guard_and_emergency_capture()`
 # @used-by :mod:`agent_tools.stop_hook_guard`
 def dfh_unlink_guard(path: Path) -> None:
 	try:

@@ -3,7 +3,7 @@ from __future__ import annotations
 # 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
 from Df.Harness.Gate.AnswerChecksGate import AnswerChecksGate
 ANSWER_GATES = AnswerChecksGate.ANSWER_GATES
-# @used-by :func:`agent_tools.completion.check_answer()`
+# @used-by :func:`Df.Harness.lib.completion_commands.dfh_check_answer()`
 # @used-by :meth:`test_arch_spec_and_triggers.ArchSpecAndTriggersTests.test_answer_gates_enforce_architecture_pattern_specs()`
 # @used-by :meth:`test_clarification_stop_consent.ClarificationStopConsentTests.test_explicit_user_stop_consent_in_clarifications_unblocks_deferral()`
 # @used-by :meth:`test_clarification_stop_consent.ClarificationStopConsentTests.test_step_100_102_real_clarifications_rejected_with_open_deferred_children()`

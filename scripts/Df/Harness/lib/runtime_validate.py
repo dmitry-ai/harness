@@ -40,6 +40,7 @@ def _validate_platform_entry(plat_id: Any, plat_cfg: Any) -> None:
 	if 'homes' in plat_cfg and 'instances' in plat_cfg:
 		raise ValueError(f'runtime.json platforms.{plat_id} cannot define both instances and legacy homes')
 # @used-by :func:`Df.Harness.lib.runtime_instances._build_instance_record()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_default_system_paths_overrides_and_nested_codex_globs()`
 def dfh_exists_flag(path_str: Any) -> bool:
 	text = dfh_expand_path(path_str) if isinstance(path_str, str) else str(path_str)
@@ -59,6 +60,7 @@ def dfh_has_glob_wildcard(value: Any) -> bool:
 	text = str(value or '')
 	return '*' in text or '?' in text
 # @used-by :func:`Df.Harness.lib.runtime_conversations._codex_db_files()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 def dfh_resolve_glob_paths(raw_glob: Any, base_dir: Path | None=None) -> list[Path]:
 	text = dfh_expand_path(raw_glob) if isinstance(raw_glob, str) and raw_glob.strip() else ''
 	if not text:

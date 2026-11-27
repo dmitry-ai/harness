@@ -4,13 +4,13 @@ from typing import Any
 # 2026-11-26 "Port Df/Core/lib/array helper library": https://github.com/dmitry-ai/harness/issues/323
 # Fast order-preserving deduplication for hashable scalar (str/int) elements, skipping None.
 # https://github.com/mage2pro/core/blob/11.6.1/Core/lib/array/other/unique_fast.php#L2-L25
-# @used-by :func:`agent_tools.cleanup_audit._extract_removed_record()`
+# @used-by :func:`Df.Harness.lib.cleanup_audit_ops._extract_removed_record()`
+# @used-by :func:`Df.Harness.lib.hook_markdown_ops._format_grounding_issues()`
 # @used-by :func:`agent_tools.grounding_helpers.audit_active_block()`
 # @used-by :func:`agent_tools.issues.git_read_cache._parse_log_index()`
 # @used-by :func:`agent_tools.issues.service_helpers.pending_similar_peer_slugs()`
 # @used-by :func:`agent_tools.shell_audit.extract_issue_urls()`
 # @used-by :func:`agent_tools.tdd.commands.classify_test_command()`
-# @used-by :func:`check_markdown_slop._format_grounding_issues()`
 # @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__authored_targets()`
 # @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.check_chat()`
 # @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.check_file()`

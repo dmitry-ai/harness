@@ -16,6 +16,7 @@ class Applier:
 	# @used-by :func:`Df.Harness.lib.native_codex_plan.dfh_install_native_profiles()`
 	# @used-by :func:`Df.Harness.lib.native_codex_plan.dfh_retire_owned_project_projections()`
 	# @used-by :func:`agent_tools.native_profiles._execute()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_native_profiles_install_rename_retire_and_rollback()`
 	def __init__(self, plan: Any, primary: str | Path, state: dict, *, check: bool=False, ops: dict[str, Any] | None=None) -> None:
 		self.__plan = plan
 		self.__primary = primary
@@ -158,6 +159,7 @@ class Applier:
 	# @used-by :func:`Df.Harness.lib.native_codex_plan.dfh_install_native_profiles()`
 	# @used-by :func:`Df.Harness.lib.native_codex_plan.dfh_retire_owned_project_projections()`
 	# @used-by :func:`agent_tools.native_profiles._execute()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_native_profiles_install_rename_retire_and_rollback()`
 	def run(self) -> dict:
 		issues = self.__plan.readonly_issues() if self.__check else self.__plan.issues
 		result: dict[str, Any] = {'backups': [], 'issues': issues, 'linked': [], 'profiles': deepcopy(self.__plan.profiles), 'removed': [], 'valid': not issues, 'verification': 'filesystem-only', 'written': []}

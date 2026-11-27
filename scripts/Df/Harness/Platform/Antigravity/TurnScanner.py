@@ -22,6 +22,7 @@ class TurnScanner:
 	# @used-by :func:`Df.Harness.lib.completion_core._scan_native_for_platform()`
 	# @used-by :func:`Df.Harness.lib.hook_pre_invocation_ops._diagnose_no_active_turn()`
 	# @used-by :func:`agent_tools.platforms.antigravity.native_answers()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_platform_turn_scanner_and_ag_tail()`
 	def __init__(self, root, conversation_id: str, *, backend=None, instance=None, _ops: dict[str, Any] | None=None) -> None:
 		self.__ops = _ops or {}
 		self.__root = root
@@ -293,6 +294,7 @@ class TurnScanner:
 	# @used-by :func:`Df.Harness.lib.completion_core._scan_native_for_platform()`
 	# @used-by :func:`Df.Harness.lib.hook_pre_invocation_ops._diagnose_no_active_turn()`
 	# @used-by :func:`agent_tools.platforms.antigravity.native_answers()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_platform_turn_scanner_and_ag_tail()`
 	def scan(self) -> dict[str, Any]:
 		self.__load_context()
 		grouped = self.__group_segments()

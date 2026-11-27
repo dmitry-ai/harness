@@ -22,10 +22,11 @@ if _SHIM_DIR not in os.environ.get('PATH', '').split(os.pathsep):
 # @used-by unused
 def _resolve_platform_cfg(platform, *, config=None):
 	return dfh_resolve_platform_cfg(platform, config=config, settings_fn=settings)
-# @used-by :func:`agent_tools.upwork_project.doctor()`
-# @used-by :func:`agent_tools.upwork_project.instances_report()`
+# @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.audit()`
+# @used-by :meth:`Df.Harness.Upwork.InstancesReporter.InstancesReporter.report()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_custom_adapter_platform_keys_and_instruction_snapshot()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_future_environment_claude_code_is_supported_without_roles_or_adapters()`
+# @used-by :mod:`agent_tools.upwork_project`
 def all_instances(*, config=None, platform=None, include_disabled=True, check_exists=False):
 	return dfh_all_instances(config=config, platform=platform, include_disabled=include_disabled, check_exists=check_exists, settings_fn=settings)
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_default_system_paths_overrides_and_nested_codex_globs()`
@@ -42,40 +43,44 @@ def enabled_platforms(*, config=None):
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_codex_custom_system_paths_trace_requests_metadata_and_answers()`
 def extract_platform_homes(plat_cfg, *, platform='', include_disabled=False):
 	return dfh_extract_platform_homes(plat_cfg, platform=platform, include_disabled=include_disabled)
-# @used-by :func:`agent_tools.upwork_project.antigravity_global_config_dirs()`
+# @used-by :meth:`Df.Harness.Upwork.GlobalCustomizationManager.GlobalCustomizationManager.antigravity_global_config_dirs()`
 # @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._scan_codex_profiles()`
+# @used-by :mod:`agent_tools.upwork_project`
 def extract_platform_instances(plat_cfg, *, platform='', include_disabled=False):
 	return dfh_extract_platform_instances(plat_cfg, platform=platform, include_disabled=include_disabled)
-# @used-by :func:`agent_tools.metrics._resolve_target()`
-# @used-by :func:`agent_tools.metrics.summarize_instance()`
-# @used-by :func:`agent_tools.perf.timesheet_common._lookup_conversation_trace()`
-# @used-by :func:`agent_tools.perf.timesheet_common._lookup_summary_db_optional()`
-# @used-by :func:`agent_tools.upwork_project.instances_report()`
 # @used-by :func:`resolve_antigravity_backend()`
 # @used-by :func:`resolve_antigravity_paths()`
 # @used-by :func:`resolve_codex_home()`
 # @used-by :func:`resolve_codex_paths()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__resolve_instance_match()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.resolve_target()`
+# @used-by :meth:`Df.Harness.Perf.TimesheetCommon.TimesheetCommon.__lookup_conversation_trace()`
+# @used-by :meth:`Df.Harness.Perf.TimesheetCommon.TimesheetCommon.__lookup_summary_db_optional()`
+# @used-by :meth:`Df.Harness.Upwork.InstancesReporter.InstancesReporter.report()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cross_instance_handoff_and_audit_resolve_antigravity_and_disabled_codex_traces()`
+# @used-by :mod:`agent_tools.upwork_project`
 def find_conversation_instance(conversation_id, *, platform=None, config=None, include_disabled=True):
 	return dfh_find_conversation_instance(conversation_id, platform=platform, config=config, include_disabled=include_disabled, settings_fn=settings)
-# @used-by :func:`agent_tools.metrics._resolve_target()`
-# @used-by :func:`agent_tools.metrics.summarize_instance()`
-# @used-by :func:`agent_tools.upwork_project.instances_report()`
-# @used-by :func:`agent_tools.upwork_project.main()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__resolve_instance_match()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.resolve_target()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.main()`
+# @used-by :meth:`Df.Harness.Upwork.InstancesReporter.InstancesReporter.report()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_custom_adapter_platform_keys_and_instruction_snapshot()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_platform_enabled_false_disables_all_instances_of_environment()`
+# @used-by :mod:`agent_tools.upwork_project`
 def instance_entry(instance_id, *, platform=None, config=None, include_disabled=True):
 	return dfh_instance_entry(instance_id, platform=platform, config=config, include_disabled=include_disabled, settings_fn=settings, instances_fn=platform_instances)
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_live_runtime_declares_environments_instances_enabled_states_and_system_paths()`
 def instance_paths(instance_id, *, platform=None, config=None, include_disabled=True):
 	return dfh_instance_paths(instance_id, platform=platform, config=config, include_disabled=include_disabled, settings_fn=settings, instances_fn=platform_instances)
-# @used-by :func:`agent_tools.registration.register_projects()`
-# @used-by :func:`agent_tools.upwork_project.antigravity_global_config_dirs()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.registration_status()`
+# @used-by :meth:`Df.Harness.Project.Registry.Registry.__resolve_targets()`
+# @used-by :meth:`Df.Harness.Upwork.GlobalCustomizationManager.GlobalCustomizationManager.antigravity_global_config_dirs()`
+# @used-by :meth:`Df.Harness.Workflow.RegistrationStatusChecker.RegistrationStatusChecker.status()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_live_runtime_declares_environments_instances_enabled_states_and_system_paths()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_platform_enabled_false_disables_all_instances_of_environment()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_single_enabled_codex_instance_works_with_shared_catalog_superset()`
+# @used-by :mod:`agent_tools.upwork_project`
 def platform_active(platform, *, config=None):
 	return dfh_platform_active(platform, config=config, settings_fn=settings)
 # @used-by :func:`agent_tools.platforms.adapter()`
@@ -84,21 +89,22 @@ def platform_adapter_name(platform, plat_cfg=None, *, config=None):
 # @used-by unused
 def platform_enabled(platform, *, config=None):
 	return dfh_platform_enabled(platform, config=config, settings_fn=settings)
-# @used-by :func:`agent_tools.upwork_project.main()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__build_parser()`
+# @used-by :mod:`agent_tools.upwork_project`
 def platform_homes(platform, *, config=None, include_disabled=False):
 	return dfh_platform_homes(platform, config=config, include_disabled=include_disabled, settings_fn=settings)
-# @used-by :func:`agent_tools.meta.identity._antigravity_project_dirs()`
 # @used-by :func:`agent_tools.platforms.antigravity._ag_ops()`
 # @used-by :func:`agent_tools.platforms.antigravity._default_folders_json()`
 # @used-by :func:`agent_tools.platforms.antigravity._proof_paths()`
 # @used-by :func:`agent_tools.platforms.antigravity._resolve_folders_json()`
-# @used-by :func:`agent_tools.project_rename._antigravity_dirs_map()`
 # @used-by :func:`instance_entry()`
 # @used-by :func:`instance_paths()`
 # @used-by :func:`resolve_antigravity_backend()`
 # @used-by :func:`resolve_antigravity_paths()`
 # @used-by :func:`resolve_codex_home()`
 # @used-by :func:`resolve_codex_paths()`
+# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.antigravity_project_dirs()`
+# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__antigravity_dirs_map()`
 # @used-by :meth:`test_cleanup_audit.CleanupAuditTests._make_old_project()`
 # @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests._init_and_register()`
 # @used-by :meth:`test_cleanup_lifecycle.CleanupLifecycleTests._make_project()`
@@ -109,6 +115,7 @@ def platform_homes(platform, *, config=None, include_disabled=False):
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_dynamic_folders_json_and_cleanup_without_homes()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_live_runtime_declares_environments_instances_enabled_states_and_system_paths()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_platform_enabled_false_disables_all_instances_of_environment()`
+# @used-by :mod:`agent_tools.upwork_project`
 def platform_instances(platform, *, config=None, include_disabled=False):
 	return dfh_platform_instances(platform, config=config, include_disabled=include_disabled, settings_fn=settings)
 # @used-by :mod:`agent_tools.platforms.antigravity`
@@ -116,16 +123,15 @@ def platform_key_for_adapter(adapter_name, config=None):
 	return dfh_platform_key_for_adapter(adapter_name, config=config, settings_fn=settings)
 # @used-by :func:`agent_tools.completion._completion_ops()`
 # @used-by :func:`agent_tools.platforms.adapter()`
-# @used-by :func:`agent_tools.registration.register_project()`
-# @used-by :func:`agent_tools.registration.register_projects()`
-# @used-by :func:`agent_tools.registration.save_registration()`
-# @used-by :func:`agent_tools.review.input_receipt()`
-# @used-by :func:`agent_tools.upwork_project.doctor()`
-# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.registration_status()`
+# @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.__init__()`
+# @used-by :meth:`Df.Harness.Project.Registry.Registry.register()`
+# @used-by :meth:`Df.Harness.Review.InputReceiptBuilder.InputReceiptBuilder.build()`
+# @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.__resolve_platform_cfg()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.initialize()`
+# @used-by :meth:`Df.Harness.Workflow.RegistrationStatusChecker.RegistrationStatusChecker.status()`
+# @used-by :mod:`agent_tools.upwork_project`
 def platform_name(value=None, *, config=None):
 	return dfh_platform_name(value=value, config=config, settings_fn=settings)
-# @used-by :func:`agent_tools.meta.identity._resolve_codex_paths_safe()`
 # @used-by :func:`agent_tools.platforms.antigravity._ag_ops()`
 # @used-by :func:`agent_tools.platforms.antigravity._native_invocation()`
 # @used-by :func:`agent_tools.platforms.codex._cx_ops()`
@@ -138,19 +144,24 @@ def platform_name(value=None, *, config=None):
 # @used-by :func:`agent_tools.upwork_project.doctor()`
 # @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.resolve_codex_paths_safe()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__init__()`
+# @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.__init__()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init__()`
 # @used-by :meth:`test_continuation_binding.CodexContinuationTests.selected()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.selected()`
 # @used-by :meth:`test_portability.ProjectionTests.test_native_toml_preserves_settings_and_resolves_models_from_one_config()`
+# @used-by :mod:`agent_tools.upwork_project`
 def platform_settings(name=None):
 	return dfh_platform_settings(name=name, settings_fn=settings)
 # @used-by :func:`agent_tools.configuration.global_codex_instructions()`
-# @used-by :func:`agent_tools.workflow._target_complete()`
+# @used-by :meth:`Df.Harness.Workflow.RegistrationStatusChecker.RegistrationStatusChecker.__resolve_profile()`
 # @used-by :meth:`test_registration_portability.RegistrationProfileTests.test_registration_only_fallback_does_not_relax_native_evidence_profile()`
 # @used-by :mod:`agent_tools.configuration`
 def profile_name(value=None, *, config=None, include_disabled=True):
 	return dfh_profile_name(value=value, config=config, include_disabled=include_disabled, settings_fn=settings)
 # @used-by :func:`agent_tools.platforms.codex._cx_ops()`
-# @used-by :func:`agent_tools.workflow._target_complete()`
+# @used-by :meth:`Df.Harness.Workflow.RegistrationStatusChecker.RegistrationStatusChecker.__resolve_profile()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_custom_adapter_platform_keys_and_instruction_snapshot()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_platform_enabled_false_disables_all_instances_of_environment()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_single_enabled_codex_instance_works_with_shared_catalog_superset()`
@@ -159,16 +170,17 @@ def profile_name(value=None, *, config=None, include_disabled=True):
 def registration_profile_name(value=None, *, config=None):
 	return dfh_registration_profile_name(value=value, config=config, settings_fn=settings)
 # @used-by :func:`agent_tools.platforms.codex._cx_ops()`
-# @used-by :func:`agent_tools.project_rename._sync_antigravity_native_files()`
-# @used-by :func:`agent_tools.registration._expected()`
-# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
-# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
+# @used-by :meth:`Df.Harness.Project.RegistrationExpectation.RegistrationExpectation.build()`
+# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__sync_antigravity_native_files()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.resolve_or_create()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.initialize()`
+# @used-by :mod:`agent_tools.upwork_project`
 def request_day(value=None):
 	return dfh_request_day(value=value, settings_fn=settings)
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cross_instance_handoff_and_audit_resolve_antigravity_and_disabled_codex_traces()`
 def resolve_antigravity_backend(backend=None, *, instance=None, conversation_id=None, config=None):
 	return dfh_resolve_antigravity_backend(backend=backend, instance=instance, conversation_id=conversation_id, config=config, settings_fn=settings, find_conv_fn=find_conversation_instance, instances_fn=platform_instances)
-# @used-by :func:`agent_tools.meta.identity._resolve_ag_paths_safe()`
+# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.resolve_ag_paths_safe()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_custom_adapter_platform_keys_and_instruction_snapshot()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_redirected_userprofile_separates_os_user_home_preserves_sandboxes_and_auto_detects_a6()`
 def resolve_antigravity_paths(backend=None, *, instance=None, conversation_id=None, config=None):
@@ -176,17 +188,18 @@ def resolve_antigravity_paths(backend=None, *, instance=None, conversation_id=No
 # @used-by unused
 def resolve_codex_home(backend=None, *, instance=None, conversation_id=None, config=None, codex_cfg=None):
 	return dfh_resolve_codex_home(backend=backend, instance=instance, conversation_id=conversation_id, config=config, codex_cfg=codex_cfg, settings_fn=settings, find_conv_fn=find_conversation_instance, instances_fn=platform_instances)
-# @used-by :func:`agent_tools.meta.identity._resolve_codex_paths_safe()`
+# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.resolve_codex_paths_safe()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_custom_adapter_platform_keys_and_instruction_snapshot()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_dynamic_folders_json_and_cleanup_without_homes()`
 def resolve_codex_paths(backend=None, *, instance=None, conversation_id=None, config=None, codex_cfg=None):
 	return dfh_resolve_codex_paths(backend=backend, instance=instance, conversation_id=conversation_id, config=config, codex_cfg=codex_cfg, settings_fn=settings, find_conv_fn=find_conversation_instance, instances_fn=platform_instances)
-# @used-by :func:`agent_tools.upwork_project.doctor()`
+# @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.audit()`
 # @used-by :meth:`test_portability.ProjectionTests.test_native_toml_preserves_settings_and_resolves_models_from_one_config()`
+# @used-by :mod:`agent_tools.upwork_project`
 def role_settings(platform, role, seen=()):
 	return dfh_role_settings(platform, role, seen=seen, settings_fn=settings)
-# @used-by :func:`agent_tools.gates.cdp_bypass._is_inside_sanctioned_code()`
 # @used-by :func:`agent_tools.shell_audit._is_sanctioned_addon_command()`
+# @used-by :meth:`Df.Harness.Gate.CdpBypassGate.CdpBypassGate.is_inside_sanctioned_code()`
 # @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_sanctioned_addon_roots_and_cdp_bypass_gate()`
 def sanctioned_addon_code_roots(config=None):
 	return dfh_cached_addon_roots(config, sys.modules[__name__], _expand_path)
@@ -197,7 +210,6 @@ def sanctioned_addon_code_roots(config=None):
 # @used-by :func:`agent_tools.cleanup_audit.resolve_cleanup_log_root()`
 # @used-by :func:`agent_tools.completion._completion_ops()`
 # @used-by :func:`agent_tools.configuration._active_settings()`
-# @used-by :func:`agent_tools.meta.identity._resolve_ag_paths_safe()`
 # @used-by :func:`agent_tools.native_profiles._active_settings()`
 # @used-by :func:`agent_tools.operations.add_parsers()`
 # @used-by :func:`agent_tools.platforms.adapter()`
@@ -213,6 +225,7 @@ def sanctioned_addon_code_roots(config=None):
 # @used-by :func:`agent_tools.platforms.antigravity.native_requests()`
 # @used-by :func:`agent_tools.platforms.antigravity.require_current_binding()`
 # @used-by :func:`agent_tools.platforms.codex._cx_ops()`
+# @used-by :func:`agent_tools.registration.register_project()`
 # @used-by :func:`agent_tools.registration.register_projects()`
 # @used-by :func:`agent_tools.repo_tags._configured_timezone()`
 # @used-by :func:`agent_tools.text_browser.browser_anchor_status()`
@@ -222,13 +235,13 @@ def sanctioned_addon_code_roots(config=None):
 # @used-by :func:`agent_tools.text_browser.resolve_cdp_port()`
 # @used-by :func:`agent_tools.text_browser.resolve_headless_shell()`
 # @used-by :func:`agent_tools.text_core.default_shell()`
-# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
 # @used-by :func:`agent_tools.upwork_project.antigravity_global_config_dirs()`
 # @used-by :func:`agent_tools.upwork_project.check_configuration()`
 # @used-by :func:`agent_tools.upwork_project.configure_project()`
 # @used-by :func:`agent_tools.upwork_project.doctor()`
 # @used-by :func:`agent_tools.upwork_project.instances_report()`
 # @used-by :func:`agent_tools.upwork_project.main()`
+# @used-by :func:`agent_tools.upwork_project.register_project()`
 # @used-by :func:`all_instances()`
 # @used-by :func:`check_pre_invocation._resolve_ag_paths()`
 # @used-by :func:`check_pre_invocation.evaluate_pre_invocation_payload()`
@@ -256,16 +269,32 @@ def sanctioned_addon_code_roots(config=None):
 # @used-by :func:`resolve_codex_paths()`
 # @used-by :func:`role_settings()`
 # @used-by :func:`using()`
+# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.resolve_ag_paths_safe()`
+# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__init__()`
+# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.resolve_project()`
+# @used-by :meth:`Df.Harness.Project.Registry.Registry.__init__()`
+# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__sync_registrations()`
+# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.update_projects_index()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.main()`
+# @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.__init__()`
+# @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.__init__()`
+# @used-by :meth:`Df.Harness.Upwork.GlobalCustomizationManager.GlobalCustomizationManager.antigravity_global_config_dirs()`
+# @used-by :meth:`Df.Harness.Upwork.InstancesReporter.InstancesReporter.__init__()`
+# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.extract()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__init__()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.resolve_or_create()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.initialize()`
+# @used-by :meth:`Df.Harness.Workflow.RegistrationStatusChecker.RegistrationStatusChecker.status()`
 # @used-by :meth:`agent_tools.text_browser.CDPSession.__init__()`
 # @used-by :meth:`agent_tools.text_browser.GuardedCDP.__init__()`
 # @used-by :meth:`agent_tools.text_browser.ManagedHeadlessShell.__init__()`
 # @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner.__init__()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.registration_status()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_native_profiles_generates_arch_auditor_for_antigravity_and_codex()`
 # @used-by :meth:`test_cleanup.CleanupTests.setUp()`
 # @used-by :meth:`test_cleanup_audit.CleanupAuditTests.setUp()`
 # @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests.setUp()`
 # @used-by :meth:`test_cleanup_lifecycle.CleanupLifecycleTests.setUp()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests._build_fixture()`
 # @used-by :meth:`test_git_ignore.GlobalGitIgnoreTests._make_primary()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.setUp()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_live_runtime_declares_environments_instances_enabled_states_and_system_paths()`
@@ -283,11 +312,12 @@ def sanctioned_addon_code_roots(config=None):
 # @used-by :mod:`agent_tools.intake`
 # @used-by :mod:`agent_tools.native_profiles`
 # @used-by :mod:`agent_tools.platforms.antigravity`
+# @used-by :mod:`agent_tools.registration`
 # @used-by :mod:`agent_tools.runtime`
 # @used-by :mod:`agent_tools.upwork_project`
 def settings(path=None):
 	return SettingsLoader(path, default_file_fn=default_runtime_file, primary=PRIMARY, code_anchor=_CODE_ANCHOR, registry_file=DEFAULT_REGISTRY_FILE).run()
-# @used-by :func:`agent_tools.upwork_project.main()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.main()`
 # @used-by :meth:`test_cleanup.CleanupTests.test_legacy_discovery_failure_with_conversations_is_preserved_without_an_issue()`
 # @used-by :meth:`test_cleanup.CleanupTests.test_preview_is_read_only_and_apply_cleans_both_platforms_preserving_entire_archive()`
 # @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_native_workspace_supports_self_review_and_empty_metadata_keeps_legacy_job_id()`
@@ -295,6 +325,7 @@ def settings(path=None):
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_future_environment_claude_code_is_supported_without_roles_or_adapters()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.selected()`
 # @used-by :meth:`test_registration_portability.RegistrationProfileTests.test_registration_only_fallback_does_not_relax_native_evidence_profile()`
+# @used-by :mod:`agent_tools.upwork_project`
 def using(platform=None, profile=None, instance=None):
 	return dfh_using(platform=platform, profile=profile, instance=instance, settings_fn=settings)
 _UNPATCHED_SETTINGS = settings

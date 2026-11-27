@@ -15,7 +15,7 @@ from .timesheet_common import format_timesheet_text
 # @used-by :mod:`agent_tools.perf`
 def build_timesheet(trace_path: str | Path, *, conversation_id: str | None=None, summary_db: str | Path | None=None, turn_start_step: int | None=None, turn_end_step: int | None=None, top_gaps_limit: int=10) -> dict[str, Any]:
 	return TimesheetBuilder(trace_path, conversation_id=conversation_id, summary_db=summary_db, turn_start_step=turn_start_step, turn_end_step=turn_end_step, top_gaps_limit=top_gaps_limit).build()
-# @used-by :func:`agent_tools.cli_registry._exec_perf_timesheet()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_perf_timesheet()`
 # @used-by :mod:`agent_tools.perf.timesheet`
 def run_perf_timesheet_cli(args) -> dict[str, Any]:
 	return TimesheetBuilder.run_cli(args)

@@ -367,7 +367,7 @@ def _split_shell_segments(cmd: str) -> list[str]:
 def _unquote(token: str) -> str:
 	return _INSPECTOR._unquote(token)
 # @used-by :func:`agent_tools.git_gate.verify_git_write_invocation()`
-# @used-by :func:`git_shim.prepare_git_invocation()`
+# @used-by :meth:`Df.Harness.Cli.GitShim.GitShim.__prepare()`
 # @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.is_git_commit_command()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.verify_write_invocation()`
 def classify_git_argv(argv: list[str] | tuple[str, ...]) -> tuple[str | None, bool]:
@@ -380,14 +380,14 @@ def extract_comment_issue_urls(text: str) -> set[str]:
 		if re.match('^\\s*(?:#|//|REM\\b|/\\*|\\*)', line, re.I):
 			r.update(_GITHUB_ISSUE_URL_RE.findall(line))
 	return r
-# @used-by :func:`agent_tools.completion._scan_child_trace_turn()`
+# @used-by :func:`Df.Harness.lib.completion_child_trace._process_tool_calls_row()`
 # @used-by :func:`agent_tools.issue_first_bg._record_bg_seg_issues()`
 # @used-by :func:`agent_tools.issue_first_gate.build_issue_action_events()`
 # @used-by :func:`test_doc5_golden_feature_turn._extract_fixture_issue_actions()`
-# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._record_subagent_calls()`
-# @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._record_tool_calls()`
-# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._finalize_turn()`
-# @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._visit_subagent_rows()`
+# @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__record_subagent_tool_calls()`
+# @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__record_tool_calls()`
+# @used-by :meth:`Df.Harness.Platform.Codex.TurnScanner.TurnScanner.__finalize_turn()`
+# @used-by :meth:`Df.Harness.Platform.Codex.TurnScanner.TurnScanner.__visit_subagent_rows()`
 # @used-by :meth:`test_issue_first_gate.IssueFirstGateCoreTests.test_extract_issue_actions_recognizes_fetch_and_anti_spoofing_command_check()`
 # @used-by :meth:`test_issue_preflight_and_batch.IssuePreflightAndBatchTests.test_batch_close_enforces_grounding_consumes_inputs_and_extracts_actions()`
 # @used-by :meth:`test_issue_preflight_and_batch.IssuePreflightAndBatchTests.test_batch_create_verifies_readback_and_action_extraction()`
@@ -418,6 +418,7 @@ def is_code_file(rel_path: str | Path) -> bool:
 # @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_shell_audit_inspector_and_single_pass_repo_gate_commit()`
 def normalize_commit_message(message: str | None) -> str:
 	return '\n'.join((line for line in (message or '').splitlines() if not line.startswith('#'))).strip()
+# @used-by :func:`Df.Harness.lib.runtime_snapshot_ops.dfh_set_local_hooks_path()`
 # @used-by :func:`agent_tools.git_gate.cleanup_stale_credential_locks()`
 # @used-by :func:`agent_tools.git_gate.resolve_git_repo_from_argv()`
 # @used-by :func:`agent_tools.git_gate.run_git_read()`
@@ -430,10 +431,10 @@ def normalize_commit_message(message: str | None) -> str:
 # @used-by :func:`agent_tools.issue_first_gate.build_code_write_issue_first_event()`
 # @used-by :func:`agent_tools.issue_first_gate.evaluate_pre_tool_use_issue_first()`
 # @used-by :func:`agent_tools.issue_first_gate.resolve_issue_first_target()`
-# @used-by :func:`agent_tools.runtime_snapshot._set_local_hooks_path()`
-# @used-by :func:`git_shim._normalize_arg_token()`
-# @used-by :func:`git_shim.resolve_system_git()`
 # @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__resolve_pre_tool_target()`
+# @used-by :meth:`Df.Harness.Cli.GitShim.GitShim.__normalize_arg_token()`
+# @used-by :meth:`Df.Harness.Cli.GitShim.GitShim.__resolve_git_from_path()`
+# @used-by :meth:`Df.Harness.Cli.GitShim.GitShim.__resolve_system_git()`
 # @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.resolve_python_target()`
 # @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.resolve_target()`
 # @used-by :meth:`Df.Harness.Gate.XrefChecker.XrefChecker.resolve_target()`
@@ -490,12 +491,12 @@ def prohibited_cdp_bypass_commands(text: str, *, config=None) -> list[str]:
 # @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_issue_tracked_code_repo_requires_github_issue_url_in_code_and_commit_message()`
 def prohibited_git_write_commands(text: str) -> list[str]:
 	return _INSPECTOR.prohibited_git_write_commands(text)
-# @used-by :func:`agent_tools.platforms.trace_common.collect_shell_violations()`
+# @used-by :func:`Df.Harness.lib.trace_effects.dfh_collect_shell_violations()`
 # @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_read_git_and_git_shim_and_unflagged_detector()`
 # @used-by :meth:`test_turn_completion.CompletionCase.test_unflagged_git_read_allows_env_assignment()`
 def unflagged_git_read_commands(text: str) -> list[str]:
 	return _INSPECTOR.unflagged_git_read_commands(text)
-# @used-by :func:`agent_tools.platforms.trace_common.collect_shell_violations()`
+# @used-by :func:`Df.Harness.lib.trace_effects.dfh_collect_shell_violations()`
 # @used-by :meth:`test_text_browser.TextBrowserTests.test_m4_cdp_bypass_gate_and_m5_browser_mcp_gate()`
 def unpersisted_http_fetch_commands(text: str) -> list[str]:
 	return _INSPECTOR.unpersisted_http_fetch_commands(text)

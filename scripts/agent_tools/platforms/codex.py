@@ -91,7 +91,7 @@ def require_current_binding(root, conversation_id, *, backend=None, instance=Non
 # @used-by :func:`_cx_ops()`
 def shared_control(request):
 	return dfh_shared_control(request, platform_settings_fn=platform_settings, run_fn=subprocess.run)
-# @used-by :func:`agent_tools.metrics.summarize()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.summarize()`
 def summarize(paths, bindings=None):
 	return TokenSummarizer(paths, bindings=bindings).run()
 # @used-by :func:`agent_tools.platforms.adapter()`

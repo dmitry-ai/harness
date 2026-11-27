@@ -78,7 +78,7 @@ class TrackedPopen(subprocess.Popen):
 		finally:
 			self.__perf_finish()
 		return r
-	# @used-by :func:`agent_tools.cli_registry._exec_land_acquire()`
+	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_land_acquire()`
 	# @used-by :func:`test_stdin_detachment._kill_tree()`
 	# @used-by :meth:`Df.Harness.TestRunner.ProcessTree.ProcessTree.__finish_kill()`
 	# @used-by :meth:`Df.Harness.TestRunner.PytestWorkstealRunner.PytestWorkstealRunner.run()`

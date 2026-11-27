@@ -27,6 +27,7 @@ def _diagnose_no_active_turn(msg: str, canon_root: Path, conversation_id: str, b
 		r = None
 	return r
 # @used-by :func:`dfh_pre_flush_begin_context()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_verif_pre_invocation_and_crash_ops()`
 def _has_planner_steps(conversations_dir: Path, conversation_id: str) -> bool:
 	conv_db = conversations_dir / f'{conversation_id}.db'
 	r = False
@@ -53,12 +54,14 @@ def dfh_binding_violation_message(exc: ValueError, canon_root: Path, conversatio
 		r = None
 	return r
 # @used-by :func:`check_pre_invocation._expected_turn_key()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_verif_pre_invocation_and_crash_ops()`
 def dfh_expected_turn_key(backend: Path, conversation_id: str, start_step: int) -> str:
 	identity = ['antigravity', str(backend.resolve()), conversation_id, f'ag-{conversation_id}-{start_step}']
 	raw = (json.dumps(identity, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
 	return hashlib.sha256(raw).hexdigest()[:40]
 # @used-by :func:`check_pre_invocation._format_turn_begin_message()`
 # @used-by :meth:`Df.Harness.Hook.PreInvocationGate.PreInvocationGate.__run_begin()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_verif_pre_invocation_and_crash_ops()`
 def dfh_format_turn_begin_message(canon_root: Path, res: dict) -> dict:
 	from Df.Harness.lib.hook_addon_ops import dfh_format_pre_invocation_companion_warning
 	turn_key = str(res['turn_key'])

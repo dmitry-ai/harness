@@ -87,6 +87,7 @@ def _build_begin_result(root: Path, path: Path, value: dict[str, Any], turn: dic
 			r[field] = list(value[field])
 	return r
 # @used-by :func:`_load_check_context()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_completion_tail()`
 def _child_check_value(root_p: Path, native: dict[str, Any], turn_key: str, turn_obj: dict[str, Any], ops: dict[str, Any]) -> dict[str, Any]:
 	folder_fn, read_fn = (ops.get('folder') or dfh_turns_folder, ops.get('read') or dfh_read_meta)
 	comp_fn = ops.get('compaction_status') or (lambda r, k, t: dfh_compaction_status(r, k, t, folder_fn=folder_fn, read_fn=read_fn, is_deliv_fn=dfh_is_client_deliverable_path))
@@ -124,6 +125,7 @@ def _dispatch_completion_table(args: Any, ops: dict[str, Any]) -> dict[str, Any]
 		'turn-begin': lambda: begin_fn(args.project, args.conversation, watch=not args.no_watch, journal_directory=args.journal, dry_run=bool(getattr(args, 'dry_run', False))),
 	}
 # @used-by :func:`_dispatch_completion_table()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_completion_tail()`
 def _execute_prepare_or_check(args: Any, ops: dict[str, Any]) -> dict[str, Any]:
 	payload = dfh_load_operation_input(args, args.response_file)
 	if 'answer-check' == args.command:
@@ -262,6 +264,7 @@ def dfh_prepare_once(root: Any, response: Any, conversation: Any=None, *, platfo
 # @used-by :func:`_dispatch_completion_table()`
 # @used-by :func:`agent_tools.completion.reconcile_unprepared_delivery()`
 # @used-by :meth:`test_df_harness_s11_wave2d_completion.DfHarnessS11Wave2DCompletionTests.test_completion_commands_parser_and_dispatch()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_completion_tail()`
 def dfh_reconcile_unprepared_delivery(root: Any, conversation: Any=None, *, platform: Any=None, backend: Any=None, from_step: int=0, journal_directory: Any=None, ops: dict[str, Any] | None=None) -> dict[str, Any]:
 	eff_ops = ops or {}
 	sync_fn = eff_ops.get('sync') or (lambda r, c=None, **kw: dfh_sync(r, c, ops=eff_ops, **kw))

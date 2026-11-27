@@ -15,6 +15,7 @@ import sys
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 _PBTXT_TITLE_RE = re.compile('(?:^|\\s)title\\s*:\\s*"((?:\\\\.|[^"\\\\])*)"')
 # @used-by :func:`dfh_is_live_language_server_pid()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_platform_turn_scanner_and_ag_tail()`
 def _check_win32_ls_pid(pid: int) -> bool:
 	r = False
 	try:
@@ -33,6 +34,7 @@ def _check_win32_ls_pid(pid: int) -> bool:
 		r = False
 	return r
 # @used-by :func:`dfh_discover_live_daemon()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 def _parse_daemon_file(path: Path, is_live_pid_fn) -> dict | None:
 	r: dict | None = None
 	try:
@@ -63,6 +65,7 @@ def _read_db_title(db_path: Path, conversation_id: str) -> str | None:
 	return r
 # @used-by :func:`agent_tools.platforms.antigravity._default_folders_json()`
 # @used-by :func:`dfh_resolve_folders_json()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_ag_and_codex_registrars_verifiers_and_title_sync()`
 def dfh_default_folders_json(*, settings_fn=None, instances_fn=None) -> Path:
 	load_cfg = settings_fn if None is not settings_fn else (lambda: SettingsLoader().run())
 	inst_fn = instances_fn if None is not instances_fn else dfh_platform_instances
@@ -104,6 +107,7 @@ def dfh_discover_live_daemon(backend=None, *, instance=None, conversation_id=Non
 # @used-by :func:`agent_tools.platforms.antigravity._ag_ops()`
 # @used-by :func:`agent_tools.platforms.antigravity.discover_live_daemon()`
 # @used-by :func:`dfh_discover_live_daemon()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 def dfh_is_live_language_server_pid(pid: int) -> bool:
 	if int is not type(pid) or 1 > pid:
 		r = False
@@ -117,6 +121,7 @@ def dfh_is_live_language_server_pid(pid: int) -> bool:
 			r = False
 	return r
 # @used-by :func:`dfh_read_current_conversation_title()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 def dfh_parse_pbtxt_title(text: str) -> str | None:
 	m = _PBTXT_TITLE_RE.search(text or '')
 	if not m:
@@ -128,8 +133,8 @@ def dfh_parse_pbtxt_title(text: str) -> str | None:
 		except ValueError:
 			r = raw
 	return r
-# @used-by :func:`agent_tools.meta.identity._lookup_name_by_project_id()`
-# @used-by :func:`agent_tools.meta.identity._lookup_name_from_project_dirs()`
+# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.__lookup_name_by_project_id()`
+# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.__lookup_name_from_project_dirs()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ProjectRegistrar.ProjectRegistrar.__find_preferred_id()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ProjectRegistrar.ProjectRegistrar.__upsert_project_file()`
 def dfh_project_item_matches_root(item: dict, root: Path) -> tuple[bool, bool]:

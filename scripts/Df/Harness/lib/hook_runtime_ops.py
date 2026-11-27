@@ -56,9 +56,9 @@ def _update_fence(stripped: str, in_fence: bool, marker: str) -> tuple[bool, str
 	return r
 # @used-by :func:`Df.Harness.lib.hook_markdown_ops.dfh_check_turn_budget_gate()`
 # @used-by :func:`Df.Harness.lib.turn_routing_ops._collect_turn_candidates()`
-# @used-by :func:`agent_tools.gates.external_write._check_df_issue_turn_intent()`
 # @used-by :func:`agent_tools.issue_first_inherit._iter_candidate_issue_nums()`
 # @used-by :func:`agent_tools.repo_wait._active_turn_touched_paths()`
+# @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__check_df_issue_turn_intent()`
 # @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_incremental_disk_cache_appends_and_invalidation()`
 # @used-by :meth:`test_hook_unification.HookUnificationTests.test_iter_turn_state_files_skips_aux_files()`
 # @used-by :meth:`test_stop_gate_contract.StopGateContractTests.test_continuation_active_guards_against_unchanged_readiness_loops_but_allows_progress()`
@@ -91,8 +91,9 @@ def dfh_read_jsonl_dicts(path: Path) -> list[dict]:
 		except (OSError, ValueError):
 			rows = []
 	return rows
-# @used-by :func:`agent_tools.gates.bulk_source_read._recent_segment_rows()`
+# @used-by :meth:`Df.Harness.Gate.BulkSourceReadGate.BulkSourceReadGate.recent_segment_rows()`
 # @used-by :meth:`Df.Harness.Hook.StopGate.StopGate.__load_state_context()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_subagent_checker_and_schedule_block()`
 # @used-by :meth:`test_hook_unification.HookUnificationTests.test_read_last_user_segment_positional_and_by_step()`
 # @used-by :mod:`agent_tools.hook_runtime`
 def dfh_read_last_user_segment(t_path: Path, *, prefer_full: bool=False, by_step_index: bool=False) -> tuple[list[dict], int | None, list[dict]]:
@@ -102,7 +103,7 @@ def dfh_read_last_user_segment(t_path: Path, *, prefer_full: bool=False, by_step
 	last_ref, seg = dfh_slice_after_last_user(rows, by_step_index)
 	return (rows, last_ref, seg)
 # @used-by :func:`Df.Harness.lib.hook_markdown_ops.dfh_markdown_slop_issues()`
-# @used-by :func:`agent_tools.workflow.doc4_sentence_issues()`
+# @used-by :meth:`Df.Harness.Workflow.KbAuditor.KbAuditor.doc4_sentence_issues()`
 # @used-by :meth:`test_hook_unification.HookUnificationTests.test_doc4_scanner_supports_hook_and_workflow_modes()`
 # @used-by :mod:`agent_tools.hook_runtime`
 def dfh_scan_doc4_sentence_issues(text: str, *, mode: str='hook') -> list[str]:

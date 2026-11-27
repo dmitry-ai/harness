@@ -115,6 +115,7 @@ def _finalize_platform_paths(adapter_kind: str, paths_out: dict[str, str], plat_
 		_fill_ag_derived_parents(paths_out)
 	return paths_out
 # @used-by :func:`dfh_find_local_marker_root()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_paths_and_uri()`
 def _match_journal_fallback(bounded: list[tuple[int, Path]], reg: Any, journal_name: str) -> tuple[int | None, Path | None]:
 	r: tuple[int | None, Path | None] = (None, None)
 	for idx, anc in bounded:
@@ -193,6 +194,7 @@ def _resolve_initial_home(adapter_kind: str, explicit: dict[str, str], home: str
 				break
 	return r
 # @used-by :func:`_collect_projects_dirs()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_paths_and_uri()`
 def _runtime_ag_projects_dirs() -> list[Path]:
 	dirs: list[Path] = []
 	seen: set[str] = set()
@@ -302,6 +304,7 @@ def dfh_find_local_marker_root(start: Path, reg: Any) -> tuple[int | None, Path 
 		r = _match_journal_fallback(bounded, reg, names['journal'])
 	return r
 # @used-by :func:`Df.Harness.lib.path_resolve.dfh_is_tracked_workspace()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_paths_and_uri()`
 def dfh_is_registered_single_project(canon: Path, *, registry: Any, projects_dirs: Any=None) -> bool:
 	target_key = dfh_path_key(canon)
 	r = False

@@ -38,7 +38,7 @@ def candidates(daily, config, now):
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_single_enabled_codex_instance_works_with_shared_catalog_superset()`
 def catalog_projects(catalog, root, homes):
 	return dfh_catalog_projects(catalog, root, homes)
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__run_cleanup()`
 # @used-by :meth:`test_cleanup.CleanupTests.run_cleanup()`
 # @used-by :meth:`test_cleanup_audit.CleanupAuditTests.test_apply_persists_sidecar_manifest_with_rollback_snapshots_while_dry_run_stays_readonly()`
 # @used-by :meth:`test_cleanup_audit.CleanupAuditTests.test_cleanup_report_writes_metadata_header_links_manifest_and_consumes_scratch_file()`

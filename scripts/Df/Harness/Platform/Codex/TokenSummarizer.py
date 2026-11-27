@@ -8,6 +8,7 @@ import json
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 class TokenSummarizer:
 	# @used-by :func:`agent_tools.platforms.codex.summarize()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_codex_and_ag_scanners_and_tool_trace()`
 	def __init__(self, paths, bindings=None) -> None:
 		self.__paths = paths
 		self.__bindings = bindings
@@ -30,6 +31,7 @@ class TokenSummarizer:
 					seen.add(key)
 					events.append(('generation', owner, index, payload.get('usage') or {}))
 	# @used-by :func:`agent_tools.platforms.codex.summarize()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_codex_and_ag_scanners_and_tool_trace()`
 	def run(self) -> dict[str, Any]:
 		tools, events, seen = (Counter(), [], set())
 		for path in self.__paths:

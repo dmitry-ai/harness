@@ -92,6 +92,7 @@ def _parse_pending_ag_entry(directory: Path, target_key: str, saved: dict, found
 		r = {'id': ident, 'file': str(path), 'sha': None, 'restore': payload}
 	return r
 # @used-by :func:`dfh_load_conversation_index()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_cleanup_resolvers()`
 def _read_ag_entry(b_info) -> list:
 	if isinstance(b_info, tuple):
 		r = _read_ag_rows(b_info[0], allow_missing=b_info[1], db_path=b_info[2] if 3 <= len(b_info) else None)
@@ -222,6 +223,7 @@ def dfh_codex_glob_scope(globs, readonly_history=None):
 # @used-by :meth:`Df.Harness.Cleanup.Scanner.Scanner.__discover_conversations()`
 # @used-by :meth:`Df.Harness.Cleanup.Scanner.Scanner.__handle_eligible()`
 # @used-by :meth:`Df.Harness.Cleanup.Scanner.Scanner.__record_candidate_error()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_cleanup_resolvers()`
 def dfh_conversations(root, ag_projects, backend, homes, catalog):
 	return dfh_count_indexed_conversations(root, ag_projects, homes, catalog, dfh_load_conversation_index(backend, homes))
 # @used-by :func:`agent_tools.cleanup._count_indexed_conversations()`

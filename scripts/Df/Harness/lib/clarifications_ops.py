@@ -61,6 +61,7 @@ def dfh_build_segment_metadata(segment: list[dict], seg_models: list[str] | tupl
 	return r
 # @used-by :func:`dfh_build_segment_metadata()`
 # @used-by :meth:`Df.Harness.Platform.ClarificationExtractor.ClarificationExtractor.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 def dfh_extract_ask_question_clarifications(segment: list[dict], *, last_fn=df_last) -> list[dict[str, Any]]:
 	r: list[dict[str, Any]] = []
 	for pos, row in enumerate(segment or ()):

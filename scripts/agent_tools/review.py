@@ -50,20 +50,20 @@ def _claim_evidence_sources(claim_id: str, index: dict) -> list[str]:
 # @used-by :mod:`agent_tools.review`
 def _package_handler(kind):
 	return PackageReader.package_handler(kind)
-# @used-by :func:`agent_tools.completion._workflow_gate_resolved()`
+# @used-by :func:`Df.Harness.lib.completion_checks.dfh_workflow_gate_resolved()`
 # @used-by :mod:`agent_tools.review`
 def approval_current(root, state, approval):
 	return ReviewQuorumEvaluator(root, state, analysis_fn=_analysis, package_reader=read_package, inside_fn=inside).approval_current(approval)
 # @used-by :mod:`agent_tools.review`
 def authenticate_report(root, package, package_path, data, source_payload, *, parent_id, reviewer_id, native_evidence=None, allow_self=True):
 	return ReportAuthenticator(root, package, package_path, data, source_payload, parent_id=parent_id, reviewer_id=reviewer_id, native_evidence=native_evidence, allow_self=allow_self, inside_fn=inside).authenticate()
-# @used-by :func:`agent_tools.blocked_report._authorize_workflow_errors()`
+# @used-by :func:`Df.Harness.lib.blocked_report_ops._authorize_workflow_errors()`
 # @used-by :func:`agent_tools.project_rename_verify.capture_pre_rename_snapshot()`
 # @used-by :func:`agent_tools.project_rename_verify.verify_post_rename()`
-# @used-by :func:`agent_tools.shadow_replay._run_review_stage()`
 # @used-by :func:`agent_tools.workflow.complete_stage()`
 # @used-by :func:`agent_tools.workflow.record_current_answer()`
-# @used-by :meth:`agent_tools.completion.AnswerPreparationRunner._authorize_and_sync_workflow()`
+# @used-by :meth:`Df.Harness.Completion.AnswerPreparer.AnswerPreparer.__authorize_and_sync_workflow()`
+# @used-by :meth:`Df.Harness.Shadow.ReplayPipeline.ReplayPipeline.__run_review_stage()`
 # @used-by :meth:`test_falsifier_default_send_message_and_schedule_m8.FalsifierDefaultSendMessageAndScheduleM8Tests.test_significant_prepare_review_defaults_to_falsifier_and_authorizes_single_auditor()`
 # @used-by :meth:`test_finalized_project_contract.FinalizedProjectContractTests.test_rename_project_preserves_all_seven_stages_config_journal_handoff_and_review_lineage()`
 # @used-by :meth:`test_issue44.TestIssue44.test_authorize_post_finalize_enforces_post_finalize_questions()`

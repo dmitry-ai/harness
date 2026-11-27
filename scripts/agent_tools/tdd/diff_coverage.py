@@ -10,7 +10,7 @@ from .diff_coverage_hook import prepare_single_pass_coverage_env, resolve_trace_
 # @used-by :mod:`agent_tools.tdd.diff_coverage`
 def _prod_match_tokens(changed_prod_rels: list[str]) -> set[str]:
 	return DiffCoverage.prod_match_tokens(changed_prod_rels)
-# @used-by :func:`agent_tools.completion.tdd_check_turn()`
+# @used-by :func:`Df.Harness.lib.completion_recovery.dfh_tdd_check_turn()`
 # @used-by :mod:`agent_tools.tdd.diff_coverage`
 def enrich_tdd_check_report(root_p: Path, role: str, turn_key: str, turn_obj: dict[str, Any], tdd_chk: dict[str, Any]) -> dict[str, Any]:
 	return DiffCoverage.enrich_tdd_check_report(root_p, role, turn_key, turn_obj, tdd_chk)

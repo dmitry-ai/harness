@@ -62,6 +62,7 @@ def _slice_turn_rows(all_rows: list[Any], turn: dict[str, Any]) -> list[dict[str
 				out.append(row)
 	return out
 # @used-by :func:`Df.Harness.lib.completion_recovery.dfh_recover_turn_violation()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_verif_pre_invocation_and_crash_ops()`
 # @used-by :mod:`agent_tools.hook_crash_audit`
 def dfh_build_violation_recovery_receipt(root_p: Path, key: str, turn: dict[str, Any], reason: str | None, now_fn, *, native: dict[str, Any] | None=None) -> tuple[dict[str, Any], Any]:
 	exec5_v = list(turn.get('exec5_violations') or [])

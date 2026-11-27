@@ -18,6 +18,7 @@ def _load_consumed(args: Any, path: Any, fn, *extra_args, **extra_kwargs) -> Any
 	result = fn(*extra_args, json.loads(payload.decode('utf-8-sig')), **extra_kwargs)
 	return dfh_consume_scratch_input(args, path, payload, result)
 # @used-by :func:`dfh_execute_collect()`
+# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_domain_ops_all_handlers_and_collect_merge()`
 def _merge_prior_collection(project: Any, target: Path, receipts_file: Path, result: dict, digest_fn, summary_fn) -> dict:
 	r = result
 	if target.is_file() and receipts_file.is_file():
@@ -209,6 +210,7 @@ def _op_unadopt_requests(args: Any) -> Any:
 	from agent_tools import workflow as flow
 	return flow.unadopt_requests(args.project, args.conversation, request_ids=args.request_id)
 # @used-by :func:`_op_record_review()`
+# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_domain_ops_all_handlers_and_collect_merge()`
 def _resolve_project_input(project: Any, raw_path: Any) -> Any:
 	r = raw_path
 	if isinstance(raw_path, str) and '-' != raw_path and (not Path(raw_path).is_absolute()):
@@ -218,7 +220,8 @@ def _resolve_project_input(project: Any, raw_path: Any) -> Any:
 			r = str(proj_cand)
 	return r
 # @used-by :func:`_op_render_analysis()`
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_domain_ops_all_handlers_and_collect_merge()`
 def dfh_analysis_root(file: str | Path) -> Path:
 	file_p = Path(file).resolve()
 	r = file_p.parent

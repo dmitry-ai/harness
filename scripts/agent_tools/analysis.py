@@ -48,14 +48,14 @@ from .storage import replace_bytes
 # @used-by :mod:`agent_tools.workflow`
 def analysis_issues(value):
 	return Validator(value).issues()
-# @used-by :func:`agent_tools.operations._execute_collect()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops.dfh_execute_collect()`
 # @used-by :mod:`agent_tools.analysis`
 def digest(data):
 	return df_sha256(data)
 # @used-by :mod:`agent_tools.analysis`
 def iter_arguments(value):
 	return Validator.iter_arguments(value)
-# @used-by :func:`agent_tools.cli_domains._op_render_analysis()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_render_analysis()`
 # @used-by :func:`test_finalized_project_contract._seed_pre_review()`
 # @used-by :func:`test_project_domain_drift._save_and_publish()`
 # @used-by :func:`test_project_rename._seed_project_artifacts()`
@@ -73,7 +73,7 @@ def iter_arguments(value):
 # @used-by :mod:`agent_tools.analysis`
 def publish_analysis(source, target=None):
 	return Publisher(source, target).publish()
-# @used-by :func:`agent_tools.operations._execute_collect()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops.dfh_execute_collect()`
 # @used-by :func:`test_atomic_prepare_and_narrowed_reconcile_m7._init_review_ready_project()`
 # @used-by :func:`test_contract_invariants._init_tracked_project()`
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_full_workflow_requires_native_review_and_current_kb_then_exports_complete_context()`
@@ -110,7 +110,7 @@ def render_analysis(value):
 # @used-by :mod:`agent_tools.analysis`
 def require_current_contract(value):
 	Validator.require_current_contract(value)
-# @used-by :func:`agent_tools.cli_domains._op_save_analysis()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_save_analysis()`
 # @used-by :func:`test_finalized_project_contract._seed_pre_review()`
 # @used-by :func:`test_project_domain_drift._save_and_publish()`
 # @used-by :func:`test_project_rename._seed_project_artifacts()`

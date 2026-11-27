@@ -212,6 +212,7 @@ def _write_recovery_records(rec_dir: Path, root_p: Path, raw_records: list[dict[
 # @used-by :func:`Df.Harness.lib.completion_commands._try_launcher_handoff()`
 # @used-by :func:`agent_tools.completion.handoff_launcher_turn()`
 # @used-by :meth:`test_df_harness_s11_wave2d_completion.DfHarnessS11Wave2DCompletionTests.test_completion_recovery_validation_and_empty_handoff()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_env_isolation_auditor_and_recovery_ops()`
 def dfh_handoff_launcher_turn(launcher_root: Any, target_root: Any, job_id: Any, *, conversation_id: Any=None, ops: dict[str, Any] | None=None) -> list[dict[str, Any]]:
 	eff_ops = ops or {}
 	r: list[dict[str, Any]] = []
@@ -234,6 +235,7 @@ def dfh_handoff_launcher_turn(launcher_root: Any, target_root: Any, job_id: Any,
 # @used-by :func:`Df.Harness.lib.completion_commands._dispatch_completion_table()`
 # @used-by :func:`agent_tools.completion.issue_first_check_turn()`
 # @used-by :meth:`test_df_harness_s11_wave2d_completion.DfHarnessS11Wave2DCompletionTests.test_completion_recovery_validation_and_empty_handoff()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_env_isolation_auditor_and_recovery_ops()`
 def dfh_issue_first_check_turn(root: Any, conversation: Any=None, *, platform: Any=None, backend: Any=None, ops: dict[str, Any] | None=None) -> dict[str, Any]:
 	eff_ops = ops or {}
 	root_p, role, turn_key, turn_obj = _scan_readonly_turn(root, conversation, platform, backend, eff_ops)
@@ -242,6 +244,7 @@ def dfh_issue_first_check_turn(root: Any, conversation: Any=None, *, platform: A
 # @used-by :func:`Df.Harness.lib.completion_commands._dispatch_completion_table()`
 # @used-by :func:`agent_tools.completion.ratchet_ok()`
 # @used-by :meth:`test_df_harness_s11_wave2d_completion.DfHarnessS11Wave2DCompletionTests.test_completion_recovery_validation_and_empty_handoff()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_env_isolation_auditor_and_recovery_ops()`
 def dfh_ratchet_ok(root: Any, file_path: Any, reason: Any, conversation: Any=None, *, platform: Any=None, backend: Any=None, ops: dict[str, Any] | None=None) -> dict[str, Any]:
 	from agent_tools.tdd_gate import validate_ratchet_reason
 	eff_ops = ops or {}
@@ -265,6 +268,7 @@ def dfh_ratchet_ok(root: Any, file_path: Any, reason: Any, conversation: Any=Non
 # @used-by :func:`Df.Harness.lib.completion_commands._dispatch_completion_table()`
 # @used-by :func:`agent_tools.completion.recover_checkpoint()`
 # @used-by :meth:`test_df_harness_s11_wave2d_completion.DfHarnessS11Wave2DCompletionTests.test_completion_recovery_validation_and_empty_handoff()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_env_isolation_auditor_and_recovery_ops()`
 def dfh_recover_checkpoint(root: Any, conversation: Any=None, *, platform: Any=None, backend: Any=None, dry_run: bool=False, ops: dict[str, Any] | None=None) -> dict[str, Any]:
 	eff_ops = ops or {}
 	root_p = dfh_canonicalize_root_dir(root, dfh_load_registry())
@@ -280,6 +284,7 @@ def dfh_recover_checkpoint(root: Any, conversation: Any=None, *, platform: Any=N
 # @used-by :func:`Df.Harness.lib.completion_commands._dispatch_completion_table()`
 # @used-by :func:`agent_tools.completion.recover_turn_violation()`
 # @used-by :meth:`test_df_harness_s11_wave2d_completion.DfHarnessS11Wave2DCompletionTests.test_completion_recovery_validation_and_empty_handoff()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_env_isolation_auditor_and_recovery_ops()`
 def dfh_recover_turn_violation(root: Any, conversation: Any=None, *, reason: Any=None, platform: Any=None, backend: Any=None, ops: dict[str, Any] | None=None) -> dict[str, Any]:
 	eff_ops = ops or {}
 	now_fn = eff_ops.get('now') or dfh_now
@@ -287,6 +292,7 @@ def dfh_recover_turn_violation(root: Any, conversation: Any=None, *, reason: Any
 # @used-by :func:`Df.Harness.lib.completion_commands._dispatch_completion_table()`
 # @used-by :func:`agent_tools.completion.similar_project_exempt()`
 # @used-by :meth:`test_df_harness_s11_wave2d_completion.DfHarnessS11Wave2DCompletionTests.test_completion_recovery_validation_and_empty_handoff()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_env_isolation_auditor_and_recovery_ops()`
 def dfh_similar_project_exempt(root: Any, peer: Any, reason: Any, conversation: Any=None, *, platform: Any=None, backend: Any=None, ops: dict[str, Any] | None=None) -> dict[str, Any]:
 	eff_ops = ops or {}
 	reason_clean = (reason or '').strip()
@@ -307,6 +313,7 @@ def dfh_similar_project_exempt(root: Any, peer: Any, reason: Any, conversation: 
 # @used-by :func:`Df.Harness.lib.completion_commands._dispatch_completion_table()`
 # @used-by :func:`agent_tools.completion.sync_conversation_title()`
 # @used-by :meth:`test_df_harness_s11_wave2d_completion.DfHarnessS11Wave2DCompletionTests.test_completion_recovery_validation_and_empty_handoff()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_env_isolation_auditor_and_recovery_ops()`
 def dfh_sync_conversation_title(root: Any, conversation: Any=None, *, platform: Any=None, backend: Any=None, journal_directory: Any=None, dry_run: bool=False, ops: dict[str, Any] | None=None) -> dict[str, Any]:
 	eff_ops = ops or {}
 	root_p = dfh_canonicalize_root_dir(root, dfh_load_registry())
@@ -325,6 +332,7 @@ def dfh_sync_conversation_title(root: Any, conversation: Any=None, *, platform: 
 # @used-by :func:`Df.Harness.lib.completion_commands._dispatch_completion_table()`
 # @used-by :func:`agent_tools.completion.tdd_check_turn()`
 # @used-by :meth:`test_df_harness_s11_wave2d_completion.DfHarnessS11Wave2DCompletionTests.test_completion_recovery_validation_and_empty_handoff()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_env_isolation_auditor_and_recovery_ops()`
 def dfh_tdd_check_turn(root: Any, conversation: Any=None, *, platform: Any=None, backend: Any=None, ops: dict[str, Any] | None=None) -> dict[str, Any]:
 	from agent_tools.tdd.diff_coverage import enrich_tdd_check_report
 	eff_ops = ops or {}

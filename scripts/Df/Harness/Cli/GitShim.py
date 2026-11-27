@@ -15,6 +15,7 @@ class GitShim:
 	# @used-by :func:`git_shim.prepare_git_invocation()`
 	# @used-by :func:`git_shim.resolve_system_git()`
 	# @used-by :meth:`test_df_harness_s11_wave2d.DfHarnessS11Wave2DTests.test_cli_subsystem_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_dispatcher_and_git_shim_modes()`
 	def __init__(self, argv: list[str] | None=None, *, mode: str='prepare', shim_mode: str | None=None, cwd: Path | None=None, script_dir: Path | None=None) -> None:
 		self.__argv = list(sys.argv[1:] if None is argv else argv)
 		self.__mode = mode
@@ -89,6 +90,7 @@ class GitShim:
 	# @used-by :func:`git_shim.prepare_git_invocation()`
 	# @used-by :func:`git_shim.resolve_system_git()`
 	# @used-by :meth:`test_df_harness_s11_wave2d.DfHarnessS11Wave2DTests.test_cli_subsystem_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_dispatcher_and_git_shim_modes()`
 	def run(self) -> Any:
 		if 'main' == self.__mode:
 			r: Any = self.__run_main()

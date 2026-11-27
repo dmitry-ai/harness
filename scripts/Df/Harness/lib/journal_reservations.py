@@ -98,6 +98,7 @@ def dfh_release_turn_steps(directory: Path, turn_key: str, *, request_ids: list[
 # @used-by :func:`Df.Harness.lib.hook_stop_ops._record_emergency_files()`
 # @used-by :meth:`test_addon_observability.AddonObservabilityTests.test_conflict_recording_and_reconciliation_prune_terminal_reservations()`
 # @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_open_turn_reconciles_safely_and_trims_stale_reservation()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_narrow_reconciler_trim_tail()`
 # @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_live_running_parallel_reservation_not_orphaned_while_idle_stuck_is_orphaned()`
 # @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_handoff_launcher_turn_cascades_followup_without_job_url_and_clears_reservation()`
 # @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_record_answer_subtracts_overlapping_request_ids_and_excludes_stale_steps_from_title()`
@@ -121,6 +122,7 @@ def dfh_reserve_turn_steps(directory: Path, turn_key: str, conversation_id: str,
 	return assigned
 # @used-by :func:`Df.Harness.lib.journal_records._reserve_and_publish_step()`
 # @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__resolve_steps()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 def dfh_reserved_step_ids(directory: Path, *, exclude_turn: str | None=None) -> set[int]:
 	r: set[int] = set()
 	for key, entry in dfh_read_turn_reservations(directory).items():

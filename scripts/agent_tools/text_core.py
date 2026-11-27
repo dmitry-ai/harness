@@ -38,15 +38,15 @@ class Finding:
 	line: int
 	message: str
 	excerpt: str = ''
-	# @used-by :func:`agent_tools.cli_registry._format_perf_profile_tests()`
-	# @used-by :func:`agent_tools.cli_registry._format_perf_timesheet()`
-	# @used-by :func:`agent_tools.cli_registry._format_problem_metadata()`
-	# @used-by :func:`agent_tools.cli_registry._format_rules_audit()`
-	# @used-by :func:`agent_tools.cli_registry._format_run_tests()`
-	# @used-by :func:`agent_tools.cli_registry._format_schema_help()`
-	# @used-by :func:`agent_tools.cli_registry._format_test_watchdog()`
-	# @used-by :func:`agent_tools.cli_registry._format_xref()`
-	# @used-by :func:`agent_tools.platforms.trace_common.current_turn_requests()`
+	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_format_perf_profile_tests()`
+	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_format_perf_timesheet()`
+	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_format_problem_metadata()`
+	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_format_rules_audit()`
+	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_format_run_tests()`
+	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_format_schema_help()`
+	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_format_test_watchdog()`
+	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_format_xref()`
+	# @used-by :func:`Df.Harness.lib.trace_review.dfh_current_turn_requests()`
 	# @used-by :func:`agent_tools.text_cli.findings_output()`
 	# @used-by :func:`agent_tools.text_cli.main()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__format_arch_check()`

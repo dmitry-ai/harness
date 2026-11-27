@@ -39,7 +39,7 @@ def register_projects(project, label=None, day=None, *, platform=None, targets=N
 # @used-by :mod:`agent_tools.registration`
 def save_registration(root, platform, result):
 	return RegistrationStore(root, platform, result).save()
-# @used-by :func:`agent_tools.platforms.codex.register()`
+# @used-by :meth:`Df.Harness.Platform.Codex.ProjectRegistrar.ProjectRegistrar.run()`
 # @used-by :mod:`agent_tools.registration`
 def validate_registration(project, label, day, platform, result):
 	return RegistrationValidator(project, label, day, platform, result).validate()

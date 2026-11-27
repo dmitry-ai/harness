@@ -6,11 +6,13 @@ from Df.Harness.lib.completion_core import COMMANDS as COMPLETION_COMMANDS
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 class DomainExecutor:
 	# @used-by :func:`agent_tools.operations.execute()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_domain_ops_all_handlers_and_collect_merge()`
 	def __init__(self, args: Any, *, completion_execute_fn=None, handlers: dict[str, Any] | None=None) -> None:
 		self.__args = args
 		self.__completion_execute_fn = completion_execute_fn
 		self.__handlers = handlers if None is not handlers else OPERATION_HANDLERS
 	# @used-by :func:`agent_tools.operations.execute()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_domain_ops_all_handlers_and_collect_merge()`
 	def run(self) -> Any:
 		command = self.__args.command
 		if command in COMPLETION_COMMANDS:

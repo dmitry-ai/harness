@@ -10,7 +10,7 @@ def classify_command(cmd: str) -> str:
 # @used-by unused
 def compute_top_gaps(events: list[tuple[int, float | None, str, str | None, str]], *, limit: int=10) -> list[dict[str, Any]]:
 	return TimesheetCommon.compute_top_gaps(events, limit=limit)
-# @used-by :func:`agent_tools.cli_registry._format_perf_timesheet()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_format_perf_timesheet()`
 # @used-by :mod:`agent_tools.perf.timesheet`
 # @used-by :mod:`agent_tools.perf`
 def format_timesheet_text(report: dict[str, Any]) -> str:

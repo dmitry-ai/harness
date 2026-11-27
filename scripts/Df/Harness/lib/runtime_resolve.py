@@ -114,6 +114,7 @@ def _codex_match_by_home_dir(home_p: Path, all_insts: dict, conversation_id: str
 		r = conv_matches[0] if 1 == len(conv_matches) else matches[0]
 	return r
 # @used-by :func:`_ag_entry_for_explicit_backend()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_runtime_tail()`
 def _disambiguate_ag_matches(matches: list[dict], backend_p: Path, conversation_id: str | None) -> dict:
 	matched: dict | None = None
 	if conversation_id:
@@ -150,6 +151,7 @@ def _match_ag_home_fallback(ag_insts: dict, active_matches: list[dict], default_
 			r = home_matches[0]
 	return r
 # @used-by :func:`_resolve_codex_home_choice()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_runtime_tail()`
 def _resolve_codex_home_by_conv_or_profile(homes: dict[str, str], cx_plat: str, cfg_all: dict, conversation_id: str | None, settings_fn: Any, find_conv_fn: Any) -> Path:
 	r: Path | None = None
 	if not os.environ.get('CODEX_HOME') and conversation_id:
@@ -202,6 +204,7 @@ def _resolve_codex_pair(backend: Any, all_insts: dict, cx_plat: str | None, cfg_
 def _sp_path(sp: dict, key: str, default: Path | None) -> Path | None:
 	return Path(sp[key]) if sp.get(key) else default
 # @used-by :func:`agent_tools.runtime.resolve_antigravity_backend()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 def dfh_resolve_antigravity_backend(backend: Any=None, *, instance: str | None=None, conversation_id: str | None=None, config: dict | None=None, settings_fn: Any=None, find_conv_fn: Any=None, instances_fn: Any=None) -> Path:
 	return Path(backend) if None is not backend else dfh_resolve_antigravity_paths(backend=None, instance=instance, conversation_id=conversation_id, config=config, settings_fn=settings_fn, find_conv_fn=find_conv_fn, instances_fn=instances_fn)['backend_dir']
 # @used-by :func:`Df.Harness.lib.ag_inputs.dfh_antigravity_paths()`
@@ -225,6 +228,7 @@ def dfh_resolve_antigravity_paths(backend: Any=None, *, instance: str | None=Non
 	return _build_ag_paths_dict(matched, backend_p)
 # @used-by :func:`_resolve_codex_pair()`
 # @used-by :func:`agent_tools.runtime.resolve_codex_home()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 def dfh_resolve_codex_home(backend: Any=None, *, instance: str | None=None, conversation_id: str | None=None, config: dict | None=None, codex_cfg: dict | None=None, settings_fn: Any=None, find_conv_fn: Any=None, instances_fn: Any=None) -> Path:
 	if None is not backend:
 		r = Path(backend).resolve()

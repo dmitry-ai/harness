@@ -156,6 +156,7 @@ def dfh_completion_project_id(root) -> str:
 	pp = dfh_project_paths(root_p, exact_root=True)
 	return dfh_native_project_id(pp.root) if pp.project_json.exists() or pp.text_project_json.exists() else dfh_text_project_id(pp.root)
 # @used-by :func:`Df.Harness.lib.completion_recovery._is_handoff_candidate()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 def dfh_explicit(text, job_id: str, *, meta=None):
 	choice, source, _ = dfh_explicit_with_ids(text, job_id, meta=meta)
 	return (choice, source)

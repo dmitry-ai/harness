@@ -38,6 +38,7 @@ START = '<!-- harness:native-loader:start -->'
 # @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__attach_profile_views()`
 # @used-by :meth:`Df.Harness.Config.NativeProfile.ManagedLink.ManagedLink.__init__()`
 # @used-by :meth:`Df.Harness.Config.NativeProfile.Plan.Plan.file()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_managed_link_and_native_links_edge_helpers()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_install_global_recovers_dangling_relocated_codex_links_when_receipt_already_points_to_primary()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_install_global_rewrites_manifests_and_codex_links_even_when_compatibility_junction_exists()`
 def dfh_absolute(path: str | Path) -> Path:
@@ -80,6 +81,7 @@ def dfh_directory_link(target: str | Path, path: str | Path, primary: str | Path
 # @used-by :func:`Df.Harness.lib.native_codex_roles._handle_existing_codex_link()`
 # @used-by :func:`Df.Harness.lib.native_codex_roles._retire_obsolete_skill_entry()`
 # @used-by :func:`dfh_verify_retired_directory_link()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_managed_link_and_native_links_edge_helpers()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.check_skill_rename_rollback()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_obsolete_skill_under_linked_parent_is_preserved()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_skill_rename_retires_owned_dangling_link_with_identity_backup()`
@@ -95,6 +97,7 @@ def dfh_direct_link_matches_target(path: str | Path, target: str | Path) -> bool
 # @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_plan_codex_link()`
 # @used-by :meth:`Df.Harness.Config.NativeProfile.ManagedLink.ManagedLink.restore_retired()`
 # @used-by :meth:`Df.Harness.Config.NativeProfile.ManagedLink.ManagedLink.verify_before_create()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_managed_link_and_native_links_edge_helpers()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.check_skill_rename_rollback()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_removed_skill_retires_alias_without_deleting_canonical_directory()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_skill_rename_does_not_touch_unselected_profile_or_forget_ownership()`
@@ -128,10 +131,13 @@ def dfh_file_link(target: str | Path, path: str | Path, primary: str | Path) -> 
 # @used-by :func:`Df.Harness.lib.native_codex_roles._retire_one_profile_role()`
 # @used-by :func:`Df.Harness.lib.native_codex_roles._retire_one_shared_role()`
 # @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__handle_failure()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_managed_link_and_native_links_edge_helpers()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_codex_roles_and_proof_metadata_tail()`
 def dfh_hash(data: bytes) -> str:
 	return hashlib.sha256(data).hexdigest()
 # @used-by :func:`Df.Harness.lib.native_codex_plan._plan_codex_roles()`
 # @used-by :func:`Df.Harness.lib.native_codex_plan._plan_codex_skills()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_managed_link_and_native_links_edge_helpers()`
 def dfh_is_relocated_owned_link(path: str | Path, prior_target: Any, current_target: str | Path, relocated_targets: Any) -> bool:
 	r = False
 	if isinstance(prior_target, str):
@@ -160,6 +166,7 @@ def dfh_json_bytes(data: Any) -> bytes:
 # @used-by :func:`Df.Harness.lib.native_codex_roles._retire_one_profile_role()`
 # @used-by :func:`dfh_remove_link()`
 # @used-by :meth:`Df.Harness.Config.NativeProfile.ManagedLink.ManagedLink.verify_retired()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_managed_link_and_native_links_edge_helpers()`
 def dfh_link_matches_target(path: str | Path, target: str | Path) -> bool:
 	r = False
 	try:
@@ -173,6 +180,7 @@ def dfh_link_matches_target(path: str | Path, target: str | Path) -> bool:
 # @used-by :func:`dfh_direct_link_matches_target()`
 # @used-by :func:`dfh_is_relocated_owned_link()`
 # @used-by :func:`dfh_link_matches_target()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_managed_link_and_native_links_edge_helpers()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_install_global_recovers_dangling_relocated_codex_links_when_receipt_already_points_to_primary()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_install_global_rewrites_manifests_and_codex_links_even_when_compatibility_junction_exists()`
 def dfh_link_target_path(path: str | Path) -> Path:
@@ -184,6 +192,7 @@ def dfh_link_target_path(path: str | Path) -> Path:
 # @used-by :func:`Df.Harness.lib.native_codex_plan.dfh_build_shared_native()`
 # @used-by :func:`Df.Harness.lib.native_codex_plan.dfh_install_native_profiles()`
 # @used-by :func:`Df.Harness.lib.native_codex_plan.dfh_retire_owned_project_projections()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_native_profiles_install_rename_retire_and_rollback()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.former_role_config()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_edited_obsolete_role_link_blocks_rename_without_orphaning_ownership()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_former_config_role_block_without_receipt_is_preserved()`
@@ -221,6 +230,7 @@ def dfh_prepare_link_parent(path: Path, label: str, action: str='creation') -> N
 # @used-by :func:`Df.Harness.lib.native_codex_roles._retire_obsolete_skill_entry()`
 # @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_retire_shared_roles()`
 # @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_role_identity()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_managed_link_and_native_links_edge_helpers()`
 def dfh_relocated_primaries(primary: str | Path) -> tuple[Path, ...]:
 	return tuple((dfh_absolute(p) for p in dfh_relocated_harness_code_dirs(primary=primary)))
 # @used-by :func:`agent_tools.native_profiles._facade_ops()`

@@ -4,8 +4,8 @@ from typing import Callable
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 from Df.Harness.Cli.RegistryExecutor import RegistryExecutor
 from Df.Harness.lib.cli_registry_defs import REGISTRY as _REGISTRY, dfh_add_registered_parsers as add_registered_parsers, dfh_ensure_builtin_plugins as _ensure_builtin_plugins, dfh_register_command as register_command, dfh_registered_commands as registered_commands, dfh_render_cli_index as render_cli_index
-# @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`test_arch_review_cli._run_arch_cli()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__execute()`
 def dispatch_registered(args, dump_fn: Callable, exit_fn: Callable) -> tuple[bool, int | None]:
 	return RegistryExecutor(args, mode='dispatch', dump_fn=dump_fn, exit_fn=exit_fn).run()
 # @used-by :meth:`test_cli_registry.CliRegistryTests.test_dynamic_command_registration_roundtrip()`

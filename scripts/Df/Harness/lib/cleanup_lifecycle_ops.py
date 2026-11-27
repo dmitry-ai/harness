@@ -46,6 +46,7 @@ def _deliverable_file_count(root: Path) -> int:
 			total += sum((1 for f in d_path.rglob('*') if f.is_file() and 0 < f.stat().st_size))
 	return total
 # @used-by :func:`dfh_resolve_readonly_history()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_cleanup_resolvers()`
 def _disabled_ag_history(config: dict, daily: Path, active_ag: dict) -> dict[str, tuple[Path, bool, Path]]:
 	r: dict[str, tuple[Path, bool, Path]] = {}
 	for pid, pcfg in (config.get('platforms') or {}).items():
@@ -120,6 +121,7 @@ def _matches_any_key(raw_path, keys: list[str], belongs_fn, key_cache: dict) -> 
 # @used-by :func:`dfh_collect_handoff_activity()`
 # @used-by :func:`dfh_collect_rename_activity()`
 # @used-by :func:`dfh_collect_workflow_finalize()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_cleanup_resolvers()`
 def _parse_iso_dt(raw) -> datetime | None:
 	r: datetime | None = None
 	if isinstance(raw, str) and raw.strip():
@@ -166,6 +168,7 @@ def _safe_json_dict(path: Path) -> dict | None:
 			r = None
 	return r
 # @used-by :func:`dfh_journal_pair_activity()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_cleanup_resolvers()`
 def _step_response_time(res_path: Path) -> datetime | None:
 	r: datetime | None = None
 	try:
@@ -179,6 +182,7 @@ def _step_response_time(res_path: Path) -> datetime | None:
 		r = None
 	return r
 # @used-by :func:`dfh_collect_handoff_activity()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_cleanup_resolvers()`
 def _turn_matches_project(data: dict, keys: set[str], job_id: str, path_key_fn) -> bool:
 	ho = data.get('handed_off_to') if isinstance(data.get('handed_off_to'), dict) else {}
 	ho_root = str(ho.get('project_root') or '').strip()

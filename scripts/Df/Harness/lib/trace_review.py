@@ -83,6 +83,7 @@ def _iter_normalized_tool_calls(rows):
 		if isinstance(row, dict):
 			yield from (_codex_calls_from_row(row) if 'response_item' == row.get('type') else _ag_calls_from_row(rows_list, pos, row))
 # @used-by :func:`_check_candidate_read_coverage()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 def _merge_line_intervals(intervals: list) -> list[list[int]]:
 	r: list[list[int]] = []
 	for s_val, e_val in sorted(intervals):
@@ -155,6 +156,7 @@ def dfh_make_tool_trace_event(event_id: str, step, output_step, name: str, argum
 	return r
 # @used-by :func:`Df.Harness.lib.trace_effects.dfh_collect_subagent_bfs()`
 # @used-by :func:`dfh_reviewer_isolation_issues()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 def dfh_partial_candidate_read_issues(project_root: Path, rows: list) -> list[str]:
 	candidate_reads: dict[str, dict] = {}
 	root_resolved = Path(project_root).resolve()
@@ -221,6 +223,7 @@ def dfh_reviewer_isolation_issues(root, rows) -> list[str]:
 	return r
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ProofVerifier.ProofVerifier.run()`
 # @used-by :meth:`Df.Harness.Platform.Codex.ProofVerifier.ProofVerifier.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 # @used-by :meth:`test_reused_reviewer_and_metadata_drift_m5.ReusedReviewerAndMetadataDriftM5Tests.test_tolerates_monotonic_same_model_metadata_append_and_rejects_model_change()`
 def dfh_verify_review_proof_core(root, native: dict, r: dict, fields, *, trace_error: str='Review proof differs from the current native trace', identity_error: str='Review proof has a different explicit project identity', allow_legacy_generation_model: bool=False) -> dict:
 	for field in fields:

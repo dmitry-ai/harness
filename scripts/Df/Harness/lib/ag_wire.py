@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 # @used-by :func:`_decode_message_payload()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_platform_turn_scanner_and_ag_tail()`
 def _decode_media_lines(msg_fields: list) -> str | None:
 	medias: list[str] = []
 	for field, kind, val in msg_fields:
@@ -103,7 +104,7 @@ def _wire_step_values(values: list, field: int) -> list:
 	return found
 # @used-by :func:`Df.Harness.lib.ag_metadata.dfh_apply_requested_config()`
 # @used-by :func:`Df.Harness.lib.ag_metadata.dfh_model_metadata()`
-# @used-by :func:`agent_tools.meta.formatting._split_model_and_effort()`
+# @used-by :meth:`Df.Harness.Meta.TimestampFormatter.TimestampFormatter.split_model_and_effort()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ExecutorMetadataReader.ExecutorMetadataReader.run()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__finalize_segment()`
 def dfh_configuration(value) -> dict:
@@ -129,6 +130,7 @@ def dfh_decode_user_step_entry(payload, status: int, index: int, load_transcript
 		raise ValueError('Exact native user text is unavailable; do not reconstruct it from summaries')
 	return (r, meta)
 # @used-by :func:`Df.Harness.lib.turn_routing_ops._extract_step_text_from_db()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 def dfh_extract_step_text(payload) -> str | None:
 	r: str | None = None
 	try:
@@ -163,6 +165,7 @@ def dfh_extract_user_step_meta(msg_fields: list) -> dict:
 	return {'has_structured_items': True, 'slash_commands': slash_commands} if has_items else {}
 # @used-by :func:`Df.Harness.lib.ag_metadata.dfh_apply_requested_config()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ExecutorMetadataReader.ExecutorMetadataReader.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 def dfh_generation_matches_executor(generation_model, executor_model) -> bool:
 	r = False
 	if isinstance(generation_model, str) and generation_model.strip() and isinstance(executor_model, str) and executor_model.strip():
@@ -177,7 +180,7 @@ def dfh_generation_matches_executor(generation_model, executor_model) -> bool:
 # @used-by :func:`_extract_item_slash_cmds()`
 # @used-by :func:`_parse_structured_item()`
 # @used-by :func:`_wire_step_values()`
-# @used-by :func:`agent_tools.metrics.wire_fields()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.wire_fields()`
 def dfh_wire_fields(data: bytes) -> list[tuple]:
 	offset, r = (0, [])
 	while offset < len(data):

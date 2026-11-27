@@ -15,6 +15,7 @@ class Publisher:
 	# @used-by :func:`Df.Harness.lib.completion_record._commit_or_verify_journal_group()`
 	# @used-by :func:`Df.Harness.lib.hook_stop_ops._record_emergency_files()`
 	# @used-by :func:`agent_tools.journal.record_answer()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_journal_tail()`
 	def __init__(self, directory: str | Path, requests: list[str], response: str, turn: str, request_ids: list[str] | None=None, *, adopt_steps: list[int] | None=None, admission: Any=None, admission_roots: Any=None, allow_reprepare: bool=False, reserved_turn_key: str | None=None, ops: dict[str, Any] | None=None) -> None:
 		self.__directory = directory
 		self.__requests = requests
@@ -135,6 +136,7 @@ class Publisher:
 	# @used-by :func:`Df.Harness.lib.completion_record._commit_or_verify_journal_group()`
 	# @used-by :func:`Df.Harness.lib.hook_stop_ops._record_emergency_files()`
 	# @used-by :func:`agent_tools.journal.record_answer()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_journal_tail()`
 	def run(self) -> list[int]:
 		directory, proof, journal_state, req_dir, res_dir, file, eff_res_key = self.__prepare_context()
 		with dfh_locked(journal_state / 'writer.lock'):

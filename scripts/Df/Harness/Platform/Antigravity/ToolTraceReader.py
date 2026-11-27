@@ -12,6 +12,7 @@ import hashlib
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 class ToolTraceReader:
 	# @used-by :func:`agent_tools.platforms.antigravity.native_tool_trace()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_codex_and_ag_scanners_and_tool_trace()`
 	def __init__(self, root, request: dict[str, Any], *, _ops: dict[str, Any] | None=None) -> None:
 		self.__root = root
 		self.__request = request
@@ -61,6 +62,7 @@ class ToolTraceReader:
 			r = dfh_antigravity_paths(instance=self.__request.get('instance'), conversation_id=conversation_id, settings_fn=load_cfg)
 		return r
 	# @used-by :func:`agent_tools.platforms.antigravity.native_tool_trace()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_codex_and_ag_scanners_and_tool_trace()`
 	def run(self) -> dict[str, Any]:
 		conversation_id = self.__request.get('conversation_id', '')
 		paths = self.__resolve_paths(conversation_id)

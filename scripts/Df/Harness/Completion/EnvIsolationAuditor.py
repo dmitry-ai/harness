@@ -5,11 +5,13 @@ from Df.Harness.lib.env_isolation_ops import dfh_audit_metadata_test_env_isolati
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 class EnvIsolationAuditor:
 	# @used-by :func:`agent_tools.env_isolation_contracts.audit_metadata_test_env_isolation()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_env_isolation_auditor_and_recovery_ops()`
 	def __init__(self, tests_dir: str | Path, *, scripts_dir: str | Path | None=None, registry: dict | None=None) -> None:
 		self.__tests_dir = Path(tests_dir)
 		self.__scripts_dir = Path(scripts_dir) if None is not scripts_dir else None
 		self.__registry = registry
 	# @used-by :func:`agent_tools.env_isolation_contracts.audit_metadata_test_env_isolation()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_env_isolation_auditor_and_recovery_ops()`
 	def run(self) -> list[str]:
 		r = dfh_audit_metadata_test_env_isolation(self.__tests_dir)
 		if None is not self.__scripts_dir:

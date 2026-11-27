@@ -9,6 +9,7 @@ import subprocess
 # @used-by :func:`agent_tools.platforms.codex.shared_control()`
 # @used-by :meth:`Df.Harness.Cleanup.Scanner.Scanner.__init_stores()`
 # @used-by :meth:`Df.Harness.Platform.Codex.ProjectRegistrar.ProjectRegistrar.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_ag_and_codex_registrars_verifiers_and_title_sync()`
 def dfh_shared_control(request: dict, *, platform_settings_fn=None, run_fn=None) -> dict:
 	ps_fn = platform_settings_fn if None is not platform_settings_fn else (lambda name: dfh_platform_settings(name, settings_fn=lambda: SettingsLoader().run()))
 	exec_run = run_fn if None is not run_fn else subprocess.run

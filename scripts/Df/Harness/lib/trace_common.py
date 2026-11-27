@@ -28,7 +28,7 @@ def _strip_win_extended_prefix(text: str) -> str:
 # @used-by :func:`Df.Harness.lib.ag_inputs.dfh_project_roots()`
 # @used-by :func:`Df.Harness.lib.cleanup_store_ops._match_ag_project_file()`
 # @used-by :func:`Df.Harness.lib.cleanup_store_ops._parse_pending_ag_entry()`
-# @used-by :func:`agent_tools.registration.validate_registration()`
+# @used-by :meth:`Df.Harness.Project.RegistrationValidator.RegistrationValidator.__check_antigravity()`
 def dfh_extract_resource_uri(res) -> str | None:
 	r = None
 	if isinstance(res, dict):
@@ -37,8 +37,8 @@ def dfh_extract_resource_uri(res) -> str | None:
 			r = cand
 	return r
 # @used-by :func:`Df.Harness.lib.completion_checks.dfh_intermediate_or_language_issues()`
-# @used-by :func:`agent_tools.tdd.events._antigravity_segment_is_interrupted()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__resolve_segment_completion()`
+# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.antigravity_segment_is_interrupted()`
 # @used-by :meth:`test_background_wait_and_tdd_inheritance.BackgroundWaitAndTddInheritanceTests.test_waiting_stub_classifier_handles_ru_en_and_avoids_false_positives()`
 def dfh_is_waiting_status_stub(text: str) -> bool:
 	r = False
@@ -79,8 +79,8 @@ def dfh_iter_antigravity_subagents(call) -> list[dict]:
 # @used-by :func:`Df.Harness.lib.codex_trace.dfh_codex_trace()`
 # @used-by :func:`Df.Harness.lib.codex_trace.dfh_state_db_files()`
 # @used-by :func:`Df.Harness.lib.hook_pre_invocation_ops.dfh_resolve_hook_root()`
-# @used-by :func:`agent_tools.registration.validate_registration()`
 # @used-by :meth:`Df.Harness.Platform.Codex.TurnScanner.TurnScanner.__index_db_threads()`
+# @used-by :meth:`Df.Harness.Project.RegistrationValidator.RegistrationValidator.__check_antigravity()`
 def dfh_local_uri_to_path(value, *, require_absolute: bool=False) -> Path:
 	raw = os.fspath(value) if isinstance(value, os.PathLike) else value
 	if not isinstance(raw, str) or (not raw):
@@ -110,8 +110,8 @@ def dfh_local_uri_to_path(value, *, require_absolute: bool=False) -> Path:
 # @used-by :func:`Df.Harness.lib.cleanup_lifecycle_ops.dfh_load_codex_history_rows()`
 # @used-by :func:`Df.Harness.lib.cleanup_store_ops._read_ag_rows()`
 # @used-by :func:`Df.Harness.lib.codex_trace._find_codex_thread_row()`
-# @used-by :func:`agent_tools.meta.transcripts._read_ag_summary_row()`
-# @used-by :func:`agent_tools.perf.timesheet_common.read_summary_timestamps()`
+# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.read_ag_summary_row()`
+# @used-by :meth:`Df.Harness.Perf.TimesheetCommon.TimesheetCommon.read_summary_timestamps()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ReviewProver.ReviewProver.__verify_child_summary()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ToolTraceReader.ToolTraceReader.run()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__db_child_seeds()`
@@ -146,10 +146,10 @@ def dfh_open_readonly_sqlite(db_path, *, guard=None, query_only: bool=False, row
 # @used-by :func:`Df.Harness.lib.trace_effects.dfh_record_normalized_tool_effects()`
 # @used-by :func:`Df.Harness.lib.trace_review._ag_calls_from_row()`
 # @used-by :func:`Df.Harness.lib.trace_review._codex_calls_from_row()`
-# @used-by :func:`agent_tools.metrics.summarize()`
-# @used-by :func:`agent_tools.perf.timesheet_ag._record_tool_call()`
-# @used-by :func:`agent_tools.perf.timesheet_codex._record_codex_call()`
 # @used-by :func:`dfh_iter_antigravity_subagents()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__record_ag_tool_calls()`
+# @used-by :meth:`Df.Harness.Perf.AntigravityTimesheetAnalyzer.AntigravityTimesheetAnalyzer.__record_tool_call()`
+# @used-by :meth:`Df.Harness.Perf.CodexTimesheetAnalyzer.CodexTimesheetAnalyzer.__record_codex_call()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ToolTraceReader.ToolTraceReader.__extract_step_event()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__record_one_tool_call()`
 # @used-by :meth:`Df.Harness.Platform.Codex.ReviewProver.ReviewProver.__collect_matched_prompts()`
@@ -169,8 +169,8 @@ def dfh_parse_tool_args(raw) -> dict:
 # @used-by :func:`Df.Harness.lib.ag_review_wait.dfh_reviewer_assigned_package()`
 # @used-by :func:`Df.Harness.lib.completion_child_trace.dfh_scan_child_trace_turn()`
 # @used-by :func:`Df.Harness.lib.hook_pre_invocation_ops.dfh_pre_flush_begin_context()`
-# @used-by :func:`agent_tools.meta.transcripts._read_ag_rows()`
 # @used-by :func:`agent_tools.platforms.antigravity._ag_ops()`
+# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.read_ag_rows()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ReviewProver.ReviewProver.run()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ToolTraceReader.ToolTraceReader.run()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__load_context()`

@@ -25,7 +25,7 @@ def _primary_settings(primary):
 # @used-by unused
 def _publish(root, outputs, *, check=False, merge=None, retire=(), disown=(), preflight=False):
 	return ProjectionPublisher(root, outputs, check=check, merge=merge, retire=retire, disown=disown, preflight=preflight).run()
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__run_build_native()`
 # @used-by :meth:`test_agents_loader.AgentsLoaderTests.build()`
 # @used-by :meth:`test_df_article.LexiconAndProjectionTests.test_build_native_uses_shared_skills_without_project_wrappers()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cleanup_custom_system_paths_stop_gate_and_claude_code_only_extensibility()`
@@ -39,12 +39,12 @@ def _publish(root, outputs, *, check=False, merge=None, retire=(), disown=(), pr
 # @used-by :meth:`test_portability.ProjectionTests.test_verified_legacy_migrates_but_manual_configuration_and_fallback_survive()`
 def build_native(root=None, *, primary=PRIMARY, check=False):
 	return NativeBuilder(root, primary=primary, check=check, settings_fn=_active_settings).run()
-# @used-by :func:`agent_tools.upwork_project.check_configuration()`
-# @used-by :func:`agent_tools.upwork_project.configure_project()`
+# @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.check()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.configure()`
 # @used-by :meth:`test_portability.ProjectionTests.test_project_rules_feed_both_systems_and_detect_stale_codex_projection()`
 def configure_codex_project(root, primary=PRIMARY, job_url=None, label=None, *, check=False):
 	return dfh_configure_codex_project(root, primary, job_url, label, check=check, settings_fn=_active_settings)
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__run_policy_instructions()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_disabled_codex_is_skipped_in_registration_workflow_cleanup_install_and_diagnostics()`
 # @used-by :meth:`test_portability.ProjectionTests.test_global_instructions_are_read_safely_and_local_override_keeps_its_priority()`
 def global_codex_instructions():

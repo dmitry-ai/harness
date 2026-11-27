@@ -15,6 +15,7 @@ SEQUENCE_RECOVERY_FILE = 'sequence-recovery.json'
 _OTHER_JOB_RE = re.compile('~(\\d{10,})')
 _TURN_AUX_SUFFIXES = ('-checkpoint-recovery.json', '-violation-recovery.json', '-similar-exemptions.json', '-ratchet-ok.json', '-mechanical-exempt.json')
 # @used-by :func:`dfh_validate_finalize_journal()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 def _check_reconciliation_failures(root: Path, cids: set[str]) -> None:
 	by_key, _ = dfh_turn_index_for_project(root)
 	for st in by_key.values():
@@ -56,6 +57,7 @@ def _group_steps_for_cid(jdir: Path, cid: str, iter_groups_fn: Any) -> set[int]:
 			steps.update((st for st in (group.get('steps') or ()) if int is type(st) and 1 <= st))
 	return steps
 # @used-by :func:`dfh_prune_terminal_conflict_reservations()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 def _is_terminal_conflict(st: dict | None, entry: dict, max_existing: int) -> bool:
 	r = False
 	if isinstance(st, dict) and 'conflict' == st.get('status'):
@@ -79,6 +81,7 @@ def _iter_turn_states(turns_dir: Path, read_fn: Any) -> list[tuple[Path, dict]]:
 					pass
 	return r
 # @used-by :func:`dfh_turn_matches_handoff()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 def _mentioned_other_job(reqs: list[dict], job_str: str) -> bool:
 	target_num = str(job_str or '').lstrip('~').strip()
 	r = False
@@ -89,6 +92,7 @@ def _mentioned_other_job(reqs: list[dict], job_str: str) -> bool:
 				break
 	return r
 # @used-by :func:`dfh_prune_overlapping_reservations()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 def _subtract_entry_overlap(entry: dict, req_set: set[str], committed_steps: set[int]) -> tuple[dict | None, bool]:
 	e_reqs, e_steps = (list(entry.get('request_ids') or ()), list(entry.get('steps') or ()))
 	if e_reqs and len(e_reqs) == len(e_steps):
@@ -152,7 +156,8 @@ def dfh_finalize_conflict_turn(root_p: Path, path: Path, value: dict, turn: dict
 	if value.get('journal') and value.get('key'):
 		req_ids = [req['id'] for req in (turn.get('requests') or ()) if isinstance(req, dict) and req.get('id')]
 		dfh_release_turn_steps(dir_fn(root_p, value['journal']), value['key'], request_ids=req_ids)
-# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.check_project()`
+# @used-by :meth:`Df.Harness.Workflow.HealthAuditor.HealthAuditor.check_project()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 def dfh_finalize_project_check(pp: Any, issues: list[dict], default_file: Path) -> dict:
 	issues.extend(dfh_check_project_journal_problems(pp))
 	for issue in issues:
@@ -160,6 +165,7 @@ def dfh_finalize_project_check(pp: Any, issues: list[dict], default_file: Path) 
 			issue['file'] = str(default_file)
 	return {'issues': issues, 'semantic_truth_verified': False, 'valid': not issues}
 # @used-by :meth:`Df.Harness.Journal.LivenessProbe.LivenessProbe.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_sync_and_upgrade()`
 # @used-by :mod:`agent_tools.journal_liveness`
 def dfh_is_conversation_running_live(r_key: str, entry: dict[str, Any], by_key: dict[str, dict[str, Any]]) -> bool:
 	st = by_key.get(r_key)
@@ -180,8 +186,9 @@ def dfh_is_conversation_running_live(r_key: str, entry: dict[str, Any], by_key: 
 				except (OSError, sqlite3.Error):
 					r = False
 	return r
-# @used-by :func:`agent_tools.project_rename_verify._collect_journal_errors()`
 # @used-by :func:`dfh_validate_step_cli()`
+# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__collect_journal_errors()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 def dfh_journal_validation_errors(jdir: Path, *, project_root: Path | None=None, strict_sequence: bool=False) -> list[str]:
 	eff = Path(jdir).resolve()
 	r: list[str] = []
@@ -196,6 +203,7 @@ def dfh_journal_validation_errors(jdir: Path, *, project_root: Path | None=None,
 # @used-by :func:`dfh_check_project_journal_problems()`
 # @used-by :func:`dfh_journal_validation_errors()`
 # @used-by :func:`dfh_validate_finalize_journal()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 def dfh_missing_contiguous_steps(jdir: Path, ids: set[int]) -> list[int]:
 	return sorted((set(range(1, max(ids) + 1)) - set(ids)) - dfh_acknowledged_sequence_gaps(jdir)) if ids else []
 # @used-by :func:`dfh_check_project_journal_problems()`
@@ -287,6 +295,7 @@ def dfh_turn_matches_handoff(st: dict, st_cid: str, job_str: str | None, prior_c
 	return r
 # @used-by :func:`agent_tools.journal_integrity._reservation_orphan_reason()`
 # @used-by :meth:`Df.Harness.Journal.IntegrityAuditor.IntegrityAuditor.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 def dfh_turn_state_orphan_reason(r_key: str, st: dict, cid: str, max_start_by_cid: dict[str, int]) -> str | None:
 	rec, start, st_val = (st.get('native_reconciliation'), st.get('native_start_step'), st.get('status'))
 	if 'open' != st_val:
@@ -298,7 +307,8 @@ def dfh_turn_state_orphan_reason(r_key: str, st: dict, cid: str, max_start_by_ci
 	else:
 		r = None
 	return r
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
+# @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.__load_latest_reply()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 def dfh_validate_finalize_journal(root: Path, jdir: Path, state: dict) -> set[int]:
 	ids = dfh_get_existing_step_ids(jdir)
 	if not ids or any((dfh_step_errors(jdir, ident) for ident in ids)):
@@ -314,6 +324,7 @@ def dfh_validate_finalize_journal(root: Path, jdir: Path, state: dict) -> set[in
 	_check_reconciliation_failures(root, cids)
 	return ids
 # @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__dispatch()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 def dfh_validate_step_cli(args: Any) -> str:
 	steps = sorted(dfh_get_existing_step_ids(args.dir)) if args.all else [args.step]
 	if not steps:

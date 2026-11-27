@@ -37,6 +37,7 @@ def dfh_check_runner_verification_observability(runner) -> None:
 		runner._fail_gate('verification_observability', chk['detail'])
 # @used-by :func:`_inspect_shadow_call()`
 # @used-by :func:`_resolve_bg_shadow_runs()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_verif_pre_invocation_and_crash_ops()`
 # @used-by :meth:`test_turn_begin_status_and_auditors.TurnBeginStatusAndAuditorsTests.test_all_trace_auditors_ignore_nested_foreign_reconciliation_and_flag_top_level_failure()`
 # @used-by :mod:`agent_tools.verification_observability`
 def dfh_classify_shadow_output(step_idx: int, text: str) -> dict[str, Any]:
@@ -47,6 +48,7 @@ def dfh_classify_shadow_output(step_idx: int, text: str) -> dict[str, Any]:
 	passed = (not failed) and (0 == rc or ('pass' == out.get('status') and None is rc))
 	return {'exit_code': rc, 'failed': failed, 'passed': passed, 'step': step_idx}
 # @used-by :meth:`Df.Harness.Hook.VerificationObserver.VerificationObserver.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_verif_pre_invocation_and_crash_ops()`
 # @used-by :mod:`agent_tools.verification_observability`
 def dfh_closed_issues_after(turn: dict[str, Any] | None, fail_step: int) -> list[str]:
 	closed: list[str] = []
@@ -59,6 +61,7 @@ def dfh_closed_issues_after(turn: dict[str, Any] | None, fail_step: int) -> list
 				closed.append(label)
 	return closed
 # @used-by :meth:`Df.Harness.Hook.VerificationObserver.VerificationObserver.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_verif_pre_invocation_and_crash_ops()`
 # @used-by :meth:`test_observability_diagnostics.ObservabilityDiagnosticsTests.test_detect_shadow_replay_ignores_cli_arguments_and_matches_real_invocations()`
 # @used-by :mod:`agent_tools.verification_observability`
 def dfh_detect_shadow_replay_runs(native: dict[str, Any] | None, turn: dict[str, Any] | None) -> list[dict[str, Any]]:
@@ -77,6 +80,7 @@ def dfh_detect_shadow_replay_runs(native: dict[str, Any] | None, turn: dict[str,
 	_resolve_bg_shadow_runs(rows, bg_steps, runs)
 	return runs
 # @used-by :func:`_inspect_shadow_call()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_verif_pre_invocation_and_crash_ops()`
 # @used-by :mod:`agent_tools.verification_observability`
 def dfh_is_shadow_replay_cmd(cmd: str) -> bool:
 	r = False
@@ -106,6 +110,7 @@ def dfh_latest_unresolved_failure(runs: list[dict[str, Any]]) -> dict[str, Any] 
 		r = ordered[fail_idx]
 	return r
 # @used-by :meth:`Df.Harness.Hook.VerificationObserver.VerificationObserver.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_verif_pre_invocation_and_crash_ops()`
 # @used-by :mod:`agent_tools.verification_observability`
 def dfh_response_discloses_shadow_failure(response: str | None) -> bool:
 	raw = str(response or '')

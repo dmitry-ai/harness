@@ -10,6 +10,7 @@ from Df.Harness.lib.path_schema import dfh_canonicalize_root_dir
 class OpenTurnSyncer:
 	# @used-by :func:`Df.Harness.lib.completion_commands.dfh_sync()`
 	# @used-by :func:`agent_tools.journal_sync_all.sync_all_open()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_sync_and_upgrade()`
 	def __init__(self, root: Path, *, journal_directory: Any=None, adopt_conflict: bool=False, from_step: int=0, folder_fn: Any, dir_fn: Any, read_fn: Any, sync_fn: Any) -> None:
 		self.__root = Path(root)
 		self.__journal_directory = journal_directory
@@ -21,6 +22,7 @@ class OpenTurnSyncer:
 		self.__sync_fn = sync_fn
 	# @used-by :func:`Df.Harness.lib.completion_commands.dfh_sync()`
 	# @used-by :func:`agent_tools.journal_sync_all.sync_all_open()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_sync_and_upgrade()`
 	def run(self) -> dict[str, Any]:
 		root_p = dfh_canonicalize_root_dir(self.__root, dfh_load_registry())
 		jdir = self.__dir_fn(root_p, self.__journal_directory)

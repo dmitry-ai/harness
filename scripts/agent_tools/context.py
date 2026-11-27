@@ -33,7 +33,7 @@ def default_context_config(root: Path | str | None=None) -> dict:
 # @used-by :mod:`agent_tools.context`
 def discover_letters(root: Path, languages=('EN', 'RU')) -> list[Path]:
 	return LetterDiscoverer(root, languages).discover()
-# @used-by :func:`agent_tools.cli.main()`
+# @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__run_generate_context()`
 # @used-by :meth:`test_agent_tools.ContextTests.test_default_context_config_includes_agent_kb_and_excludes_evidence_subfolder()`
 # @used-by :meth:`test_agent_tools.ContextTests.test_missing_input_fails_and_dry_run_writes_nothing()`
 # @used-by :meth:`test_agent_tools.ContextTests.test_output_cannot_overwrite_input_or_escape_root()`

@@ -17,7 +17,7 @@ class RAM:
 		self.__tags: dict[str, list[str]] = {}
 	# 2017-08-10
 	# https://github.com/mage2pro/core/blob/11.6.1/Core/RAM.php#L5-L17
-	# @used-by :func:`agent_tools.cli_registry._exec_wait_repo()`
+	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_wait_repo()`
 	# @used-by :meth:`test_df_core_base.DfCoreBaseTests.test_cache_dfc_dfcf_and_ram()`
 	def clean(self, tag: str) -> None:
 		if tag in self.__tags:
@@ -30,65 +30,71 @@ class RAM:
 	# 2026-11-26 "Handle worktree-land gate timeouts cleanly and add cross-cutting boundary regressions": https://github.com/dmitry-ai/harness/issues/365
 	# @used-by :func:`Df.Core.lib.cache.dfcf.dfcf()`
 	# @used-by :func:`Df.Core.lib.git.df_git_root()`
-	# @used-by :func:`agent_tools.admission.capture()`
-	# @used-by :func:`agent_tools.blocked_report.audit_runner_workflow_scope()`
-	# @used-by :func:`agent_tools.cleanup._finish_pending()`
-	# @used-by :func:`agent_tools.cleanup._read_ag_rows()`
-	# @used-by :func:`agent_tools.cleanup.antigravity_projects()`
-	# @used-by :func:`agent_tools.cleanup.candidates()`
-	# @used-by :func:`agent_tools.cleanup.remove_antigravity()`
-	# @used-by :func:`agent_tools.cleanup.restore_antigravity()`
-	# @used-by :func:`agent_tools.cleanup_audit.run_cleanup_report_cli()`
-	# @used-by :func:`agent_tools.cleanup_lifecycle.effective_project_activity()`
-	# @used-by :func:`agent_tools.cli_common.consume_scratch_input()`
-	# @used-by :func:`agent_tools.cli_common.consume_unchanged_files()`
-	# @used-by :func:`agent_tools.cli_common.verify_scratch_input_path()`
-	# @used-by :func:`agent_tools.completion._group()`
-	# @used-by :func:`agent_tools.completion._instruction_snapshot()`
-	# @used-by :func:`agent_tools.completion._persist()`
-	# @used-by :func:`agent_tools.completion._record()`
-	# @used-by :func:`agent_tools.completion._response_link_issues()`
-	# @used-by :func:`agent_tools.completion._same_turn_artifact_path()`
-	# @used-by :func:`agent_tools.completion._state()`
-	# @used-by :func:`agent_tools.configuration._native_config()`
-	# @used-by :func:`agent_tools.configuration._publish()`
-	# @used-by :func:`agent_tools.configuration.build_native()`
-	# @used-by :func:`agent_tools.configuration.configure_codex_project()`
-	# @used-by :func:`agent_tools.configuration.global_codex_instructions()`
-	# @used-by :func:`agent_tools.configuration.load_discovery_manifest()`
-	# @used-by :func:`agent_tools.configuration.load_project_receipt()`
-	# @used-by :func:`agent_tools.configuration.store_content_backup()`
+	# @used-by :func:`Df.Harness.lib.admission_ops.dfh_capture_admission()`
+	# @used-by :func:`Df.Harness.lib.ag_daemon.dfh_project_item_matches_root()`
+	# @used-by :func:`Df.Harness.lib.ag_inputs._resolve_ws_context_entry()`
+	# @used-by :func:`Df.Harness.lib.blocked_report_ops.dfh_audit_runner_workflow_scope()`
+	# @used-by :func:`Df.Harness.lib.cleanup_audit_ops.dfh_run_cleanup_report_cli()`
+	# @used-by :func:`Df.Harness.lib.cleanup_mutation_ops._save_pending_snapshot()`
+	# @used-by :func:`Df.Harness.lib.cleanup_mutation_ops._unlink_ag_projects()`
+	# @used-by :func:`Df.Harness.lib.cleanup_mutation_ops.dfh_finish_pending()`
+	# @used-by :func:`Df.Harness.lib.cleanup_mutation_ops.dfh_restore_antigravity()`
+	# @used-by :func:`Df.Harness.lib.cleanup_store_ops._evaluate_candidate()`
+	# @used-by :func:`Df.Harness.lib.cleanup_store_ops._parse_pending_ag_entry()`
+	# @used-by :func:`Df.Harness.lib.cleanup_store_ops._read_ag_rows()`
+	# @used-by :func:`Df.Harness.lib.cleanup_store_ops.dfh_antigravity_projects()`
+	# @used-by :func:`Df.Harness.lib.cli_input.dfh_consume_scratch_input()`
+	# @used-by :func:`Df.Harness.lib.cli_input.dfh_consume_unchanged_files()`
+	# @used-by :func:`Df.Harness.lib.cli_input.dfh_verify_scratch_input_path()`
+	# @used-by :func:`Df.Harness.lib.completion_checks._collect_base_instruction_sources()`
+	# @used-by :func:`Df.Harness.lib.completion_core.dfh_persist()`
+	# @used-by :func:`Df.Harness.lib.completion_links._resolve_local_target()`
+	# @used-by :func:`Df.Harness.lib.completion_record._resolve_legacy_group()`
+	# @used-by :func:`Df.Harness.lib.completion_record.dfh_record()`
+	# @used-by :func:`Df.Harness.lib.completion_record.dfh_same_turn_artifact_path()`
+	# @used-by :func:`Df.Harness.lib.completion_state.dfh_load_turn_state()`
+	# @used-by :func:`Df.Harness.lib.config_blocks.dfh_load_discovery_manifest()`
+	# @used-by :func:`Df.Harness.lib.config_blocks.dfh_load_project_receipt()`
+	# @used-by :func:`Df.Harness.lib.config_blocks.dfh_store_content_backup()`
+	# @used-by :func:`Df.Harness.lib.config_codex._read_global_profile_value()`
+	# @used-by :func:`Df.Harness.lib.config_codex._run_codex_project_publish()`
+	# @used-by :func:`Df.Harness.lib.config_codex.dfh_native_config()`
+	# @used-by :func:`Df.Harness.lib.hook_stop_ops._record_emergency_files()`
+	# @used-by :func:`Df.Harness.lib.journal_records._scan_orphan_candidates()`
+	# @used-by :func:`Df.Harness.lib.journal_records._validate_answer_group_files()`
+	# @used-by :func:`Df.Harness.lib.journal_records.dfh_get_existing_step_ids()`
+	# @used-by :func:`Df.Harness.lib.journal_records.dfh_publish_step()`
+	# @used-by :func:`Df.Harness.lib.journal_records.dfh_step_errors()`
+	# @used-by :func:`Df.Harness.lib.journal_upgrade._apply_upgrade_moves()`
+	# @used-by :func:`Df.Harness.lib.journal_upgrade._build_upgrade_plans()`
+	# @used-by :func:`Df.Harness.lib.journal_upgrade._merge_one_state_dir()`
+	# @used-by :func:`Df.Harness.lib.journal_upgrade._migrate_journal_state_dir()`
+	# @used-by :func:`Df.Harness.lib.journal_upgrade.dfh_ensure_project_journal_upgraded()`
+	# @used-by :func:`Df.Harness.lib.journal_upgrade.dfh_upgrade_journal()`
+	# @used-by :func:`Df.Harness.lib.native_ag_plan._plan_ag_runner()`
+	# @used-by :func:`Df.Harness.lib.native_codex_plan._plan_codex_config_toml()`
+	# @used-by :func:`Df.Harness.lib.native_codex_roles._retire_one_shared_role()`
+	# @used-by :func:`Df.Harness.lib.native_links.dfh_load_state()`
+	# @used-by :func:`Df.Harness.lib.path_resolve.dfh_resolve_project_root()`
+	# @used-by :func:`Df.Harness.lib.path_schema.dfh_canonicalize_root_dir()`
+	# @used-by :func:`Df.Harness.lib.path_schema.dfh_infer_default_profile()`
+	# @used-by :func:`Df.Harness.lib.path_schema.dfh_v2_software_deliverable_dir()`
+	# @used-by :func:`Df.Harness.lib.request_binding.dfh_completion_project_id()`
+	# @used-by :func:`Df.Harness.lib.rule_splitter.dfh_split_rules()`
+	# @used-by :func:`Df.Harness.lib.rule_splitter.dfh_split_rules_main()`
+	# @used-by :func:`Df.Harness.lib.runtime_snapshot_ops.dfh_ensure_repo_git_hooks()`
+	# @used-by :func:`Df.Harness.lib.runtime_snapshot_ops.dfh_has_git_head()`
+	# @used-by :func:`Df.Harness.lib.shadow_clone.dfh_cleanup_shadow_root()`
+	# @used-by :func:`Df.Harness.lib.storage.dfh_write_immutable_bytes()`
+	# @used-by :func:`Df.Harness.lib.trace_review.dfh_verify_review_proof_core()`
 	# @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
 	# @used-by :func:`agent_tools.git_gate.resolve_git_repo_from_argv()`
 	# @used-by :func:`agent_tools.git_ignore._plan_global_git_ignore()`
 	# @used-by :func:`agent_tools.git_ignore.sync_global_git_ignore()`
 	# @used-by :func:`agent_tools.issue_first_gate._find_git_repo_root()`
 	# @used-by :func:`agent_tools.issues.service_helpers.dirty_issue_first_files()`
-	# @used-by :func:`agent_tools.journal._migrate_journal_state_dir()`
-	# @used-by :func:`agent_tools.journal._publish()`
-	# @used-by :func:`agent_tools.journal.ensure_project_journal_upgraded()`
-	# @used-by :func:`agent_tools.journal.find_orphan_or_overwritten_steps()`
-	# @used-by :func:`agent_tools.journal.get_existing_step_ids()`
-	# @used-by :func:`agent_tools.journal.record_answer()`
-	# @used-by :func:`agent_tools.journal.step_errors()`
-	# @used-by :func:`agent_tools.journal.upgrade_journal()`
-	# @used-by :func:`agent_tools.journal.verify_answer()`
 	# @used-by :func:`agent_tools.landing_lease._lease_file_for()`
 	# @used-by :func:`agent_tools.links.validate_file()`
-	# @used-by :func:`agent_tools.native_profiles._antigravity_plan()`
-	# @used-by :func:`agent_tools.native_profiles._apply()`
-	# @used-by :func:`agent_tools.native_profiles._codex_plan()`
-	# @used-by :func:`agent_tools.native_profiles._load_state()`
-	# @used-by :func:`agent_tools.native_profiles._retire_shared_roles()`
-	# @used-by :func:`agent_tools.path_registry._infer_default_profile()`
-	# @used-by :func:`agent_tools.path_registry._v2_software_deliverable_dir()`
-	# @used-by :func:`agent_tools.path_registry.canonicalize_root_dir()`
-	# @used-by :func:`agent_tools.path_registry.paths_report()`
-	# @used-by :func:`agent_tools.path_registry.resolve_project_root()`
-	# @used-by :func:`agent_tools.platforms.antigravity._project_item_matches_root()`
-	# @used-by :func:`agent_tools.platforms.antigravity._workspace_context()`
-	# @used-by :func:`agent_tools.platforms.request_binding.completion_project_id()`
-	# @used-by :func:`agent_tools.platforms.trace_common.verify_review_proof_core()`
 	# @used-by :func:`agent_tools.repo_wait._map_touched_path_to_repo()`
 	# @used-by :func:`agent_tools.repo_wait._normalize_repo_list()`
 	# @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
@@ -97,14 +103,7 @@ class RAM:
 	# @used-by :func:`agent_tools.research.collect()`
 	# @used-by :func:`agent_tools.research.inside()`
 	# @used-by :func:`agent_tools.research.observed_use()`
-	# @used-by :func:`agent_tools.runtime_snapshot._activate_release()`
-	# @used-by :func:`agent_tools.runtime_snapshot._has_git_head()`
-	# @used-by :func:`agent_tools.runtime_snapshot.ensure_repo_git_hooks()`
-	# @used-by :func:`agent_tools.shadow_replay.run_shadow_replay()`
-	# @used-by :func:`agent_tools.shadow_replay_clone.cleanup_shadow_root()`
 	# @used-by :func:`agent_tools.snapshot.snapshot_draft()`
-	# @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`
-	# @used-by :func:`agent_tools.storage.write_immutable_bytes()`
 	# @used-by :func:`agent_tools.text_claims.registry_path()`
 	# @used-by :func:`agent_tools.text_claims.save_registry()`
 	# @used-by :func:`agent_tools.text_cli.main()`
@@ -118,8 +117,6 @@ class RAM:
 	# @used-by :func:`agent_tools.worktree_flow.worktree_cleanup()`
 	# @used-by :func:`agent_tools.worktree_guard._remove_tree_strict()`
 	# @used-by :func:`agent_tools.worktree_guard.remove_worktree_fail_closed()`
-	# @used-by :func:`split_project_rules.main()`
-	# @used-by :func:`split_project_rules.split_rules()`
 	# @used-by :func:`test_historical_admission._restore_tree_in_place()`
 	# @used-by :func:`test_project_rename._assert_renamed_journal_and_state()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__load_state()`
@@ -130,11 +127,25 @@ class RAM:
 	# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__write_card()`
 	# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.__commit_locked()`
 	# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__find_git_root()`
+	# @used-by :meth:`Df.Harness.Config.NativeBuilder.NativeBuilder.__prepare_codex_outputs()`
+	# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__apply()`
+	# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__commit_receipt()`
+	# @used-by :meth:`Df.Harness.Config.NativeProfile.Plan.Plan.file()`
+	# @used-by :meth:`Df.Harness.Config.ProjectionPublisher.ProjectionPublisher.__commit()`
+	# @used-by :meth:`Df.Harness.Config.ProjectionPublisher.ProjectionPublisher.__plan_outputs()`
+	# @used-by :meth:`Df.Harness.Config.ProjectionPublisher.ProjectionPublisher.__plan_retirements()`
+	# @used-by :meth:`Df.Harness.Config.ProjectionPublisher.ProjectionPublisher.__write_backups_and_planned()`
 	# @used-by :meth:`Df.Harness.Gate.CdpBypassGate.CdpBypassGate.is_inside_harness_code()`
 	# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.enclosing_github_repo()`
+	# @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__load_existing_group()`
+	# @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__load_or_create_group()`
+	# @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__write_pending_step()`
 	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__append_executor_receipt()`
 	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__collect_project_executors()`
 	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.project_metrics()`
+	# @used-by :meth:`Df.Harness.Path.PathReporter.PathReporter.__check_similar_groups()`
+	# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__apply_v2_legacy_dir_names()`
+	# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.to_dict()`
 	# @used-by :meth:`Df.Harness.Project.AttachmentInventory.AttachmentInventory.__register_bytes()`
 	# @used-by :meth:`Df.Harness.Project.AttachmentInventory.AttachmentInventory.__resolve_source_target()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__read_state()`
@@ -157,6 +168,8 @@ class RAM:
 	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.update_projects_index()`
 	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.migrate_journal_state()`
 	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync()`
+	# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.__activate_release()`
+	# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.run()`
 	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.__is_project_marker_dir()`
 	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.__resolve_deleted_worktree_scope()`
 	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.resolve_code_scope()`
@@ -190,9 +203,6 @@ class RAM:
 	# @used-by :meth:`agent_tools.git_gate.WorktreeCommitTransaction.commit()`
 	# @used-by :meth:`agent_tools.git_gate.WorktreeCommitTransaction.remove()`
 	# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._check_repo_commits_and_files()`
-	# @used-by :meth:`agent_tools.native_profiles._Plan.file()`
-	# @used-by :meth:`agent_tools.path_registry.ProjectPaths.__init__()`
-	# @used-by :meth:`agent_tools.path_registry.ProjectPaths.to_dict()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.begin()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.index()`
 	# @used-by :meth:`test_agent_tools.ContextTests.test_missing_input_fails_and_dry_run_writes_nothing()`
@@ -244,6 +254,12 @@ class RAM:
 	# @used-by :meth:`test_df_article.ReferenceArticleTests.test_deleted_premise_blocks_rendering_until_dependents_are_resolved()`
 	# @used-by :meth:`test_df_article.SlopDetectionTests.test_project_bans_are_discovered_from_the_project_root()`
 	# @used-by :meth:`test_df_core_base.DfCoreBaseTests.test_cache_dfc_dfcf_and_ram()`
+	# @used-by :meth:`test_df_harness_s11_wave2d.DfHarnessS11Wave2DTests.test_path_subsystem_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_input_guards_and_error_payloads()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_native_builder_and_projection_publisher()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_native_profiles_install_rename_retire_and_rollback()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_stop_gate_continuation_guard_and_emergency_capture()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_completion_tail()`
 	# @used-by :meth:`test_diff_coverage_gate.DiffCoverageGateTests.test_worktree_land_handles_cross_cutting_commit_and_diff_coverage_timeout()`
 	# @used-by :meth:`test_doc5_replay_audit.Doc5ReplayAuditTests.test_worktree_land_enforces_answer_gate_corpus_before_merge()`
 	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_arbitrary_intake_receipt_cannot_promote_own_note_or_attachment()`
@@ -363,9 +379,9 @@ class RAM:
 		return self.__data[k] if self.exists(k) else None
 	# 2017-08-11
 	# https://github.com/mage2pro/core/blob/11.6.1/Core/RAM.php#L38-L42
-	# @used-by :func:`agent_tools.cleanup._codex_glob_scope()`
-	# @used-by :func:`agent_tools.runtime.using()`
-	# @used-by :func:`agent_tools.runtime_cache.skip_shell_violations()`
+	# @used-by :func:`Df.Harness.lib.cleanup_store_ops.dfh_codex_glob_scope()`
+	# @used-by :func:`Df.Harness.lib.runtime_cache.dfh_skip_shell_violations()`
+	# @used-by :func:`Df.Harness.lib.runtime_context.dfh_using()`
 	# @used-by :func:`agent_tools.source_grounding.read_only_grounding()`
 	# @used-by :meth:`test_df_core_base.DfCoreBaseTests.test_cache_dfc_dfcf_and_ram()`
 	def reset(self) -> None:
@@ -374,9 +390,9 @@ class RAM:
 	# 2017-08-10
 	# https://github.com/mage2pro/core/blob/11.6.1/Core/RAM.php#L44-L65
 	# @used-by :func:`Df.Core.lib.cache.dfcf.dfcf()`
-	# @used-by :func:`agent_tools.cleanup._codex_glob_scope()`
-	# @used-by :func:`agent_tools.runtime.using()`
-	# @used-by :func:`agent_tools.runtime_cache.skip_shell_violations()`
+	# @used-by :func:`Df.Harness.lib.cleanup_store_ops.dfh_codex_glob_scope()`
+	# @used-by :func:`Df.Harness.lib.runtime_cache.dfh_skip_shell_violations()`
+	# @used-by :func:`Df.Harness.lib.runtime_context.dfh_using()`
 	# @used-by :func:`agent_tools.source_grounding.read_only_grounding()`
 	# @used-by :meth:`Df.Harness.TestRunner.ParallelRunner.ParallelRunner.__stop_siblings()`
 	# @used-by :meth:`Df.Harness.TestRunner.SuiteRunner.SuiteRunner.__run_unittest_suite()`

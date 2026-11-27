@@ -36,22 +36,21 @@ class Later(datetime):
 	# @used-by :func:`Df.Core.lib.date.df_date_from_timestamp_14()`
 	# @used-by :func:`Df.Core.lib.date.df_now()`
 	# @used-by :func:`Df.Core.lib.time.df_utc_iso()`
-	# @used-by :func:`agent_tools.budget._active_window_5h_steps()`
-	# @used-by :func:`agent_tools.cleanup_audit._istanbul_stamp()`
-	# @used-by :func:`agent_tools.cleanup_audit.record_cleanup_answer_log()`
-	# @used-by :func:`agent_tools.completion._now()`
+	# @used-by :func:`Df.Harness.lib.cleanup_audit_ops.dfh_istanbul_stamp()`
+	# @used-by :func:`Df.Harness.lib.cleanup_audit_ops.dfh_record_cleanup_answer_log()`
+	# @used-by :func:`Df.Harness.lib.completion_core.dfh_now()`
+	# @used-by :func:`Df.Harness.lib.runtime_context.dfh_request_day()`
 	# @used-by :func:`agent_tools.research.capture_dom()`
 	# @used-by :func:`agent_tools.research.collect()`
 	# @used-by :func:`agent_tools.research.observed_use()`
-	# @used-by :func:`agent_tools.runtime.request_day()`
-	# @used-by :func:`agent_tools.runtime_snapshot._activate_release()`
-	# @used-by :func:`agent_tools.runtime_snapshot._promote_locked()`
 	# @used-by :func:`agent_tools.text_browser.collect_cdp_dom()`
 	# @used-by :func:`agent_tools.text_browser.collect_headless_dom()`
 	# @used-by :func:`agent_tools.text_sources._attempt()`
 	# @used-by :func:`agent_tools.text_sources._evaluate()`
 	# @used-by :func:`test_worktree_isolation_gate._write_turn()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.record_review()`
+	# @used-by :meth:`Df.Harness.Cleanup.Scanner.Scanner.__init__()`
+	# @used-by :meth:`Df.Harness.Completion.BudgetEvaluator.BudgetEvaluator.__active_window_5h_steps()`
 	# @used-by :meth:`Df.Harness.Experiment.PlanPreparer.PlanPreparer.prepare_plan()`
 	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__init_run()`
 	# @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_journal()`
@@ -61,11 +60,12 @@ class Later(datetime):
 	# @used-by :meth:`Df.Harness.Project.RegistrationAttemptStarter.RegistrationAttemptStarter.__build_entry()`
 	# @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.__build_entry()`
 	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.__update_project_json()`
+	# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.__activate_release()`
+	# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.__promote_locked()`
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__build_result()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__load_and_prepare_fs()`
 	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.utc_now()`
-	# @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
 	# @used-by :meth:`agent_tools.text_browser.GuardedCDP.capture_authenticated_dom()`
 	# @used-by :meth:`test_cleanup.CleanupTests.test_legacy_conflicting_job_or_unowned_manifests_never_authorize_deletion()`
 	# @used-by :meth:`test_cleanup.CleanupTests.test_legacy_historical_ids_are_compared_in_full_instead_of_their_numeric_prefix()`

@@ -4,7 +4,7 @@ from pathlib import Path
 # 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
 from Df.Harness.Gate.RulesAuditChecker import RulesAuditChecker
 from Df.Harness.Gate.RulesAuditor import RulesAuditor
-# @used-by :func:`agent_tools.cli_registry._exec_rules_audit()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_rules_audit()`
 # @used-by :meth:`test_arch_rules_contract.ArchRulesContractTests.test_architecture_rule_is_compact_always_on_and_passes_doctor_and_rules_audit()`
 # @used-by :meth:`test_ask_question_pre_tool_gate.AskQuestionPreToolGateTests.test_pre_tool_gate_blocks_stop_gate_bypass_and_docs_codify_rule()`
 # @used-by :meth:`test_cli_command_grounding.CliCommandGroundingTests.test_exec2_rule_contains_shadow_replay_requirement_and_passes_rules_audit()`
@@ -16,14 +16,14 @@ from Df.Harness.Gate.RulesAuditor import RulesAuditor
 # @used-by :mod:`agent_tools.rules_audit`
 def audit_rules(primary: str | Path, *, workspace: str | Path | None=None, max_file_bytes: int=RulesAuditChecker.MAX_RULE_FILE_BYTES, max_always_on_bytes: int=RulesAuditChecker.MAX_ALWAYS_ON_BYTES, max_always_on_tokens: int=RulesAuditChecker.MAX_ALWAYS_ON_TOKENS, overrides: dict[Path, bytes] | None=None) -> dict:
 	return RulesAuditor(primary, workspace=workspace, max_file_bytes=max_file_bytes, max_always_on_bytes=max_always_on_bytes, max_always_on_tokens=max_always_on_tokens, overrides=overrides).audit()
-# @used-by :func:`agent_tools.cli_registry._exec_rules_audit()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_rules_audit()`
 # @used-by :mod:`agent_tools.rules_audit`
 def build_semantic_audit_brief(primary: str | Path, *, workspace: str | Path | None=None) -> str:
 	return RulesAuditor.build_semantic_brief(primary, workspace=workspace)
 # @used-by :mod:`agent_tools.rules_audit`
 def check_shared_rule_edit(name: str, args: dict) -> str | None:
 	return RulesAuditor.check_shared_rule_edit(name, args)
-# @used-by :func:`agent_tools.cli_registry._format_rules_audit()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_format_rules_audit()`
 # @used-by :mod:`agent_tools.rules_audit`
 def format_rules_audit_text(report: dict) -> str:
 	return RulesAuditor.format_text(report)

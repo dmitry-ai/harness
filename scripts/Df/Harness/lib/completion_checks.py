@@ -163,6 +163,7 @@ def dfh_exec5_status(turn: dict[str, Any], root: Any=None, key: Any=None, *, ops
 	return dfh_recoverable_step_status(turn, 'exec5_violations', 'covered_exec5_steps', root, key, ops=ops)
 # @used-by :func:`Df.Harness.lib.completion_commands._collect_check_payload()`
 # @used-by :meth:`Df.Harness.Completion.AnswerPreparer.AnswerPreparer.__audit_workflow_scope()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_completion_checks_and_admission_guard()`
 # @used-by :mod:`Df.Harness.lib.completion_checks`
 def dfh_factual_kb_note_issues(root: str | Path, turn: dict[str, Any]) -> dict[str, Any]:
 	from agent_tools.knowledge import validate_kb_factual_note
@@ -174,6 +175,7 @@ def dfh_factual_kb_note_issues(root: str | Path, turn: dict[str, Any]) -> dict[s
 		_scan_kb_touched_file(tf, pp, kb_prefix, ev_prefix, r, validate_kb_factual_note)
 	return r
 # @used-by :func:`Df.Harness.lib.completion_state._refresh_turn_checks()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_completion_checks_and_admission_guard()`
 def dfh_gate_resolved(root: str | Path, turn: dict[str, Any], value: dict[str, Any]) -> bool:
 	rc = value.get('readiness_check') or {}
 	gid = str(rc.get('gate_id') or '')
@@ -231,6 +233,7 @@ def dfh_intermediate_or_language_issues(requests: Any, response: str, *, ops: di
 # @used-by :func:`Df.Harness.lib.completion_state.dfh_new_turn_state()`
 # @used-by :func:`agent_tools.completion._compaction_status()`
 # @used-by :meth:`Df.Harness.Completion.AnswerPreparer.AnswerPreparer.__audit_workflow_scope()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_completion_checks_and_admission_guard()`
 def dfh_is_client_deliverable_path(path_text: Any, root: Any=None) -> bool:
 	norm = str(path_text).replace('\\', '/').lower()
 	segs = ('/letters/', '/result/', '/defects/')
@@ -298,6 +301,7 @@ def dfh_tdd_status(root: str | Path, turn: dict[str, Any]) -> dict[str, Any]:
 	return evaluate_tdd_events(list(turn.get('tdd_events') or []), require_final_full_green=True, project_root=root)
 # @used-by :func:`agent_tools.completion._violation_recovery()`
 # @used-by :func:`dfh_recoverable_step_status()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_completion_checks_and_admission_guard()`
 def dfh_violation_recovery(root: Any, key: Any, *, ops: dict[str, Any] | None=None) -> dict[str, Any]:
 	r: dict[str, Any] = {}
 	if None is not root and key:
@@ -309,6 +313,7 @@ def dfh_violation_recovery(root: Any, key: Any, *, ops: dict[str, Any] | None=No
 			except (OSError, ValueError):
 				r = {}
 	return r
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_completion_checks_and_admission_guard()`
 # @used-by :mod:`Df.Harness.lib.completion_checks`
 def dfh_workflow_gate_resolved(root_p: Path, turn: dict[str, Any], kind: str) -> bool:
 	wf_file = dfh_project_paths(root_p, exact_root=True).workflow_json

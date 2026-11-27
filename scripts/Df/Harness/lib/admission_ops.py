@@ -16,6 +16,7 @@ import json
 # @used-by :func:`test_project_rename._assert_renamed_journal_and_state()`
 # @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__prepare_context()`
 # @used-by :meth:`test_df_harness_s11_wave2d_completion.DfHarnessS11Wave2DCompletionTests.test_admission_one_way_facade_behavior()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_journal_tail()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
 # @used-by :mod:`agent_tools.admission`
@@ -35,6 +36,7 @@ def dfh_admission_same_binding(saved: dict | None, current: dict) -> bool:
 # @used-by :func:`Df.Harness.lib.hook_stop_ops._record_emergency_files()`
 # @used-by :meth:`Df.Harness.Completion.AdmissionGuard.AdmissionGuard.run()`
 # @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__prepare_context()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_journal_tail()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 # @used-by :mod:`agent_tools.admission`
 def dfh_capture_admission(paths, requests, response: str, identity: dict) -> PublicationAdmission:

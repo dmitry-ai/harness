@@ -11,31 +11,36 @@ class PageDecoder:
 	def __init__(self, page, job_id: str) -> None:
 		self.__page = page
 		self.__job_id = job_id
-	# @used-by :func:`agent_tools.cleanup.antigravity_projects()`
-	# @used-by :func:`agent_tools.cleanup.remove_antigravity()`
-	# @used-by :func:`agent_tools.cleanup_audit.run_cleanup_report_cli()`
-	# @used-by :func:`agent_tools.cli_domains._load_consumed()`
-	# @used-by :func:`agent_tools.cli_domains._op_prepare_review()`
-	# @used-by :func:`agent_tools.cli_domains._op_record_answer()`
-	# @used-by :func:`agent_tools.completion.execute()`
-	# @used-by :func:`agent_tools.configuration._native_config()`
-	# @used-by :func:`agent_tools.configuration.load_project_receipt()`
+	# @used-by :func:`Df.Harness.lib.ag_wire._decode_media_lines()`
+	# @used-by :func:`Df.Harness.lib.ag_wire._decode_message_payload()`
+	# @used-by :func:`Df.Harness.lib.ag_wire._extract_cmd_names()`
+	# @used-by :func:`Df.Harness.lib.ag_wire._parse_structured_item()`
+	# @used-by :func:`Df.Harness.lib.ag_wire.dfh_wire_path()`
+	# @used-by :func:`Df.Harness.lib.cleanup_audit_ops.dfh_run_cleanup_report_cli()`
+	# @used-by :func:`Df.Harness.lib.cleanup_mutation_ops.dfh_remove_antigravity()`
+	# @used-by :func:`Df.Harness.lib.cleanup_store_ops._parse_pending_ag_entry()`
+	# @used-by :func:`Df.Harness.lib.cli_domain_ops._load_consumed()`
+	# @used-by :func:`Df.Harness.lib.cli_domain_ops._merge_prior_collection()`
+	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_prepare_review()`
+	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_record_answer()`
+	# @used-by :func:`Df.Harness.lib.cli_domain_ops.dfh_execute_collect()`
+	# @used-by :func:`Df.Harness.lib.completion_commands._execute_prepare_or_check()`
+	# @used-by :func:`Df.Harness.lib.config_blocks.dfh_load_project_receipt()`
+	# @used-by :func:`Df.Harness.lib.config_codex.dfh_native_config()`
+	# @used-by :func:`Df.Harness.lib.hook_trace_cache.dfh_parse_jsonl_bytes()`
+	# @used-by :func:`Df.Harness.lib.native_ag_plan._plan_ag_config_json()`
+	# @used-by :func:`Df.Harness.lib.native_codex_plan._plan_codex_config_toml()`
+	# @used-by :func:`Df.Harness.lib.native_codex_roles._collect_role_backup_originals()`
+	# @used-by :func:`Df.Harness.lib.runtime_snapshot_ops.dfh_check_runtime_snapshot()`
+	# @used-by :func:`Df.Harness.lib.runtime_snapshot_ops.dfh_export_git_archive()`
+	# @used-by :func:`Df.Harness.lib.runtime_snapshot_ops.dfh_git_read()`
+	# @used-by :func:`Df.Harness.lib.storage.dfh_read_addressed_json()`
+	# @used-by :func:`Df.Harness.lib.trace_common.dfh_read_jsonl_objects()`
 	# @used-by :func:`agent_tools.issues.repo_locator.origin_repo_slug()`
 	# @used-by :func:`agent_tools.issues.service_helpers._parse_dirty_porcelain()`
 	# @used-by :func:`agent_tools.issues.service_helpers.gh_api_call()`
-	# @used-by :func:`agent_tools.journal.step_errors()`
 	# @used-by :func:`agent_tools.links._readable_escapes()`
 	# @used-by :func:`agent_tools.links.fetch_page()`
-	# @used-by :func:`agent_tools.native_profiles._antigravity_plan()`
-	# @used-by :func:`agent_tools.native_profiles._codex_plan()`
-	# @used-by :func:`agent_tools.native_profiles._role_config()`
-	# @used-by :func:`agent_tools.operations._execute_collect()`
-	# @used-by :func:`agent_tools.operations._load_consumed_json()`
-	# @used-by :func:`agent_tools.platforms.antigravity._decode_user_step_entry()`
-	# @used-by :func:`agent_tools.platforms.antigravity._extract_user_step_meta()`
-	# @used-by :func:`agent_tools.platforms.antigravity._wire_path()`
-	# @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
-	# @used-by :func:`agent_tools.platforms.trace_common.read_jsonl_objects()`
 	# @used-by :func:`agent_tools.polyglot_land._branch_touched_files()`
 	# @used-by :func:`agent_tools.repo_tags._commit_sha_and_day()`
 	# @used-by :func:`agent_tools.repo_tags._read_tag_refs()`
@@ -48,11 +53,6 @@ class PageDecoder:
 	# @used-by :func:`agent_tools.repo_tags.validate_tree_path_and_fragment()`
 	# @used-by :func:`agent_tools.repo_wait._dirty_files()`
 	# @used-by :func:`agent_tools.research.extract_bytes()`
-	# @used-by :func:`agent_tools.runtime_snapshot._export_git_archive()`
-	# @used-by :func:`agent_tools.runtime_snapshot._git_read()`
-	# @used-by :func:`agent_tools.runtime_snapshot.check_runtime_snapshot()`
-	# @used-by :func:`agent_tools.storage.read_addressed_json()`
-	# @used-by :func:`agent_tools.trace_event_cache._parse_jsonl_bytes()`
 	# @used-by :func:`agent_tools.upwork_extract.decode_page()`
 	# @used-by :func:`agent_tools.worktree_flow._current_branch()`
 	# @used-by :func:`agent_tools.worktree_flow._rev_distance()`
@@ -81,6 +81,7 @@ class PageDecoder:
 	# @used-by :meth:`Df.Harness.Gate.RulesAuditor.RulesAuditor.__load_rule_entries()`
 	# @used-by :meth:`Df.Harness.Gate.RulesManifest.RulesManifest.inspect_rule()`
 	# @used-by :meth:`Df.Harness.Perf.TimesheetCommon.TimesheetCommon.load_jsonl_rows()`
+	# @used-by :meth:`Df.Harness.Platform.Antigravity.ProjectRegistrar.ProjectRegistrar.__register_single()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__read_state()`
 	# @used-by :meth:`Df.Harness.Project.Intake.ReceiptBuilder.ReceiptBuilder.build()`
 	# @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.verify_snapshot()`

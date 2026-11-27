@@ -13,6 +13,7 @@ import sqlite3
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 class AnswerPreparer:
 	# @used-by :func:`Df.Harness.lib.completion_commands.dfh_prepare_once()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_completion_tail()`
 	# @used-by :meth:`test_turn_completion.AnswerPreparationRunnerTests.test_gate_id_auto_clearing_and_resolve_journal_dir()`
 	def __init__(self, root: str | Path, response: str, result: dict, native: dict, turn: dict, *, blocked_report: bool=False, _ops: dict[str, Any] | None=None) -> None:
 		self.__ops = _ops or {}
@@ -155,7 +156,6 @@ class AnswerPreparer:
 	# @used-by :func:`Df.Harness.lib.hook_addon_ops.dfh_check_runner_addon_observability()`
 	# @used-by :func:`Df.Harness.lib.hook_crash_ops.dfh_check_runner_hook_crashes()`
 	# @used-by :func:`Df.Harness.lib.hook_verif_ops.dfh_check_runner_verification_observability()`
-	# @used-by :func:`agent_tools.arch.evaluator.check_runner_architecture()`
 	# @used-by :func:`agent_tools.scope_deferral.check_runner_scope_deferral()`
 	# @used-by :meth:`AnswerPreparer.__authorize_and_sync_workflow()`
 	# @used-by :meth:`AnswerPreparer.__check_evicted_citations()`
@@ -165,6 +165,7 @@ class AnswerPreparer:
 	# @used-by :meth:`AnswerPreparer.__check_violation_gates()`
 	# @used-by :meth:`AnswerPreparer._record_journal_entry()`
 	# @used-by :meth:`AnswerPreparer.run()`
+	# @used-by :meth:`Df.Harness.Arch.Evaluator.Evaluator.check_runner()`
 	def _fail_gate(self, gate_id: str, detail: str, *, admission_failed: bool=False, status: str | None=None, extra: dict | None=None, cause: BaseException | None=None) -> None:
 		now_fn = self.__ops.get('now') or dfh_now
 		persist_fn = self.__ops.get('persist') or (lambda p, v: dfh_persist(p, v, ops=self.__ops))

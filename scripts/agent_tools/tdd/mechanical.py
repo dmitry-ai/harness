@@ -26,7 +26,7 @@ def matches_any_mechanical_recipes(old_text: str | None, new_text: str | None, r
 # @used-by :mod:`agent_tools.tdd`
 def matches_mechanical_recipe(old_text: str | None, new_text: str | None, recipe: dict) -> bool:
 	return MechanicalExemption.matches_recipe(old_text, new_text, recipe)
-# @used-by :func:`agent_tools.cli_registry._exec_tdd_exempt_mechanical()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_tdd_exempt_mechanical()`
 # @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_worktree_land_skips_tests_for_non_executable_and_runs_for_executable()`
 # @used-by :meth:`test_tdd_mechanical_exemption.MechanicalExemptionTests.test_auditor_and_evaluator_accept_committed_mechanical_diff_and_reject_drift()`
 # @used-by :meth:`test_tdd_mechanical_exemption.MechanicalExemptionTests.test_cli_registration_and_validation_errors()`

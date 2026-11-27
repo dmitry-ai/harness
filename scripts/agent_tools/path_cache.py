@@ -6,9 +6,9 @@ from typing import Any
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 from Df.Harness.Path.CacheStore import CacheStore
 from Df.Harness.lib.path_state import CACHE_LIMIT, CACHE_LOCK as _CACHE_LOCK, FAST_PROJECT_PATHS as _FAST_PROJECT_PATHS, OVERLAY_REFRESH_TTL_S, OVERLAY_TTL_STATE as _OVERLAY_TTL_STATE, dfh_clear_path_cache, dfh_default_runtime_file, dfh_get_ttl_overlay_links, dfh_is_under_tempdir, dfh_lookup_fast_project_paths, dfh_lru_get, dfh_lru_put, dfh_mark_overlay_links_refreshed, dfh_overlay_signature_for_roots, dfh_resolve_reverse_map, dfh_store_fast_project_paths
-# @used-by :func:`agent_tools.project_rename._apply_rename_mutations()`
-# @used-by :func:`agent_tools.project_rename._rollback_rename()`
 # @used-by :func:`git_fixture_cache._clear_harness_caches()`
+# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__apply_mutations()`
+# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__rollback()`
 # @used-by :meth:`test_git_fixture_cache.GitFixtureCacheTests.test_run_harness_inprocess_executes_cli_isolates_env_cwd_and_clears_caches()`
 # @used-by :meth:`test_git_fixture_cache.GitFixtureCacheTests.test_run_harness_inprocess_restores_env_and_cwd_on_system_exit_and_exception()`
 # @used-by :meth:`test_path_cache_and_diff_cov_perf.PathCacheAndDiffCovPerfTests.test_path_cache_rlock_handles_concurrent_eviction_and_clear()`
@@ -39,7 +39,7 @@ def mark_overlay_links_refreshed(reg: Any, default_registry_file: Path) -> None:
 def overlay_signature_for_roots(candidate_roots: tuple[Path, ...], overlay_candidates: tuple[str, ...]) -> tuple:
 	return dfh_overlay_signature_for_roots(candidate_roots, overlay_candidates)
 # @used-by :func:`agent_tools.git_ignore._is_canonical_primary()`
-# @used-by :func:`agent_tools.rules_manifest.resolve_rules_primary()`
+# @used-by :meth:`Df.Harness.Gate.RulesManifest.RulesManifest.resolve_primary()`
 # @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_resolve_code_anchor_maps_linked_worktree_to_canonical_main_repo()`
 # @used-by :mod:`agent_tools.path_registry`
 def resolve_code_anchor(anchor_dir: Path) -> Path:

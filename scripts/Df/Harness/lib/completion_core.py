@@ -65,7 +65,7 @@ def _scan_native_for_platform(root_p: Path, platform: str, conversation: str, ba
 # @used-by :func:`Df.Harness.lib.completion_recovery._scan_readonly_turn()`
 # @used-by :func:`Df.Harness.lib.completion_state.dfh_persist_turn_recovery()`
 # @used-by :func:`Df.Harness.lib.completion_state.dfh_unchanged()`
-# @used-by :func:`agent_tools.tdd.mechanical._resolve_turn_key()`
+# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__resolve_turn_key()`
 # @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_historical_explicit_project_root_receipt_reconciles_without_rewriting_saved_state()`
 def dfh_active_turn(native: dict[str, Any]) -> dict[str, Any] | None:
 	if not native['primary']:
@@ -97,8 +97,8 @@ def dfh_conversation_journal_steps(root: str | Path, journal_directory: Any, con
 		r = dfh_collect_conversation_journal_steps(folder_fn(root_p), dir_fn(root_p, journal_directory), cid, iter_groups_fn=dfh_iter_answer_group_records, iter_res_fn=dfh_iter_turn_reservations, read_fn=read_fn, same_j_fn=dfh_same_journal_identity)
 	return r
 # @used-by :func:`Df.Harness.lib.completion_recovery.dfh_sync_conversation_title()`
-# @used-by :func:`agent_tools.meta.blocks._conversation_label()`
 # @used-by :func:`dfh_sync_antigravity_conversation_title()`
+# @used-by :meth:`Df.Harness.Meta.Blocks.Blocks.conversation_label()`
 def dfh_format_conversation_journal_title(steps: Any) -> str:
 	ordered = sorted({st for st in (steps or ()) if int is type(st) and 1 <= st})
 	return ', '.join((str(st) for st in ordered))
@@ -143,6 +143,7 @@ def dfh_hash(value: bytes) -> str:
 # @used-by :func:`dfh_conversation_journal_steps()`
 # @used-by :meth:`Df.Harness.Completion.JournalReconciler.JournalReconciler.__complete_turn_delivery()`
 # @used-by :meth:`Df.Harness.Completion.JournalReconciler.JournalReconciler.__resolve_effective_response()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_completion_checks_and_admission_guard()`
 def dfh_journal_dir(root: str | Path, selected: Any=None) -> Path:
 	return dfh_resolve_journal_dir(root, selected)
 # @used-by :func:`agent_tools.completion._journal_lock()`
@@ -310,9 +311,9 @@ def dfh_sync_antigravity_conversation_title(root: str | Path, native: dict[str, 
 # @used-by :func:`Df.Harness.lib.completion_state.dfh_persist_turn_recovery()`
 # @used-by :func:`Df.Harness.lib.completion_state.dfh_unchanged()`
 # @used-by :func:`agent_tools.completion._completion_ops()`
-# @used-by :func:`agent_tools.tdd.mechanical._resolve_turn_key()`
 # @used-by :meth:`Df.Harness.Completion.JournalReconciler.JournalReconciler.run()`
 # @used-by :meth:`Df.Harness.Hook.EmergencyCapturer.EmergencyCapturer.run()`
+# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__resolve_turn_key()`
 # @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_open_turn_reconciles_safely_and_trims_stale_reservation()`
 # @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_prepared_or_missing_tail_turn_remains_rejected()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`

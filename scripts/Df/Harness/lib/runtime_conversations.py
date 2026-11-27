@@ -46,6 +46,7 @@ def _find_ag_conversation(plat_id: str, iid: str, item: dict, conversation_id: s
 		r = {'backend_dir': str(backend) if backend else None, 'enabled': item['enabled'], 'id': iid, 'platform': plat_id, 'system_paths': sp, 'trace_file': str(trace) if trace else None}
 	return r
 # @used-by :func:`dfh_find_conversation_instance()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_runtime_tail()`
 def _find_codex_conversation(plat_id: str, iid: str, item: dict, conversation_id: str) -> dict | None:
 	sp = item['system_paths']
 	home_str = sp.get('home')
@@ -110,7 +111,8 @@ def dfh_antigravity_backend_has_conversation(backend_dir: Any, conversation_id: 
 	return r
 # @used-by :func:`Df.Harness.lib.runtime_resolve._codex_match_by_home_dir()`
 # @used-by :func:`_find_codex_conversation()`
-# @used-by :func:`agent_tools.meta.builders._collect_codex_issue_ctx()`
+# @used-by :meth:`Df.Harness.Meta.Builders.Builders.__collect_codex_issue_ctx()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_default_system_paths_overrides_and_nested_codex_globs()`
 def dfh_codex_home_conversation_trace(home_dir: Any, conversation_id: str, *, system_paths: dict | None=None) -> str | None:
 	r: str | None = None

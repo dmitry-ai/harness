@@ -10,6 +10,7 @@ import re
 import uuid
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 # @used-by :func:`dfh_answer_groups()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_journal_tail()`
 def _check_group_files(directory: Path, req_dir: Path, res_dir: Path, group: dict, filter_ids: set | None) -> bool:
 	r = True
 	for step, request in zip(group['steps'], group['requests']):
@@ -22,6 +23,7 @@ def _check_group_files(directory: Path, req_dir: Path, res_dir: Path, group: dic
 			break
 	return r
 # @used-by :func:`_scan_orphan_candidates()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 def _check_overwritten_conflict(cand_steps: list[int], disk_reqs: list[str], disk_resps: list[str], claimed_by_step: dict[int, dict], native_ids: list[str]) -> tuple[list[int], Any] | None:
 	r: tuple[list[int], Any] | None = None
 	for st in cand_steps:
@@ -34,6 +36,7 @@ def _check_overwritten_conflict(cand_steps: list[int], disk_reqs: list[str], dis
 				break
 	return r
 # @used-by :func:`_scan_orphan_candidates()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 def _match_orphan_window(cand_steps: list[int], req_map: dict[int, Path], res_map: dict[int, Path], norm_reqs: list[str], norm_resp: str) -> tuple[list[str], list[str]] | None:
 	r: tuple[list[str], list[str]] | None = None
 	try:
@@ -59,6 +62,7 @@ def _reserve_and_publish_step(directory: Path, journal_state: Path, req_content:
 		raise RuntimeError(f'Step {step} pending; recover with token {tok}: {exc}') from exc
 	return step
 # @used-by :func:`dfh_find_orphan_or_overwritten_steps()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_journal_tail()`
 def _scan_orphan_candidates(directory: Path, req_dir: Path, res_dir: Path, norm_reqs: list[str], norm_resp: str, native_ids: list[str]) -> tuple:
 	claimed_by_step = {st: g_val for _, g_val in dfh_iter_answer_group_records(directory, ignore_errors=True) for st in (g_val.get('steps') or ()) if int is type(st)}
 	req_map, res_map = (dict(dfh_iter_side_step_files(req_dir)), dict(dfh_iter_side_step_files(res_dir)))
@@ -98,8 +102,8 @@ def _validate_answer_group_meta(directory: Path, group: dict, requests: list[str
 	if not isinstance(group.get('tokens'), list) or len(group['tokens']) != len(steps) or any((not isinstance(token, str) or (not token) for token in group['tokens'])):
 		raise ValueError('Historical answer-group reservation identity changed')
 	return steps
-# @used-by :func:`agent_tools.context.assemble()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
+# @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.__collect_journal_steps()`
+# @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.__saved_answers()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_group_crash_reserves_all_numbers_and_preserves_previous_context()`
 # @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_adopt_requests_isolates_foreign_answer_group_mismatch()`
 def dfh_answer_groups(directory: str | Path, *, request_ids: Any=None) -> list[dict]:
@@ -143,10 +147,10 @@ def dfh_find_orphan_or_overwritten_steps(directory: Path, requests: list[str], r
 # @used-by :func:`Df.Harness.lib.journal_integrity_ops.dfh_validate_step_cli()`
 # @used-by :func:`Df.Harness.lib.journal_reservations.dfh_reserve_turn_steps()`
 # @used-by :func:`_reserve_and_publish_step()`
-# @used-by :func:`agent_tools.context.assemble()`
-# @used-by :func:`agent_tools.project_rename_verify._collect_journal_errors()`
 # @used-by :meth:`Df.Harness.Journal.IntegrityAuditor.IntegrityAuditor.run()`
 # @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__resolve_steps()`
+# @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.__collect_journal_steps()`
+# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__collect_journal_errors()`
 # @used-by :meth:`Df.Harness.Shadow.ReplayPipeline.ReplayPipeline.__find_reply_path()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_concurrent_real_processes_same_request_get_distinct_pairs()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_o_journal_20_entry_bucketing_and_partial_range_normalization()`
@@ -191,6 +195,7 @@ def dfh_iter_answer_group_records(directory: Path, *, ignore_errors: bool=False)
 			r.append((path, val))
 	return r
 # @used-by :meth:`Df.Harness.Completion.JournalReconciler.JournalReconciler.__resolve_effective_response()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 # @used-by :meth:`test_turn_completion.TurnJournalReconcilerTests.test_compacted_status5_steps_single_pass_authorize_and_group_helpers()`
 def dfh_matching_group_response(directory: Path, req_ids: list[str], response: str) -> str | None:
 	eff = Path(directory).resolve()
@@ -223,6 +228,9 @@ def dfh_publish_step(directory: Path, step: int, state: dict, *, recovering: boo
 	(dfh_state_dir(directory) / f'{step}.json').unlink(missing_ok=True)
 # @used-by :func:`agent_tools.journal.record_step()`
 # @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__run_record_step()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_journal_tail()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_shadow_tail()`
 def dfh_record_step(journal_dir: Path, req_content: str, res_content: str, target_step: int | None=None, allow_overwrite: bool=False, *, create_bytes_fn: Any=dfh_create_bytes, publish_fn: Any=None) -> int:
 	from agent_tools.text_workflow import gate_requests
 	dfh_validate_payload(req_content, res_content)
@@ -242,6 +250,7 @@ def dfh_record_step(journal_dir: Path, req_content: str, res_content: str, targe
 	return r
 # @used-by :func:`agent_tools.journal.recover_step()`
 # @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__run_record_step()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 def dfh_recover_step(directory: Path, step: int, token: str, *, publish_fn: Any=None) -> None:
 	if 1 > step:
 		raise ValueError('Step must be positive')
@@ -259,16 +268,17 @@ def dfh_recover_step(directory: Path, step: int, token: str, *, publish_fn: Any=
 		pub(eff, step, state, recovering=True)
 # @used-by :func:`Df.Harness.lib.journal_integrity_ops.dfh_validate_finalize_journal()`
 # @used-by :func:`Df.Harness.lib.journal_integrity_ops.dfh_validate_step_cli()`
-# @used-by :func:`agent_tools.context.assemble()`
-# @used-by :func:`agent_tools.project_rename_verify._collect_journal_errors()`
 # @used-by :func:`dfh_validate_step()`
 # @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__run_record_step()`
+# @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.__collect_journal_steps()`
+# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__collect_journal_errors()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_concurrent_real_processes_same_request_get_distinct_pairs()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_exact_bytes_and_no_keyword_authorization()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_failed_second_write_recovers_with_token()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_o_journal_20_entry_bucketing_and_partial_range_normalization()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_process_crash_releases_lock_and_reservation_is_recoverable()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_recovery_does_not_overwrite_conflict()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 def dfh_step_errors(directory: Path, step: int) -> list[str]:
 	eff = Path(directory)
 	if int is not type(step) or 1 > step:
@@ -298,7 +308,7 @@ def dfh_validate_payload(request: str, response: str) -> None:
 		text.encode('utf-8')
 		if '\ufffd' in text or '/?/KB/' in text or '/?/data/' in text or '\\?\\KB\\' in text or '\\?\\data\\' in text or re.search('(?:^|[\\s*#(])(?:\\?{2,}\\s+){2,}\\?{2,}', text):
 			raise ValueError(f'Corrupted UTF-8 {label} detected (PowerShell pipe OEM/ASCII "?" substitution or U+FFFD); write UTF-8 directly to \ua616/data/scratch/answer.md via write_file or UTF8Encoding($false) and pass --response-file <path> --consume-input')
-# @used-by unused
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 def dfh_validate_step(journal_dir: str | Path, step_num: int) -> bool:
 	errors = dfh_step_errors(Path(journal_dir), step_num)
 	for error in errors:

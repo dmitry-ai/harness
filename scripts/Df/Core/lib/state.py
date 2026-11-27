@@ -12,14 +12,15 @@ def df_is_localhost() -> bool:
 	return os.environ.get('REMOTE_ADDR', '') in ('127.0.0.1', '::1')
 # 2016-12-22
 # https://github.com/mage2pro/core/blob/11.6.1/Core/lib/state.php#L41-L45
-# @used-by :func:`agent_tools.addon_observability._is_pid_alive()`
+# @used-by :func:`Df.Harness.lib.hook_addon_ops.dfh_is_pid_alive()`
+# @used-by :func:`Df.Harness.lib.storage._acquire_stream_lock()`
+# @used-by :func:`Df.Harness.lib.storage._release_stream_lock()`
 # @used-by :func:`agent_tools.git_gate._ancestor_process_names()`
 # @used-by :func:`agent_tools.git_gate.cleanup_stale_credential_locks()`
 # @used-by :func:`agent_tools.landing_lease._pid_is_alive()`
-# @used-by :func:`agent_tools.storage.create_bytes()`
-# @used-by :func:`agent_tools.storage.locked()`
 # @used-by :func:`agent_tools.text_core.default_shell()`
 # @used-by :func:`agent_tools.worktree_guard._query_win32_processes()`
+# @used-by :meth:`Df.Harness.Config.AtomicWriter.AtomicWriter.__commit()`
 # @used-by :meth:`Df.Harness.Gate.WorktreeIsolationGate.WorktreeIsolationGate.__resolve_target_path()`
 # @used-by :meth:`Df.Harness.TestRunner.ProcessTree.ProcessTree.kill()`
 # @used-by :meth:`Df.Harness.TestRunner.WatchdogRunner.WatchdogRunner.__build_popen_kwargs()`

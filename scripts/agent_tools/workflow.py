@@ -13,14 +13,14 @@ from .evidence import evidence_issues
 # @used-by :mod:`agent_tools.workflow`
 def _target_complete(target, item):
 	return RegistrationStatusChecker.target_complete(target, item)
-# @used-by :func:`agent_tools.cli_domains._op_question_add()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_question_add()`
 # @used-by :meth:`test_analysis_workflow.ContinuationTests.test_question_has_one_owner_and_explicit_handoff()`
 # @used-by :meth:`test_analysis_workflow.ContinuationTests.test_search_cycle_returns_gap_or_requires_a_new_method()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_new_question_invalidates_completed_research_and_dependent_analysis()`
 # @used-by :mod:`agent_tools.workflow`
 def add_question(root, ident, question, impact, done_when, inputs, outputs, *, requirements=None):
 	return ResearchQuestionRegistry(root, update_fn=update).add(ident, question, impact, done_when, inputs, outputs, requirements=requirements)
-# @used-by :func:`agent_tools.cli_domains._op_adopt_requests()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_adopt_requests()`
 # @used-by :func:`test_contract_invariants._run_parity_defect_case()`
 # @used-by :func:`test_finalized_project_contract._seed_pre_review()`
 # @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_answer_check_and_prepare_reject_misaligned_pending_without_writing_journal()`
@@ -38,7 +38,7 @@ def adopt_requests(root, conversation_id, *, allow_finalized=False, backend=None
 # @used-by :mod:`agent_tools.workflow`
 def attachment_issues(root):
 	return ProjectHealthAuditor(root).attachment_issues()
-# @used-by :func:`agent_tools.cli_domains._op_check_project()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_check_project()`
 # @used-by :func:`agent_tools.review.authorize()`
 # @used-by :func:`complete_stage()`
 # @used-by :func:`test_project_rename._assert_renamed_journal_and_state()`
@@ -56,17 +56,17 @@ def attachment_issues(root):
 def check_project(root, *, prevalidated_analysis=None):
 	from . import project_drift
 	return ProjectHealthAuditor(root, analysis_issues_fn=analysis_issues, evidence_issues_fn=evidence_issues, drift_fn=project_drift.domain_drift_issues).check_project(prevalidated_analysis=prevalidated_analysis)
-# @used-by :func:`agent_tools.cli_domains._op_question_claim()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_question_claim()`
 # @used-by :meth:`test_analysis_workflow.ContinuationTests.test_question_has_one_owner_and_explicit_handoff()`
 # @used-by :meth:`test_analysis_workflow.ContinuationTests.test_search_cycle_returns_gap_or_requires_a_new_method()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_new_question_invalidates_completed_research_and_dependent_analysis()`
 # @used-by :mod:`agent_tools.workflow`
 def claim_question(root, ident, owner):
 	return ResearchQuestionRegistry(root, update_fn=update).claim(ident, owner)
-# @used-by :func:`agent_tools.cli_domains._op_stage()`
-# @used-by :func:`agent_tools.shadow_replay._execute_finalize_reply()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_stage()`
 # @used-by :func:`test_finalized_project_contract._complete_review_and_finalize()`
 # @used-by :func:`test_finalized_project_contract._seed_pre_review()`
+# @used-by :meth:`Df.Harness.Shadow.ReplayPipeline.ReplayPipeline.__execute_finalize_reply()`
 # @used-by :meth:`test_analysis_workflow.ContinuationTests.test_changed_completed_stage_output_invalidates_dependencies()`
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_full_workflow_requires_native_review_and_current_kb_then_exports_complete_context()`
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_significant_risk_cannot_finish_with_one_independent_aa()`
@@ -92,12 +92,12 @@ def evidence_paths(root):
 # @used-by :mod:`agent_tools.workflow`
 def file_hash(path):
 	return HashCollector.file_hash(path)
-# @used-by :func:`agent_tools.cli_domains._op_question_finish()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_question_finish()`
 # @used-by :meth:`test_analysis_workflow.ContinuationTests.test_question_has_one_owner_and_explicit_handoff()`
 # @used-by :mod:`agent_tools.workflow`
 def finish_question(root, ident, owner, outputs, gap=None, *, results=None):
 	return ResearchQuestionRegistry(root, update_fn=update).finish(ident, owner, outputs, gap=gap, results=results)
-# @used-by :func:`agent_tools.cli_domains._op_question_handoff()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_question_handoff()`
 # @used-by :meth:`test_analysis_workflow.ContinuationTests.test_question_has_one_owner_and_explicit_handoff()`
 # @used-by :mod:`agent_tools.workflow`
 def handoff(root, ident, previous_owner, new_owner, reason):
@@ -121,14 +121,14 @@ def kb_issues(root):
 # @used-by :mod:`agent_tools.workflow`
 def kb_paths(root):
 	return HashCollector.kb_paths(root)
-# @used-by :func:`agent_tools.blocked_report._standard_workflow_errors()`
-# @used-by :func:`agent_tools.blocked_report.evaluate_check_workflow_errors()`
-# @used-by :func:`agent_tools.completion._workflow_gate_resolved()`
-# @used-by :func:`agent_tools.shadow_replay._run_finalize_stage()`
-# @used-by :func:`agent_tools.shadow_replay._run_review_stage()`
+# @used-by :func:`Df.Harness.lib.blocked_report_ops._standard_workflow_errors()`
+# @used-by :func:`Df.Harness.lib.blocked_report_ops.dfh_evaluate_check_workflow_errors()`
+# @used-by :func:`Df.Harness.lib.completion_checks.dfh_workflow_gate_resolved()`
 # @used-by :func:`test_finalized_project_contract._complete_review_and_finalize()`
+# @used-by :meth:`Df.Harness.Completion.AnswerPreparer.AnswerPreparer.__audit_workflow_scope()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.project_metrics()`
-# @used-by :meth:`agent_tools.completion.AnswerPreparationRunner._audit_workflow_scope()`
+# @used-by :meth:`Df.Harness.Shadow.ReplayPipeline.ReplayPipeline.__run_finalize_stage()`
+# @used-by :meth:`Df.Harness.Shadow.ReplayPipeline.ReplayPipeline.__run_review_stage()`
 # @used-by :meth:`test_analysis_workflow.ContinuationTests.test_resume_uses_existing_capture_and_agent_kb_without_reading_context()`
 # @used-by :meth:`test_analysis_workflow.ProjectCase.review_package()`
 # @used-by :meth:`test_blocked_report_hygiene_and_doc5_m2.BlockedReportHygieneAndDoc5M2Tests.setUp()`
@@ -173,7 +173,7 @@ def load(root):
 # @used-by :mod:`agent_tools.workflow`
 def now():
 	return HashCollector.utc_now()
-# @used-by :func:`agent_tools.cli_domains._op_prepare_review()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_prepare_review()`
 # @used-by :func:`test_atomic_prepare_and_narrowed_reconcile_m7._authorize_routine_reply()`
 # @used-by :func:`test_contract_invariants._authorize_routine()`
 # @used-by :meth:`test_analysis_workflow.ProjectCase.review_package()`
@@ -202,8 +202,8 @@ def questions_current(root, state):
 # @used-by :mod:`agent_tools.workflow`
 def receipt_current(root, receipt):
 	return WorkflowStateEngine(root).receipt_current(receipt)
-# @used-by :func:`agent_tools.blocked_report.sync_authorized_workflow_requests()`
-# @used-by :func:`agent_tools.cli_domains._op_record_answer()`
+# @used-by :func:`Df.Harness.lib.blocked_report_ops.dfh_sync_authorized_workflow_requests()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_record_answer()`
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_full_workflow_requires_native_review_and_current_kb_then_exports_complete_context()`
 # @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_finalize_stage_accepts_unencoded_file_uri_chat_links()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.test_codex_workflow_reviews_current_kb_and_exports_exact_native_request_and_reply()`
@@ -216,7 +216,7 @@ def receipt_current(root, receipt):
 def record_current_answer(root, response, *, journal_directory=None, request_ids=None, preauthorized=None, recorded_steps=None, turn_token=None):
 	from .review import authorize
 	return WorkflowStateEngine(root, update_fn=update, authorize_fn=authorize).record_current_answer(response, journal_directory=journal_directory, request_ids=request_ids, preauthorized=preauthorized, recorded_steps=recorded_steps, turn_token=turn_token)
-# @used-by :func:`agent_tools.cli_domains._op_record_review()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_record_review()`
 # @used-by :func:`test_atomic_prepare_and_narrowed_reconcile_m7._authorize_routine_reply()`
 # @used-by :func:`test_contract_invariants._authorize_routine()`
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_full_workflow_requires_native_review_and_current_kb_then_exports_complete_context()`
@@ -242,13 +242,13 @@ def record_current_answer(root, response, *, journal_directory=None, request_ids
 def record_review(root, report, *, parent_id, reviewer_id, role='AA', native_evidence=None, risk=None):
 	from .review import record
 	return record(root, report, parent_id=parent_id, reviewer_id=reviewer_id, role=role, native_evidence=native_evidence, risk=risk)
-# @used-by :func:`agent_tools.cli_domains._op_review_disposition()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_review_disposition()`
 # @used-by :meth:`test_review_contract.ReviewContractTests.test_needs_changes_and_open_findings_persist_and_parent_disposition_cannot_approve()`
 # @used-by :mod:`agent_tools.workflow`
 def record_review_disposition(root, review_id, finding_id, status, basis, evidence, parent_id):
 	from .review import disposition
 	return disposition(root, review_id, finding_id, status, basis, evidence, parent_id)
-# @used-by :func:`agent_tools.cli_domains._op_question_search()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_question_search()`
 # @used-by :meth:`test_analysis_workflow.ContinuationTests.test_search_cycle_returns_gap_or_requires_a_new_method()`
 # @used-by :mod:`agent_tools.workflow`
 def record_search(root, ident, owner, query, useful=False, method_change=None):
@@ -258,7 +258,7 @@ def record_search(root, ident, owner, query, useful=False, method_change=None):
 # @used-by :mod:`agent_tools.workflow`
 def registration_status(root):
 	return WorkflowStateEngine(root).registration_status()
-# @used-by :func:`agent_tools.cli_domains._op_resume()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_resume()`
 # @used-by :func:`test_contract_invariants._run_parity_defect_case()`
 # @used-by :func:`test_finalized_project_contract._seed_pre_review()`
 # @used-by :meth:`test_analysis_workflow.ContinuationTests.test_changed_completed_stage_output_invalidates_dependencies()`
@@ -286,7 +286,7 @@ def registration_status(root):
 # @used-by :mod:`agent_tools.workflow`
 def resume(root, reason, request=None):
 	return WorkflowStateEngine(root, update_fn=update).resume(reason, request=request)
-# @used-by :func:`agent_tools.cli_domains._op_review_input()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_review_input()`
 # @used-by :meth:`test_continuation_binding.CodexContinuationTests.setUp()`
 # @used-by :meth:`test_falsifier_default_send_message_and_schedule_m8.FalsifierDefaultSendMessageAndScheduleM8Tests.test_significant_prepare_review_defaults_to_falsifier_and_authorizes_single_auditor()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.set_review_input()`
@@ -308,7 +308,7 @@ def stage_statuses(root, state):
 # @used-by :mod:`agent_tools.workflow`
 def state_path(root):
 	return WorkflowStateEngine(root).state_path()
-# @used-by :func:`agent_tools.cli_domains._op_status()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_status()`
 # @used-by :func:`record_review_disposition()`
 # @used-by :meth:`test_analysis_workflow.ContinuationTests.test_changed_completed_stage_output_invalidates_dependencies()`
 # @used-by :meth:`test_analysis_workflow.ContinuationTests.test_file_presence_does_not_complete_analysis_or_review()`
@@ -322,14 +322,14 @@ def state_path(root):
 # @used-by :mod:`agent_tools.workflow`
 def status(root, *, state=None, statuses=None):
 	return WorkflowStateEngine(root).status(state=state, statuses=statuses)
-# @used-by :func:`agent_tools.cli_domains._op_unadopt_requests()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_unadopt_requests()`
 # @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_adopt_and_unadopt_requests_lifecycle()`
 # @used-by :mod:`agent_tools.workflow`
 def unadopt_requests(root, conversation_id=None, request_ids=None):
 	return WorkflowStateEngine(root, update_fn=update).unadopt_requests(conversation_id=conversation_id, request_ids=request_ids)
+# @used-by :func:`Df.Harness.lib.blocked_report_ops._update_reprepared_workflow()`
 # @used-by :func:`add_question()`
 # @used-by :func:`adopt_requests()`
-# @used-by :func:`agent_tools.blocked_report.sync_authorized_workflow_requests()`
 # @used-by :func:`claim_question()`
 # @used-by :func:`complete_stage()`
 # @used-by :func:`finish_question()`
@@ -338,7 +338,7 @@ def unadopt_requests(root, conversation_id=None, request_ids=None):
 # @used-by :func:`record_search()`
 # @used-by :func:`resume()`
 # @used-by :func:`unadopt_requests()`
-# @used-by :meth:`agent_tools.completion.AnswerPreparationRunner._authorize_and_sync_workflow()`
+# @used-by :meth:`Df.Harness.Completion.AnswerPreparer.AnswerPreparer.__post_finalize_workflow()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.test_exact_user_text_job_scope_and_cross_platform_request_merge()`
 # @used-by :mod:`agent_tools.workflow`
 def update(root, event, change):

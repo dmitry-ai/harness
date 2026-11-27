@@ -69,6 +69,7 @@ def dfh_slugify(title: str) -> str:
 			break
 	return r
 # @used-by :func:`dfh_split_rules_main()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_rule_splitter_and_config_blocks_helpers()`
 def dfh_split_rules(rules_dir: Path, max_bytes: int=4000, *, force: bool | None=None) -> bool:
 	r = False
 	map_file = rules_dir / '90-project.md'
@@ -85,6 +86,7 @@ def dfh_split_rules(rules_dir: Path, max_bytes: int=4000, *, force: bool | None=
 				_write_updated_project_map(map_file, preserved, _write_split_modules(rules_dir, extracted))
 				r = True
 	return r
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_rule_splitter_and_config_blocks_helpers()`
 # @used-by :mod:`split_project_rules`
 def dfh_split_rules_main(argv: list[str] | None=None) -> None:
 	eff = sys.argv if None is argv else argv

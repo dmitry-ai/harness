@@ -19,7 +19,7 @@ def record_cleanup_answer_log(body, *, now=None, log_root=None, config=None, man
 # @used-by unused
 def resolve_cleanup_log_root(*, config: dict | None=None, log_root: str | Path | None=None) -> Path:
 	return dfh_resolve_cleanup_log_root(config=config, log_root=log_root, settings_fn=settings)
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__run_cleanup_report()`
 def run_cleanup_report_cli(args) -> dict[str, Any]:
 	from . import cleanup
 	return dfh_run_cleanup_report_cli(args, record_fn=cleanup.record_cleanup_answer)

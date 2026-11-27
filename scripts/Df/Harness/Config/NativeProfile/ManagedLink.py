@@ -12,6 +12,8 @@ class ManagedLink:
 	# @used-by :func:`Df.Harness.lib.native_codex_roles._handle_existing_codex_link()`
 	# @used-by :func:`Df.Harness.lib.native_codex_roles._retire_obsolete_skill_entry()`
 	# @used-by :func:`Df.Harness.lib.native_codex_roles._retire_one_profile_role()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_managed_link_and_native_links_edge_helpers()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_native_profiles_install_rename_retire_and_rollback()`
 	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 	def __init__(self, path: str | Path, target: str | Path, kind: str, *, label: str='skill', legacy_dir: bool=False, ops: dict[str, Any] | None=None) -> None:
 		self.path = dfh_absolute(path)
@@ -21,8 +23,10 @@ class ManagedLink:
 		self.legacy_dir = legacy_dir
 		self.__ops = ops or {}
 	# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__apply()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_managed_link_and_native_links_edge_helpers()`
 	def backup_payload(self) -> bytes:
 		return dfh_json_bytes(self.identity_dict())
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_managed_link_and_native_links_edge_helpers()`
 	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 	def create(self, primary: str | Path) -> None:
 		if dfh_has_linked_ancestor(self.path, include_self=False):
@@ -38,11 +42,13 @@ class ManagedLink:
 	# @used-by :meth:`ManagedLink.restore_retired()`
 	# @used-by :meth:`ManagedLink.retire()`
 	# @used-by :meth:`ManagedLink.verify_retired()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_managed_link_and_native_links_edge_helpers()`
 	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 	def identity_dict(self) -> dict[str, str]:
 		target = os.readlink(self.path) if 'file-symlink' == self.kind else str(self.target)
 		return {'kind': self.kind, 'target': target}
 	# @used-by :meth:`Df.Harness.Config.NativeProfile.Plan.Plan.readonly_issues()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_managed_link_and_native_links_edge_helpers()`
 	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 	def readonly_issue(self, *, retired: bool=False) -> dict[str, str]:
 		if retired:
@@ -51,10 +57,12 @@ class ManagedLink:
 			message = f'Shared role file link is missing: {self.target}' if 'file-symlink' == self.kind else f'Shared skill directory link is missing: {self.target}'
 		return {'file': str(self.path), 'message': message}
 	# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__rollback()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_managed_link_and_native_links_edge_helpers()`
 	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 	def remove_created(self) -> None:
 		self.__ops.get('remove_link', dfh_remove_link)(self.path, self.target)
 	# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__rollback()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_managed_link_and_native_links_edge_helpers()`
 	def restore_retired(self, primary: str | Path) -> None:
 		if 'file-symlink' == self.kind:
 			if dfh_exists(self.path) or dfh_has_linked_ancestor(self.path, include_self=False):
@@ -66,12 +74,14 @@ class ManagedLink:
 			dfh_restore_directory_link(self.path, self.identity_dict(), primary, dir_link_fn=self.__ops.get('directory_link'))
 			self.verify_retired()
 	# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__apply_links()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_managed_link_and_native_links_edge_helpers()`
 	def retire(self) -> None:
 		if 'file-symlink' == self.kind:
 			self.__ops.get('remove_link', dfh_remove_link)(self.path, self.target)
 		else:
 			dfh_retire_directory_link(self.path, self.identity_dict())
 	# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__verify()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_managed_link_and_native_links_edge_helpers()`
 	def verify_before_create(self, files: dict, retired_links: Any=()) -> None:
 		if dfh_has_linked_ancestor(self.path, include_self=False):
 			raise ValueError(f'Linked {self.label} parent directory appeared during migration; preserved: {self.path}')
@@ -85,6 +95,7 @@ class ManagedLink:
 			elif dfh_exists(self.path):
 				raise ValueError(f'Skill destination appeared during migration; preserved: {self.path}')
 	# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__apply_links()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_managed_link_and_native_links_edge_helpers()`
 	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 	def verify_created(self) -> None:
 		if 'file-symlink' == self.kind:
@@ -95,6 +106,7 @@ class ManagedLink:
 			raise ValueError(f'New skill link failed read-back verification: {self.path}')
 	# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__verify()`
 	# @used-by :meth:`ManagedLink.restore_retired()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_managed_link_and_native_links_edge_helpers()`
 	def verify_retired(self) -> None:
 		if 'file-symlink' != self.kind:
 			dfh_verify_retired_directory_link(self.path, self.identity_dict())

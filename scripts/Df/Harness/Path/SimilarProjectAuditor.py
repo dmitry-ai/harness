@@ -8,6 +8,8 @@ from Df.Harness.lib.path_template import dfh_path_key
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 class SimilarProjectAuditor:
 	# @used-by :func:`agent_tools.path_registry.evaluate_similar_project_touches()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_paths_and_uri()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_hook_emergency_and_path_tail()`
 	def __init__(self, touched_repo_files: list[Path] | tuple[Path, ...] | set[Path], *, registry: Any=None) -> None:
 		self.__raw_files = touched_repo_files or ()
 		self.__reg = registry or dfh_load_registry()
@@ -90,6 +92,8 @@ class SimilarProjectAuditor:
 				out.append(fp)
 		return out
 	# @used-by :func:`agent_tools.path_registry.evaluate_similar_project_touches()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_paths_and_uri()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_hook_emergency_and_path_tail()`
 	def run(self) -> list[dict[str, Any]]:
 		resolved = self.__resolve_input_files()
 		if not resolved:

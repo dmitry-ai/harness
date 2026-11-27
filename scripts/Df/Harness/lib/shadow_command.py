@@ -17,6 +17,7 @@ import sys
 HARNESS_PY = Path(__file__).resolve().parents[3] / 'harness.py'
 NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 # @used-by :func:`dfh_run_generic_command()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_shadow_clone_and_command_ops()`
 def _build_command_argv(command_spec: str, shadow_project: Path, shadow_launcher: Path | None) -> list[str]:
 	tokens = shlex.split(command_spec, posix=True)
 	if tokens and Path(tokens[0]).name.lower() in ('python', 'python.exe', 'python3', 'py'):
@@ -28,6 +29,7 @@ def _build_command_argv(command_spec: str, shadow_project: Path, shadow_launcher
 	return [sys.executable, str(HARNESS_PY), *mapped]
 # @used-by :func:`_stage_ag_from_receipt()`
 # @used-by :func:`_stage_folders_json()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_shadow_tail()`
 def _copy_native_profile(src_file: Path, dst_file: Path, pairs: list[tuple[str, str]]) -> None:
 	dst_file.parent.mkdir(parents=True, exist_ok=True)
 	if src_file.is_file():
@@ -45,11 +47,13 @@ def _harness_repo_head() -> str | None:
 		r = None
 	return r
 # @used-by :func:`dfh_run_generic_command()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_shadow_clone_and_command_ops()`
 def _iso_cmd_env(shadow_root: Path) -> dict[str, str]:
 	home = shadow_root / 'native-home'
 	(home / 'AppData/Roaming').mkdir(parents=True, exist_ok=True)
 	return {**os.environ, 'APPDATA': str(home / 'AppData/Roaming'), 'GIT_OPTIONAL_LOCKS': '0', 'HARNESS_TEST_NO_FSYNC': '1', 'HOME': str(home), 'PYTHONIOENCODING': 'utf-8', 'USERPROFILE': str(home)}
 # @used-by :func:`dfh_run_generic_command()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_shadow_clone_and_command_ops()`
 def _parse_json_stdout(text: str) -> dict | None:
 	r: dict | None = None
 	raw = (text or '').strip()
@@ -108,6 +112,7 @@ def _verify_shadow_command_post(shadow_project: Path, final_dir: Path, pre_snap:
 	else:
 		errors.extend(post_ver['errors'])
 # @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.__build_report()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_shadow_clone_and_command_ops()`
 # @used-by :mod:`agent_tools.shadow_replay_command`
 def dfh_persist_shadow_replay_receipt(ws_root: Path, src_project: Path, report: dict, *, exec_rename_domain: str | None, command: str | None) -> str | None:
 	r: str | None = None
@@ -119,6 +124,7 @@ def dfh_persist_shadow_replay_receipt(ws_root: Path, src_project: Path, report: 
 		r = str(dest)
 	return r
 # @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_shadow_tail()`
 # @used-by :mod:`agent_tools.shadow_replay_command`
 def dfh_resolve_shadow_launcher(src_project: Path, launcher: str | Path | None) -> Path | None:
 	from agent_tools.project_rename import _infer_daily_root
@@ -161,6 +167,7 @@ def dfh_run_generic_command(shadow_project: Path, shadow_launcher: Path | None, 
 		errors.append(f'command failed (exit={proc.returncode}): {msg}')
 	return final_dir
 # @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.__prepare_stage()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_shadow_clone_and_command_ops()`
 # @used-by :mod:`agent_tools.shadow_replay_command`
 def dfh_stage_command_shadow_copies(src_project: Path, src_launcher: Path | None, shadow_root: Path, *, resolve_state_fn: Any=None) -> tuple[Path, Path | None, dict[Path, Path], dict[str, Path], Path | None]:
 	from agent_tools.project_rename import _infer_daily_root

@@ -63,6 +63,7 @@ def dfh_configure_codex_project(root: str | Path, primary: str | Path | None=Non
 			r = {'issues': [{'file': err_file, 'message': str(exc)}], 'valid': False, 'written': []}
 	return r
 # @used-by :func:`agent_tools.configuration.global_codex_instructions()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_native_builder_and_projection_publisher()`
 def dfh_global_codex_instructions(*, settings_fn: Any=None, profile_name_fn: Any=None) -> dict:
 	from Df.Harness.Runtime.SettingsLoader import SettingsLoader
 	cfg = settings_fn() if None is not settings_fn else SettingsLoader().run()
@@ -85,6 +86,7 @@ def dfh_global_codex_instructions(*, settings_fn: Any=None, profile_name_fn: Any
 # @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_profile_agents()`
 # @used-by :func:`_run_codex_project_publish()`
 # @used-by :meth:`Df.Harness.Config.NativeBuilder.NativeBuilder.__prepare_codex_outputs()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests._seed_legacy_profiles()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.legacy_codex()`
 # @used-by :meth:`test_rules_progressive_disclosure.RulesProgressiveDisclosureTests.test_loader_omits_on_demand_header_when_all_rules_are_always_on()`
 # @used-by :meth:`test_rules_progressive_disclosure.RulesProgressiveDisclosureTests.test_loader_separates_always_on_and_catalogs_model_decision_with_description()`

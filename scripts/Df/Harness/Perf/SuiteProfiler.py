@@ -30,10 +30,10 @@ class SuiteProfiler:
 		self.__enable_cprofile = enable_cprofile
 		self.__top_n = top_n
 		self.__cprofile_top = cprofile_top
-	# @used-by :func:`agent_tools.cli_domains._op_collect_browser()`
-	# @used-by :func:`agent_tools.cli_domains._op_collect_http()`
-	# @used-by :func:`agent_tools.cli_domains._op_extract()`
-	# @used-by :func:`agent_tools.cli_domains._op_extract_file()`
+	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_collect_browser()`
+	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_collect_http()`
+	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_extract()`
+	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_extract_file()`
 	# @used-by :func:`agent_tools.perf.suite_profiler.profile_test_suite()`
 	# @used-by :func:`agent_tools.text_cli.main()`
 	# @used-by :meth:`SuiteProfiler.run_cli()`

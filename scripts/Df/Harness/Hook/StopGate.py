@@ -11,6 +11,7 @@ from Df.Harness.lib.hook_subagent_ops import dfh_extract_segment_subagent_state
 class StopGate:
 	# @used-by :func:`check_stop_gate.evaluate_stop_payload()`
 	# @used-by :meth:`Df.Harness.Shadow.ReplayPipeline.ReplayPipeline.__run_stop_gate()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_stop_gate_continuation_guard_and_emergency_capture()`
 	def __init__(self, payload: dict, *, backend_override: Path | None=None, settings_fn=None) -> None:
 		self.__payload = payload
 		self.__backend_override = backend_override
@@ -77,6 +78,7 @@ class StopGate:
 		return r
 	# @used-by :func:`check_stop_gate.evaluate_stop_payload()`
 	# @used-by :meth:`Df.Harness.Shadow.ReplayPipeline.ReplayPipeline.__run_stop_gate()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_stop_gate_continuation_guard_and_emergency_capture()`
 	def run(self) -> dict:
 		r = {'decision': 'allow'}
 		ctx = self.__resolve_tracked_context()

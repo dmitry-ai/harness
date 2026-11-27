@@ -19,6 +19,7 @@ import shutil
 class JournalReconciler:
 	# @used-by :func:`Df.Harness.lib.completion_commands.dfh_sync()`
 	# @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_open_turn_reconciles_safely_and_trims_stale_reservation()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_completion_tail()`
 	# @used-by :meth:`test_turn_completion.TurnJournalReconcilerTests.test_compacted_status5_steps_single_pass_authorize_and_group_helpers()`
 	def __init__(self, root: str | Path, conversation: str | None=None, *, platform: str | None=None, backend: Any=None, from_step: int=0, journal_directory: Any=None, adopt_conflict: bool=False, preloaded_native: dict | None=None, _ops: dict[str, Any] | None=None) -> None:
 		if int is not type(from_step) or 0 > from_step:

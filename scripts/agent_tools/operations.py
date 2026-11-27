@@ -7,11 +7,11 @@ from Df.Harness.lib.cli_input import dfh_consume_scratch_input as _consumed, dfh
 from Df.Harness.lib.cli_operation_defs import COMMANDS, COMMAND_HELP as _COMMAND_HELP, COMPLETION_COMMANDS, CONSUME_COMMANDS as _CONSUME_COMMANDS, PROJECT_SPECS as _PROJECT_SPECS, dfh_add_operation_parsers
 from . import completion as _completion_mod
 from . import runtime as _runtime_mod
-# @used-by :func:`agent_tools.upwork_project.main()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__build_parser()`
 # @used-by :meth:`test_text_integration.TextBoundaryTests.test_dom_cli_dispatch_keeps_the_explicit_authorized_session()`
 def add_parsers(sub):
 	return dfh_add_operation_parsers(sub, add_completion_fn=_completion_mod.add_parser_arguments, settings_fn=_runtime_mod.settings)
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.run()`
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_html_links_json_summary_non_destructive_collect_and_scratch_cleanliness()`
 # @used-by :meth:`test_cli_registry.CliRegistryTests.test_operation_handlers_cover_all_non_completion_commands()`
 # @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_collect_receipt_preserves_plan_after_input_is_consumed()`

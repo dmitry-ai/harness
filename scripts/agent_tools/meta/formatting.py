@@ -37,14 +37,14 @@ def format_duration_timecode(start: datetime | str | None, end: datetime | str |
 # @used-by :mod:`agent_tools.metadata`
 def format_local_timestamp(value: datetime | str | None=None, *, tz=None) -> str:
 	return TimestampFormatter(value, tz=tz).format_local()
-# @used-by :func:`agent_tools.cleanup_lifecycle._step_response_time()`
+# @used-by :func:`Df.Harness.lib.cleanup_lifecycle_ops._step_response_time()`
 # @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_formatting_submodule_handles_paths_timestamps_steps_and_models()`
 # @used-by :mod:`agent_tools.meta`
 # @used-by :mod:`agent_tools.metadata`
 def parse_timestamp(value: datetime | str | None) -> datetime | None:
 	return TimestampFormatter.parse_timestamp(value)
-# @used-by :func:`agent_tools.cleanup_audit.build_cleanup_metadata()`
-# @used-by :func:`agent_tools.cleanup_audit.record_cleanup_answer_log()`
+# @used-by :func:`Df.Harness.lib.cleanup_audit_ops.dfh_record_cleanup_answer_log()`
+# @used-by :meth:`Df.Harness.Cleanup.AuditLogger.AuditLogger.run()`
 # @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_formatting_submodule_handles_paths_timestamps_steps_and_models()`
 # @used-by :mod:`agent_tools.meta`
 # @used-by :mod:`agent_tools.metadata`

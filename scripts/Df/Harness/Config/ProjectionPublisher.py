@@ -14,6 +14,7 @@ class ProjectionPublisher:
 	# @used-by :func:`agent_tools.configuration._publish()`
 	# @used-by :meth:`Df.Harness.Config.NativeBuilder.NativeBuilder.__build_codex_disabled()`
 	# @used-by :meth:`Df.Harness.Config.NativeBuilder.NativeBuilder.__build_codex_enabled()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_native_builder_and_projection_publisher()`
 	def __init__(self, root: str | Path, outputs: dict, *, check: bool=False, merge: dict | None=None, retire: Any=(), disown: Any=(), preflight: bool=False) -> None:
 		self.__root = Path(root).resolve()
 		self.__outputs = outputs
@@ -126,6 +127,7 @@ class ProjectionPublisher:
 	# @used-by :func:`agent_tools.configuration._publish()`
 	# @used-by :meth:`Df.Harness.Config.NativeBuilder.NativeBuilder.__build_codex_disabled()`
 	# @used-by :meth:`Df.Harness.Config.NativeBuilder.NativeBuilder.__build_codex_enabled()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_native_builder_and_projection_publisher()`
 	def run(self) -> dict:
 		if not self.__outputs and (not any((Path(path).exists() for path in self.__retire))):
 			r: dict[str, Any] = {'issues': [], 'outputs': [], 'removed': [], 'valid': True, 'written': []}

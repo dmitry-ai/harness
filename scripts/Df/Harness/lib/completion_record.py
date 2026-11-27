@@ -168,6 +168,7 @@ def dfh_group(root: str | Path, native: dict, turn: dict, response: str, directo
 # @used-by :func:`agent_tools.completion._matches_recorded_response()`
 # @used-by :meth:`Df.Harness.Completion.AnswerPreparer.AnswerPreparer.__check_reprepare_and_conflict()`
 # @used-by :meth:`Df.Harness.Completion.AnswerPreparer.AnswerPreparer.__verify_delivered_fast_path()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_completion_checks_and_admission_guard()`
 def dfh_matches_recorded_response(recorded: Any, raw_response: str, raw_sha: str, *, ops: dict[str, Any] | None=None) -> bool:
 	hash_fn = (ops or {}).get('hash') or dfh_hash
 	if not isinstance(recorded, dict):

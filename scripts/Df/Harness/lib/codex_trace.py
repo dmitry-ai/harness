@@ -143,6 +143,7 @@ def dfh_codex_trace(home, conversation_id: str, *, paths=None, platform_settings
 	return (row, path, raw, _parse_codex_rollout_rows(raw, conversation_id))
 # @used-by :meth:`Df.Harness.Platform.Codex.TurnScanner.TurnScanner.__collect_bfs_seeds()`
 # @used-by :meth:`Df.Harness.Platform.Codex.TurnScanner.TurnScanner.__handle_subagent_output()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 def dfh_extract_codex_spawn_output_uuids(out_text: str) -> list[str]:
 	r: list[str] = []
 	if isinstance(out_text, str) and out_text.strip():
@@ -159,6 +160,7 @@ def dfh_extract_codex_spawn_output_uuids(out_text: str) -> list[str]:
 # @used-by :meth:`Df.Harness.Platform.Codex.ReviewProver.ReviewProver.__collect_matched_prompts()`
 # @used-by :meth:`Df.Harness.Platform.Codex.TurnScanner.TurnScanner.__handle_subagent_call()`
 # @used-by :meth:`Df.Harness.Platform.Codex.TurnScanner.TurnScanner.__handle_tool_call_row()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 def dfh_extract_codex_target_subagents(raw_args) -> list[str]:
 	parsed_args = dfh_parse_tool_args(raw_args)
 	candidates = [val.strip().lower() for key in ('id', 'Recipient', 'agent_id', 'subagent_id') for val in [parsed_args.get(key)] if isinstance(val, str)]

@@ -103,6 +103,7 @@ def _load_turn_state_safe(path: Path, read_fn: Any) -> dict[str, Any] | None:
 			r = None
 	return r
 # @used-by :func:`dfh_candidate_recency()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_journal_tail()`
 def _parse_iso_epoch(raw: Any) -> float:
 	r = 0.0
 	if isinstance(raw, str) and raw.strip():
@@ -126,6 +127,7 @@ def _reconcile_current_earlier(root: Path, native: dict[str, Any], turn: dict[st
 			r = {'error': str(exc), 'valid': False}
 	return r
 # @used-by :func:`_reconcile_current_earlier()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_sync_and_upgrade()`
 def _resolve_current_sync_journal(root: Path, key: str, journal_directory: Any, *, folder_fn: Any, dir_fn: Any, read_fn: Any) -> Any:
 	existing_path = folder_fn(root) / (key + '.json')
 	sync_j = journal_directory
@@ -178,6 +180,7 @@ def _try_sync_foreign_entry(root: Path, turn_key: str, entry: dict[str, Any], jo
 				r = (None, {'conversation_id': cid, 'error': str(exc), 'reason': 'sync_error', 'turn_key': turn_key})
 	return r
 # @used-by :func:`dfh_order_candidates_by_recency()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_journal_tail()`
 # @used-by :mod:`agent_tools.journal_pending_index`
 def dfh_candidate_recency(turns_dir: Path, turn_key: str, entry: dict[str, Any]) -> float:
 	ts = _parse_iso_epoch(entry.get('updated_at'))
@@ -215,6 +218,7 @@ def dfh_persist_turn_state(path: Path, raw: bytes, value: dict[str, Any]) -> Non
 		except (OSError, ValueError):
 			pass
 # @used-by :func:`dfh_reconcile_foreign_open_reservations()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_sync_and_upgrade()`
 # @used-by :mod:`agent_tools.journal_pending_index`
 def dfh_prune_resolved_from_index(turns_dir: Path, pending_entries: dict[str, dict[str, Any]], checked_keys: set[str], *, read_fn: Any, had_entries: bool) -> None:
 	for tk in checked_keys:

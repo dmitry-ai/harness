@@ -226,6 +226,7 @@ def dfh_collect_subagent_bfs(root_id: str, root_p: Path, seeds, resolve_child, a
 # @used-by :func:`Df.Harness.lib.completion_child_trace.dfh_scan_child_trace_turn()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__scan_segment()`
 # @used-by :meth:`Df.Harness.Platform.Codex.TurnScanner.TurnScanner.__start_turn()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 # @used-by :meth:`test_tdd_worktree_and_subagent_trace.TddWorktreeAndSubagentTraceTests.test_denied_write_tool_call_is_excluded_from_tdd_events()`
 # @used-by :meth:`test_turn_completion.TraceCommonTests.test_iter_antigravity_subagents_and_kb_persistence_parity()`
 def dfh_init_turn_accumulator(*, extra=None) -> dict:
@@ -264,6 +265,7 @@ def dfh_record_canonical_path(root_p, step_idx, raw_path, is_read: bool, file_re
 # @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__record_subagent_tool_calls()`
 # @used-by :meth:`Df.Harness.Platform.Codex.TurnScanner.TurnScanner.__handle_subagent_call()`
 # @used-by :meth:`Df.Harness.Platform.Codex.TurnScanner.TurnScanner.__handle_tool_call_row()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 def dfh_record_normalized_tool_effects(root_p, step_idx, name: str, raw_args, raw_cmd, acc: dict, *, extra_violation=None, track_turn_steps: bool=False, transcript_tokens=(), cmd_outputs=None, sub_step=None, shell_violations_fn=None) -> dict | None:
 	args = raw_args if isinstance(raw_args, dict) else dfh_parse_tool_args(raw_args)
 	scan_text = str(raw_cmd or '')
@@ -281,8 +283,9 @@ def dfh_record_normalized_tool_effects(root_p, step_idx, name: str, raw_args, ra
 	if track_turn_steps:
 		_track_turn_steps(step_idx, name, raw_args, scan_text, shell_cmd, target_path, patch_list, is_shell, is_file_tool, is_write_tool, acc, transcript_tokens)
 	return tdd_cmd_event
-# @used-by :func:`agent_tools.metrics.summarize()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__summarize_ag_paths()`
 # @used-by :meth:`Df.Harness.Platform.Codex.TokenSummarizer.TokenSummarizer.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 def dfh_summarize_token_records(events, bindings=None, *, extra=None, field_map=None, prefix=None, tools=None) -> dict:
 	totals, missing = (Counter(), Counter())
 	generations, duplicates, phases = (0, 0, {})

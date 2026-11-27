@@ -8,6 +8,7 @@ class CacheStore:
 	# @used-by :func:`agent_tools.path_cache.resolve_code_anchor()`
 	# @used-by :meth:`Df.Harness.Path.Registry.Registry.__init_variables()`
 	# @used-by :meth:`test_df_harness_s11_wave2d.DfHarnessS11Wave2DTests.test_path_subsystem_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_paths_and_uri()`
 	# @used-by :mod:`Df.Harness.lib.path_state`
 	def __init__(self, anchor_dir: Path) -> None:
 		self.__anchor = Path(anchor_dir).resolve()

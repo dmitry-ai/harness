@@ -249,7 +249,7 @@ class ProjectRenamer:
 	# @used-by :func:`agent_tools.intake._restore()`
 	# @used-by :func:`agent_tools.intake.commit_capture()`
 	# @used-by :func:`agent_tools.project_rename.rename_project()`
-	# @used-by :func:`agent_tools.storage.create_bytes()`
+	# @used-by :meth:`Df.Harness.Config.AtomicWriter.AtomicWriter.__commit()`
 	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__init__()`
 	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.restore()`
 	# @used-by :meth:`ProjectRenamer.__do_dir_rename()`

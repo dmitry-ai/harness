@@ -9,6 +9,8 @@ class NarrowReconciler:
 	# @used-by :func:`Df.Harness.lib.completion_state._merge_turn_requests()`
 	# @used-by :func:`agent_tools.reconcile_helpers.resolve_saved_turn_requests()`
 	# @used-by :meth:`test_df_harness_s11_wave2d.DfHarnessS11Wave2DTests.test_completion_subsystem_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_child_trace_and_turn_routing()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_narrow_reconciler_trim_tail()`
 	def __init__(self, root: Path, native: dict, turn: dict, value: dict, *, recovered: bool, same_req_fn, journal_dir_fn) -> None:
 		self.__root = root
 		self.__native = native
@@ -50,6 +52,8 @@ class NarrowReconciler:
 	# @used-by :func:`Df.Harness.lib.completion_state._merge_turn_requests()`
 	# @used-by :func:`agent_tools.reconcile_helpers.resolve_saved_turn_requests()`
 	# @used-by :meth:`test_df_harness_s11_wave2d.DfHarnessS11Wave2DTests.test_completion_subsystem_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_child_trace_and_turn_routing()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_narrow_reconciler_trim_tail()`
 	def run(self) -> list:
 		if self.__turn.get('clarifications'):
 			self.__value['clarifications'] = list(self.__turn['clarifications'])

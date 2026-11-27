@@ -156,6 +156,8 @@ def dfh_is_tracked_workspace(root: str | Path, *, registry: Any=None, projects_d
 # @used-by :meth:`Df.Harness.Path.PathReporter.PathReporter.__init__()`
 # @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__init__()`
 # @used-by :meth:`Df.Harness.Path.SimilarProjectAuditor.SimilarProjectAuditor.__init__()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_paths_and_uri()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_hook_emergency_and_path_tail()`
 def dfh_load_registry(registry_path: str | Path | None=None, *, primary: str | Path | None=None, env: dict[str, str] | None=None, default_registry_file: Path=DEFAULT_REGISTRY_FILE) -> Registry:
 	target = _resolve_registry_target(registry_path, primary, env, default_registry_file)
 	target_abs, lst = _stat_unlinked_registry(target)
@@ -224,6 +226,12 @@ def dfh_load_registry(registry_path: str | Path | None=None, *, primary: str | P
 # @used-by :meth:`Df.Harness.Shadow.ReplayPipeline.ReplayPipeline.__find_reply_path()`
 # @used-by :meth:`Df.Harness.Shadow.ReplayPipeline.ReplayPipeline.__run_pre_invocation()`
 # @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_blocked_report_and_workflow_sync_ops()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_compaction_and_response_links()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_addon_and_markdown_ops()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_paths_and_uri()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_hook_emergency_and_path_tail()`
 def dfh_project_paths(path_or_root: str | Path, *, registry: Any=None, env: dict[str, str] | None=None, exact_root: bool=False, journal_sig_fn: Any=None) -> ProjectPaths:
 	reg = registry or dfh_load_registry(env=env)
 	fast_key = (id(reg), str(path_or_root), bool(exact_root))

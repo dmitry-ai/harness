@@ -15,6 +15,8 @@ NOT_RUN_STAGES = ('live_llm_generation', 'live_upwork_browser_capture', 'live_an
 class ReplayRunner:
 	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_shadow_replay()`
 	# @used-by :func:`agent_tools.shadow_replay.run_shadow_replay()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_shadow_pipeline_and_runner()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_shadow_tail()`
 	def __init__(self, project: str | Path, conversation_id: str | None=None, *, launcher: str | Path | None=None, workspace: str | Path | None=None, platform: str='antigravity', backend: str | Path | None=None, response_file: str | Path | None=None, keep: bool=False, exec_rename_domain: str | None=None, command: str | None=None, legacy_ctx: Any=None) -> None:
 		self.__src_project = Path(project).resolve()
 		self.__cid = str(conversation_id or '').strip().lower()
@@ -75,6 +77,7 @@ class ReplayRunner:
 			ReplayPipeline(shadow_project, shadow_launcher, shadow_root, self.__cid, self.__platform, backend_dir, native_tx, resp_p, checks, verified, errors).run()
 	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_shadow_replay()`
 	# @used-by :func:`agent_tools.shadow_replay.run_shadow_replay()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_shadow_pipeline_and_runner()`
 	def run(self) -> dict:
 		command_mode = bool(self.__exec_rename_domain or self.__command)
 		src_launcher = dfh_resolve_shadow_launcher(self.__src_project, self.__launcher) if command_mode else (Path(self.__launcher).resolve() if None is not self.__launcher else None)

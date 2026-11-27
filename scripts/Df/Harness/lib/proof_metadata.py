@@ -36,6 +36,7 @@ def _project_section(saved_sec: object, live_sec: object, *, project_keys: bool)
 	return r
 # @used-by :func:`Df.Harness.lib.trace_review.dfh_verify_review_proof_core()`
 # @used-by :func:`dfh_proof_semantically_equivalent()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_codex_roles_and_proof_metadata_tail()`
 def dfh_executor_metadata_equivalent(saved: object, live: object, *, allow_legacy_generation_model: bool=False) -> bool:
 	if saved == live:
 		r = True
@@ -61,6 +62,7 @@ def dfh_proof_semantically_equivalent(saved: object, live: object) -> bool:
 		r = saved_rest == live_rest and dfh_executor_metadata_equivalent(saved.get('executor_metadata'), live.get('executor_metadata'), allow_legacy_generation_model=True)
 	return r
 # @used-by :func:`Df.Harness.lib.trace_review.dfh_persist_review_proof()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 def dfh_reuse_equivalent_proof(target: Path, proof: dict) -> dict | None:
 	r = None
 	if target.is_file():

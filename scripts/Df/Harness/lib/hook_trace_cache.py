@@ -91,6 +91,7 @@ def _validate_disk_index(fh, saved: dict | None, source: str, total_bytes: int) 
 			if saved.get('prefix_sha256') == _read_slice_sha256(fh, 0, plen) and saved.get('tail_sha256') == _read_slice_sha256(fh, offset - tlen, tlen):
 				r = (saved['rows'], offset)
 	return r
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_trace_event_cache_full_incremental_and_clear()`
 # @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_in_process_cache_shares_single_disk_read_across_pre_tool_gates()`
 # @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_incremental_disk_cache_appends_and_invalidation()`
 # @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_untracked_dir_skips_disk_index_and_stays_in_process_only()`

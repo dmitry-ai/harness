@@ -11,6 +11,6 @@ DEFAULT_WATCHDOG_TIMEOUT = WatchdogRunner.DEFAULT_WATCHDOG_TIMEOUT
 def run_test_watchdog(argv: list[str] | tuple[str, ...], *, timeout: float=DEFAULT_WATCHDOG_TIMEOUT, cwd: Path | str | None=None, env: dict[str, str] | None=None) -> dict:
 	res = WatchdogRunner(argv, timeout=timeout, cwd=cwd, env=env).run()
 	return {k: v for k, v in res.items() if 'returncode' != k}
-# @used-by :func:`agent_tools.cli_registry._exec_test_watchdog()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_test_watchdog()`
 def run_watchdog_cli(args) -> dict:
 	return WatchdogRunner.run_cli(args)

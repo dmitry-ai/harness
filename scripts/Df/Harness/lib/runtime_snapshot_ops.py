@@ -54,6 +54,7 @@ VALIDATION_PROBE = (
 )
 # @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_runtime_status()`
 # @used-by :func:`dfh_finalize_native_install()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 # @used-by :mod:`agent_tools.runtime_snapshot`
 def dfh_check_runtime_snapshot(primary: str | Path, *, store_dir: str | Path | None=None) -> dict:
 	prim_p = Path(primary).resolve()
@@ -123,6 +124,7 @@ def dfh_export_git_archive(repo: Path, staging: Path) -> str:
 		dfh_safe_extract_tar(tf, staging)
 	return sha
 # @used-by :func:`agent_tools.runtime_snapshot.finalize_native_install()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 def dfh_finalize_native_install(result: dict, primary: Path, *, check: bool, promote_fn: Any=None) -> dict:
 	if check:
 		snap = dfh_check_runtime_snapshot(primary)
@@ -159,8 +161,9 @@ def dfh_has_git_head(repo: Path) -> bool:
 		except (OSError, RuntimeError, subprocess.SubprocessError):
 			r = False
 	return r
-# @used-by :func:`agent_tools.gates.worktree_isolation._evaluate_main_checkout()`
 # @used-by :func:`agent_tools.worktree_flow._maybe_promote_snapshot()`
+# @used-by :meth:`Df.Harness.Gate.WorktreeIsolationGate.WorktreeIsolationGate.__evaluate_main_checkout()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 # @used-by :mod:`agent_tools.runtime_snapshot`
 def dfh_is_harness_code_repo(repo: str | Path) -> bool:
 	p = Path(repo).resolve()

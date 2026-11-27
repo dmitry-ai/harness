@@ -9,6 +9,7 @@ class WorkspaceCloner:
 	# @used-by :func:`Df.Harness.lib.shadow_command.dfh_stage_command_shadow_copies()`
 	# @used-by :func:`agent_tools.shadow_replay_clone.clone_project_tree()`
 	# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.__prepare_stage()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_shadow_clone_and_command_ops()`
 	def __init__(self, src_root: Path, dst_root: Path, *, hardlink_evidence: bool=True) -> None:
 		self.__src = Path(src_root).resolve()
 		self.__dst = Path(dst_root).resolve()
@@ -35,6 +36,7 @@ class WorkspaceCloner:
 	# @used-by :func:`Df.Harness.lib.shadow_command.dfh_stage_command_shadow_copies()`
 	# @used-by :func:`agent_tools.shadow_replay_clone.clone_project_tree()`
 	# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.__prepare_stage()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_shadow_clone_and_command_ops()`
 	def run(self) -> None:
 		from Df.Harness.lib.project import dfh_is_skipped_rel
 		self.__dst.mkdir(parents=True, exist_ok=True)

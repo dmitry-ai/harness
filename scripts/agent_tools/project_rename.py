@@ -4,8 +4,8 @@ from Df.Harness.Project.Rename.ProjectRenamer import ProjectRenamer
 from pathlib import Path
 from .project_rename_verify import capture_pre_rename_snapshot, verify_post_rename
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
-# @used-by :func:`agent_tools.shadow_replay_command.resolve_shadow_launcher()`
-# @used-by :func:`agent_tools.shadow_replay_command.stage_command_shadow_copies()`
+# @used-by :func:`Df.Harness.lib.shadow_command.dfh_resolve_shadow_launcher()`
+# @used-by :func:`Df.Harness.lib.shadow_command.dfh_stage_command_shadow_copies()`
 # @used-by :mod:`agent_tools.project_rename`
 def _infer_daily_root(root: Path, daily_root: Path | None) -> Path | None:
 	return ProjectRenamer.infer_daily_root(root, daily_root)
@@ -13,8 +13,8 @@ def _infer_daily_root(root: Path, daily_root: Path | None) -> Path | None:
 # @used-by :mod:`agent_tools.project_rename`
 def _update_projects_index(old_root: Path, new_root: Path, job_id: str, daily_root: Path | None, backups: list[tuple[Path, bytes | None]]) -> str | None:
 	return ProjectRenamer.update_projects_index(old_root, new_root, job_id, daily_root, backups)
-# @used-by :func:`agent_tools.cli_domains._op_render_analysis()`
-# @used-by :func:`agent_tools.cli_domains._op_save_analysis()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_render_analysis()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_save_analysis()`
 # @used-by :mod:`agent_tools.project_rename`
 def apply_domain_promotion(project_root: Path, analysis_value: dict, result: dict, *, register_native: bool | None=None, launcher_root: Path | None=None) -> dict:
 	return ProjectRenamer.apply_domain_promotion(project_root, analysis_value, result, register_native=register_native, launcher_root=launcher_root, maybe_promote_fn=maybe_promote_project_domain)
@@ -22,8 +22,8 @@ def apply_domain_promotion(project_root: Path, analysis_value: dict, result: dic
 # @used-by :mod:`agent_tools.project_rename`
 def maybe_promote_project_domain(project_root: str | Path, analysis_value: dict, *, daily_root: Path | None=None, register_native: bool | None=None, launcher_root: Path | None=None) -> dict:
 	return ProjectRenamer.maybe_promote_domain(project_root, analysis_value, daily_root=daily_root, register_native=register_native, launcher_root=launcher_root, rename_fn=rename_project)
-# @used-by :func:`agent_tools.cli_registry._exec_rename_project()`
-# @used-by :func:`agent_tools.shadow_replay_command._run_exec_rename_domain()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_rename_project()`
+# @used-by :func:`Df.Harness.lib.shadow_command.dfh_run_exec_rename_domain()`
 # @used-by :func:`maybe_promote_project_domain()`
 # @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests.test_rename_project_cleanup_recent_and_old_path_history()`
 # @used-by :meth:`test_finalized_project_contract.FinalizedProjectContractTests.test_rename_project_preserves_all_seven_stages_config_journal_handoff_and_review_lineage()`

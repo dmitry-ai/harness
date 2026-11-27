@@ -132,6 +132,7 @@ def _merge_one_state_dir(src_sub: Path, dst_sub: Path, *, prune_empty: bool) -> 
 			src_sub.rmdir()
 	return moved
 # @used-by :func:`_migrate_journal_state_dir()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_sync_and_upgrade()`
 def _merge_state_subdirs(old_sdir: Path, new_sdir: Path) -> bool:
 	m1 = _merge_one_state_dir(old_sdir / 'answer-groups', new_sdir / 'answer-groups', prune_empty=True)
 	m2 = _merge_one_state_dir(old_sdir, new_sdir, prune_empty=False)
@@ -215,12 +216,12 @@ def _unit_needs_upgrade(src_jdir: Path, dst_jdir: Path) -> bool:
 	return src_jdir.resolve() != dst_jdir.resolve() or (dst_jdir / 'req').is_dir() or (dst_jdir / 'res').is_dir() or 3 > dfh_detect_journal_version(dst_jdir) or readme_old
 # @used-by :func:`Df.Harness.lib.completion_commands._begin_live()`
 # @used-by :func:`Df.Harness.lib.hook_stop_ops.dfh_record_emergency_locked()`
-# @used-by :func:`agent_tools.upwork_project.configure_project()`
-# @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :meth:`Df.Harness.Completion.JournalReconciler.JournalReconciler.run()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.record_current_answer()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.resume()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_journal_upgrade()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.configure()`
+# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.record()`
+# @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.adopt()`
+# @used-by :meth:`Df.Harness.Workflow.WorkflowResumer.WorkflowResumer.resume()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
 def dfh_ensure_project_journal_upgraded(root: str | Path, *, selected: str | Path | None=None) -> dict:
 	pp = dfh_project_paths(Path(root).resolve(), exact_root=True)
@@ -237,8 +238,8 @@ def dfh_ensure_project_journal_upgraded(root: str | Path, *, selected: str | Pat
 	else:
 		r = dfh_upgrade_journal(pp.journal_dir if pp.journal_glob else pp.journal_root_dir, project_root=pp.root)
 	return r
-# @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`dfh_ensure_project_journal_upgraded()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_journal_upgrade()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_o_journal_20_entry_bucketing_and_partial_range_normalization()`
 def dfh_upgrade_journal(journal_root: str | Path, *, project_root: str | Path | None=None, dry_run: bool=False) -> dict:
 	j_root = Path(journal_root).resolve()

@@ -32,7 +32,7 @@ def _single_test_file_in_args(seg: str) -> bool:
 # @used-by :mod:`agent_tools.tdd`
 def classify_test_command(cmd: str, *, scope_root: Path | None=None) -> dict:
 	return CommandInspector(cmd, scope_root=scope_root, unique_fn=dfa_unique_fast).classify_test_command()
-# @used-by :func:`agent_tools.platforms.trace_common.record_normalized_tool_effects()`
+# @used-by :func:`Df.Harness.lib.trace_effects._record_shell_tdd()`
 # @used-by :meth:`test_issue_first_gate.IssueFirstGateCoreTests.test_shell_write_targets_detects_test_production_and_doc_writes()`
 # @used-by :meth:`test_shell_herestring_write_targets_m4.ShellHerestringWriteTargetsM4Tests.test_ignores_arrows_and_html_inside_powershell_herestring()`
 # @used-by :meth:`test_shell_herestring_write_targets_m4.ShellHerestringWriteTargetsM4Tests.test_ignores_double_quoted_herestring_and_bash_heredoc_bodies()`
@@ -50,9 +50,9 @@ def shell_code_write_targets(cmd: str, *, cwd: Path | None=None) -> list[Path]:
 # @used-by :mod:`agent_tools.tdd`
 def shell_test_delete_targets(cmd: str, *, cwd: Path | None=None) -> list[Path]:
 	return CommandInspector.shell_test_delete_targets(cmd, cwd=cwd)
+# @used-by :func:`Df.Harness.lib.trace_effects._record_shell_issue_first()`
 # @used-by :func:`agent_tools.issue_first_bg._handle_run_command_call()`
 # @used-by :func:`agent_tools.issue_first_gate.evaluate_pre_tool_use_issue_first()`
-# @used-by :func:`agent_tools.platforms.trace_common.record_normalized_tool_effects()`
 # @used-by :meth:`test_issue_first_gate.IssueFirstGateCoreTests.test_shell_write_targets_detects_test_production_and_doc_writes()`
 # @used-by :meth:`test_shell_herestring_write_targets_m4.ShellHerestringWriteTargetsM4Tests.test_ignores_arrows_and_html_inside_powershell_herestring()`
 # @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_commands_module_behavior_and_parity()`

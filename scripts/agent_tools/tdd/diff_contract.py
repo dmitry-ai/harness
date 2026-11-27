@@ -29,7 +29,7 @@ def check_touched_mixed_commit_warning(repo_root: Path, rel_paths: list[str], *,
 # @used-by :mod:`agent_tools.tdd`
 def detect_mixed_commit_warning(diff_info: dict[str, Any] | None, *, threshold: int=MIXED_COMMIT_COMMENT_THRESHOLD) -> dict[str, Any] | None:
 	return DiffContract.detect_mixed_commit_warning(diff_info, threshold=threshold)
-# @used-by :func:`agent_tools.runtime_snapshot._promote_locked()`
+# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.__promote_locked()`
 # @used-by :meth:`test_diff_executability_contract.DiffExecutabilityContractTests.test_all_six_gates_delegate_through_diff_executability()`
 # @used-by :meth:`test_diff_executability_contract.DiffExecutabilityContractTests.test_contract_constants_declare_all_six_gates_and_land_stage_policies()`
 # @used-by :mod:`agent_tools.tdd.diff_contract`

@@ -9,6 +9,7 @@ import time
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 class ProjectRegistrar:
 	# @used-by :func:`agent_tools.platforms.codex.register()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_ag_and_codex_registrars_verifiers_and_title_sync()`
 	def __init__(self, project_dir, domain_or_topic: str, date_str=None, *, _ops: dict[str, Any] | None=None) -> None:
 		self.__project_dir = project_dir
 		self.__domain_or_topic = domain_or_topic
@@ -25,6 +26,7 @@ class ProjectRegistrar:
 					break
 		return receipt
 	# @used-by :func:`agent_tools.platforms.codex.register()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_ag_and_codex_registrars_verifiers_and_title_sync()`
 	def run(self) -> dict[str, Any]:
 		control_fn = self.__ops.get('shared_control') or (lambda req: dfh_shared_control(req, platform_settings_fn=self.__ops.get('platform_settings'), run_fn=self.__ops.get('subprocess_run')))
 		profile_fn = self.__ops.get('registration_profile_name') or (lambda: dfh_registration_profile_name(settings_fn=self.__ops.get('settings')))

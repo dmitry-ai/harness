@@ -7,6 +7,7 @@ class LivenessProbe:
 	# @used-by :func:`agent_tools.journal_integrity._reservation_orphan_reason()`
 	# @used-by :func:`agent_tools.journal_liveness.classify_reservation_entry()`
 	# @used-by :meth:`Df.Harness.Journal.IntegrityAuditor.IntegrityAuditor.run()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 	def __init__(self, r_key: str, entry: dict[str, Any], max_existing: int, committed_rids: set[str], by_key: dict[str, dict[str, Any]], max_start_by_cid: dict[str, int], *, require_empty: bool, turn_reason_fn: Any) -> None:
 		self.__r_key = r_key
 		self.__entry = entry
@@ -19,6 +20,7 @@ class LivenessProbe:
 	# @used-by :func:`agent_tools.journal_integrity._reservation_orphan_reason()`
 	# @used-by :func:`agent_tools.journal_liveness.classify_reservation_entry()`
 	# @used-by :meth:`Df.Harness.Journal.IntegrityAuditor.IntegrityAuditor.run()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 	def run(self) -> tuple[str | None, dict[str, Any] | None]:
 		cid = str(self.__entry.get('conversation_id') or '').strip().lower()
 		e_steps = [s for s in (self.__entry.get('steps') or ()) if int is type(s) and 1 <= s]

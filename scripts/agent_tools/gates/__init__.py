@@ -15,7 +15,7 @@ _BUILTIN_TOOLS_MANIFEST = PreToolRegistry.BUILTIN_TOOLS_MANIFEST
 # @used-by :mod:`agent_tools.gates`
 def discover_pre_tool_gates(*, tool_name: str | None=None, extra_dirs: list[Path] | tuple[Path, ...] | None=None) -> list[dict]:
 	return PreToolRegistry.discover(tool_name=tool_name, extra_dirs=extra_dirs, pkg_name=__name__, pkg_dir=Path(__file__).resolve().parent)
-# @used-by :func:`check_rules_and_server_gate._evaluate_payload()`
+# @used-by :meth:`Df.Harness.Hook.RulesServerGate.RulesServerGate.run()`
 # @used-by :meth:`test_ask_question_pre_tool_gate.AskQuestionPreToolGateTests.test_pre_tool_gate_blocks_q4_undisclosed_deferral_and_allows_q1_to_q3()`
 # @used-by :meth:`test_ask_question_pre_tool_gate.AskQuestionPreToolGateTests.test_pre_tool_gate_blocks_stop_gate_bypass_and_docs_codify_rule()`
 # @used-by :meth:`test_code_style_gate.CodeStyleGateTests.test_pre_tool_use_gate_and_pre_commit_enforce_code_style()`

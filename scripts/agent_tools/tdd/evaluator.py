@@ -10,7 +10,7 @@ def _command_matches_scope(event: dict, scope_str: str, written_test_files: set[
 # @used-by :mod:`agent_tools.tdd.evaluator`
 def _git_main_repo_root(repo: Path) -> Path:
 	return Evaluator.git_main_repo_root(repo)
-# @used-by :func:`agent_tools.completion._tdd_status()`
+# @used-by :func:`Df.Harness.lib.completion_checks.dfh_tdd_status()`
 # @used-by :func:`test_diff_executability_contract._verify_tdd_gate_delegation()`
 # @used-by :meth:`test_background_wait_and_tdd_inheritance.BackgroundWaitAndTddInheritanceTests.test_completed_prior_turn_does_not_bleed_tdd_events_into_unrelated_followup()`
 # @used-by :meth:`test_background_wait_and_tdd_inheritance.BackgroundWaitAndTddInheritanceTests.test_unfinished_background_run_command_and_russian_stub_merge_and_preserve_tdd_full_gate()`

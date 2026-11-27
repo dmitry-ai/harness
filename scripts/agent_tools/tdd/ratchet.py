@@ -34,7 +34,7 @@ def find_ratchet_approval(file_path: str | Path, *, repo_root: Path | None=None,
 # @used-by :mod:`agent_tools.tdd`
 def ratchet_diff_violations(rel_path: str, old_text: str, new_text: str | None, *, approval: dict | None=None) -> list[str]:
 	return RatchetGuard(rel_path, old_text, new_text, approval=approval).check()
-# @used-by :func:`agent_tools.completion.ratchet_ok()`
+# @used-by :func:`Df.Harness.lib.completion_recovery.dfh_ratchet_ok()`
 # @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_ratchet_module_behavior_and_parity()`
 # @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_ratchet_diff_guard_and_ratchet_ok_validation()`
 # @used-by :mod:`agent_tools.tdd.ratchet`

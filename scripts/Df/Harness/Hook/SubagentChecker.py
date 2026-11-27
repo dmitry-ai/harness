@@ -7,6 +7,7 @@ class SubagentChecker:
 	# @used-by :func:`Df.Harness.lib.hook_subagent_ops.dfh_evaluate_schedule_subagent_block()`
 	# @used-by :func:`agent_tools.stop_subagent_check.has_running_subagents()`
 	# @used-by :meth:`Df.Harness.Hook.StopGate.StopGate.__load_state_context()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_subagent_checker_and_schedule_block()`
 	def __init__(self, state: dict, session_id: str, conversations_db: Path | None=None) -> None:
 		self.__state = state
 		self.__session_id = session_id
@@ -14,6 +15,7 @@ class SubagentChecker:
 	# @used-by :func:`Df.Harness.lib.hook_subagent_ops.dfh_evaluate_schedule_subagent_block()`
 	# @used-by :func:`agent_tools.stop_subagent_check.has_running_subagents()`
 	# @used-by :meth:`Df.Harness.Hook.StopGate.StopGate.__load_state_context()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_subagent_checker_and_schedule_block()`
 	def run(self) -> bool:
 		if 0 >= int(self.__state.get('spawned') or 0) or self.__state.get('killed_all'):
 			r = False

@@ -9,6 +9,7 @@ from Df.Harness.lib.runtime_instances import dfh_platform_active, dfh_platform_a
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 class StoreResolver:
 	# @used-by :meth:`Df.Harness.Cleanup.Scanner.Scanner.__init__()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_cleanup_resolvers()`
 	def __init__(self, config: dict, daily: Path, *, ag_directory=None, ag_backend=None, folders=None) -> None:
 		self.__config = config
 		self.__daily = daily
@@ -90,6 +91,7 @@ class StoreResolver:
 		if any((None is not p and p.is_relative_to(self.__daily) for p in (p_dir, b_dir, conv_dir, brain_dir, conv_db))):
 			raise ValueError('Native stores must be outside the preserved daily archive')
 	# @used-by :meth:`Df.Harness.Cleanup.Scanner.Scanner.__init__()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_cleanup_resolvers()`
 	def run(self) -> dict[str, Any]:
 		single_ag_mode = None is not self.__ag_directory or None is not self.__ag_backend
 		ag_plats = self.__platform_ids('antigravity')

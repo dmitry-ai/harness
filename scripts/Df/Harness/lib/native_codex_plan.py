@@ -135,6 +135,7 @@ def dfh_install_native_profiles(target_profiles: Any=None, *, check: bool=False,
 		r = finalize_install_result(Applier(plan, prim_p, state, check=check, ops=ops).run(), all_declared, names, prim_p, check=check, git_ignore_path=git_ignore_path)
 	return r
 # @used-by :func:`agent_tools.native_profiles.retire_owned_project_projections()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_native_builder_and_projection_publisher()`
 def dfh_retire_owned_project_projections(root: str | Path, *, check: bool=False, primary: str | Path | None=None, settings_fn: Any=None, ops: dict | None=None) -> dict:
 	prim_p = Path(primary if None is not primary else dfh_var_value('HARNESS_CODE')).resolve()
 	root_p = Path(root).resolve()

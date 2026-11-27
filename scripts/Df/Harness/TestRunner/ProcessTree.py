@@ -20,9 +20,9 @@ class ProcessTree:
 	def __init__(self, proc: subprocess.Popen, *, wait_timeout: float=5.0) -> None:
 		self.__proc = proc
 		self.__wait_timeout = wait_timeout
-	# @used-by :func:`agent_tools.addon_observability._is_pid_alive()`
+	# @used-by :func:`Df.Harness.lib.ag_daemon.dfh_is_live_language_server_pid()`
+	# @used-by :func:`Df.Harness.lib.hook_addon_ops.dfh_is_pid_alive()`
 	# @used-by :func:`agent_tools.landing_lease._pid_is_alive()`
-	# @used-by :func:`agent_tools.platforms.antigravity._is_live_language_server_pid()`
 	# @used-by :func:`agent_tools.process_tree.kill_process_tree()`
 	# @used-by :func:`test_hook_runner_watchdog._is_pid_alive()`
 	# @used-by :func:`test_hook_trace_cache_and_watchdog._is_pid_alive()`

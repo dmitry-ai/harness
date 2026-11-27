@@ -72,6 +72,7 @@ def _has_substantive_hm(kb_scan: dict, turn_obj: dict, value_obj: dict, response
 		r = bool(has_hm or has_kb_mut or touches_deliv)
 	return r
 # @used-by :func:`dfh_blocked_report_issues()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_blocked_report_and_workflow_sync_ops()`
 def _is_doc5_blocker_analysis(response: str) -> bool:
 	txt = response or ''
 	has_meta = bool(_DOC5_HEADER_RE.search(txt)) and ('"Issue"' in txt or '"Source Project"' in txt)
@@ -133,6 +134,7 @@ def dfh_audit_runner_workflow_scope(runner: Any, *, factual_kb_fn, is_deliv_fn) 
 # @used-by :func:`dfh_audit_runner_workflow_scope()`
 # @used-by :func:`dfh_evaluate_check_workflow_errors()`
 # @used-by :meth:`Df.Harness.Completion.BlockedReportAuditor.BlockedReportAuditor.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_blocked_report_and_workflow_sync_ops()`
 def dfh_blocked_report_issues(pp: Any, response: str, *, workflow_exists: bool, is_finalized: bool) -> list[str]:
 	issues: list[str] = []
 	if not workflow_exists or is_finalized:
@@ -149,6 +151,7 @@ def dfh_blocked_report_issues(pp: Any, response: str, *, workflow_exists: bool, 
 		issues.append('REVIEW-3 blocked-report: five-stage analysis sections are prohibited in --blocked-report; complete A.A review authorization instead')
 	return issues
 # @used-by :func:`Df.Harness.lib.completion_commands._collect_check_payload()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_blocked_report_and_workflow_sync_ops()`
 def dfh_evaluate_check_workflow_errors(root_p: Path, pp: Any, role: str, response: str, requests_list: list, turn_obj: dict, value_obj: dict, del_chk: dict, *, blocked_report: bool, journal_directory: Any, factual_kb_fn, is_deliv_fn, dir_fn) -> list[str]:
 	wf_errs: list[str] = []
 	if 'primary' == role:
@@ -179,6 +182,7 @@ def dfh_evaluate_runner_code_hygiene(runner: Any, *, issue_first_fn, lifecycle_f
 		_fail_hygiene_gates(runner, if_chk, lc_chk, tdd_chk)
 # @used-by :func:`_authorize_workflow_errors()`
 # @used-by :func:`dfh_prepare_and_sync_authorized_workflow()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_blocked_report_and_workflow_sync_ops()`
 def dfh_pending_workflow_alignment_issues(wf_state: dict, conversation_id: str | None, wf_identifiers: set, *, response_sha: str | None=None, allow_reprepare: bool=False) -> list[str]:
 	errs: list[str] = []
 	reqs = wf_state.get('requests') or []
@@ -189,6 +193,7 @@ def dfh_pending_workflow_alignment_issues(wf_state: dict, conversation_id: str |
 		errs.append('Tracked analysis requests already have different prepared response bytes')
 	return errs
 # @used-by :meth:`Df.Harness.Completion.AnswerPreparer.AnswerPreparer.__authorize_and_sync_workflow()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_blocked_report_and_workflow_sync_ops()`
 def dfh_prepare_and_sync_authorized_workflow(runner: Any, approval: dict, now_fn) -> None:
 	align_errs = dfh_pending_workflow_alignment_issues(runner.wf_state, runner.native['conversation_id'], runner.wf_identifiers, response_sha=runner.sha, allow_reprepare=runner.allow_reprepare)
 	if align_errs:
@@ -196,6 +201,7 @@ def dfh_prepare_and_sync_authorized_workflow(runner: Any, approval: dict, now_fn
 	runner._record_journal_entry()
 	dfh_sync_authorized_workflow_requests(runner, approval, now_fn)
 # @used-by :meth:`Df.Harness.Completion.AnswerPreparer.AnswerPreparer.__authorize_and_sync_workflow()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_blocked_report_and_workflow_sync_ops()`
 def dfh_record_blocked_report_entry(runner: Any) -> None:
 	runner._record_journal_entry()
 	runner.value['completion_kind'] = 'blocked_report'

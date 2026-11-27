@@ -112,8 +112,8 @@ def _journal_lock(root):
 def _matches_recorded_response(recorded, raw_response: str, raw_sha: str) -> bool:
 	return dfh_matches_recorded_response(recorded, raw_response, raw_sha, ops=_completion_ops())
 # @used-by :func:`_completion_ops()`
-# @used-by :func:`agent_tools.tdd.mechanical._resolve_turn_key()`
 # @used-by :func:`test_turn_completion.completed_tail_is_immutable()`
+# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__resolve_turn_key()`
 # @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_open_turn_reconciles_safely_and_trims_stale_reservation()`
 # @used-by :meth:`test_atomic_prepare_and_narrowed_reconcile_m7.AtomicPrepareAndNarrowedReconcileM7Tests.test_narrowed_prepared_or_missing_tail_turn_remains_rejected()`
 # @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_historical_explicit_project_root_receipt_reconciles_without_rewriting_saved_state()`
@@ -238,7 +238,7 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 # @used-by :meth:`test_verification_observability.VerificationObservabilityTests.test_failed_shadow_replay_blocks_silent_reply_and_issue_close_and_passes_on_disclosure_or_rerun()`
 def check_answer(root, response, conversation=None, *, response_path=None, platform=None, backend=None, journal_directory=None, blocked_report=False):
 	return dfh_check_answer(root, response, conversation, response_path=response_path, platform=platform, backend=backend, journal_directory=journal_directory, blocked_report=blocked_report, ops=_completion_ops())
-# @used-by :func:`agent_tools.meta.blocks._resolve_conversation_steps()`
+# @used-by :meth:`Df.Harness.Meta.Blocks.Blocks.resolve_conversation_steps()`
 # @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_record_answer_subtracts_overlapping_request_ids_and_excludes_stale_steps_from_title()`
 def conversation_journal_steps(root, journal_directory, conversation_id: str) -> list[int]:
 	return dfh_conversation_journal_steps(root, journal_directory, conversation_id, ops=_completion_ops())
@@ -247,7 +247,7 @@ def conversation_journal_steps(root, journal_directory, conversation_id: str) ->
 def execute(args):
 	return dfh_execute_completion(args, ops=_completion_ops())
 # @used-by :func:`_completion_ops()`
-# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__maybe_handoff()`
 # @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_handoff_launcher_turn_cascades_followup_without_job_url_and_clears_reservation()`
 def handoff_launcher_turn(launcher_root, target_root, job_id, *, conversation_id=None) -> list[dict]:
 	return dfh_handoff_launcher_turn(launcher_root, target_root, job_id, conversation_id=conversation_id, ops=_completion_ops())

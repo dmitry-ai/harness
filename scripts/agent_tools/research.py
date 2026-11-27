@@ -116,14 +116,14 @@ def classify_network_error(exc):
 # 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
+# @used-by :func:`Df.Harness.lib.cleanup_mutation_ops._commit_pruned_folders()`
+# @used-by :func:`Df.Harness.lib.cleanup_mutation_ops._restore_pending_folders()`
+# @used-by :func:`Df.Harness.lib.cleanup_mutation_ops._save_pending_snapshot()`
+# @used-by :func:`Df.Harness.lib.cleanup_mutation_ops.dfh_finish_pending()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops.dfh_execute_collect()`
+# @used-by :func:`Df.Harness.lib.trace_review.dfh_make_tool_trace_event()`
+# @used-by :func:`Df.Harness.lib.trace_review.dfh_persist_review_proof()`
 # @used-by :func:`_write_cached_extraction()`
-# @used-by :func:`agent_tools.cleanup._finish_pending()`
-# @used-by :func:`agent_tools.cleanup.remove_antigravity()`
-# @used-by :func:`agent_tools.cleanup.restore_antigravity()`
-# @used-by :func:`agent_tools.operations._execute_collect()`
-# @used-by :func:`agent_tools.platforms.codex.native_executor_metadata()`
-# @used-by :func:`agent_tools.platforms.trace_common.make_tool_trace_event()`
-# @used-by :func:`agent_tools.platforms.trace_common.persist_review_proof()`
 # @used-by :func:`agent_tools.text_claims.save_registry()`
 # @used-by :func:`agent_tools.text_review.prepare()`
 # @used-by :func:`agent_tools.text_review.record()`
@@ -142,6 +142,7 @@ def classify_network_error(exc):
 # @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__write_run()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__append_executor_receipt()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__save_executor_metadata()`
+# @used-by :meth:`Df.Harness.Platform.Codex.ExecutorMetadataReader.ExecutorMetadataReader.run()`
 # @used-by :meth:`Df.Harness.Review.ClaimMerkleHasher.ClaimMerkleHasher.compute_hash()`
 # @used-by :meth:`Df.Harness.Review.Classifier.Classifier.__resolve_claim()`
 # @used-by :meth:`Df.Harness.Review.DispositionRecorder.DispositionRecorder.record()`
@@ -185,11 +186,11 @@ def _fingerprint(value):
 # 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
-# @used-by :func:`agent_tools.cli_domains._op_save_analysis()`
-# @used-by :func:`agent_tools.cli_domains._resolve_project_input()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_save_analysis()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._resolve_project_input()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops.dfh_execute_collect()`
+# @used-by :func:`Df.Harness.lib.codex_metadata._match_review_receipt()`
 # @used-by :func:`agent_tools.evidence.source_reference()`
-# @used-by :func:`agent_tools.operations._execute_collect()`
-# @used-by :func:`agent_tools.platforms.codex._review_inputs()`
 # @used-by :func:`agent_tools.review._approved_digests()`
 # @used-by :func:`agent_tools.review.approval_current()`
 # @used-by :func:`agent_tools.review.authenticate_report()`
@@ -1159,7 +1160,7 @@ def compact_extraction_for_disk(data):
 # 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
-# @used-by :func:`agent_tools.cli_domains._op_extract()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_extract()`
 # @used-by :func:`capture_dom()`
 # @used-by :func:`collect_browser()`
 # @used-by :func:`collect_http()`
@@ -1195,7 +1196,7 @@ def extract_observation(root, reference, profile='html'):
 # 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
-# @used-by :func:`agent_tools.cli_domains._op_extract_file()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_extract_file()`
 # @used-by :meth:`test_text_browser.TextBrowserTests.test_collect_plan_delegates_to_collect_http_and_shared_cdp_primitives()`
 def extract_file(root, file, profile='document'):
 	import mimetypes
@@ -1232,7 +1233,7 @@ def select_dom_tab(tabs, url, tab_id):
 # 2026-10-20
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
-# @used-by :func:`agent_tools.cli_domains._op_capture_dom()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_capture_dom()`
 # @used-by :meth:`test_experiments.ExperimentTests.test_dom_is_fresh_and_never_proves_click()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_exact_dom_tab_is_read_without_inventing_http_status()`
 # @used-by :meth:`test_text_browser.TextBrowserTests.test_dom_collector_does_not_issue_content_proof_if_browser_identity_changes()`
@@ -1283,7 +1284,7 @@ def capture_dom(root, url, tab_id, *, session_id=None, refresh_reason=None, cont
 # 2026-10-31
 # "Extract universal harness.py CLI, add CDP browser fallback on port 9222, and harden source/quote/anchor verification in answer-prepare":
 # https://github.com/dmitry-ai/harness/issues/27
-# @used-by :func:`agent_tools.cli_domains._op_collect_browser()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_collect_browser()`
 # @used-by :func:`collect_browser_batch()`
 # @used-by :func:`collect_http()`
 # @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m4_collect_browser_public_and_authenticated_cdp_identity_provenance()`
@@ -1344,7 +1345,7 @@ def collect_browser(root, url, *, profile='html', scope='public', session_id=Non
 # 2026-10-19
 # "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks":
 # https://github.com/dmitry-ai/harness/issues/12
-# @used-by :func:`agent_tools.operations._execute_collect()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops.dfh_execute_collect()`
 # @used-by :func:`collect_browser_batch()`
 # @used-by :func:`collect_plan()`
 # @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_e5_and_e6_html_sitemap_and_site_summary_diagnostics()`
@@ -1405,7 +1406,7 @@ def compute_site_summary(root, results):
 # 2026-10-30
 # "Harden answer-prepare against CHECKPOINT context compaction data loss, ad-hoc shell HTTP bypasses, and mature-project journal deadlocks":
 # https://github.com/dmitry-ai/harness/issues/21
-# @used-by :func:`agent_tools.cli_domains._op_collect_http()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_collect_http()`
 # @used-by :func:`collect_plan()`
 # @used-by :meth:`test_analysis_workflow.MetricsTests.test_collect_http_positional_batch_extract_profile_and_14_url_evidence_query()`
 # @used-by :meth:`test_df_analysis.DfAnalysisGatesTests.test_documentation_link_requires_anchor_when_observation_has_anchors()`
@@ -1472,7 +1473,7 @@ def collect_http(root, url, *, profile='html', scope='public', session_id=None, 
 # 2026-10-15
 # "Eliminate redundant subagent searches with HTTP evidence caching, structured Analysis.json workflow, and in-chat resume":
 # https://github.com/dmitry-ai/harness/issues/4
-# @used-by :func:`agent_tools.operations._execute_collect()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops.dfh_execute_collect()`
 # @used-by :func:`collect_http_batch()`
 # @used-by :meth:`test_analysis_workflow.ResearchTests.test_http_error_observation_is_completed_and_preserved()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_failed_extraction_keeps_saved_observation_and_reuses_it()`
@@ -1521,7 +1522,7 @@ def collect_plan(root, plan, *, fetcher=None, browser='auto', cdp_port=None, ses
 # 2026-11-21
 # "Add compact evidence-query command and unify collect-http CLI flags":
 # https://github.com/dmitry-ai/harness/issues/118
-# @used-by :func:`agent_tools.cli_domains._op_collect_http()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_collect_http()`
 # @used-by :func:`collect_http()`
 def collect_http_batch(root, urls, *, profile='auto', scope='public', session_id=None, refresh_reason=None, max_age=86400, headers=None, context=None, fetcher=None, browser='auto', cdp_port=None, cdp_fetcher=None, http_get=None, cdp_call=None):
 	cleaned = [str(u).strip() for u in (urls or ()) if str(u).strip()]
@@ -1529,7 +1530,7 @@ def collect_http_batch(root, urls, *, profile='auto', scope='public', session_id
 		raise ValueError('Provide at least one HTTP(S) URL')
 	plan = {'requests': [{'url': u, 'profile': profile, 'scope': scope, 'session_id': session_id, 'refresh_reason': refresh_reason, 'max_age': max_age, 'headers': headers, 'context': context, 'browser': browser} for u in cleaned]}
 	return collect_plan(root, plan, fetcher=fetcher, browser=browser, cdp_port=cdp_port, session_id=session_id, cdp_fetcher=cdp_fetcher, http_get=http_get, cdp_call=cdp_call)
-# @used-by :func:`agent_tools.cli_domains._op_collect_browser()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_collect_browser()`
 # @used-by :func:`collect_browser()`
 def collect_browser_batch(root, urls, *, profile='html', scope='public', session_id=None, refresh_reason=None, max_age=86400, cdp_port=None, timeout=15, context=None, config=None, http_get=None, cdp_call=None, cdp_fetcher=None):
 	cleaned = [str(u).strip() for u in (urls or ()) if str(u).strip()]
@@ -1840,7 +1841,7 @@ def _summarize_observation_bundle(obs_file: Path, kb_dir: Path, *, include_ancho
 		entry['match_count'] = len(matches)
 		entry['matches'] = matches
 	return entry
-# @used-by :func:`agent_tools.cli_domains._op_evidence_query()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_evidence_query()`
 # @used-by :meth:`test_analysis_workflow.MetricsTests.test_collect_http_positional_batch_extract_profile_and_14_url_evidence_query()`
 def evidence_query(root, *, urls=None, include_anchors: bool = False, grep_pattern: str | None = None, context_lines: int = 2, max_matches: int = 20) -> dict:
 	from .path_registry import project_paths

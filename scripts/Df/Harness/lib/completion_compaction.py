@@ -149,6 +149,7 @@ def dfh_compact_compaction_check(comp_check: dict, *, index_file: str | None=Non
 # @used-by :func:`Df.Harness.lib.completion_state._refresh_core_checks()`
 # @used-by :func:`Df.Harness.lib.completion_state.dfh_new_turn_state()`
 # @used-by :func:`agent_tools.completion._compaction_status()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_compaction_and_response_links()`
 def dfh_compaction_status(root: Path, key: str | None, turn: dict, *, folder_fn, read_fn, is_deliv_fn) -> dict:
 	pp = dfh_project_paths(root, exact_root=True)
 	ev_prefix = pp.evidence_dir.as_posix().lower().rstrip('/') + '/'
@@ -167,6 +168,7 @@ def dfh_compaction_status(root: Path, key: str | None, turn: dict, *, folder_fn,
 	return {'verified': verified, 'occurred': occurred, 'checkpoint_steps': list(comp.get('checkpoint_steps') or []), 'last_checkpoint_step': last_cp, 'pre_checkpoint_tool_steps': pre_steps, 'post_checkpoint_recovery_steps': post_rec, 'recovered_in_trace': recovered_in_trace, 'recovered_via_receipt': rec_via, 'pre_checkpoint_read_files': pre_reads, 'post_checkpoint_read_files': post_reads, 'post_checkpoint_written_files': post_writes, 'evicted_unreread_files': evicted_unreread, 'unreread_analysis_sources': unreread_src, 'index_file': idx_rel}
 # @used-by :func:`Df.Harness.lib.completion_commands._collect_check_payload()`
 # @used-by :meth:`Df.Harness.Completion.AnswerPreparer.AnswerPreparer.__check_evicted_citations()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_compaction_and_response_links()`
 def dfh_find_evicted_cited_files(root: Path, pp: Any, turn_key: str | None, compaction_check: dict, response: str) -> list[str]:
 	unreread_cited: list[str] = []
 	if compaction_check.get('occurred') and compaction_check.get('evicted_unreread_files') and (not _is_pre_checkpoint_authored(pp, turn_key, compaction_check, response)):
@@ -187,6 +189,7 @@ def dfh_find_evicted_cited_files(root: Path, pp: Any, turn_key: str | None, comp
 # @used-by :func:`Df.Harness.lib.completion_recovery._execute_checkpoint_recovery()`
 # @used-by :func:`agent_tools.completion._write_compaction_index_file()`
 # @used-by :meth:`Df.Harness.Completion.AnswerPreparer.AnswerPreparer.__finalize_prepared_state()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_compaction_and_response_links()`
 def dfh_write_compaction_index_file(root: Path, key: str, turn: dict, comp_check: dict, *, folder_fn, now_fn, json_fn, hash_fn=None, step_records: list[dict] | None=None) -> str:
 	rec_dir = folder_fn(root) / f'{key}-recovery'
 	rec_dir.mkdir(parents=True, exist_ok=True)

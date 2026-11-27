@@ -13,6 +13,7 @@ import urllib.request
 class TitleSyncer:
 	# @used-by :func:`Df.Harness.lib.completion_core._run_ag_title_sync()`
 	# @used-by :func:`agent_tools.platforms.antigravity.update_conversation_title()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_ag_and_codex_registrars_verifiers_and_title_sync()`
 	def __init__(self, conversation_id: str, title: str, *, backend=None, instance=None, paths=None, timeout: float=2.0, _ops: dict[str, Any] | None=None) -> None:
 		self.__conversation_id = conversation_id
 		self.__title = title

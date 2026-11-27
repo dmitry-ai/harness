@@ -10,6 +10,7 @@ from Df.Harness.lib.project import dfh_is_skipped_rel, dfh_rewrite_json_file, df
 from Df.Harness.lib.shadow_clone import dfh_build_stop_transcript as build_stop_transcript, dfh_cleanup_shadow_root as cleanup_shadow_root, dfh_path_pairs as _path_pairs, dfh_remap_shadow_state as remap_shadow_state, dfh_shadow_isolation_context
 # @used-by :func:`agent_tools.shadow_replay.run_shadow_replay()`
 # @used-by :func:`shadow_isolation_context()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_shadow_clone_and_command_ops()`
 @contextmanager
 def _legacy_shadow_patch_ctx(relocations: dict[Path, Path]):
 	from . import journal as journal_mod

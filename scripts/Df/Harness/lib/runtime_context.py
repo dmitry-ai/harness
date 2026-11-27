@@ -14,6 +14,7 @@ CONTEXT_PLATFORM: ContextVar[str | None] = ContextVar('upwork_platform', default
 CONTEXT_PROFILE: ContextVar[str | None] = ContextVar('upwork_profile', default=None)
 # @used-by :func:`_load_cfg()`
 # @used-by :func:`dfh_default_user_locale()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_runtime_tail()`
 def _default_settings() -> dict:
 	from Df.Harness.Runtime.SettingsLoader import SettingsLoader
 	return SettingsLoader().run()
@@ -35,6 +36,7 @@ def _pick_default_platform(cfg_all: dict, plats: dict, settings_fn: Any) -> str:
 		r = active[0] if active else (ag_plat if ag_plat else next(iter(plats)))
 	return r
 # @used-by :func:`dfh_profile_name()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_runtime_tail()`
 def _resolve_profile_from_codex_home(homes: dict[str, str]) -> str:
 	current = os.environ.get('CODEX_HOME')
 	matches = [name for name, home in homes.items() if current and Path(home).resolve() == Path(current).resolve()]
@@ -43,6 +45,7 @@ def _resolve_profile_from_codex_home(homes: dict[str, str]) -> str:
 		raise ValueError(f'Select --codex-profile {choices} or use a recognized CODEX_HOME')
 	return matches[0]
 # @used-by :func:`dfh_registration_profile_name()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_runtime_tail()`
 def _resolve_registration_default(plat_cfg: dict, cx_plat: str) -> str:
 	from Df.Harness.lib.runtime_instances import dfh_extract_platform_instances
 	name = plat_cfg.get('registration_profile')
@@ -110,6 +113,7 @@ def dfh_platform_settings(name: str | None=None, *, settings_fn: Any=None) -> di
 # @used-by :func:`Df.Harness.lib.runtime_resolve._resolve_codex_home_by_conv_or_profile()`
 # @used-by :func:`agent_tools.runtime.profile_name()`
 # @used-by :func:`dfh_registration_profile_name()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 def dfh_profile_name(value: str | None=None, *, config: dict | None=None, include_disabled: bool=True, settings_fn: Any=None) -> str:
 	from Df.Harness.lib.runtime_instances import dfh_extract_platform_homes, dfh_extract_platform_instances, dfh_platform_key_for_adapter
 	cfg_all = _load_cfg(config, settings_fn)
@@ -132,6 +136,7 @@ def dfh_profile_name(value: str | None=None, *, config: dict | None=None, includ
 	return r
 # @used-by :func:`agent_tools.runtime.registration_profile_name()`
 # @used-by :meth:`Df.Harness.Platform.Codex.ProjectRegistrar.ProjectRegistrar.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 def dfh_registration_profile_name(value: str | None=None, *, config: dict | None=None, settings_fn: Any=None) -> str:
 	from Df.Harness.lib.runtime_instances import dfh_extract_platform_homes, dfh_platform_key_for_adapter
 	cfg_all = _load_cfg(config, settings_fn)
@@ -157,6 +162,7 @@ def dfh_registration_profile_name(value: str | None=None, *, config: dict | None
 def dfh_request_day(value: str | None=None, *, settings_fn: Any=None) -> date:
 	return date.fromisoformat(value) if value else datetime.now(ZoneInfo(_load_cfg(None, settings_fn)['timezone'])).date()
 # @used-by :func:`agent_tools.runtime.role_settings()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 def dfh_role_settings(platform: str, role: str, seen: tuple[str, ...]=(), *, settings_fn: Any=None) -> dict:
 	if role in seen:
 		raise ValueError('Cyclic model role inheritance')

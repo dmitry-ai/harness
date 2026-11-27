@@ -13,6 +13,7 @@ import os
 import shutil
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 # @used-by :func:`_remap_journal_data()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_shadow_tail()`
 def _copy_file(src: Path, dst: Path, *, hardlink: bool) -> None:
 	dst.parent.mkdir(parents=True, exist_ok=True)
 	linked = False
@@ -55,6 +56,7 @@ def _shadow_registry_wrapper(relocations: dict[Path, Path]):
 		return reg
 	return _wrap
 # @used-by :meth:`Df.Harness.Shadow.ReplayPipeline.ReplayPipeline.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_shadow_clone_and_command_ops()`
 def dfh_build_stop_transcript(native_tx: Path, prepared_body: str, out_dir: Path) -> Path:
 	out_dir.mkdir(parents=True, exist_ok=True)
 	rows = [json.loads(line) for line in native_tx.read_text(encoding='utf-8-sig').splitlines() if line.strip()]
@@ -64,6 +66,7 @@ def dfh_build_stop_transcript(native_tx: Path, prepared_body: str, out_dir: Path
 	dest.write_text('\n'.join((json.dumps(row, ensure_ascii=False) for row in rows)) + '\n', encoding='utf-8')
 	return dest
 # @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_shadow_clone_and_command_ops()`
 def dfh_cleanup_shadow_root(shadow_root: Path) -> bool:
 	if shadow_root.exists():
 		shutil.rmtree(shadow_root, ignore_errors=False)
@@ -83,6 +86,7 @@ def dfh_path_pairs(raw_pairs: tuple[tuple[Path, Path], ...]) -> list[tuple[str, 
 			pairs.append((old_posix, new_posix))
 	return pairs
 # @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.__remap_copies()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_shadow_clone_and_command_ops()`
 def dfh_remap_shadow_state(src_root: Path, dst_root: Path, extra_pairs: tuple[tuple[Path, Path], ...]=(), *, old_state: Path | None=None, resolve_state_fn: Any=None) -> None:
 	if None is resolve_state_fn:
 		from Df.Harness.lib.journal_core import dfh_resolve_journal_dir, dfh_state_dir
@@ -100,6 +104,7 @@ def dfh_remap_shadow_state(src_root: Path, dst_root: Path, extra_pairs: tuple[tu
 			dfh_rewrite_json_file(item, pairs, preserve_keys=('admission',))
 # @used-by :func:`agent_tools.shadow_replay_clone.shadow_isolation_context()`
 # @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_shadow_clone_and_command_ops()`
 @contextmanager
 def dfh_shadow_isolation_context(relocations: dict[Path, Path], *, legacy_ctx: Any=None):
 	prev_load, prev_title, prev_same = (SHADOW_LOAD_HOOK[0], SHADOW_TITLE_HOOK[0], SHADOW_JOURNAL_IDENTITY_HOOK[0])

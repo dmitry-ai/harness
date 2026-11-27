@@ -103,6 +103,7 @@ def _raw_instances_map(plat_cfg: dict, platform: str) -> dict:
 		raise ValueError(f'runtime.json platforms.{label}.instances must be an object')
 	return r
 # @used-by :func:`agent_tools.runtime.all_instances()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 def dfh_all_instances(*, config: dict | None=None, platform: str | None=None, include_disabled: bool=True, check_exists: bool=False, settings_fn: Any=None) -> dict:
 	cfg_all = _load_cfg(config, settings_fn)
 	if platform:
@@ -134,6 +135,7 @@ def dfh_default_system_paths(platform: str, inst_id: str, inst_cfg: dict, plat_c
 	return dfh_derive_platform_system_paths(adapter_kind, explicit, home=home_exp, user_data_dir=udd_exp, plat_cfg=pc)
 # @used-by :func:`Df.Harness.lib.runtime_context._pick_default_platform()`
 # @used-by :func:`agent_tools.runtime.enabled_platforms()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 def dfh_enabled_platforms(*, config: dict | None=None, settings_fn: Any=None) -> list[str]:
 	cfg_all = _load_cfg(config, settings_fn)
 	return [name for name in cfg_all['platforms'] if dfh_platform_active(name, config=cfg_all, settings_fn=settings_fn)]
@@ -179,6 +181,7 @@ def dfh_extract_platform_instances(plat_cfg: Any, *, platform: str='', include_d
 # @used-by :func:`Df.Harness.lib.runtime_resolve._resolve_codex_home_choice()`
 # @used-by :func:`agent_tools.runtime.instance_entry()`
 # @used-by :func:`dfh_instance_paths()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 def dfh_instance_entry(instance_id: str, *, platform: str | None=None, config: dict | None=None, include_disabled: bool=True, settings_fn: Any=None, instances_fn: Any=None) -> dict:
 	cfg_all = _load_cfg(config, settings_fn)
 	if platform:
@@ -197,6 +200,7 @@ def dfh_instance_entry(instance_id: str, *, platform: str | None=None, config: d
 		raise ValueError(f'Instance {instance_id!r} exists in multiple platforms; specify --platform')
 	return matches[0]
 # @used-by :func:`agent_tools.runtime.instance_paths()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 def dfh_instance_paths(instance_id: str, *, platform: str | None=None, config: dict | None=None, include_disabled: bool=True, settings_fn: Any=None, instances_fn: Any=None) -> dict:
 	return dfh_instance_entry(instance_id, platform=platform, config=config, include_disabled=include_disabled, settings_fn=settings_fn, instances_fn=instances_fn)['system_paths']
 # @used-by :func:`Df.Harness.lib.runtime_context._pick_default_platform()`

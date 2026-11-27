@@ -64,6 +64,7 @@ def _resolve_ws_context_entry(roots: list, p_roots: list[Path]) -> list:
 		r = [(-1, str(target), 'antigravity-project-id' if target != w_path else 'antigravity-workspace-uris')]
 	return r
 # @used-by :func:`_extract_invoke_output_uuids()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 def _uuids_from_generic_text(cand_text: str, uuid_re) -> list[str]:
 	r: list[str] = []
 	if not re.search('(?:^|\\n)(?:File Path:\\s*`?file://|Showing lines \\d+-\\d+ of \\d+|Partial read \\(lines \\d+-\\d+ of \\d+\\)|Command exited with code \\d+\\.|Tool is running as a background task)', cand_text):

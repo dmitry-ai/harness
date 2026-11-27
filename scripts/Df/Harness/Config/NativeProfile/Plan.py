@@ -8,6 +8,7 @@ class Plan:
 	# @used-by :func:`Df.Harness.lib.native_codex_plan.dfh_install_native_profiles()`
 	# @used-by :func:`Df.Harness.lib.native_codex_plan.dfh_retire_owned_project_projections()`
 	# @used-by :meth:`test_df_harness_s11_wave2d.DfHarnessS11Wave2DTests.test_config_and_native_profile_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_native_profiles_install_rename_retire_and_rollback()`
 	def __init__(self) -> None:
 		self.details: dict = {}
 		self.files: dict = {}
@@ -19,6 +20,7 @@ class Plan:
 		self.shared: dict = {}
 	# @used-by :func:`Df.Harness.lib.native_codex_plan._plan_codex_agents_md()`
 	# @used-by :func:`Df.Harness.lib.native_codex_plan._plan_codex_config_toml()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_native_profiles_install_rename_retire_and_rollback()`
 	def file(self, path, after) -> None:
 		path_abs = dfh_absolute(path)
 		if dfh_has_linked_ancestor(path_abs):
@@ -49,10 +51,10 @@ class Plan:
 	# @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_plan_codex_link()`
 	# @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_retire_profile_roles()`
 	# @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_retire_profile_skills()`
-	# @used-by :func:`agent_tools.arch.review_cli._exec_arch_check()`
-	# @used-by :func:`agent_tools.arch.review_cli._exec_arch_prepare()`
 	# @used-by :func:`agent_tools.issues.comment_grounding.check_comment_preflight()`
 	# @used-by :func:`agent_tools.issues.repo_commands.run_fetch()`
+	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_check()`
+	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_prepare()`
 	# @used-by :meth:`Plan.file()`
 	# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_close()`
 	# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_comment()`

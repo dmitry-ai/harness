@@ -8,12 +8,14 @@ from Df.Harness.lib.trace_review import dfh_verify_review_proof_core
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 class ProofVerifier:
 	# @used-by :func:`agent_tools.platforms.antigravity.verify_native_proof()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_ag_and_codex_registrars_verifiers_and_title_sync()`
 	def __init__(self, root, native: dict[str, Any], package: str | None=None, *, _ops: dict[str, Any] | None=None) -> None:
 		self.__root = root
 		self.__native = native
 		self.__package = package
 		self.__ops = _ops or {}
 	# @used-by :func:`agent_tools.platforms.antigravity.verify_native_proof()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_ag_and_codex_registrars_verifiers_and_title_sync()`
 	def run(self) -> dict[str, Any]:
 		paths_fn = self.__ops.get('proof_paths') or (lambda n: dfh_proof_paths(n, settings_fn=self.__ops.get('settings'), instances_fn=self.__ops.get('platform_instances')))
 		paths = paths_fn(self.__native)

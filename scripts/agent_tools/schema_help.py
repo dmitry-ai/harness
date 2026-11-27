@@ -15,7 +15,7 @@ def annotate_review_issues(issues: list[str]) -> list[str]:
 # @used-by :mod:`agent_tools.schema_help`
 def claim_error_hint(code: str) -> str | None:
 	return ClaimHintResolver(code).resolve()
-# @used-by :func:`agent_tools.cli_registry._format_schema_help()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_format_schema_help()`
 # @used-by :meth:`test_schema_help_and_analysis_merge_m10.SchemaHelpAndAnalysisMergeM10Tests.test_schema_help_command_returns_contract_for_all_topics()`
 # @used-by :mod:`agent_tools.schema_help`
 def format_schema_help_text(res: dict) -> str:
@@ -23,7 +23,7 @@ def format_schema_help_text(res: dict) -> str:
 # @used-by :mod:`agent_tools.schema_help`
 def requirement_assertion_issues(label: str, requirement: dict, operators: tuple[str, ...]) -> list[str]:
 	return AssertionValidator(label, requirement, operators).issues()
-# @used-by :func:`agent_tools.cli_registry._exec_schema_help()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_schema_help()`
 # @used-by :mod:`agent_tools.schema_help`
 def schema_help_payload(topic: str) -> dict:
 	return SchemaHelp(topic).payload()

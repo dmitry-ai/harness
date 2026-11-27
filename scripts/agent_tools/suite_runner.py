@@ -11,13 +11,13 @@ def _default_workers() -> int:
 # @used-by unused
 def discover_test_modules(tests_dir: Path | str | None=None, *, pattern: str='test_*.py', modules: list[str] | tuple[str, ...] | None=None) -> tuple[Path, list[Path]]:
 	return SuiteRunner.discover_modules(tests_dir, pattern=pattern, modules=modules)
-# @used-by :func:`agent_tools.cli_registry._format_run_tests()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_format_run_tests()`
 def format_text_report(report: dict) -> str:
 	return SuiteRunner.format_text(report)
 # 2026-11-23
 # "Add parallel fail-fast run-tests runner with module timeouts and TDD gate registration":
 # https://github.com/dmitry-ai/harness/issues/160
-# @used-by :func:`agent_tools.cli_registry._exec_run_tests()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_run_tests()`
 # @used-by :meth:`test_worker_semaphore_and_xdist.WorkerSemaphoreAndXdistTests.test_nested_worker_slot_budget_skips_self_throttling_against_parent_lease()`
 # @used-by :meth:`test_worker_semaphore_and_xdist.WorkerSemaphoreAndXdistTests.test_pytest_worksteal_runner_and_cli_runner_option()`
 def run_test_suite(tests_dir: Path | str | None=None, *, workers: int | None=None, module_timeout: float=300.0, failfast: bool=True, pattern: str='test_*.py', modules: list[str] | tuple[str, ...] | None=None, runner: str='auto') -> dict:

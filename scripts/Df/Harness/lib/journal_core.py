@@ -50,18 +50,19 @@ def _side_needs_bucketing(side_p: Path) -> bool:
 					break
 	return r
 # @used-by :func:`dfh_journal_pair_names()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_journal_integrity_and_records()`
 def _resolve_dual_pair_names(directory: Path) -> tuple[str, str]:
 	v2_files = any((bool(dfh_iter_side_step_files(directory / sub)) for sub in V2_PAIR if (directory / sub).is_dir()))
 	v1_files = any((bool(dfh_iter_side_step_files(directory / sub)) for sub in V1_PAIR if (directory / sub).is_dir()))
 	if v2_files and v1_files:
 		raise ValueError(f'Conflicting V1 (req/res) and V2 (\u227b/\u227a) journal entries in {directory}')
 	return V2_PAIR if v2_files or (not v1_files) else V1_PAIR
-# @used-by :func:`agent_tools.context.assemble()`
-# @used-by :func:`agent_tools.meta.builders._apply_issue_state_details()`
 # @used-by :func:`dfh_resolve_journal_dir()`
 # @used-by :func:`dfh_resolve_migrated_step_file()`
 # @used-by :func:`dfh_same_journal_identity()`
 # @used-by :func:`dfh_state_dir()`
+# @used-by :meth:`Df.Harness.Meta.Builders.Builders.__apply_issue_state_details()`
+# @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.__resolve_journal_dir()`
 def dfh_canonicalize_journal_dir_identity(journal_path: str | Path) -> Path:
 	p = Path(journal_path).resolve()
 	r = p
@@ -196,16 +197,17 @@ def dfh_journal_bucket_name(step: int, bucket_size: int=JOURNAL_BUCKET_SIZE) -> 
 # @used-by :func:`Df.Harness.lib.journal_records.dfh_publish_step()`
 # @used-by :func:`Df.Harness.lib.journal_records.dfh_record_step()`
 # @used-by :func:`Df.Harness.lib.journal_records.dfh_step_errors()`
-# @used-by :func:`agent_tools.context.assemble()`
-# @used-by :func:`agent_tools.meta.blocks._journal_step_paths()`
 # @used-by :func:`agent_tools.text_core.check_response()`
-# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`dfh_resolve_migrated_step_file()`
 # @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__prepare_context()`
+# @used-by :meth:`Df.Harness.Meta.Blocks.Blocks.step_paths()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__resolve_segment_completion()`
+# @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.__collect_journal_steps()`
 # @used-by :meth:`Df.Harness.Shadow.ReplayPipeline.ReplayPipeline.__find_reply_path()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
+# @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.__load_latest_reply()`
+# @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.__saved_answers()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_journal_tail()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
 def dfh_journal_pair_dirs(directory: Path) -> tuple[Path, Path]:
@@ -267,8 +269,8 @@ def dfh_parse_step_file_path(path: str | Path) -> tuple[Path, str, int] | None:
 			r = (parent.parent.parent, parent.parent.name, step)
 	return r
 # @used-by :func:`Df.Harness.lib.journal_upgrade._migrate_journal_state_dir()`
-# @used-by :func:`agent_tools.project_rename_state.migrate_journal_state()`
 # @used-by :func:`dfh_state_dir()`
+# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.migrate_journal_state()`
 def dfh_raw_state_dir(eff: Path, *, data_root: Path | None=None) -> Path:
 	identity = str(eff.resolve()).casefold()
 	base = Path(data_root) if None is not data_root else dfh_journal_data_dir_for(eff)
@@ -277,15 +279,15 @@ def dfh_raw_state_dir(eff: Path, *, data_root: Path | None=None) -> Path:
 # @used-by :func:`Df.Harness.lib.shadow_clone.dfh_remap_shadow_state()`
 # @used-by :func:`Df.Harness.lib.shadow_command.dfh_stage_command_shadow_copies()`
 # @used-by :func:`agent_tools.completion._directory()`
-# @used-by :func:`agent_tools.meta.builders._apply_issue_state_details()`
-# @used-by :func:`agent_tools.project_rename_state.migrate_journal_state()`
-# @used-by :func:`agent_tools.project_rename_verify._collect_journal_errors()`
+# @used-by :meth:`Df.Harness.Meta.Builders.Builders.__apply_issue_state_details()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__load_statuses_and_journal()`
+# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__collect_journal_errors()`
+# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.migrate_journal_state()`
 # @used-by :meth:`Df.Harness.Shadow.ReplayPipeline.ReplayPipeline.__find_reply_path()`
 # @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.__prepare_stage()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.record_current_answer()`
+# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.record()`
+# @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.__load_latest_reply()`
+# @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.__saved_answers()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
@@ -305,7 +307,7 @@ def dfh_resolve_journal_dir(root: Path, selected=None) -> Path:
 # @used-by :func:`agent_tools.links.validate_file()`
 # @used-by :func:`agent_tools.source_grounding.resolve_local_href()`
 # @used-by :meth:`Df.Harness.Completion.JournalReconciler.JournalReconciler.__resolve_effective_response()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._resolve_receipt_artifact()`
+# @used-by :meth:`Df.Harness.Workflow.ReceiptVerifier.ReceiptVerifier.__resolve_artifact()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
 def dfh_resolve_migrated_step_file(path: str | Path) -> Path:
@@ -362,11 +364,11 @@ def dfh_same_journal_identity(first: str | Path | None, second: str | Path | Non
 # @used-by :func:`Df.Harness.lib.journal_reservations.dfh_write_turn_reservations()`
 # @used-by :func:`Df.Harness.lib.shadow_clone.dfh_remap_shadow_state()`
 # @used-by :func:`Df.Harness.lib.shadow_command.dfh_stage_command_shadow_copies()`
-# @used-by :func:`agent_tools.meta.builders._resolve_issue_group_file()`
 # @used-by :func:`test_project_rename._assert_renamed_journal_and_state()`
 # @used-by :func:`test_project_rename._seed_project_artifacts()`
 # @used-by :meth:`Df.Harness.Completion.NarrowReconciler.NarrowReconciler.__trim_narrowed_reservation()`
 # @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__prepare_context()`
+# @used-by :meth:`Df.Harness.Meta.Builders.Builders.__resolve_issue_group_file()`
 # @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.__prepare_stage()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_concurrent_real_processes_same_request_get_distinct_pairs()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_exact_bytes_and_no_keyword_authorization()`
@@ -399,15 +401,15 @@ def dfh_state_dir(directory: Path) -> Path:
 # @used-by :func:`Df.Harness.lib.journal_records.dfh_matching_group_response()`
 # @used-by :func:`Df.Harness.lib.journal_records.dfh_publish_step()`
 # @used-by :func:`Df.Harness.lib.journal_records.dfh_step_errors()`
-# @used-by :func:`agent_tools.context.assemble()`
-# @used-by :func:`agent_tools.meta.blocks._journal_step_paths()`
 # @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__load_existing_group()`
 # @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__sync_step()`
 # @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__write_pending_step()`
+# @used-by :meth:`Df.Harness.Meta.Blocks.Blocks.step_paths()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__resolve_segment_completion()`
+# @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.__collect_journal_steps()`
 # @used-by :meth:`Df.Harness.Shadow.ReplayPipeline.ReplayPipeline.__find_reply_path()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
+# @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.__load_latest_reply()`
+# @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.__saved_answers()`
 # @used-by :meth:`test_journal_metadata.JournalMetadataIntegrationTests.test_codex_prepare_reprepare_and_unprepared_recovery_prepend_metadata()`
 # @used-by :meth:`test_turn_completion.CompletionCase.saved()`
 def dfh_step_file(side_dir: Path, step: int, *, directory: Path | None=None) -> Path:

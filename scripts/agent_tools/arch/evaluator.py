@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 # 2026-11-27 "Reorganize Harness scripts into single-class Mage2Pro modules": https://github.com/dmitry-ai/harness/issues/338
 from Df.Harness.Arch.Evaluator import Evaluator
-# @used-by :func:`agent_tools.blocked_report._run_runner_audits()`
+# @used-by :func:`Df.Harness.lib.blocked_report_ops._run_runner_audits()`
 # @used-by :meth:`test_arch_spec_and_triggers.ArchSpecAndTriggersTests.test_runner_architecture_check_records_state_and_fails_gate_on_missing_patterns()`
 # @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_evaluator_checks_response_receipts_and_runner()`
 # @used-by :mod:`agent_tools.arch.evaluator`

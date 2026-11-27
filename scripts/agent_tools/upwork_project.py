@@ -34,8 +34,8 @@ def _install_profile_customizations(config, primary=PRIMARY_AGENTS_DIR):
 # @used-by :mod:`agent_tools.upwork_project`
 def antigravity_global_config_dirs():
 	return GlobalCustomizationManager.antigravity_global_config_dirs(settings_fn=settings)
-# @used-by :func:`agent_tools.native_profiles._antigravity_plan()`
-# @used-by :func:`agent_tools.native_profiles.shared_native_outputs()`
+# @used-by :func:`Df.Harness.lib.native_ag_plan._merge_ag_hooks()`
+# @used-by :func:`Df.Harness.lib.native_ag_plan._populate_ag_shared_outputs()`
 # @used-by :meth:`test_ask_question_pre_tool_gate.AskQuestionPreToolGateTests.test_hooks_manifest_and_canonical_hooks_include_ask_question()`
 # @used-by :meth:`test_failfast_and_schedule_gate.FailFastAndScheduleGateTests.test_hooks_manifest_and_canonical_hooks_match_schedule()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_build_native_publishes_shared_hooks_and_upgrades_stop_only_final_turn_gate()`
@@ -96,7 +96,6 @@ def default_context_config(root: Path | None=None):
 # @used-by :mod:`agent_tools.upwork_project`
 def doctor(primary=None, *, git_ignore_path=None):
 	return DoctorAuditor(primary, git_ignore_path=git_ignore_path, settings_fn=settings, platform_settings_fn=platform_settings, check_global_fn=check_global_customizations).audit()
-# @used-by :func:`agent_tools.native_profiles._antigravity_plan()`
 # @used-by :mod:`agent_tools.upwork_project`
 def harness_hook_runner_source(primary=PRIMARY_AGENTS_DIR, *, store_dir=None) -> str:
 	return GlobalCustomizationManager.harness_hook_runner_source(primary, store_dir=store_dir)
@@ -138,12 +137,12 @@ def install_global_customizations(config_dir=None, primary=PRIMARY_AGENTS_DIR):
 # @used-by :mod:`agent_tools.upwork_project`
 def instances_report(*, platform=None, instance=None, conversation=None, include_disabled=True, check_exists=True):
 	return InstancesReporter(platform=platform, instance=instance, conversation=conversation, include_disabled=include_disabled, check_exists=check_exists, settings_fn=settings).report()
-# @used-by :func:`agent_tools.native_profiles._antigravity_plan()`
+# @used-by :func:`Df.Harness.lib.native_ag_plan._merge_ag_hooks()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_v2_unicode_primary_generates_ascii_hook_runner_upgrades_legacy_hooks_and_runs_via_cmd_exe()`
 # @used-by :mod:`agent_tools.upwork_project`
 def legacy_direct_global_hooks(primary=PRIMARY_AGENTS_DIR):
 	return GlobalCustomizationManager.legacy_direct_global_hooks(primary)
-# @used-by :func:`agent_tools.native_profiles._antigravity_plan()`
+# @used-by :func:`Df.Harness.lib.native_ag_plan._merge_ag_hooks()`
 # @used-by :meth:`test_failfast_and_schedule_gate.FailFastAndScheduleGateTests.test_hooks_manifest_and_canonical_hooks_match_schedule()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_build_native_publishes_shared_hooks_and_upgrades_stop_only_final_turn_gate()`
 # @used-by :mod:`agent_tools.upwork_project`

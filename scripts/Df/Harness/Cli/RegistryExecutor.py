@@ -7,6 +7,7 @@ import sys
 class RegistryExecutor:
 	# @used-by :func:`agent_tools.cli_registry.dispatch_registered()`
 	# @used-by :func:`agent_tools.cli_registry.execute_registered()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_registry_handlers_formatters_and_docs()`
 	def __init__(self, args: Any, *, mode: str='execute', dump_fn: Callable | None=None, exit_fn: Callable | None=None) -> None:
 		self.__args = args
 		self.__mode = mode
@@ -39,6 +40,7 @@ class RegistryExecutor:
 		return r
 	# @used-by :func:`agent_tools.cli_registry.dispatch_registered()`
 	# @used-by :func:`agent_tools.cli_registry.execute_registered()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_registry_handlers_formatters_and_docs()`
 	def run(self) -> Any:
 		dfh_ensure_builtin_plugins()
 		entry = REGISTRY.get(self.__args.command)

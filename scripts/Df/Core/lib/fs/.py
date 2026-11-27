@@ -13,7 +13,7 @@ def df_path_inside(child: str | Path, parent: str | Path) -> bool:
 		r = False
 	return r
 # Normalize a path string or Path to forward-slash POSIX form.
-# @used-by :func:`agent_tools.addon_observability._norm_posix()`
+# @used-by :func:`Df.Harness.lib.hook_addon_ops._norm_posix()`
 # @used-by :func:`agent_tools.worktree_guard._norm_posix()`
 # @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.norm_posix()`
 # @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_fs_and_git_helpers()`
@@ -34,7 +34,7 @@ def df_path_suffix(path: str | Path) -> str:
 	p = Path(path)
 	return p.suffix.lower() or (p.name.lower() if p.name.startswith('.') else '')
 # Return `(st_mtime_ns, st_size)` for an existing path, or None if unavailable.
-# @used-by :func:`agent_tools.path_cache._stat_mtime_size()`
+# @used-by :func:`Df.Harness.lib.path_state._fast_sig()`
 # @used-by :meth:`Df.Harness.Analysis.ObservationHtmlResolver.ObservationHtmlResolver.resolve()`
 # @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_fs_and_git_helpers()`
 def df_stat_sig(path: str | Path) -> tuple[int, int] | None:

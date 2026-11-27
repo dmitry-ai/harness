@@ -7,6 +7,7 @@ from Df.Harness.lib.shadow_command import dfh_run_exec_rename_domain, dfh_run_ge
 class CommandExecutor:
 	# @used-by :func:`agent_tools.shadow_replay_command.execute_shadow_command()`
 	# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.__run_shadow_mode()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_shadow_pipeline_and_runner()`
 	def __init__(self, src_project: Path, shadow_project: Path, shadow_launcher: Path | None, shadow_daily: Path | None, shadow_root: Path, *, exec_rename_domain: str | None, command: str | None, checks: dict, verified: list[str], errors: list[str]) -> None:
 		self.__src_project = src_project
 		self.__shadow_project = shadow_project
@@ -20,6 +21,7 @@ class CommandExecutor:
 		self.__errors = errors
 	# @used-by :func:`agent_tools.shadow_replay_command.execute_shadow_command()`
 	# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.__run_shadow_mode()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_shadow_pipeline_and_runner()`
 	def run(self) -> Path:
 		pairs = dfh_path_pairs(((self.__src_project, self.__shadow_project),))
 		if self.__exec_rename_domain:

@@ -54,6 +54,7 @@ def _win_pid_alive(pid: int) -> bool:
 			ctypes.windll.kernel32.CloseHandle(handle)
 	return r
 # @used-by :func:`agent_tools.issues.acceptance_gate.check_close_readiness()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_addon_and_markdown_ops()`
 # @used-by :mod:`agent_tools.addon_observability`
 def dfh_check_close_companion_health(repo: str, code_repo: Path | None=None) -> str | None:
 	r: str | None = None
@@ -79,6 +80,7 @@ def dfh_check_runner_addon_observability(runner) -> None:
 	if not chk['verified']:
 		runner._fail_gate('addon_observability', chk['detail'])
 # @used-by :func:`dfh_inspect_companion_runtime_health()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_addon_and_markdown_ops()`
 # @used-by :mod:`agent_tools.addon_observability`
 def dfh_default_companion_runtime_path() -> Path | None:
 	env_path = str(os.environ.get('HARNESS_COMPANION_RUNTIME_JSON') or '').strip()
@@ -123,6 +125,7 @@ def dfh_evaluate_worktree_removal_audit(root: Path, native: dict[str, Any] | Non
 	return r
 # @used-by :func:`Df.Harness.lib.hook_pre_invocation_ops.dfh_format_turn_begin_message()`
 # @used-by :meth:`test_addon_observability.AddonObservabilityTests.test_pre_invocation_surfaces_companion_warning()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_addon_and_markdown_ops()`
 # @used-by :mod:`agent_tools.addon_observability`
 def dfh_format_pre_invocation_companion_warning(runtime_json: str | Path | None=None, *, pid_alive_fn=None) -> str:
 	health = dfh_inspect_companion_runtime_health(runtime_json, pid_alive_fn=pid_alive_fn)
@@ -132,6 +135,7 @@ def dfh_format_pre_invocation_companion_warning(runtime_json: str | Path | None=
 # @used-by :func:`dfh_format_pre_invocation_companion_warning()`
 # @used-by :meth:`Df.Harness.Hook.AddonObserver.AddonObserver.run()`
 # @used-by :meth:`test_addon_observability.AddonObservabilityTests.test_companion_runtime_health_detects_error_dead_pid_and_worktree_path()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_addon_and_markdown_ops()`
 # @used-by :mod:`agent_tools.addon_observability`
 def dfh_inspect_companion_runtime_health(runtime_json: str | Path | None=None, *, pid_alive_fn=None) -> dict[str, Any]:
 	target = Path(runtime_json) if None is not runtime_json else dfh_default_companion_runtime_path()
@@ -152,6 +156,7 @@ def dfh_inspect_companion_runtime_health(runtime_json: str | Path | None=None, *
 	return r
 # @used-by :func:`agent_tools.issues.service_helpers._parse_dirty_porcelain()`
 # @used-by :func:`agent_tools.polyglot_land.dirty_blocking_main_files()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_addon_and_markdown_ops()`
 # @used-by :mod:`agent_tools.addon_observability`
 def dfh_is_live_runtime_data_file(code_repo: Path, rel_posix: str) -> bool:
 	from agent_tools.issues.workspace import IssueEvidenceWorkspace
@@ -165,6 +170,7 @@ def dfh_is_live_runtime_data_file(code_repo: Path, rel_posix: str) -> bool:
 			r = rel_low in allowed
 	return r
 # @used-by :func:`dfh_inspect_companion_runtime_health()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_addon_and_markdown_ops()`
 # @used-by :mod:`agent_tools.addon_observability`
 def dfh_is_pid_alive(pid: int) -> bool:
 	if 0 >= int(pid):

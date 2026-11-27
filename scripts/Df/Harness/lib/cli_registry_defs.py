@@ -8,6 +8,7 @@ import argparse
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 REGISTRY: dict[str, dict] = {}
 # @used-by :func:`_register_analysis_builtins()`
+# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_registry_handlers_formatters_and_docs()`
 def _exec_cli_docs(_args) -> dict:
 	return {'valid': True, 'commands': list(dfh_registered_commands()), 'markdown': dfh_render_cli_index()}
 # @used-by :func:`_register_builtins()`
@@ -46,8 +47,8 @@ def _register_runtime_builtins() -> None:
 	dfh_register_command('worktree-status', 'List linked git worktrees and dirty status for a repository', (('repo', {'type': Path}),), dfh_exec_worktree_status)
 	dfh_register_command('xref-check', 'Validate navigable cross-reference annotations (@used-by, @uses, @see, @override)', (('repo', {'type': Path}), ('--lang', {'choices': ('all', 'python', 'js', 'java'), 'default': 'all'}), ('--file', {'action': 'append', 'default': []}), ('--format', {'choices': ('json', 'text'), 'default': 'json'})), dfh_exec_xref_check, exit_code_fn=lambda res: 0 if res.get('valid') else 2, text_fn=dfh_format_xref)
 	dfh_register_command('xref-sync', 'Synchronize navigable @used-by and @override/@see cross-reference annotations', (('repo', {'type': Path}), ('--lang', {'choices': ('all', 'python', 'js', 'java'), 'default': 'all'}), ('--dry-run', {'action': 'store_true'}), ('--file', {'action': 'append', 'default': []}), ('--format', {'choices': ('json', 'text'), 'default': 'json'})), dfh_exec_xref_sync, text_fn=dfh_format_xref)
-# @used-by :func:`agent_tools.upwork_project.main()`
 # @used-by :func:`test_arch_review_cli._run_arch_cli()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__build_parser()`
 # @used-by :meth:`test_tdd_mechanical_exemption.MechanicalExemptionTests.test_cli_parser_dispatches_tdd_exempt_mechanical_with_turn_key()`
 def dfh_add_registered_parsers(sub) -> None:
 	dfh_ensure_builtin_plugins()
@@ -69,6 +70,7 @@ def dfh_register_command(name: str, help_text: str, specs: tuple | list, handler
 	REGISTRY[name] = {'help': help_text, 'specs': specs, 'handler': handler, 'exit_code_fn': exit_code_fn, 'text_fn': text_fn}
 # @used-by :func:`_exec_cli_docs()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_cli_registry_and_send_message_gate_expose_arch_commands_and_block_verdict_duplication()`
+# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_registry_handlers_formatters_and_docs()`
 # @used-by :meth:`test_repo_tags.RepoTagsTests.test_cli_repo_tag_and_repo_tag_retro_registered()`
 # @used-by :meth:`test_repo_wait_and_retry.RepoWaitAndRetryTests.test_wait_repo_cli_and_registry_expose_wait_repo()`
 # @used-by :meth:`test_schema_help_and_analysis_merge_m10.SchemaHelpAndAnalysisMergeM10Tests.test_schema_help_command_returns_contract_for_all_topics()`
@@ -79,6 +81,7 @@ def dfh_registered_commands() -> tuple[str, ...]:
 	return tuple(sorted(REGISTRY))
 # @used-by :func:`_exec_cli_docs()`
 # @used-by :meth:`test_cli_registry.CliRegistryTests.test_cli_docs_renders_registered_commands_and_runs_via_cli()`
+# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_registry_handlers_formatters_and_docs()`
 def dfh_render_cli_index() -> str:
 	dfh_ensure_builtin_plugins()
 	lines = ['# Registered CLI Commands', '']

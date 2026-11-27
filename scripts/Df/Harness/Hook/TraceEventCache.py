@@ -6,11 +6,13 @@ from Df.Harness.lib.hook_trace_cache import MEM_CACHE, MEM_LOCK, dfh_read_from_d
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 class TraceEventCache:
 	# @used-by :func:`agent_tools.trace_event_cache.load_transcript_rows_cached()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_trace_event_cache_full_incremental_and_clear()`
 	def __init__(self, transcript_path: Path, *, cwd: Path | None=None, return_stats: bool=False) -> None:
 		self.__transcript_path = transcript_path
 		self.__cwd = cwd
 		self.__return_stats = return_stats
 	# @used-by :func:`agent_tools.trace_event_cache.load_transcript_rows_cached()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_trace_event_cache_full_incremental_and_clear()`
 	def run(self) -> list[dict] | tuple[list[dict], dict[str, Any]]:
 		t_path = dfh_resolve_effective_transcript(self.__transcript_path)
 		rows, stats = ([], {'cache_hit': False, 'in_process_hit': False, 'index_path': None, 'parsed_bytes': 0, 'total_bytes': 0})

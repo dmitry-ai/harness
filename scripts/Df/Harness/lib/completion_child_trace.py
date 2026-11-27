@@ -86,6 +86,7 @@ def _process_tool_calls_row(root_p: Path, rows: list, pos: int, step_idx: int, c
 			child_bg[cev['outcome']['background_task_id']] = cev
 # @used-by :func:`Df.Harness.lib.completion_commands._load_check_context()`
 # @used-by :func:`Df.Harness.lib.completion_recovery._scan_readonly_turn()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_child_trace_and_turn_routing()`
 def dfh_scan_child_trace_turn(root_p: Path, eff_conv: str, native: dict) -> dict:
 	if native.get('turns'):
 		r = native['turns'][-1]

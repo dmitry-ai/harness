@@ -57,13 +57,14 @@ def _read_step_model_history(connection, history: dict) -> None:
 				pass
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ExecutorMetadataReader.ExecutorMetadataReader.__resolve_child_requested()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ExecutorMetadataReader.ExecutorMetadataReader.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_ag_and_codex_registrars_verifiers_and_title_sync()`
 def dfh_apply_requested_config(requested: dict, observed: dict, raw_config, selection_kind: str, source) -> None:
 	cfg = dfh_configuration(raw_config)
 	gen_match = dfh_generation_matches_executor(observed['generation_model'], cfg['model'])
 	requested.update(cfg, executor_model=cfg['model'], generation_model=observed['generation_model'] if gen_match else None, selection=selection_kind, source=source)
 	if gen_match and observed['generation_model']:
 		requested['model'] = observed['generation_model']
-# @used-by :func:`agent_tools.meta.transcripts._resolve_ag_model_and_effort()`
+# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.resolve_ag_model_and_effort()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ExecutorMetadataReader.ExecutorMetadataReader.__resolve_child_requested()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ExecutorMetadataReader.ExecutorMetadataReader.run()`
 def dfh_model_metadata(backend, conversation_id: str, *, paths=None) -> tuple[dict, dict, list]:
@@ -100,6 +101,7 @@ def dfh_native_invocation(backend, parent_id: str, conversation_id: str, role: s
 	return (invocation, {'native_file': str(parent_log), 'step': index, 'kind': 'invoke_subagent'})
 # @used-by :func:`agent_tools.platforms.antigravity._proof_paths()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ProofVerifier.ProofVerifier.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_codex_and_ag_scanners_and_tool_trace()`
 def dfh_proof_paths(native, *, settings_fn=None, instances_fn=None, default_paths_fn=None) -> dict:
 	if not isinstance(native, dict):
 		raise ValueError('Native review proof must be a JSON object')

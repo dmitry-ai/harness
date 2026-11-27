@@ -88,6 +88,7 @@ def dfh_create_bytes(path: Path, data: bytes) -> None:
 # @used-by :meth:`Df.Harness.Config.ProjectionPublisher.ProjectionPublisher.__write_backups_and_planned()`
 # @used-by :meth:`Df.Harness.Config.ProjectionPublisher.ProjectionPublisher.run()`
 # @used-by :meth:`Df.Harness.Runtime.LauncherRenderer.LauncherRenderer.__resolve_store()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_codex_roles_and_proof_metadata_tail()`
 def dfh_data_dir_for(path: Path, *, exact_root: bool=False) -> Path:
 	from Df.Harness.lib.path_resolve import dfh_project_paths
 	return dfh_project_paths(Path(path), exact_root=exact_root).data_dir

@@ -10,7 +10,7 @@ import re
 # @used-by :mod:`agent_tools.failfast_gate`
 def evaluate_pre_tool_use_schedule(name: str, args: dict, payload: dict) -> str | None:
 	return ScheduleGate().check(name, args, payload)
-# @used-by :func:`check_rules_and_server_gate._apply_failfast()`
+# @used-by :meth:`Df.Harness.Hook.RulesServerGate.RulesServerGate.__apply_failfast()`
 # @used-by :meth:`test_pytest_xdist_runner.PytestXdistRunnerTests.test_classify_pytest_xdist_full_suite_and_filtered()`
 # @used-by :meth:`test_watchdog_and_timeout_gate.WatchdogAndTimeoutGateTests.test_non_test_command_mentioning_pytest_in_quoted_arg_is_ignored()`
 # @used-by :meth:`test_watchdog_and_timeout_gate.WatchdogAndTimeoutGateTests.test_pre_tool_use_normalizes_unbounded_unittest_and_pytest_and_denies_multi_segment()`

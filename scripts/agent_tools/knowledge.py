@@ -32,7 +32,8 @@ def build_project_extra_sources(project_root: Path, data: dict, assets: list[dic
 # @used-by :mod:`agent_tools.knowledge`
 def create_once(path: Path, content: str):
 	OnceFileWriter(path, content).write()
-# @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
+# @used-by :meth:`Df.Harness.Platform.Antigravity.ProjectRegistrar.ProjectRegistrar.__upsert_project_file()`
+# @used-by :meth:`Df.Harness.Platform.Antigravity.ProjectRegistrar.ProjectRegistrar.__write_folders()`
 # @used-by :mod:`agent_tools.knowledge`
 def json_bytes(value):
 	return OnceFileWriter.json_bytes(value)
@@ -42,7 +43,7 @@ def populate_agent_kb(project_root: Path, data: dict):
 # @used-by :mod:`agent_tools.knowledge`
 def sync_initial_website(root, snapshot, hypothesis=None):
 	return WebsiteCardSyncer.sync_initial(root, snapshot, hypothesis)
-# @used-by :func:`agent_tools.cli_domains._op_sync_attachments()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_sync_attachments()`
 # @used-by :meth:`test_onboarding.AttachmentTests.test_docx_and_text_attachments_saved_in_source_and_both_kbs()`
 # @used-by :mod:`agent_tools.knowledge`
 def sync_project_attachments_and_kb(project_root: Path, media_descriptions: dict | None=None, *, fetch_videos: bool=True) -> dict:
@@ -61,7 +62,7 @@ def sync_source_folder_attachments(project_root: Path, saved_attachments: list[d
 # @used-by :mod:`agent_tools.knowledge`
 def sync_website_card(root, value, *, selections=None, check=False):
 	return WebsiteCardSyncer(root, value, selections=selections, check=check).sync()
-# @used-by :func:`agent_tools.completion._factual_kb_note_issues()`
+# @used-by :func:`Df.Harness.lib.completion_checks.dfh_factual_kb_note_issues()`
 # @used-by :meth:`test_issue44.TestIssue44.test_validate_kb_factual_note_analytical_heading()`
 # @used-by :meth:`test_issue44.TestIssue44.test_validate_kb_factual_note_clean()`
 # @used-by :meth:`test_issue44.TestIssue44.test_validate_kb_factual_note_hypothesis_id()`

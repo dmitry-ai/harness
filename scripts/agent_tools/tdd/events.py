@@ -18,7 +18,7 @@ def _normalize_args_dict(raw_args) -> dict:
 # @used-by :mod:`agent_tools.tdd.events`
 def _unwrap_arg_value(val):
 	return EventsExtractor.unwrap_arg_value(val)
-# @used-by :func:`agent_tools.platforms.trace_common.record_normalized_tool_effects()`
+# @used-by :func:`Df.Harness.lib.trace_effects._record_shell_tdd()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_missing_transcript_inheritance_and_plain_repo_commit_scope_reset()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
 # @used-by :meth:`test_diff_executability.DiffExecutabilityTests.test_evaluator_exempts_comment_only_test_edits_in_idle_and_post_green()`
@@ -37,7 +37,7 @@ def _unwrap_arg_value(val):
 # @used-by :mod:`agent_tools.tdd`
 def build_command_tdd_event(step: int, cmd: str, outputs: list[str] | tuple[str, ...] | str, *, cwd: Path | None=None, scope_hint: Path | None=None, sub_step: int | None=None, subagent_id: str | None=None) -> dict:
 	return EventsExtractor.build_command_event(step, cmd, outputs, cwd=cwd, scope_hint=scope_hint, sub_step=sub_step, subagent_id=subagent_id)
-# @used-by :func:`agent_tools.platforms.trace_common.record_normalized_tool_effects()`
+# @used-by :func:`Df.Harness.lib.trace_effects._record_patch_effects()`
 # @used-by :func:`test_diff_executability_contract._verify_tdd_gate_delegation()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_missing_transcript_inheritance_and_plain_repo_commit_scope_reset()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
@@ -77,7 +77,8 @@ def extract_antigravity_tdd_events(transcript_path: Path, *, cwd: Path | None=No
 # @used-by :mod:`agent_tools.tdd.events`
 def is_denied_write_output(outputs) -> bool:
 	return EventsExtractor.is_denied_write_output(outputs)
-# @used-by :func:`agent_tools.platforms.trace_common.record_normalized_tool_effects()`
+# @used-by :func:`Df.Harness.lib.trace_effects._record_file_tool_effects()`
+# @used-by :func:`Df.Harness.lib.trace_effects._record_shell_tdd()`
 # @used-by :mod:`agent_tools.tdd.events`
 def record_tdd_tool_write_event(acc: dict, step: int, raw_path: str | Path, *, cwd: Path | None=None, content: str | None=None, cmd_outputs=None, sub_step: int | None=None, subagent_id: str | None=None) -> dict | None:
 	return EventsExtractor.record_tool_write_event(acc, step, raw_path, cwd=cwd, content=content, cmd_outputs=cmd_outputs, sub_step=sub_step, subagent_id=subagent_id)

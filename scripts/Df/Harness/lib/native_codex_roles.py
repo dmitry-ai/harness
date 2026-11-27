@@ -150,11 +150,14 @@ def dfh_disable_codex_bundled_chrome_plugin(text: str) -> str:
 	return r
 # @used-by :func:`Df.Harness.lib.native_codex_plan._plan_codex_roles()`
 # @used-by :func:`agent_tools.native_profiles._legacy_role()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests._seed_legacy_profiles()`
 def dfh_legacy_role(primary: str | Path, role: str, name: str, purpose: str, *, settings_fn: Any=None) -> str:
 	worker_p = (Path(primary) / 'agents/worker.md').as_posix()
 	instructions = f'Role: {role}.  \n{purpose}  \n' + dfh_loader(Path(primary)) + f'\nAlso read the worker protocol: {worker_p}  '
 	return f'# Generated from runtime.json and agents/worker.md; do not edit.\nname = {json.dumps(name)}\ndescription = {json.dumps(purpose)}\n' + dfh_model_fields(primary, role, settings_fn=settings_fn) + f'developer_instructions = {json.dumps(instructions, ensure_ascii=False)}\n'
 # @used-by :func:`_match_owned_role_block()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests._seed_legacy_profiles()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_codex_roles_and_proof_metadata_tail()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.former_role_config()`
 def dfh_legacy_role_config(text: str, definitions: dict) -> str:
 	data = tomllib.loads(text) if text.strip() else {}
@@ -170,6 +173,7 @@ def dfh_legacy_role_config(text: str, definitions: dict) -> str:
 			raise ValueError(f'Existing role {name} differs from shared native role configuration; preserved')
 	return _append_role_tables(text, additional) if additional else text
 # @used-by :func:`Df.Harness.lib.native_codex_plan._plan_codex_skills()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests._seed_legacy_profiles()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.legacy_codex()`
 def dfh_legacy_skill(name: str, primary: str | Path) -> str:
 	path = Path(primary) / f'skills/{name}/SKILL.md'
@@ -254,6 +258,7 @@ def dfh_retire_shared_roles(plan: Any, primary: Path, state: dict) -> None:
 		for raw_path, owned in state.get('shared', {}).items():
 			_retire_one_shared_role(plan, raw_path, owned, primary, referenced, valid_dirs)
 # @used-by :func:`Df.Harness.lib.native_codex_plan._plan_codex_config_toml()`
+# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_codex_roles_and_proof_metadata_tail()`
 def dfh_role_config(text: str, definitions: dict, previous: dict, state: dict, path: Path, primary: Path) -> str:
 	data = tomllib.loads(text) if text.strip() else {}
 	agents = data.get('agents', {})

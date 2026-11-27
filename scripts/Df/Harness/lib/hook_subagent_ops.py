@@ -134,7 +134,8 @@ def _resolve_transcript_file(transcript_path: str) -> Path | None:
 		if full.is_file():
 			r = full
 	return r if None is not r and r.is_file() else None
-# @used-by :func:`agent_tools.failfast_gate._schedule_block_reason()`
+# @used-by :meth:`Df.Harness.Gate.ScheduleGate.ScheduleGate.__schedule_block_reason()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_subagent_checker_and_schedule_block()`
 # @used-by :mod:`agent_tools.stop_subagent_check`
 def dfh_evaluate_schedule_subagent_block(transcript_path: str, args: dict, payload: dict) -> str | None:
 	from Df.Harness.Hook.SubagentChecker import SubagentChecker
@@ -156,6 +157,7 @@ def dfh_evaluate_schedule_subagent_block(transcript_path: str, args: dict, paylo
 	return r
 # @used-by :func:`dfh_evaluate_schedule_subagent_block()`
 # @used-by :meth:`Df.Harness.Hook.StopGate.StopGate.__load_state_context()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_subagent_checker_and_schedule_block()`
 # @used-by :meth:`test_falsifier_default_send_message_and_schedule_m8.FalsifierDefaultSendMessageAndScheduleM8Tests.test_schedule_gate_blocks_after_send_message_and_ignores_task_sender()`
 # @used-by :mod:`agent_tools.stop_subagent_check`
 def dfh_extract_segment_subagent_state(segment: list[dict]) -> dict:

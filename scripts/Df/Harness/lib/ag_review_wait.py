@@ -22,6 +22,7 @@ def _is_incoming_assignment_row(idx: int, row: dict, parent_id: str | None) -> b
 		r = False
 	return r
 # @used-by :func:`dfh_wait_for_reviewer_final_step()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 def _is_reviewer_in_flight(conversations_db: Path, reviewer_id: str) -> bool:
 	r = False
 	if conversations_db.is_file():
@@ -65,6 +66,7 @@ def dfh_resolve_parent_binding_inputs(backend, parent_id: str, parent_inputs: li
 		r = [(item.get('step_index', idx), extract_transcript_fn(item)) for idx, item in enumerate(parent_inputs) if 'USER_INPUT' == item.get('type') and isinstance(item.get('content'), str)]
 	return r
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ProofVerifier.ProofVerifier.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 def dfh_reviewer_assigned_package(native_log: str | Path, package: str, *, parent_id: str | None=None, final_step: int | None=None) -> bool:
 	rows = dfh_read_jsonl_objects(Path(native_log))
 	r = False

@@ -14,11 +14,11 @@ def inspect_shared_rule(path: Path) -> dict:
 # @used-by :mod:`agent_tools.rules_manifest`
 def parse_rule_frontmatter(text: str) -> dict[str, str]:
 	return RulesManifest.parse_frontmatter(text)
-# @used-by :func:`agent_tools.configuration._loader()`
+# @used-by :func:`Df.Harness.lib.config_codex.dfh_loader()`
 # @used-by :mod:`agent_tools.rules_manifest`
 def render_codex_loader(primary: Path, local=(), *, restore_global: bool=True, display_root: Path | None=None) -> str:
 	return RulesManifest.render_codex_loader(primary, local, restore_global=restore_global, display_root=display_root)
-# @used-by :func:`agent_tools.cli_registry._exec_rules_audit()`
+# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_rules_audit()`
 # @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.audit()`
 # @used-by :meth:`test_rules_audit.RulesAuditTests.test_doctor_and_rules_audit_default_to_active_checkout_rules()`
 # @used-by :mod:`agent_tools.rules_manifest`

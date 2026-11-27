@@ -96,15 +96,17 @@ def _role_values(primary):
 # @used-by unused
 def _shared_plan(plan, primary, state):
 	return dfh_shared_plan(plan, primary, state, settings_fn=_active_settings)
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_native_profiles_install_rename_retire_and_rollback()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_build_native_publishes_shared_hooks_and_upgrades_stop_only_final_turn_gate()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_concurrent_personal_edit_does_not_stop_other_guarded_rollback()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_shared_manual_edit_is_preserved()`
 def build_shared_native(primary=PRIMARY, *, check=False):
 	return dfh_build_shared_native(primary, check=check, settings_fn=_active_settings, ops=_facade_ops())
-# @used-by :func:`agent_tools.upwork_project._install_profile_customizations()`
-# @used-by :func:`agent_tools.upwork_project.check_global_customizations()`
-# @used-by :func:`agent_tools.upwork_project.install_global_customizations()`
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__run_install_global()`
+# @used-by :meth:`Df.Harness.Upwork.GlobalCustomizationManager.GlobalCustomizationManager.check_global()`
+# @used-by :meth:`Df.Harness.Upwork.GlobalCustomizationManager.GlobalCustomizationManager.install_global()`
+# @used-by :meth:`Df.Harness.Upwork.GlobalCustomizationManager.GlobalCustomizationManager.install_profile_customizations()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_native_profiles_install_rename_retire_and_rollback()`
 # @used-by :meth:`test_git_ignore.GlobalGitIgnoreTests.test_doctor_reports_and_validates_global_git_ignore()`
 # @used-by :meth:`test_git_ignore.GlobalGitIgnoreTests.test_install_global_check_and_apply_preserve_user_rules_and_are_idempotent()`
 # @used-by :meth:`test_git_ignore.GlobalGitIgnoreTests.test_isolated_synthetic_primary_skips_host_git_ignore_mutation()`

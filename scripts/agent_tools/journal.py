@@ -15,7 +15,7 @@ def _publish(directory: Path, step: int, state: dict, *, recovering: bool=False)
 	dfh_publish_step(directory, step, state, recovering=recovering, create_bytes_fn=create_bytes)
 # @used-by :func:`agent_tools.text_workflow.record_answer()`
 # @used-by :func:`test_project_rename._seed_project_artifacts()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.record_current_answer()`
+# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.__resolve_steps()`
 # @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_record_answer_subtracts_overlapping_request_ids_and_excludes_stale_steps_from_title()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_group_crash_reserves_all_numbers_and_preserves_previous_context()`

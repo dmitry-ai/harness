@@ -10,12 +10,14 @@ from Df.Harness.lib.trace_review import dfh_verify_review_proof_core
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 class ProofVerifier:
 	# @used-by :func:`agent_tools.platforms.codex.verify_native_proof()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_ag_and_codex_registrars_verifiers_and_title_sync()`
 	def __init__(self, root, native: dict[str, Any], package: str | None=None, *, _ops: dict[str, Any] | None=None) -> None:
 		self.__root = root
 		self.__native = native
 		self.__package = package
 		self.__ops = _ops or {}
 	# @used-by :func:`agent_tools.platforms.codex.verify_native_proof()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_ag_and_codex_registrars_verifiers_and_title_sync()`
 	def run(self) -> dict[str, Any]:
 		load_cfg = self.__ops.get('settings') or (lambda: SettingsLoader().run())
 		ps_fn = self.__ops.get('platform_settings') or (lambda name: dfh_platform_settings(name, settings_fn=load_cfg))

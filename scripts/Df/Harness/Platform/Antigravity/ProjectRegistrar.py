@@ -17,6 +17,7 @@ import uuid
 class ProjectRegistrar:
 	# @used-by :func:`agent_tools.platforms.antigravity.register()`
 	# @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_ag_and_codex_registrars_verifiers_and_title_sync()`
 	def __init__(self, project_dir, domain_or_topic: str, date_str=None, *, projects_dir=None, folders_json_path=None, preferred_id: str | None=None, multi_instance: bool=False, _ops: dict[str, Any] | None=None) -> None:
 		self.__project_dir = project_dir
 		self.__domain_or_topic = domain_or_topic
@@ -134,6 +135,7 @@ class ProjectRegistrar:
 			raise RuntimeError('Project folder assignment did not persist; retry registration')
 	# @used-by :func:`agent_tools.platforms.antigravity.register()`
 	# @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_ag_and_codex_registrars_verifiers_and_title_sync()`
 	def run(self) -> dict[str, Any]:
 		if self.__multi_instance and None is self.__projects_dir and None is self.__folders_json_path:
 			r = self.__register_multi()

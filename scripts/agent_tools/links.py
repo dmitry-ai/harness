@@ -78,7 +78,7 @@ def markdown_link(label: str | None, target: str | Path) -> str:
 # "Unify chat reply LINK-5 validation via chat_reply_link_issues helper":
 # https://github.com/dmitry-ai/harness/issues/230
 # 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
-# @used-by :func:`agent_tools.completion._response_link_issues()`
+# @used-by :func:`Df.Harness.lib.completion_links.dfh_response_link_issues()`
 # @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.record()`
 # @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.run()`
 # @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor.__init__()`
@@ -153,7 +153,7 @@ class HTMLReferences(HTMLParser):
 	# 2026-11-26
 	# "Apply cross-reference annotations across Harness Python and JavaScript":
 	# https://github.com/dmitry-ai/harness/issues/305
-	# @used-by :func:`agent_tools.completion._authored_nonquote_hrefs()`
+	# @used-by :func:`Df.Harness.lib.completion_links.dfh_authored_nonquote_hrefs()`
 	# @used-by :func:`check_network()`
 	# @used-by :func:`readable_link_issues()`
 	# @used-by :func:`references()`
@@ -196,8 +196,8 @@ class HTMLReferences(HTMLParser):
 	def handle_data(self, data):
 		if self.authored_only and (not self.literal_depth):
 			self.links.extend(_document_urls(data))
+# @used-by :func:`Df.Harness.lib.completion_links.dfh_authored_nonquote_hrefs()`
 # @used-by :func:`_document_urls()`
-# @used-by :func:`agent_tools.completion._authored_nonquote_hrefs()`
 # @used-by :func:`agent_tools.text_sections.mechanical_projection()`
 # @used-by :func:`references()`
 # @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
@@ -217,13 +217,13 @@ def _document_urls(text: str):
 	yield from _bare_urls(text)
 	for match in re.finditer('(?:file://|[A-Za-z]:[/\\\\])[^\\s<>`"\\x00-\\x1f]+', text):
 		yield match.group().rstrip('.,;!?)')
-# @used-by :func:`agent_tools.cli.main()`
-# @used-by :func:`agent_tools.completion._response_link_issues()`
+# @used-by :func:`Df.Harness.lib.completion_links.dfh_response_link_issues()`
 # @used-by :func:`agent_tools.research.extract_markdown()`
 # @used-by :func:`agent_tools.text_sources.check_links()`
 # @used-by :func:`agent_tools.text_sources.source_urls()`
 # @used-by :func:`validate_content()`
 # @used-by :func:`validate_file()`
+# @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__run_validate_links()`
 # @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.__validate_doc_or_json_anchor()`
 # @used-by :meth:`test_agent_tools.LinkTests.test_code_samples_are_not_document_links()`
 # @used-by :meth:`test_agent_tools.LinkTests.test_markdown_reference_links_balanced_parentheses_and_html()`
@@ -351,7 +351,7 @@ def parse_markdown_headings(content: str) -> tuple[list[dict], set[str], set[str
 # 2026-10-14
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
-# @used-by :func:`agent_tools.completion._response_link_issues()`
+# @used-by :func:`Df.Harness.lib.completion_links.dfh_response_link_issues()`
 # @used-by :func:`validate_content()`
 # @used-by :func:`validate_file()`
 # @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.__validate_doc_or_json_anchor()`
@@ -363,8 +363,8 @@ def heading_anchors(content: str) -> set[str]:
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
-# @used-by :func:`agent_tools.cli.main()`
-# @used-by :func:`agent_tools.journal_integrity.validate_step_cli()`
+# @used-by :func:`Df.Harness.lib.journal_integrity_ops.dfh_validate_step_cli()`
+# @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__run_validate_links()`
 # @used-by :meth:`Df.Harness.Gate.RulesAuditChecker.RulesAuditChecker.check_links_and_blind_references()`
 # @used-by :meth:`Df.Harness.Workflow.KbAuditor.KbAuditor.issues()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.check_commit()`
@@ -484,8 +484,8 @@ def fetch_page(url: str, timeout: float=15) -> Page:
 		charset = response.headers.get_content_charset() or 'utf-8'
 		r = Page(response.url, response.status, response.headers.get_content_type(), data.decode(charset, errors='replace'))
 	return r
-# @used-by :func:`agent_tools.cli.main()`
 # @used-by :func:`agent_tools.text_sources.check_links()`
+# @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__run_validate_links()`
 # @used-by :meth:`test_agent_tools.LinkTests.test_anchor_html_parser_handles_spacing_entities_and_case()`
 # @used-by :meth:`test_agent_tools.LinkTests.test_failed_cached_fetch_reports_each_anchor()`
 # @used-by :meth:`test_agent_tools.LinkTests.test_real_http_redirect_anchor_and_404()`

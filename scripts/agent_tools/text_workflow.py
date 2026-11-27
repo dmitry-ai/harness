@@ -154,7 +154,7 @@ class ClientTextWorkspace:
 		if None is not current and 'draft.md' == target.name and ('edit' == spec['mode']) and (prev_draft.relative_to(self.root).as_posix() in protected) and (_target_bytes(prev_draft) != current):
 			raise ValueError('Draft snapshot would overwrite protected draft.prev.md; all protected bytes preserved')
 		return (target, current, protected)
-	# @used-by :func:`agent_tools.cli_registry._exec_repo_tag_retro()`
+	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_repo_tag_retro()`
 	# @used-by :func:`apply()`
 	# @used-by :meth:`test_text_workflow.TextTransactionTests.test_workspace_and_integrity_verifier_single_pass_invariants()`
 	def apply(self, reference):
@@ -318,13 +318,13 @@ class ClientTextWorkspace:
 			if set(op['requests']) & req_set:
 				selected.add(op['target'])
 		return self.gate(targets=selected, response=response, capture=capture) if selected else None
+	# @used-by :func:`Df.Harness.lib.config_blocks.dfh_extract_managed_block()`
+	# @used-by :func:`Df.Harness.lib.config_blocks.dfh_replace_managed_block()`
+	# @used-by :func:`Df.Harness.lib.native_codex_roles._strip_owned_role_block()`
+	# @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_profile_agents()`
 	# @used-by :func:`_index()`
-	# @used-by :func:`agent_tools.configuration.extract_managed_block()`
-	# @used-by :func:`agent_tools.configuration.replace_managed_block()`
 	# @used-by :func:`agent_tools.git_ignore._merge_managed_block()`
 	# @used-by :func:`agent_tools.grounding_helpers.build_active_corpus_cached()`
-	# @used-by :func:`agent_tools.native_profiles._profile_agents()`
-	# @used-by :func:`agent_tools.native_profiles._role_config()`
 	# @used-by :func:`agent_tools.text_core.check_code()`
 	# @used-by :func:`gate_paths()`
 	# @used-by :meth:`ClientTextWorkspace.apply()`
@@ -479,7 +479,6 @@ class TextIntegrityVerifier:
 		if reference in files and files[reference] != actual:
 			raise ValueError('Conflicting admitted text artifact versions')
 		files[reference] = actual
-	# @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_locked()`
 	# @used-by :meth:`TextIntegrityVerifier.applied_integrity()`
 	def _state(self):
 		if None is self.index_state:
@@ -834,7 +833,7 @@ def _reconciled_integrity(root, name, entry):
 # @used-by unused
 def _verify_applied_successor(root, name, current, original):
 	return TextIntegrityVerifier(ClientTextWorkspace(root)).verify_applied_successor(name, current, original)
-# @used-by :func:`agent_tools.admission.verify()`
+# @used-by :func:`Df.Harness.lib.admission_ops.dfh_verify_admission()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 def verify_integrity(graph):
 	if not isinstance(graph, dict) or 1 != graph.get('schema_version') or not isinstance(graph.get('root'), str) or not Path(graph['root']).is_absolute() or not isinstance(graph.get('targets'), list):
@@ -863,10 +862,10 @@ def gate_paths(paths, *, response=None):
 		ws = ClientTextWorkspace(root)
 		r.append(ws.gate(response=response, targets=[name for name in ws.index()['targets'] if (root / name).resolve() in selected]))
 	return r
-# @used-by :func:`agent_tools.admission.capture()`
-# @used-by :func:`agent_tools.blocked_report.evaluate_check_workflow_errors()`
-# @used-by :func:`agent_tools.completion._record()`
-# @used-by :func:`agent_tools.journal.record_step()`
+# @used-by :func:`Df.Harness.lib.admission_ops.dfh_capture_admission()`
+# @used-by :func:`Df.Harness.lib.blocked_report_ops._check_text_workflow_gate()`
+# @used-by :func:`Df.Harness.lib.completion_record._commit_or_verify_journal_group()`
+# @used-by :func:`Df.Harness.lib.journal_records.dfh_record_step()`
 # @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_aged_real_source_and_nested_semantic_approval_preserve_both_platforms()`
 # @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_later_conflicting_probe_rejects_new_publication_but_preserves_history()`
 # @used-by :meth:`test_text_workflow.TextTransactionTests.test_workspace_and_integrity_verifier_single_pass_invariants()`

@@ -7,9 +7,9 @@ from Df.Harness.lib.runtime_launcher_templates import GIT_HOOK_LAUNCHER_HEADER, 
 # @used-by :mod:`agent_tools.runtime_snapshot`
 def git_hook_launcher_source(primary: str | Path, *, store_dir: str | Path | None=None) -> str:
 	return LauncherRenderer(primary, store_dir=store_dir, kind='git_hook').run()
-# @used-by :func:`agent_tools.upwork_project.harness_hook_runner_source()`
 # @used-by :func:`test_hook_runner_e2e_budget._stage_snapshot_runner()`
 # @used-by :func:`test_hook_runner_watchdog._seed_two_releases()`
+# @used-by :meth:`Df.Harness.Upwork.GlobalCustomizationManager.GlobalCustomizationManager.harness_hook_runner_source()`
 # @used-by :meth:`test_hook_runner_watchdog.HookRunnerWatchdogTests.test_watchdog_env_override_terminates_hung_child_process_and_keeps_ascii_header()`
 # @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_lkg_fallback_runs_previous_release_when_current_crashes()`
 # @used-by :meth:`test_runtime_snapshot.RuntimeSnapshotTests.test_promote_exports_snapshot_surviving_live_tree_corruption_and_preserving_anchor()`

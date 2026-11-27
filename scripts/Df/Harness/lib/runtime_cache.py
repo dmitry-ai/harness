@@ -121,6 +121,7 @@ def _safe_default_readonly(runtime_mod) -> tuple[tuple | None, dict]:
 	return r
 # @used-by :func:`Df.Harness.lib.hook_addon_ops.dfh_touches_antigravity_addons()`
 # @used-by :func:`agent_tools.runtime.sanctioned_addon_code_roots()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 # @used-by :mod:`agent_tools.runtime_cache`
 def dfh_cached_addon_roots(config, runtime_mod, expand_fn) -> list[Path]:
 	if None is not config:
@@ -137,6 +138,7 @@ def dfh_cached_addon_roots(config, runtime_mod, expand_fn) -> list[Path]:
 			r = list(cached)
 	return r
 # @used-by :func:`agent_tools.shell_audit.protected_browser_perimeter()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 # @used-by :mod:`agent_tools.runtime_cache`
 def dfh_cached_browser_perimeter(config, runtime_mod) -> dict:
 	if None is not config:
@@ -188,11 +190,13 @@ def dfh_load_cached_settings_readonly(runtime_file: Path, validate_fn) -> tuple[
 			r = (key, value)
 	return r
 # @used-by :func:`Df.Harness.lib.trace_effects._record_shell_effects()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 # @used-by :mod:`agent_tools.runtime_cache`
 def dfh_run_shell_violation_scan(fn, *args, **kwargs) -> None:
 	if not _SKIP_SHELL_VIOLATIONS.get():
 		fn(*args, **kwargs)
 # @used-by :func:`Df.Harness.lib.completion_recovery._scan_readonly_turn()`
+# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`
 # @used-by :mod:`agent_tools.runtime_cache`
 @contextmanager
 def dfh_skip_shell_violations():

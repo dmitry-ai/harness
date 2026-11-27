@@ -119,6 +119,30 @@ class Regex(O):
 	# @used-by :func:`Df.Core.lib.fs.df_uri_file_decode()`
 	# @used-by :func:`Df.Core.lib.text.is_.guid.df_is_guid()`
 	# @used-by :func:`Df.Core.lib.text.regex.df_preg_match()`
+	# @used-by :func:`Df.Harness.lib.ag_inputs._extract_event_direct_uuids()`
+	# @used-by :func:`Df.Harness.lib.clarifications_ops._parse_answers()`
+	# @used-by :func:`Df.Harness.lib.clarifications_ops._parse_output_envelope()`
+	# @used-by :func:`Df.Harness.lib.completion_links._normalize_file_href_path()`
+	# @used-by :func:`Df.Harness.lib.completion_links._validate_single_href()`
+	# @used-by :func:`Df.Harness.lib.config_blocks._collect_root_edits()`
+	# @used-by :func:`Df.Harness.lib.config_blocks.dfh_frontmatter()`
+	# @used-by :func:`Df.Harness.lib.hook_runtime_ops._scan_hook_line()`
+	# @used-by :func:`Df.Harness.lib.hook_runtime_ops._scan_workflow_line()`
+	# @used-by :func:`Df.Harness.lib.hook_runtime_ops._update_fence()`
+	# @used-by :func:`Df.Harness.lib.journal_upgrade._execute_upgrade()`
+	# @used-by :func:`Df.Harness.lib.journal_upgrade._summarize_v2_buckets()`
+	# @used-by :func:`Df.Harness.lib.path_template._expand_braced_token()`
+	# @used-by :func:`Df.Harness.lib.path_template._split_path_root()`
+	# @used-by :func:`Df.Harness.lib.path_template.dfh_normalize_path_str()`
+	# @used-by :func:`Df.Harness.lib.path_template.dfh_validate_variables_map()`
+	# @used-by :func:`Df.Harness.lib.request_binding._plain_text_upwork_ids()`
+	# @used-by :func:`Df.Harness.lib.request_binding._slash_link_upwork_ids()`
+	# @used-by :func:`Df.Harness.lib.request_binding._strip_user_request_wrapper()`
+	# @used-by :func:`Df.Harness.lib.request_binding.dfh_extract_leading_upwork_init_ids()`
+	# @used-by :func:`Df.Harness.lib.rule_splitter._partition_rule_sections()`
+	# @used-by :func:`Df.Harness.lib.rule_splitter._used_rule_indices()`
+	# @used-by :func:`Df.Harness.lib.trace_common.dfh_local_uri_to_path()`
+	# @used-by :func:`Df.Harness.lib.uri.dfh_local_uri_to_path()`
 	# @used-by :func:`Df.Qa.lib.validation.check.df_is_email()`
 	# @used-by :func:`agent_tools.article._iter_headings()`
 	# @used-by :func:`agent_tools.article.check_graph()`
@@ -130,31 +154,14 @@ class Regex(O):
 	# @used-by :func:`agent_tools.article.to_source()`
 	# @used-by :func:`agent_tools.cli_command_grounding._extract_recommended_commands()`
 	# @used-by :func:`agent_tools.cli_output_json._truncated_top_level_failure()`
-	# @used-by :func:`agent_tools.completion._response_link_issues()`
-	# @used-by :func:`agent_tools.configuration._frontmatter()`
-	# @used-by :func:`agent_tools.configuration._root_options()`
 	# @used-by :func:`agent_tools.grounding_domains._collect_json_fact_tuples()`
-	# @used-by :func:`agent_tools.hook_runtime._scan_hook_line()`
-	# @used-by :func:`agent_tools.hook_runtime._scan_workflow_line()`
-	# @used-by :func:`agent_tools.hook_runtime._update_fence()`
 	# @used-by :func:`agent_tools.issue_first_bg._has_direct_issue_seg()`
 	# @used-by :func:`agent_tools.issues.parity._next_skip_depth()`
 	# @used-by :func:`agent_tools.issues.parity.extract_implemented_m_roots()`
-	# @used-by :func:`agent_tools.journal.upgrade_journal()`
 	# @used-by :func:`agent_tools.links.parse_markdown_headings()`
 	# @used-by :func:`agent_tools.links.readable_reference()`
 	# @used-by :func:`agent_tools.links.validate_file()`
 	# @used-by :func:`agent_tools.markdown_links.decode_file_uri()`
-	# @used-by :func:`agent_tools.path_registry._validate_variables_map()`
-	# @used-by :func:`agent_tools.path_registry.expand_template()`
-	# @used-by :func:`agent_tools.path_registry.normalize_path_str()`
-	# @used-by :func:`agent_tools.platforms.antigravity._extract_subagent_uuids()`
-	# @used-by :func:`agent_tools.platforms.clarifications._parse_answers()`
-	# @used-by :func:`agent_tools.platforms.clarifications._parse_output_envelope()`
-	# @used-by :func:`agent_tools.platforms.request_binding._extract_leading_upwork_init_ids()`
-	# @used-by :func:`agent_tools.platforms.request_binding._slash_link_upwork_ids()`
-	# @used-by :func:`agent_tools.platforms.request_binding._strip_user_request_wrapper()`
-	# @used-by :func:`agent_tools.platforms.trace_common.local_uri_to_path()`
 	# @used-by :func:`agent_tools.problem_tracks.extract_problem_blocks()`
 	# @used-by :func:`agent_tools.research._summarize_json_collections()`
 	# @used-by :func:`agent_tools.response_grounding._discourse_topic_key()`
@@ -178,7 +185,6 @@ class Regex(O):
 	# @used-by :func:`agent_tools.text_sections.mechanical_projection()`
 	# @used-by :func:`agent_tools.text_sections.part_at()`
 	# @used-by :func:`agent_tools.text_sections.scope_blocks()`
-	# @used-by :func:`split_project_rules.split_rules()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.QuantityMatcher.QuantityMatcher.__collect_unit_cands()`
 	# @used-by :meth:`Df.Harness.Arch.SpecValidator.SpecValidator.__parse_field_line()`
 	# @used-by :meth:`Df.Harness.Experiment.CallChainParser.CallChainParser.__tokenize()`
@@ -193,6 +199,9 @@ class Regex(O):
 	# @used-by :meth:`Df.Harness.Gate.RulesManifest.RulesManifest.parse_frontmatter()`
 	# @used-by :meth:`Df.Harness.Gate.SendMessageGate.SendMessageGate.__is_duplicate_verdict_payload()`
 	# @used-by :meth:`Df.Harness.Meta.HeaderRenderer.HeaderRenderer.extract_leading()`
+	# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__resolve_rel_to_root()`
+	# @used-by :meth:`Df.Harness.Path.SlotResolver.SlotResolver.__prepare_maps()`
+	# @used-by :meth:`Df.Harness.Path.SlotResolver.SlotResolver.__resolve_one()`
 	# @used-by :meth:`Df.Harness.Perf.TimesheetCommon.TimesheetCommon.__parse_header_meta()`
 	# @used-by :meth:`Df.Harness.Project.Context.LetterDiscoverer.LetterDiscoverer.is_excluded()`
 	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__validate_inputs()`
@@ -239,8 +248,6 @@ class Regex(O):
 	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._collect_m_subtask_groups()`
 	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter.validate_repo()`
 	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter.validate_slug_part()`
-	# @used-by :meth:`agent_tools.path_registry.ProjectPaths.__init__()`
-	# @used-by :meth:`agent_tools.path_registry.ProjectPaths._resolve_rel_to_root()`
 	# @used-by :meth:`agent_tools.shell_audit.ShellCommandInspector._iter_git_segments()`
 	# @used-by :meth:`agent_tools.source_grounding.LocalSourceGroundingAuditor._check_prose_line()`
 	# @used-by :meth:`test_df_core_text_misc.DfCoreTextMiscTests.test_text_helpers_part1()`

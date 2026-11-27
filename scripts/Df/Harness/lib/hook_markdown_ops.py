@@ -17,6 +17,7 @@ def dfh_check_doc_grounding_and_links(proj_root: Path, content: str, p_obj: Path
 		issues.extend(file_repo_link_issues(p_obj, content, repo_root=proj_root))
 	return _format_grounding_issues(issues) if issues else None
 # @used-by :meth:`Df.Harness.Hook.MarkdownSlopGate.MarkdownSlopGate.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_addon_and_markdown_ops()`
 # @used-by :meth:`test_onboarding.InitializationTests.test_native_manifests_and_full_initial_port()`
 # @used-by :meth:`test_repo_link_gate.RepoLinkGateTests.test_issue_linter_staged_gate_and_markdown_hook_enforce_repo_link_ban()`
 # @used-by :meth:`test_scratch_slop_and_grounding_loc_m7.ScratchSlopAndGroundingLocM7Tests.test_non_scratch_md_reports_all_unique_grounding_issues_with_line_numbers_and_relpaths()`
@@ -65,7 +66,7 @@ def dfh_infer_project_root(target: Path) -> Path:
 		cwd_res = dfh_resolve_project_root(Path.cwd().resolve())
 		r = cwd_res if any(((cwd_res / m).is_dir() for m in markers)) else resolved
 	return r
-# @used-by unused
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_addon_and_markdown_ops()`
 def dfh_is_abbreviation_end(text: str) -> bool:
 	from Df.Harness.lib.hook_runtime_ops import ABBR_RE
 	return bool(ABBR_RE.search(text.rstrip()))
@@ -113,6 +114,7 @@ def dfh_markdown_slop_issues(content: str) -> list[str]:
 	from Df.Harness.lib.hook_runtime_ops import dfh_scan_doc4_sentence_issues
 	return dfh_scan_doc4_sentence_issues(content, mode='hook')
 # @used-by :meth:`Df.Harness.Hook.MarkdownSlopGate.MarkdownSlopGate.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_addon_and_markdown_ops()`
 def dfh_resolve_markdown_content(name: str, args: dict, path: str):
 	if 'write_file' == name:
 		content = args.get('Content')

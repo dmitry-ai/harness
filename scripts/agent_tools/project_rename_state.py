@@ -20,7 +20,7 @@ def _rewrite_value(value, pairs: list[tuple[str, str]]):
 # @used-by :mod:`agent_tools.project_rename_state`
 def capture_file_sha(path: Path) -> str | None:
 	return RenameLineage.capture_file_sha(path)
-# @used-by :func:`agent_tools.platforms.trace_common.reviewer_isolation_issues()`
+# @used-by :func:`Df.Harness.lib.trace_review._check_isolation_call()`
 # @used-by :mod:`agent_tools.project_rename_state`
 def find_sibling_project_path(raw_val: str, project_root: Path, daily_root: Path) -> Path | None:
 	return RenameLineage.find_sibling_project_path(raw_val, project_root, daily_root)
@@ -36,11 +36,11 @@ def rewrite_launcher_handoffs(launcher_root: Path, old_root: Path, new_root: Pat
 # @used-by :mod:`agent_tools.project_rename_state`
 def rewrite_project_internal_state(old_root: Path, new_root: Path, new_label: str, new_label_kind: str, *, backups: list[tuple[Path, bytes | None]] | None=None, state_moves: list[tuple[Path, Path]] | None=None) -> dict:
 	return StateRewriter(old_root, new_root, new_label, new_label_kind, backups=backups, state_moves=state_moves).rewrite()
-# @used-by :func:`agent_tools.journal.same_journal_identity()`
+# @used-by :func:`Df.Harness.lib.journal_core.dfh_same_journal_identity()`
 # @used-by :mod:`agent_tools.project_rename_state`
 def same_journal_identity_with_rename(first: str | Path | None, second: str | Path | None, canon_fn) -> bool:
 	return RenameLineage.same_journal_identity_with_rename(first, second, canon_fn)
-# @used-by :func:`agent_tools.path_registry.same_project_root()`
+# @used-by :func:`Df.Harness.lib.path_resolve.dfh_same_project_root()`
 # @used-by :mod:`agent_tools.project_rename_state`
 def same_project_root_check(first: str | Path | None, second: str | Path | None, canon_fn, key_fn) -> bool:
 	return RenameLineage.same_project_root_check(first, second, canon_fn, key_fn)

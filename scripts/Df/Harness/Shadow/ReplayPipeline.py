@@ -8,6 +8,8 @@ from Df.Harness.lib.turn_routing_ops import dfh_resolve_active_turn_state
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 class ReplayPipeline:
 	# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.__run_shadow_mode()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_shadow_pipeline_and_runner()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_shadow_tail()`
 	def __init__(self, shadow_project: Path, shadow_launcher: Path | None, shadow_root: Path, cid: str, platform: str, backend_dir: Path, native_tx: Path | None, response_file: Path | None, checks: dict, verified: list[str], errors: list[str]) -> None:
 		self.__shadow_project = shadow_project
 		self.__shadow_launcher = shadow_launcher
@@ -166,6 +168,7 @@ class ReplayPipeline:
 			self.__checks['turn_begin'] = {'error': str(exc)}
 			self.__errors.append(f'turn_begin: {exc}')
 	# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.__run_shadow_mode()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_shadow_pipeline_and_runner()`
 	def run(self) -> None:
 		self.__run_pre_invocation()
 		self.__run_turn_begin()

@@ -9,6 +9,7 @@ import json
 import sys
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 # @used-by :func:`dfh_load_operation_input()`
+# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_input_guards_and_error_payloads()`
 def _check_parallel_answer_md_guard(args: Any, path: Any) -> None:
 	if 'answer-prepare' == getattr(args, 'command', None) and '-' != str(path) and 'answer.md' == Path(path).resolve().name.lower():
 		turns_dir = dfh_data_dir_for(args.project) / 'turns'
@@ -28,8 +29,8 @@ def _check_parallel_answer_md_guard(args: Any, path: Any) -> None:
 # @used-by :func:`Df.Harness.lib.completion_commands.dfh_add_completion_parser_arguments()`
 # @used-by :func:`agent_tools.issues.batch_commands.register_issue_subparsers()`
 # @used-by :func:`agent_tools.text_cli.main()`
-# @used-by :func:`agent_tools.upwork_project.main()`
 # @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__build_parser()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__build_parser()`
 # @used-by :meth:`test_cli_common.CliCommonTests.test_declarative_arg_specs_and_routers_parse_expected_flags()`
 def dfh_add_arg_specs(parser: Any, specs: tuple | list) -> None:
 	for flags, kwargs in specs:
@@ -41,9 +42,10 @@ def dfh_add_arg_specs(parser: Any, specs: tuple | list) -> None:
 # @used-by :func:`Df.Harness.lib.cli_domain_ops._op_record_review()`
 # @used-by :func:`Df.Harness.lib.cli_domain_ops.dfh_execute_collect()`
 # @used-by :func:`Df.Harness.lib.completion_commands._execute_prepare_or_check()`
-# @used-by :func:`agent_tools.arch.review_cli._exec_arch_prepare()`
-# @used-by :func:`agent_tools.arch.review_cli._exec_arch_record_review()`
+# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_prepare()`
+# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_record_review()`
 # @used-by :meth:`test_cli_common.CliCommonTests.test_scratch_consumption_sha256_and_parallel_answer_guard()`
+# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_input_guards_and_error_payloads()`
 # @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_failed_or_changed_input_is_retained()`
 def dfh_consume_scratch_input(args: Any, path: Any, payload: bytes, result: dict) -> dict:
 	if not getattr(args, 'consume_input', False) or '-' == str(path):
@@ -61,6 +63,7 @@ def dfh_consume_scratch_input(args: Any, path: Any, payload: bytes, result: dict
 # @used-by :func:`agent_tools.issues.batch_commands._run_batch_items()`
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService._finalize_close()`
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService._verify_mutation_readback()`
+# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_input_guards_and_error_payloads()`
 # @used-by :mod:`agent_tools.github_issue`
 def dfh_consume_unchanged_files(files: list[tuple[Path, bytes]]) -> list[str]:
 	r: list[str] = []
@@ -80,8 +83,8 @@ def dfh_consume_unchanged_files(files: list[tuple[Path, bytes]]) -> list[str]:
 # @used-by :func:`agent_tools.issues.repo_commands.run_transfer_repo()`
 # @used-by :func:`agent_tools.text_cli.findings_output()`
 # @used-by :func:`agent_tools.text_cli.main()`
-# @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__run_validate_links()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.run()`
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService._edit_parent_only()`
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService._execute_edit()`
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService._finalize_close()`
@@ -99,9 +102,10 @@ def dfh_dump_json(payload: Any, *, stream: Any=None) -> None:
 # @used-by :func:`Df.Harness.lib.cli_domain_ops.dfh_execute_collect()`
 # @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_analysis_check()`
 # @used-by :func:`Df.Harness.lib.completion_commands._execute_prepare_or_check()`
-# @used-by :func:`agent_tools.arch.review_cli._exec_arch_prepare()`
-# @used-by :func:`agent_tools.arch.review_cli._exec_arch_record_review()`
+# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_prepare()`
+# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_record_review()`
 # @used-by :meth:`test_cli_common.CliCommonTests.test_scratch_consumption_sha256_and_parallel_answer_guard()`
+# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_input_guards_and_error_payloads()`
 # @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_parallel_turn_scratch_isolation_and_budget_gate()`
 def dfh_load_operation_input(args: Any, path: Any) -> bytes:
 	if getattr(args, 'consume_input', False) and '-' != str(path):
@@ -114,7 +118,8 @@ def dfh_load_operation_input(args: Any, path: Any) -> bytes:
 		if actual_sha != str(expected_sha).strip().lower():
 			raise ValueError(f'Input SHA-256 mismatch against --expected-sha256: expected {expected_sha}, got {actual_sha}')
 	return r
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.run()`
+# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_input_guards_and_error_payloads()`
 # @used-by :meth:`test_review_target_claim_and_wait_m5.ReviewTargetClaimAndWaitM5Tests.test_native_review_proof_retryable_flag_and_bounded_wait_for_final_response()`
 def dfh_operation_error_payload(exc: BaseException) -> dict[str, Any]:
 	from agent_tools.repo_wait import is_transient_contention_error
@@ -131,19 +136,20 @@ def dfh_read_input_bytes(path: Any) -> bytes:
 	return r
 # @used-by :func:`Df.Harness.lib.cli_domain_ops._op_metrics()`
 # @used-by :func:`Df.Harness.lib.cli_domain_ops._op_question_finish()`
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_init()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_validate_analysis()`
 # @used-by :meth:`test_df_harness_s11_wave2d.DfHarnessS11Wave2DTests.test_cli_subsystem_classes()`
 # @used-by :mod:`agent_tools.text_cli`
 def dfh_read_input_json(path: Any, *, encoding: str='utf-8-sig') -> Any:
 	return json.loads(dfh_read_input_text(path, encoding=encoding)) if None is not path else None
 # @used-by :func:`Df.Harness.lib.cli_domain_ops._op_resume()`
-# @used-by :func:`agent_tools.arch.review_cli._exec_arch_check()`
 # @used-by :func:`dfh_read_input_json()`
+# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_check()`
 # @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__read_step_payloads()`
 # @used-by :mod:`agent_tools.text_cli`
 def dfh_read_input_text(path: Any, *, encoding: str='utf-8-sig') -> str:
 	return dfh_read_input_bytes(path).decode(encoding)
-# @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.run()`
 # @used-by :meth:`test_cli_common.CliCommonTests.test_declarative_arg_specs_and_routers_parse_expected_flags()`
 def dfh_result_exit_code(result: dict, *, extra_failures: tuple=()) -> int:
 	failed = False is result.get('valid') or False is result.get('complete') or 'conflict' == result.get('status') or any(extra_failures)
@@ -151,6 +157,7 @@ def dfh_result_exit_code(result: dict, *, extra_failures: tuple=()) -> int:
 # @used-by :func:`Df.Harness.lib.cleanup_audit_ops.dfh_run_cleanup_report_cli()`
 # @used-by :func:`dfh_consume_scratch_input()`
 # @used-by :func:`dfh_load_operation_input()`
+# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_input_guards_and_error_payloads()`
 def dfh_verify_scratch_input_path(project: Any, path: Any) -> Path:
 	r = Path(path).resolve()
 	scratch_dirs = [dfh_project_paths(project).scratch_dir, dfh_data_dir_for(project) / 'scratch', Path(project).resolve() / '\ua616/data/scratch']

@@ -44,14 +44,14 @@ def load_experiment(root, reference):
 # @used-by :mod:`agent_tools.experiments`
 def load_plan(root, reference):
 	return ExperimentPlanStore(root).load(reference)
-# @used-by :func:`agent_tools.cli_domains._op_prepare_experiment()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_prepare_experiment()`
 # @used-by :meth:`test_analysis_workflow.ProjectCase.experiment_gap()`
 # @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_experiment_primary_uses_recorder_artifact_and_actual_method()`
 # @used-by :meth:`test_experiments.ExperimentTests.plan()`
 # @used-by :mod:`agent_tools.experiments`
 def prepare_experiment(root, requirement, *, amendment_of=None, amendment_reason=None):
 	return ExperimentPlanStore(root).prepare(requirement, amendment_of=amendment_of, amendment_reason=amendment_reason)
-# @used-by :func:`agent_tools.cli_domains._op_record_experiment()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_record_experiment()`
 # @used-by :meth:`test_analysis_workflow.ProjectCase.experiment_gap()`
 # @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_experiment_primary_uses_recorder_artifact_and_actual_method()`
 # @used-by :meth:`test_experiments.ExperimentTests.run_record()`

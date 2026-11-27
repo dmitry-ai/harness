@@ -113,8 +113,9 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths()`
 def native_tool_trace(root, request):
 	return ToolTraceReader(root, request, _ops=_ag_ops()).run()
-# @used-by :func:`agent_tools.project_rename._build_ag_registrar()`
 # @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__build_ag_registrar()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init__()`
 # @used-by :meth:`test_cleanup_audit.CleanupAuditTests._make_old_project()`
 # @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests._init_and_register()`
 # @used-by :meth:`test_cleanup_lifecycle.CleanupLifecycleTests._make_project()`
@@ -122,10 +123,11 @@ def native_tool_trace(root, request):
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cleanup_per_instance_folders_json_uninitialized_instance_and_stop_gate_a6()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cleanup_skips_disabled_codex_and_checks_all_enabled_antigravity_instances()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_dynamic_folders_json_and_cleanup_without_homes()`
+# @used-by :mod:`agent_tools.upwork_project`
 def register(project_dir, domain_or_topic, date_str=None, *, projects_dir=None, folders_json_path=None):
 	return ProjectRegistrar(project_dir, domain_or_topic, date_str, projects_dir=projects_dir, folders_json_path=folders_json_path, multi_instance=True, _ops=_ag_ops()).run()
-# @used-by :func:`agent_tools.project_rename._build_ag_registrar()`
 # @used-by :func:`test_project_rename._dual_ag_registrar()`
+# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__build_ag_registrar()`
 # @used-by :meth:`test_cleanup.CleanupTests.project()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_disabled_codex_is_skipped_in_registration_workflow_cleanup_install_and_diagnostics()`
 # @used-by :meth:`test_onboarding.RegistrationTests.test_branch_is_reused_by_parent_and_date_with_other_assignments_preserved()`
@@ -134,6 +136,7 @@ def register(project_dir, domain_or_topic, date_str=None, *, projects_dir=None, 
 # @used-by :meth:`test_onboarding.RegistrationTests.test_parallel_registration_retains_all_assignments()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 # @used-by :meth:`test_registration_portability.RegistrationTests.ag()`
+# @used-by :mod:`agent_tools.upwork_project`
 def register_antigravity_project(project_dir, domain_or_topic, date_str=None, projects_dir=ANTIGRAVITY_PROJECTS_DIR, folders_json_path=None, preferred_id=None):
 	return ProjectRegistrar(project_dir, domain_or_topic, date_str, projects_dir=projects_dir, folders_json_path=folders_json_path, preferred_id=preferred_id, multi_instance=False, _ops=_ag_ops()).run()
 # @used-by :meth:`test_continuation_binding.AntigravityContinuationTests.test_foreign_job_does_not_claim_parent_or_self_review_while_text_root_preserves_workspace()`

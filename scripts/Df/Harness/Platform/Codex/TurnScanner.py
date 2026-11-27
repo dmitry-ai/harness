@@ -14,6 +14,7 @@ import sqlite3
 class TurnScanner:
 	# @used-by :func:`Df.Harness.lib.completion_core._scan_native_for_platform()`
 	# @used-by :func:`agent_tools.platforms.codex.native_answers()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_codex_and_ag_scanners_and_tool_trace()`
 	def __init__(self, root, conversation_id: str, *, backend=None, instance=None, _ops: dict[str, Any] | None=None) -> None:
 		self.__ops = _ops or {}
 		self.__root = root
@@ -309,6 +310,7 @@ class TurnScanner:
 		return r
 	# @used-by :func:`Df.Harness.lib.completion_core._scan_native_for_platform()`
 	# @used-by :func:`agent_tools.platforms.codex.native_answers()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_codex_and_ag_scanners_and_tool_trace()`
 	def scan(self) -> dict[str, Any]:
 		self.__load_context()
 		self.__scan_primary_turns()

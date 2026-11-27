@@ -71,7 +71,7 @@ def local_file(root, reference):
 # @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_source_registry_and_escaped_pointers_resolve()`
 def pointer(*parts):
 	return JsonPointer.render_pointer(*parts)
-# @used-by :func:`agent_tools.completion._response_link_issues()`
+# @used-by :func:`Df.Harness.lib.completion_links._validate_fragment()`
 # @used-by :func:`agent_tools.links.validate_file()`
 # @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.__validate_doc_or_json_anchor()`
 # @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_source_registry_and_escaped_pointers_resolve()`
@@ -80,7 +80,7 @@ def resolve_pointer(value, fragment, *, decode_uri: bool=True):
 # @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_m1_and_m2_html_wrapper_anchors_and_markdown_explicit_heading_ids_in_evidence_contract()`
 def saved_source(root, source, observation=None, *, need_sections=True):
 	return SavedSourceLoader(root, source, observation, need_sections=need_sections, extract_fn=evidence_loader.extract_bytes).load()
-# @used-by :func:`agent_tools.cli_domains._op_source_ref()`
+# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_source_ref()`
 def source_reference(root, file, parts=()):
 	from .path_registry import project_paths
 	kb_dir = project_paths(root, exact_root=True).kb_dir.resolve()

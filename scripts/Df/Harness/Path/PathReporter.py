@@ -13,6 +13,7 @@ import os
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 class PathReporter:
 	# @used-by :func:`agent_tools.path_registry.paths_report()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_paths_and_uri()`
 	def __init__(self, project: str | Path | None=None, *, expand: str | None=None, check: bool=False, registry: Any=None) -> None:
 		self.__project = project
 		self.__expand = expand
@@ -89,6 +90,7 @@ class PathReporter:
 				issues.append({'file': rp.as_posix(), 'message': str(exc)})
 		return discovered
 	# @used-by :func:`agent_tools.path_registry.paths_report()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_paths_and_uri()`
 	def run(self) -> dict[str, Any]:
 		issues: list[dict[str, str]] = []
 		if self.__check:

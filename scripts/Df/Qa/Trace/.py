@@ -37,13 +37,13 @@ class Trace:
 		return self.count()
 	# 2020-02-27
 	# https://github.com/mage2pro/core/blob/11.6.1/Qa/Trace.php#L47
-	# @used-by :func:`agent_tools.completion._build_compaction_file_index()`
-	# @used-by :func:`agent_tools.configuration.extract_managed_block()`
+	# @used-by :func:`Df.Harness.lib.completion_compaction._stat_and_hash_file()`
+	# @used-by :func:`Df.Harness.lib.config_blocks.dfh_extract_managed_block()`
+	# @used-by :func:`Df.Harness.lib.native_codex_roles._strip_owned_role_block()`
+	# @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_profile_agents()`
 	# @used-by :func:`agent_tools.git_ignore._merge_managed_block()`
 	# @used-by :func:`agent_tools.links._bare_urls()`
 	# @used-by :func:`agent_tools.links.parse_markdown_headings()`
-	# @used-by :func:`agent_tools.native_profiles._profile_agents()`
-	# @used-by :func:`agent_tools.native_profiles._role_config()`
 	# @used-by :func:`agent_tools.repo_tags.plan_retro_tags()`
 	# @used-by :func:`agent_tools.text_core.check_code()`
 	# @used-by :func:`agent_tools.text_core.check_prose()`

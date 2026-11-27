@@ -6,7 +6,7 @@ from Df.Core.lib.array.clean.main import df_clean_null
 from Df.Harness.Project.Diagnostics import Diagnostics
 from Df.Harness.Project.IssueValidator import IssueValidator
 from Df.Harness.Project.ValidationError import ValidationError
-# @used-by :func:`agent_tools.journal_integrity.check_project_journal_problems()`
+# @used-by :func:`Df.Harness.lib.journal_integrity_ops.dfh_check_project_journal_problems()`
 # @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_clean_null_and_unique_fast_delegation_to_df()`
 # @used-by :mod:`agent_tools.diagnostics`
 def problem(code, field, message, *, claim_id=None, file=None, hint=None, severity='error'):

@@ -10,6 +10,7 @@ import sys
 _LINK_SPECS = (('targets', {'nargs': '+', 'type': Path}), ('--local-anchors', {'action': 'store_true'}), ('--unique-urls', {'action': 'store_true'}), ('--include-code', {'action': 'store_true'}), ('--readable', {'action': 'store_true', 'help': 'Enforce LINK-5 on authored document references, before renderer URL normalization'}), (('--network', '--check-http'), {'action': 'store_true'}), ('--timeout', {'type': float, 'default': 15}))
 class Dispatcher:
 	# @used-by :func:`agent_tools.cli.main()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_dispatcher_and_git_shim_modes()`
 	def __init__(self, command: str, argv: list[str] | None=None, *, context_default: Path | None=None, root_default: Path | None=None) -> None:
 		self.__command = command
 		self.__argv = argv
@@ -118,6 +119,7 @@ class Dispatcher:
 			raise ValueError('\n'.join(errors))
 		print('Statement and Test.md files exist and are nonempty UTF-8; evidence truth was not checked')
 	# @used-by :func:`agent_tools.cli.main()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_dispatcher_and_git_shim_modes()`
 	def run(self) -> int:
 		parser = self.__build_parser()
 		args = parser.parse_args(self.__argv)

@@ -13,6 +13,7 @@ DISCOVERY_KINDS = ('rules', 'skills', 'agents')
 END = '<!-- upwork-init:instructions:end -->'
 START = '<!-- upwork-init:instructions:start -->'
 # @used-by :func:`_step_toml_char()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_rule_splitter_and_config_blocks_helpers()`
 def _advance_quoted(text: str, index: int, quote: str) -> tuple[int, str | None]:
 	if quote.startswith('"') and '\\' == text[index]:
 		r: tuple[int, str | None] = (index + 2, quote)
@@ -51,6 +52,7 @@ def _legacy_doc_option_updates(data: dict, legacy_bytes: int | None) -> dict[str
 			updates['project_doc_max_bytes'] = None
 	return updates
 # @used-by :func:`_toml_statements()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_rule_splitter_and_config_blocks_helpers()`
 def _step_toml_char(text: str, index: int, depth: int, quote: str | None, comment: bool) -> tuple[int, int, str | None, bool, bool]:
 	ch = text[index]
 	if comment:
@@ -87,6 +89,7 @@ def _toml_statements(text: str):
 # @used-by :meth:`Df.Harness.Config.ProjectionPublisher.ProjectionPublisher.__plan_retirements()`
 # @used-by :meth:`Df.Harness.Config.ProjectionPublisher.ProjectionPublisher.__write_backups_and_planned()`
 # @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_guidance_uses_current_canonical_loader_without_copying_rule_bodies()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_rule_splitter_and_config_blocks_helpers()`
 # @used-by :meth:`test_portability.ProjectionTests.test_shared_generation_uses_one_owner_across_projects_and_profile_install()`
 # @used-by :meth:`test_portability.ProjectionTests.test_verified_legacy_migrates_but_manual_configuration_and_fallback_survive()`
 def dfh_digest(data: bytes) -> str:
@@ -149,10 +152,10 @@ def dfh_has_linked_ancestor(path: str | Path, *, include_self: bool=True) -> Pat
 # @used-by :func:`Df.Harness.lib.native_links.dfh_link_matches_target()`
 # @used-by :func:`Df.Harness.lib.native_links.dfh_remove_link()`
 # @used-by :func:`Df.Harness.lib.native_links.dfh_verify_retired_directory_link()`
-# @used-by :func:`agent_tools.upwork_project.configure_project()`
 # @used-by :func:`dfh_has_linked_ancestor()`
 # @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__prune_empty_parents()`
 # @used-by :meth:`Df.Harness.Config.NativeProfile.ManagedLink.ManagedLink.restore_retired()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__prepare_agents_dirs()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_changed_created_link_does_not_stop_other_guarded_rollback()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_concurrent_personal_edit_does_not_stop_other_guarded_rollback()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_concurrent_replacement_during_skill_rollback_is_preserved()`
@@ -171,8 +174,8 @@ def dfh_is_linked_path(path: str | Path) -> bool:
 	return candidate.is_symlink() or bool(getattr(candidate, 'is_junction', lambda: False)())
 # @used-by :func:`Df.Harness.lib.config_codex.dfh_project_rule_paths()`
 # @used-by :func:`Df.Harness.lib.native_ag_plan._plan_ag_manifests()`
-# @used-by :func:`agent_tools.upwork_project.check_configuration()`
-# @used-by :func:`agent_tools.upwork_project.configure_project()`
+# @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.__check_kind()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_manifests()`
 # @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._scan_discovery_manifests()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 def dfh_load_discovery_manifest(path: str | Path, *, missing_ok: bool=True, entries_error: str='Manifest needs an entries list', check_inherits: bool=False) -> dict:
@@ -192,8 +195,8 @@ def dfh_load_project_receipt(target: str | Path, *, by_path: bool=False, error_m
 	if not isinstance(data, dict):
 		raise ValueError(error_message)
 	return (path, raw, data)
-# @used-by :func:`agent_tools.upwork_project.check_configuration()`
-# @used-by :func:`agent_tools.upwork_project.configure_project()`
+# @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.__check_kind()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_manifests()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 def dfh_project_discovery_entries(primary: str | Path, kind: str, *, require_dir: bool=False) -> list[dict[str, str]]:
 	shared = Path(primary) / kind
@@ -251,6 +254,7 @@ def dfh_root_options(text: str, instructions: str | None=None, *, legacy_bytes: 
 	return text
 # @used-by :func:`Df.Harness.lib.native_links.dfh_backup()`
 # @used-by :meth:`Df.Harness.Config.ProjectionPublisher.ProjectionPublisher.__write_backups_and_planned()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_rule_splitter_and_config_blocks_helpers()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 def dfh_store_content_backup(backup_root: str | Path, path: str | Path, payload: bytes, *, error_message: str | None=None) -> tuple[Path, str]:
 	digest = dfh_digest(payload)

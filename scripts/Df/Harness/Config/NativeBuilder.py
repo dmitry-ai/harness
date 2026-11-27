@@ -10,6 +10,7 @@ import tomllib
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 class NativeBuilder:
 	# @used-by :func:`agent_tools.configuration.build_native()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_native_builder_and_projection_publisher()`
 	def __init__(self, root: str | Path | None=None, primary: str | Path | None=None, *, check: bool=False, settings_fn: Any=None) -> None:
 		self.__root_arg = root
 		self.__primary = primary
@@ -65,6 +66,7 @@ class NativeBuilder:
 		guidance = f'# Codex: Upwork\n\n<!-- Generated from {primary.as_posix()}; run harness.py build-native to update. -->\n\n' + instructions + '\n'
 		return (instructions, {root / 'AGENTS.md': guidance})
 	# @used-by :func:`agent_tools.configuration.build_native()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests.test_native_builder_and_projection_publisher()`
 	def run(self) -> dict:
 		primary = Path(dfh_var_value('HARNESS_CODE') if None is self.__primary else self.__primary).resolve()
 		config = dfh_primary_settings(primary, settings_fn=self.__settings_fn)

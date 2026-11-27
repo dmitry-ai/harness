@@ -7,6 +7,7 @@ import os
 import re
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 # @used-by :func:`dfh_local_uri_to_path()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_paths_and_uri()`
 def _strip_win_extended_prefix(text: str) -> str:
 	if text.startswith('\\\\?\\UNC\\'):
 		r = '\\\\' + text[8:]
@@ -16,6 +17,7 @@ def _strip_win_extended_prefix(text: str) -> str:
 		r = text
 	return r
 # @used-by :func:`Df.Harness.lib.path_discovery._project_file_matches_root()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_paths_and_uri()`
 def dfh_extract_resource_uri(res: Any) -> str | None:
 	r: str | None = None
 	if isinstance(res, dict):
@@ -24,6 +26,7 @@ def dfh_extract_resource_uri(res: Any) -> str | None:
 			r = cand
 	return r
 # @used-by :func:`Df.Harness.lib.path_discovery._project_file_matches_root()`
+# @used-by :meth:`test_df_harness_s11_wave2d_journal_path_cov.DfHarnessS11Wave2dJournalPathCovTests.test_paths_and_uri()`
 def dfh_local_uri_to_path(value: Any, *, require_absolute: bool=False) -> Path:
 	raw = os.fspath(value) if isinstance(value, os.PathLike) else value
 	if not isinstance(raw, str) or not raw:

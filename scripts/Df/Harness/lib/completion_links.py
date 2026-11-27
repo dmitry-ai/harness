@@ -21,6 +21,7 @@ def _collect_inline_hrefs(block, html, hrefs: list[str], bare_urls_fn) -> None:
 		elif 'text' == token.type and 0 == depth:
 			hrefs.extend(bare_urls_fn(token.content))
 # @used-by :func:`_validate_local_href()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_compaction_and_response_links()`
 def _normalize_file_href_path(href: str, parsed, windows_path: bool) -> str:
 	path_text = unquote(urldefrag(href)[0] if windows_path else parsed.path)
 	if 'file' == parsed.scheme.lower():
@@ -141,6 +142,7 @@ def dfh_authored_nonquote_hrefs(content: str) -> list[str]:
 	return [*hrefs, *html.links]
 # @used-by :func:`Df.Harness.lib.completion_commands._collect_check_payload()`
 # @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_completion_and_grounding_match_chat_reply_link_policy()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_compaction_and_response_links()`
 def dfh_response_link_issues(root_p: Path, response: str, *, response_path: Path | None=None, scratch_dir: Path | None=None) -> list[str]:
 	from agent_tools.links import chat_reply_link_issues, heading_anchors, references
 	errors: list[str] = list(chat_reply_link_issues(response, root=root_p))

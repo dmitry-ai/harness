@@ -24,6 +24,7 @@ def _collect_turn_candidates(t_dir: Path, sid: str, last_user_step: int, rows: l
 			best_handoff = _pick_higher(best_handoff, h_rank, st)
 	return (best_exact, best_secondary, best_handoff)
 # @used-by :func:`_extract_user_text()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_child_trace_and_turn_routing()`
 def _extract_step_text_from_db(conversations_dir: Path, conversation_id: str, step_idx: int) -> str | None:
 	r: str | None = None
 	conv_db = conversations_dir / f'{conversation_id}.db'
@@ -49,6 +50,7 @@ def _extract_user_text(rows: list[dict] | None, last_user_step: int, conversatio
 		r = _extract_step_text_from_db(conversations_dir, conversation_id, last_user_step)
 	return r
 # @used-by :func:`_collect_turn_candidates()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_child_trace_and_turn_routing()`
 def _handoff_rank(st: dict, rows: list[dict] | None, last_user_step: int, user_text: str | None) -> tuple[int, str, str] | None:
 	r: tuple[int, str, str] | None = None
 	if 'handed_off' == st.get('status'):
@@ -57,6 +59,7 @@ def _handoff_rank(st: dict, rows: list[dict] | None, last_user_step: int, user_t
 			r = (start_step, str(st.get('updated_at') or ''), str(st.get('key') or ''))
 	return r
 # @used-by :func:`_collect_turn_candidates()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_child_trace_and_turn_routing()`
 def _match_tier(st: dict, session_id: str, last_user_step: int) -> int:
 	req_steps = {req.get('native_step') for req in st.get('requests') or () if isinstance(req, dict)}
 	if st.get('native_turn_id') == f'ag-{session_id}-{last_user_step}' or last_user_step == st.get('native_start_step'):
@@ -67,6 +70,7 @@ def _match_tier(st: dict, session_id: str, last_user_step: int) -> int:
 		r = 0
 	return r
 # @used-by :func:`_collect_turn_candidates()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_child_trace_and_turn_routing()`
 def _pick_higher(current: tuple | None, cand_rank: tuple, st: dict) -> tuple:
 	return (cand_rank, st) if None is current or cand_rank > current[0] else current
 # @used-by :func:`dfh_resolve_active_turn_state()`
@@ -79,6 +83,7 @@ def _select_best_turn_candidate(best_exact: tuple | None, best_secondary: tuple 
 		r = best_secondary[1] if None is not best_secondary else None
 	return r
 # @used-by :func:`_collect_turn_candidates()`
+# @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_child_trace_and_turn_routing()`
 def _state_rank(st: dict, tier: int) -> tuple[int, int, str, str]:
 	return (tier, _STATUS_RANK.get(str(st.get('status') or ''), -1), str(st.get('updated_at') or ''), str(st.get('key') or ''))
 # @used-by :func:`dfh_resolve_handoff_target_root()`

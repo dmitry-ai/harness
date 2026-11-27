@@ -6,8 +6,8 @@ import re
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
-# @used-by :func:`agent_tools.completion._prepare_once()`
-# @used-by :func:`agent_tools.completion.check_answer()`
+# @used-by :func:`Df.Harness.lib.completion_commands._collect_check_payload()`
+# @used-by :func:`Df.Harness.lib.completion_commands._validate_prepare_response()`
 # @used-by :meth:`Df.Harness.Project.FactualNoteValidator.FactualNoteValidator.issues()`
 # @used-by :meth:`test_turn_completion.CausalBasisTests.test_observed_ignorance_to_equal_probability_error_is_rejected()`
 # @used-by :meth:`test_turn_completion.CausalBasisTests.test_quotes_code_negation_and_explicit_symmetric_prior_are_allowed()`

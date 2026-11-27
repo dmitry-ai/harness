@@ -224,6 +224,7 @@ def dfh_profile_state(state: dict, name: str, path: str | Path) -> dict:
 # @used-by :func:`_populate_codex_shared_outputs()`
 # @used-by :func:`agent_tools.native_profiles._role_values()`
 # @used-by :func:`dfh_legacy_project_projection_paths()`
+# @used-by :meth:`test_df_harness_s11_wave2d_config_cov.DfHarnessS11Wave2dConfigCovTests._seed_legacy_profiles()`
 def dfh_role_values(primary: str | Path, *, settings_fn: Any=None) -> list[tuple[str, str, str, dict]]:
 	config = dfh_configuration(primary, settings_fn=settings_fn)['platforms'].get('codex') or {}
 	roles = config.get('roles') or {}

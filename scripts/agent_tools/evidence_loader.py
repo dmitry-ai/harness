@@ -9,7 +9,7 @@ from Df.Harness.Analysis.ObservationHtmlResolver import _OBS_HTML_CACHE
 from Df.Harness.Analysis.ObservationProber import ObservationProber
 from Df.Harness.Analysis.ObservationResolver import ObservationResolver
 from .research import extract_bytes
-# @used-by :func:`agent_tools.runtime_cache.clear_runtime_cache()`
+# @used-by :func:`Df.Harness.lib.runtime_cache.dfh_clear_runtime_cache()`
 # @used-by :mod:`agent_tools.evidence_loader`
 def clear_observation_cache() -> None:
 	_OBS_HTML_CACHE.clear()
