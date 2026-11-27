@@ -133,11 +133,11 @@ def find_step_file(side_dir: Path, step: int) -> Path | None:
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
 # @used-by :func:`agent_tools.context.assemble()`
-# @used-by :func:`agent_tools.meta.builders._apply_issue_state_details()`
 # @used-by :func:`resolve_journal_dir()`
 # @used-by :func:`resolve_migrated_step_file()`
 # @used-by :func:`same_journal_identity()`
 # @used-by :func:`state_dir()`
+# @used-by :meth:`Df.Harness.Meta.Builders.Builders.__apply_issue_state_details()`
 def canonicalize_journal_dir_identity(journal_path: str | Path) -> Path:
 	p = Path(journal_path).resolve()
 	if p.is_dir():
@@ -253,7 +253,6 @@ def detect_journal_version(directory: Path) -> int:
 # @used-by :func:`agent_tools.completion._group()`
 # @used-by :func:`agent_tools.completion._record()`
 # @used-by :func:`agent_tools.context.assemble()`
-# @used-by :func:`agent_tools.meta.blocks._journal_step_paths()`
 # @used-by :func:`agent_tools.shadow_replay._find_reply_path()`
 # @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`
 # @used-by :func:`agent_tools.text_core.check_response()`
@@ -267,6 +266,7 @@ def detect_journal_version(directory: Path) -> int:
 # @used-by :func:`resolve_migrated_step_file()`
 # @used-by :func:`step_errors()`
 # @used-by :func:`verify_answer()`
+# @used-by :meth:`Df.Harness.Meta.Blocks.Blocks.step_paths()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._finalize_segment()`
 # @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
 # @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
@@ -283,7 +283,6 @@ def journal_pair_dirs(directory: Path) -> tuple[Path, Path]:
 # @used-by :func:`agent_tools.completion._group()`
 # @used-by :func:`agent_tools.completion._record()`
 # @used-by :func:`agent_tools.context.assemble()`
-# @used-by :func:`agent_tools.meta.blocks._journal_step_paths()`
 # @used-by :func:`agent_tools.shadow_replay._find_reply_path()`
 # @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`
 # @used-by :func:`answer_groups()`
@@ -291,6 +290,7 @@ def journal_pair_dirs(directory: Path) -> tuple[Path, Path]:
 # @used-by :func:`record_answer()`
 # @used-by :func:`step_errors()`
 # @used-by :func:`verify_answer()`
+# @used-by :meth:`Df.Harness.Meta.Blocks.Blocks.step_paths()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._finalize_segment()`
 # @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
 # @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
@@ -375,7 +375,6 @@ def _raw_state_dir(eff: Path, *, data_root: Path | None=None) -> Path:
 # @used-by :func:`agent_tools.completion._record()`
 # @used-by :func:`agent_tools.journal_integrity.acknowledged_sequence_gaps()`
 # @used-by :func:`agent_tools.journal_integrity.check_project_journal_problems()`
-# @used-by :func:`agent_tools.meta.builders._resolve_issue_group_file()`
 # @used-by :func:`agent_tools.reconcile_helpers._trim_narrowed_reservation()`
 # @used-by :func:`agent_tools.shadow_replay._stage_shadow_copies()`
 # @used-by :func:`agent_tools.shadow_replay_clone.remap_shadow_state()`
@@ -394,6 +393,7 @@ def _raw_state_dir(eff: Path, *, data_root: Path | None=None) -> Path:
 # @used-by :func:`test_project_rename._assert_renamed_journal_and_state()`
 # @used-by :func:`test_project_rename._seed_project_artifacts()`
 # @used-by :func:`verify_answer()`
+# @used-by :meth:`Df.Harness.Meta.Builders.Builders.__resolve_issue_group_file()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_concurrent_real_processes_same_request_get_distinct_pairs()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_exact_bytes_and_no_keyword_authorization()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_failed_second_write_recovers_with_token()`
@@ -727,7 +727,6 @@ def recover_step(directory: Path, step: int, token: str):
 # "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
 # https://github.com/dmitry-ai/harness/issues/57
 # @used-by :func:`agent_tools.completion._directory()`
-# @used-by :func:`agent_tools.meta.builders._apply_issue_state_details()`
 # @used-by :func:`agent_tools.project_rename_state.migrate_journal_state()`
 # @used-by :func:`agent_tools.project_rename_verify._collect_journal_errors()`
 # @used-by :func:`agent_tools.shadow_replay._find_reply_path()`
@@ -735,6 +734,7 @@ def recover_step(directory: Path, step: int, token: str):
 # @used-by :func:`agent_tools.shadow_replay_clone.remap_shadow_state()`
 # @used-by :func:`agent_tools.shadow_replay_command._stage_shadow_launcher()`
 # @used-by :func:`agent_tools.shadow_replay_command.stage_command_shadow_copies()`
+# @used-by :meth:`Df.Harness.Meta.Builders.Builders.__apply_issue_state_details()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._load_context()`
 # @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
 # @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`

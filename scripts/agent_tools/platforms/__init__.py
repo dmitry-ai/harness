@@ -12,14 +12,14 @@ from ..runtime import platform_adapter_name, platform_name, settings
 # https://github.com/dmitry-ai/harness/issues/26
 # @used-by :func:`agent_tools.completion._native()`
 # @used-by :func:`agent_tools.doc5_replay_audit._load_saved_turn_entry()`
-# @used-by :func:`agent_tools.metrics.native_executor_metadata()`
-# @used-by :func:`agent_tools.metrics.native_requests()`
-# @used-by :func:`agent_tools.metrics.native_review_proof()`
-# @used-by :func:`agent_tools.metrics.native_tool_trace()`
-# @used-by :func:`agent_tools.metrics.verify_native_proof()`
 # @used-by :func:`agent_tools.registration._attempt()`
 # @used-by :func:`agent_tools.review.authenticate_report()`
 # @used-by :func:`agent_tools.review.disposition()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.native_executor_metadata()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.native_requests()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.native_review_proof()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.native_tool_trace()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.verify_native_proof()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_future_environment_claude_code_is_supported_without_roles_or_adapters()`
 # @uses :mod:`agent_tools.platforms.antigravity`
 # @uses :mod:`agent_tools.platforms.codex`

@@ -109,7 +109,6 @@ def _validate_runtime(value):
 # @used-by :func:`agent_tools.completion._instruction_snapshot()`
 # @used-by :func:`agent_tools.configuration._primary_settings()`
 # @used-by :func:`agent_tools.configuration.global_codex_instructions()`
-# @used-by :func:`agent_tools.meta.identity._resolve_ag_paths_safe()`
 # @used-by :func:`agent_tools.native_profiles._configuration()`
 # @used-by :func:`agent_tools.operations.add_parsers()`
 # @used-by :func:`agent_tools.path_registry._is_registered_single_project()`
@@ -152,6 +151,7 @@ def _validate_runtime(value):
 # @used-by :func:`resolve_antigravity_paths()`
 # @used-by :func:`resolve_codex_home()`
 # @used-by :func:`resolve_codex_paths()`
+# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.resolve_ag_paths_safe()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
 # @used-by :meth:`agent_tools.text_browser.CDPSession.__init__()`
 # @used-by :meth:`agent_tools.text_browser.GuardedCDP.__init__()`
@@ -361,7 +361,6 @@ def platform_enabled(platform, *, config=None):
 # @used-by :func:`agent_tools.cleanup_lifecycle._disabled_ag_history()`
 # @used-by :func:`agent_tools.cleanup_lifecycle._disabled_codex_history()`
 # @used-by :func:`agent_tools.cleanup_lifecycle.resolve_readonly_history()`
-# @used-by :func:`agent_tools.meta.identity._antigravity_project_dirs()`
 # @used-by :func:`agent_tools.path_registry._is_registered_single_project()`
 # @used-by :func:`agent_tools.platforms.antigravity._default_folders_json()`
 # @used-by :func:`agent_tools.platforms.antigravity._proof_paths()`
@@ -371,6 +370,7 @@ def platform_enabled(platform, *, config=None):
 # @used-by :func:`check_pre_invocation._resolve_ag_paths()`
 # @used-by :func:`check_stop_gate._resolve_stop_paths()`
 # @used-by :func:`instance_entry()`
+# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.antigravity_project_dirs()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
 # @used-by :meth:`test_cleanup_audit.CleanupAuditTests._make_old_project()`
 # @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests._init_and_register()`
@@ -416,14 +416,14 @@ def platform_active(platform, *, config=None):
 def enabled_platforms(*, config=None):
 	cfg_all = config or settings()
 	return [name for name in cfg_all['platforms'] if platform_active(name, config=cfg_all)]
-# @used-by :func:`agent_tools.metrics._resolve_target()`
-# @used-by :func:`agent_tools.metrics.summarize_instance()`
 # @used-by :func:`agent_tools.upwork_project.instances_report()`
 # @used-by :func:`agent_tools.upwork_project.main()`
 # @used-by :func:`instance_paths()`
 # @used-by :func:`platform_name()`
 # @used-by :func:`resolve_antigravity_paths()`
 # @used-by :func:`resolve_codex_home()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__resolve_instance_match()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.resolve_target()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_custom_adapter_platform_keys_and_instruction_snapshot()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_platform_enabled_false_disables_all_instances_of_environment()`
 def instance_entry(instance_id, *, platform=None, config=None, include_disabled=True):
@@ -533,9 +533,9 @@ def _antigravity_backend_has_conversation(backend_dir, conversation_id, *, syste
 		except sqlite3.Error:
 			return False
 	return False
-# @used-by :func:`agent_tools.meta.builders._collect_codex_issue_ctx()`
 # @used-by :func:`find_conversation_instance()`
 # @used-by :func:`resolve_codex_paths()`
+# @used-by :meth:`Df.Harness.Meta.Builders.Builders.__collect_codex_issue_ctx()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_default_system_paths_overrides_and_nested_codex_globs()`
 def _codex_home_conversation_trace(home_dir, conversation_id, *, system_paths=None):
 	home = Path(home_dir) if home_dir else None
@@ -564,14 +564,14 @@ def _codex_home_conversation_trace(home_dir, conversation_id, *, system_paths=No
 		if matches:
 			return str(matches[0])
 	return None
-# @used-by :func:`agent_tools.metrics._resolve_target()`
-# @used-by :func:`agent_tools.metrics.summarize_instance()`
-# @used-by :func:`agent_tools.perf.timesheet_common._lookup_conversation_trace()`
-# @used-by :func:`agent_tools.perf.timesheet_common._lookup_summary_db_optional()`
 # @used-by :func:`agent_tools.upwork_project.instances_report()`
 # @used-by :func:`resolve_antigravity_paths()`
 # @used-by :func:`resolve_codex_home()`
 # @used-by :func:`resolve_codex_paths()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__resolve_instance_match()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.resolve_target()`
+# @used-by :meth:`Df.Harness.Perf.TimesheetCommon.TimesheetCommon.__lookup_conversation_trace()`
+# @used-by :meth:`Df.Harness.Perf.TimesheetCommon.TimesheetCommon.__lookup_summary_db_optional()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cross_instance_handoff_and_audit_resolve_antigravity_and_disabled_codex_traces()`
 def find_conversation_instance(conversation_id, *, platform=None, config=None, include_disabled=True):
@@ -609,12 +609,12 @@ def find_conversation_instance(conversation_id, *, platform=None, config=None, i
 						found.append({'id': iid, 'platform': plat_id, 'enabled': item['enabled'], 'backend_dir': str(Path(home_str)) if home_str else None, 'trace_file': trace, 'system_paths': sp})
 	return found
 # @used-by :func:`agent_tools.journal_sync_all._resolve_ag_summary_db()`
-# @used-by :func:`agent_tools.meta.identity._resolve_ag_paths_safe()`
 # @used-by :func:`agent_tools.platforms.antigravity._antigravity_paths()`
 # @used-by :func:`agent_tools.shadow_replay._resolve_native_paths()`
 # @used-by :func:`check_pre_invocation._resolve_ag_paths()`
 # @used-by :func:`check_stop_gate._resolve_stop_paths()`
 # @used-by :func:`resolve_antigravity_backend()`
+# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.resolve_ag_paths_safe()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_custom_adapter_platform_keys_and_instruction_snapshot()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_redirected_userprofile_separates_os_user_home_preserves_sandboxes_and_auto_detects_a6()`
 def resolve_antigravity_paths(backend=None, *, instance=None, conversation_id=None, config=None):
@@ -752,8 +752,8 @@ def resolve_codex_home(backend=None, *, instance=None, conversation_id=None, con
 	if name not in homes:
 		raise ValueError('Unknown Codex profile')
 	return Path(homes[name]).resolve()
-# @used-by :func:`agent_tools.meta.identity._resolve_codex_paths_safe()`
 # @used-by :func:`agent_tools.platforms.codex._paths()`
+# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.resolve_codex_paths_safe()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_custom_adapter_platform_keys_and_instruction_snapshot()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_dynamic_folders_json_and_cleanup_without_homes()`
 def resolve_codex_paths(backend=None, *, instance=None, conversation_id=None, config=None, codex_cfg=None):
@@ -912,7 +912,6 @@ def registration_profile_name(value=None, *, config=None):
 		raise ValueError(f'Codex registration profile {name} is disabled in runtime.json')
 	r = name
 	return r
-# @used-by :func:`agent_tools.meta.identity._resolve_codex_paths_safe()`
 # @used-by :func:`agent_tools.platforms.antigravity._native_invocation()`
 # @used-by :func:`agent_tools.platforms.antigravity.native_review_proof()`
 # @used-by :func:`agent_tools.platforms.codex._paths()`
@@ -924,6 +923,7 @@ def registration_profile_name(value=None, *, config=None):
 # @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`role_settings()`
+# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.resolve_codex_paths_safe()`
 # @used-by :meth:`test_continuation_binding.CodexContinuationTests.selected()`
 # @used-by :meth:`test_portability.CodexEvidenceTests.selected()`
 # @used-by :meth:`test_portability.ProjectionTests.test_native_toml_preserves_settings_and_resolves_models_from_one_config()`

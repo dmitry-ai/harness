@@ -91,8 +91,6 @@ class RAM:
 	# @used-by :func:`agent_tools.knowledge.sync_website_card()`
 	# @used-by :func:`agent_tools.landing_lease._lease_file_for()`
 	# @used-by :func:`agent_tools.links.validate_file()`
-	# @used-by :func:`agent_tools.metrics._save_executor_metadata()`
-	# @used-by :func:`agent_tools.metrics.project_metrics()`
 	# @used-by :func:`agent_tools.native_profiles._antigravity_plan()`
 	# @used-by :func:`agent_tools.native_profiles._apply()`
 	# @used-by :func:`agent_tools.native_profiles._codex_plan()`
@@ -155,6 +153,9 @@ class RAM:
 	# @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__find_git_root()`
 	# @used-by :meth:`Df.Harness.Gate.CdpBypassGate.CdpBypassGate.is_inside_harness_code()`
 	# @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.enclosing_github_repo()`
+	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__append_executor_receipt()`
+	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__collect_project_executors()`
+	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.project_metrics()`
 	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.__is_project_marker_dir()`
 	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.__resolve_deleted_worktree_scope()`
 	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.resolve_code_scope()`

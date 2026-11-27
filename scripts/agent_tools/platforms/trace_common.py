@@ -320,8 +320,6 @@ def merge_turn_accumulators(items, *, allow_step_output_recovery=False):
 # @used-by :func:`agent_tools.cleanup_lifecycle.load_codex_history_rows()`
 # @used-by :func:`agent_tools.journal_liveness.is_conversation_running_live()`
 # @used-by :func:`agent_tools.journal_sync_all._antigravity_summary_is_idle()`
-# @used-by :func:`agent_tools.meta.transcripts._read_ag_summary_row()`
-# @used-by :func:`agent_tools.perf.timesheet_common.read_summary_timestamps()`
 # @used-by :func:`agent_tools.platforms.antigravity._model_metadata()`
 # @used-by :func:`agent_tools.platforms.antigravity._native_inputs()`
 # @used-by :func:`agent_tools.platforms.antigravity._native_invocation()`
@@ -333,6 +331,8 @@ def merge_turn_accumulators(items, *, allow_step_output_recovery=False):
 # @used-by :func:`agent_tools.platforms.antigravity_review_helpers._is_reviewer_in_flight()`
 # @used-by :func:`agent_tools.platforms.antigravity_review_helpers._probe_reviewer_final()`
 # @used-by :func:`agent_tools.platforms.codex._trace()`
+# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.read_ag_summary_row()`
+# @used-by :meth:`Df.Harness.Perf.TimesheetCommon.TimesheetCommon.read_summary_timestamps()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._collect_subagent_bfs()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._load_context()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._query_child_summary()`
@@ -356,9 +356,6 @@ def open_readonly_sqlite(db_path, *, guard=None, query_only=False, row_factory=N
 		conn.close()
 # @used-by :func:`_iter_normalized_tool_calls()`
 # @used-by :func:`agent_tools.completion._scan_child_trace_turn()`
-# @used-by :func:`agent_tools.metrics.summarize()`
-# @used-by :func:`agent_tools.perf.timesheet_ag._record_tool_call()`
-# @used-by :func:`agent_tools.perf.timesheet_codex._record_codex_call()`
 # @used-by :func:`agent_tools.platforms.antigravity._extract_subagent_uuids()`
 # @used-by :func:`agent_tools.platforms.antigravity._find_subagent_invocations()`
 # @used-by :func:`agent_tools.platforms.antigravity.native_tool_trace()`
@@ -368,6 +365,9 @@ def open_readonly_sqlite(db_path, *, guard=None, query_only=False, row_factory=N
 # @used-by :func:`agent_tools.platforms.codex.native_review_proof()`
 # @used-by :func:`iter_antigravity_subagents()`
 # @used-by :func:`record_normalized_tool_effects()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__record_ag_tool_calls()`
+# @used-by :meth:`Df.Harness.Perf.AntigravityTimesheetAnalyzer.AntigravityTimesheetAnalyzer.__record_tool_call()`
+# @used-by :meth:`Df.Harness.Perf.CodexTimesheetAnalyzer.CodexTimesheetAnalyzer.__record_codex_call()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._record_tool_calls()`
 # @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._scan_primary_turns()`
 # @used-by :meth:`agent_tools.platforms.codex.CodexTurnScanner._visit_subagent_rows()`
@@ -476,7 +476,6 @@ def prompt_bias_issues(prompt_text):
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
 # @used-by :func:`agent_tools.completion._scan_child_trace_turn()`
-# @used-by :func:`agent_tools.meta.transcripts._read_ag_rows()`
 # @used-by :func:`agent_tools.platforms.antigravity._load_transcript_inputs()`
 # @used-by :func:`agent_tools.platforms.antigravity._native_invocation()`
 # @used-by :func:`agent_tools.platforms.antigravity.native_review_proof()`
@@ -484,6 +483,7 @@ def prompt_bias_issues(prompt_text):
 # @used-by :func:`agent_tools.platforms.antigravity_review_helpers._probe_reviewer_final()`
 # @used-by :func:`agent_tools.platforms.antigravity_review_helpers.reviewer_assigned_package()`
 # @used-by :func:`check_pre_invocation._pre_flush_begin_context()`
+# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.read_ag_rows()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._load_context()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._resolve_subagent_child()`
 def read_jsonl_objects(source, *, partial_error=None):
@@ -663,8 +663,8 @@ def reviewer_isolation_issues(root, rows):
 # 2026-11-14
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
-# @used-by :func:`agent_tools.metrics.summarize()`
 # @used-by :func:`agent_tools.platforms.codex.summarize()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__summarize_ag_paths()`
 def summarize_token_records(events, bindings=None, *, extra=None, field_map=None, prefix=None, tools=None):
 	totals, missing = (Counter(), Counter())
 	generations, duplicates, phases = (0, 0, {})

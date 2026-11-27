@@ -147,11 +147,9 @@ class Regex(O):
 	# @used-by :func:`agent_tools.links.readable_reference()`
 	# @used-by :func:`agent_tools.links.validate_file()`
 	# @used-by :func:`agent_tools.markdown_links.decode_file_uri()`
-	# @used-by :func:`agent_tools.meta.headers.extract_leading_metadata_header()`
 	# @used-by :func:`agent_tools.path_registry._validate_variables_map()`
 	# @used-by :func:`agent_tools.path_registry.expand_template()`
 	# @used-by :func:`agent_tools.path_registry.normalize_path_str()`
-	# @used-by :func:`agent_tools.perf.timesheet_common._parse_header_meta()`
 	# @used-by :func:`agent_tools.platforms.antigravity._extract_subagent_uuids()`
 	# @used-by :func:`agent_tools.platforms.clarifications._parse_answers()`
 	# @used-by :func:`agent_tools.platforms.clarifications._parse_output_envelope()`
@@ -203,6 +201,8 @@ class Regex(O):
 	# @used-by :meth:`Df.Harness.Gate.RulesAuditChecker.RulesAuditChecker.__strip_frontmatter()`
 	# @used-by :meth:`Df.Harness.Gate.RulesManifest.RulesManifest.parse_frontmatter()`
 	# @used-by :meth:`Df.Harness.Gate.SendMessageGate.SendMessageGate.__is_duplicate_verdict_payload()`
+	# @used-by :meth:`Df.Harness.Meta.HeaderRenderer.HeaderRenderer.extract_leading()`
+	# @used-by :meth:`Df.Harness.Perf.TimesheetCommon.TimesheetCommon.__parse_header_meta()`
 	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.scan_word_or_char()`
 	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.is_test_file()`
 	# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.unwrap_watchdog_prefix()`

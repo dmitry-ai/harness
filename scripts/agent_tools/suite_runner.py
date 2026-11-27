@@ -140,8 +140,8 @@ def _terminate_active(active_lock: threading.Lock, active_procs: set[subprocess.
 		procs = list(active_procs)
 	for proc in procs:
 		_kill_process_tree(proc)
-# @used-by :func:`agent_tools.perf.suite_profiler.profile_test_suite()`
 # @used-by :func:`run_test_suite()`
+# @used-by :meth:`Df.Harness.Perf.SuiteProfiler.SuiteProfiler.profile()`
 def discover_test_modules(tests_dir: Path | str | None=None, *, pattern: str='test_*.py', modules: list[str] | tuple[str, ...] | None=None) -> tuple[Path, list[Path]]:
 	base = _resolve_tests_dir(tests_dir)
 	found: list[Path] = []

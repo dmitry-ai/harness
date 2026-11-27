@@ -1,27 +1,23 @@
 # 2026-11-24 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from typing import Any
-import json
-import re
+from Df.Harness.Meta.HeaderRenderer import HeaderRenderer
 # 2026-11-24
 # "Decompose metadata.py into modular metadata collection package":
 # https://github.com/dmitry-ai/harness/issues/170
 # 2026-11-26
 # "Surface ask_question clarifications in journal headers and require deferral disclosure":
 # https://github.com/dmitry-ai/harness/issues/376
-_HARNESS_TOP_KEYS = frozenset(('Time', 'Issue', 'Project', 'Journal', 'Agent', 'Clarifications', 'Trace'))
-_LEADING_JSON_FENCE_RE = re.compile(r'^```json[ \t]*\r?\n([\s\S]*?)\r?\n```[ \t]*(?:\r?\n\r?\n|\r?\n|$)')
-# @used-by :func:`extract_leading_metadata_header()`
+# 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
+_HARNESS_TOP_KEYS = HeaderRenderer.HARNESS_TOP_KEYS
+_LEADING_JSON_FENCE_RE = HeaderRenderer.LEADING_JSON_FENCE_RE
 # @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_headers_submodule_roundtrips_and_ignores_non_harness_json()`
 # @used-by :mod:`agent_tools.meta`
 # @used-by :mod:`agent_tools.metadata`
 def _is_harness_metadata_obj(obj: Any) -> bool:
-	proj = obj.get('Project') if isinstance(obj, dict) else None
-	has_proj = isinstance(proj, dict) and isinstance(proj.get('Path'), str) and bool(proj['Path'].strip())
-	return bool(obj) and isinstance(obj, dict) and set(obj).issubset(_HARNESS_TOP_KEYS) and has_proj and any((k in obj for k in ('Time', 'Issue', 'Journal', 'Agent', 'Trace')))
+	return HeaderRenderer.is_harness_metadata_obj(obj)
 # @used-by :func:`agent_tools.cleanup_lifecycle._step_response_time()`
 # @used-by :func:`agent_tools.completion._record()`
-# @used-by :func:`strip_leading_metadata_header()`
 # @used-by :func:`test_turn_completion.assert_journal_response_body()`
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService._prepend_issue_metadata()`
 # @used-by :meth:`test_cleanup.CleanupReportTests.test_cli_logs_actual_stdin_answer_from_either_platform_without_running_cleanup()`
@@ -40,16 +36,7 @@ def _is_harness_metadata_obj(obj: Any) -> bool:
 # @used-by :mod:`agent_tools.meta`
 # @used-by :mod:`agent_tools.metadata`
 def extract_leading_metadata_header(text: str) -> tuple[dict[str, Any] | None, str]:
-	r: tuple[dict[str, Any] | None, str] = (None, text)
-	m = _LEADING_JSON_FENCE_RE.match(text) if isinstance(text, str) and text.startswith('```json') else None
-	if None is not m:
-		try:
-			parsed = json.loads(m.group(1))
-		except ValueError:
-			parsed = None
-		if _is_harness_metadata_obj(parsed):
-			r = (parsed, text[m.end():])
-	return r
+	return HeaderRenderer.extract_leading(text)
 # @used-by :func:`agent_tools.completion._record()`
 # @used-by :func:`agent_tools.stop_emergency_capture._build_emergency_response()`
 # @used-by :meth:`agent_tools.issues.service.GitHubIssueService._prepend_issue_metadata()`
@@ -58,17 +45,16 @@ def extract_leading_metadata_header(text: str) -> tuple[dict[str, Any] | None, s
 # @used-by :mod:`agent_tools.meta`
 # @used-by :mod:`agent_tools.metadata`
 def prepend_metadata_header(body: str, data: dict[str, Any]) -> str:
-	return render_metadata_header(data) + strip_leading_metadata_header(body)
+	return HeaderRenderer.prepend(body, data)
 # @used-by :func:`agent_tools.cleanup_audit.record_cleanup_answer_log()`
 # @used-by :func:`agent_tools.cli_registry._exec_problem_metadata()`
-# @used-by :func:`prepend_metadata_header()`
 # @used-by :meth:`test_journal_metadata.JournalMetadataIntegrationTests.test_text_core_and_review_authorize_handle_metadata_prefixed_response()`
 # @used-by :meth:`test_metadata.MetadataFormattingAndCollectionTests.test_render_prepend_extract_and_strip_tab_indented_json_header()`
 # @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_headers_submodule_roundtrips_and_ignores_non_harness_json()`
 # @used-by :mod:`agent_tools.meta`
 # @used-by :mod:`agent_tools.metadata`
 def render_metadata_header(data: dict[str, Any]) -> str:
-	return '```json\n' + json.dumps(data, ensure_ascii=False, indent='\t') + '\n```\n\n'
+	return HeaderRenderer(data).render()
 # @used-by :func:`agent_tools.cleanup_audit.record_cleanup_answer_log()`
 # @used-by :func:`agent_tools.completion._matches_recorded_response()`
 # @used-by :func:`agent_tools.completion._record()`
@@ -79,7 +65,6 @@ def render_metadata_header(data: dict[str, Any]) -> str:
 # @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`
 # @used-by :func:`agent_tools.text_core.check_response()`
 # @used-by :func:`check_stop_gate._evaluate_prepared_match()`
-# @used-by :func:`prepend_metadata_header()`
 # @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
 # @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
 # @used-by :meth:`test_metadata.MetadataFormattingAndCollectionTests.test_render_prepend_extract_and_strip_tab_indented_json_header()`
@@ -87,4 +72,4 @@ def render_metadata_header(data: dict[str, Any]) -> str:
 # @used-by :mod:`agent_tools.meta`
 # @used-by :mod:`agent_tools.metadata`
 def strip_leading_metadata_header(text: str) -> str:
-	return extract_leading_metadata_header(text)[1]
+	return HeaderRenderer.strip_leading(text)

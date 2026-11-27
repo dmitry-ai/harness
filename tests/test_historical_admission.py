@@ -42,8 +42,6 @@ class Later(datetime):
 	# @used-by :func:`agent_tools.completion._now()`
 	# @used-by :func:`agent_tools.context.assemble()`
 	# @used-by :func:`agent_tools.knowledge.populate_agent_kb()`
-	# @used-by :func:`agent_tools.meta.builders.build_journal_metadata()`
-	# @used-by :func:`agent_tools.meta.formatting.format_local_timestamp()`
 	# @used-by :func:`agent_tools.project_rename_state._update_project_json()`
 	# @used-by :func:`agent_tools.registration._now()`
 	# @used-by :func:`agent_tools.research.capture_dom()`
@@ -61,6 +59,8 @@ class Later(datetime):
 	# @used-by :func:`agent_tools.workflow.now()`
 	# @used-by :func:`test_worktree_isolation_gate._write_turn()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.record_review()`
+	# @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_journal()`
+	# @used-by :meth:`Df.Harness.Meta.TimestampFormatter.TimestampFormatter.format_local()`
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 	# @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
 	# @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.prepare()`

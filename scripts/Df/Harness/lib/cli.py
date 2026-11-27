@@ -14,8 +14,8 @@ def dfh_collect_urls(args: Any, *, require_nonempty: bool=True) -> list[str]:
 		raise ValueError('Provide at least one URL via positional <URL> or --url <URL>')
 	return urls
 # Return bounded default worker count for parallel Harness test and profiling runners.
-# @used-by :func:`agent_tools.perf.suite_profiler._default_workers()`
 # @used-by :func:`agent_tools.suite_runner._default_workers()`
+# @used-by :meth:`Df.Harness.Perf.SuiteProfiler.SuiteProfiler.default_workers()`
 # @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_cli_journal_and_project_helpers()`
 def dfh_default_workers(cap: int=8) -> int:
 	return min(max(2, (os.cpu_count() or 4) // 2), int(cap))

@@ -468,10 +468,10 @@ def folder_path(uri):
 # 2026-11-21
 # "Support V2 `𝐒`/`𝐖` software subtrees and cross-root project relocations in Harness":
 # https://github.com/dmitry-ai/harness/issues/113
-# @used-by :func:`agent_tools.meta.identity._lookup_name_by_project_id()`
-# @used-by :func:`agent_tools.meta.identity._lookup_name_from_project_dirs()`
 # @used-by :func:`register()`
 # @used-by :func:`register_antigravity_project()`
+# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.__lookup_name_by_project_id()`
+# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.__lookup_name_from_project_dirs()`
 def _project_item_matches_root(item, root: Path) -> tuple[bool, bool]:
 	from ..path_registry import same_project_root
 	resources = (item.get('projectResources') or {}).get('resources') or []
@@ -588,9 +588,9 @@ def _wire_path(blob, path):
 	return r
 # @used-by :func:`_apply_requested_config()`
 # @used-by :func:`_model_metadata()`
-# @used-by :func:`agent_tools.meta.formatting._split_model_and_effort()`
 # @used-by :func:`native_executor_metadata()`
 # @used-by :meth:`AntigravityTurnScanner._finalize_segment()`
+# @used-by :meth:`Df.Harness.Meta.TimestampFormatter.TimestampFormatter.split_model_and_effort()`
 def _configuration(value):
 	if not isinstance(value, str) or not value.strip():
 		r = {'model': None, 'effort': None}
@@ -751,8 +751,8 @@ def _query_step_model_ids(backend, cid, *, step=None, paths=None):
 # 2026-10-18
 # "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification":
 # https://github.com/dmitry-ai/harness/issues/10
-# @used-by :func:`agent_tools.meta.transcripts._resolve_ag_model_and_effort()`
 # @used-by :func:`native_executor_metadata()`
+# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.resolve_ag_model_and_effort()`
 def _model_metadata(backend, conversation_id, *, paths=None):
 	path = _conversation_db_path(backend, conversation_id, paths=paths)
 	history, sources = ({'generations': [], 'configurations': [], 'model_ids': []}, [])
@@ -963,7 +963,7 @@ def native_review_proof(root, parent_id, reviewer_id, *, backend=None, instance=
 # @used-by :func:`_model_metadata()`
 # @used-by :func:`_query_step_model_ids()`
 # @used-by :func:`_wire_path()`
-# @used-by :func:`agent_tools.metrics.wire_fields()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.wire_fields()`
 def wire_fields(data):
 	# @used-by :func:`wire_fields()`
 	def number(offset):

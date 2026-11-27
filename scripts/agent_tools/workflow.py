@@ -314,8 +314,6 @@ class ResearchQuestionRegistry:
 	# @used-by :func:`agent_tools.journal_sync_all._run_all_open_sweep()`
 	# @used-by :func:`agent_tools.journal_sync_all._sync_foreign_batch()`
 	# @used-by :func:`agent_tools.links.parse_markdown_headings()`
-	# @used-by :func:`agent_tools.meta.identity._push_project_dir()`
-	# @used-by :func:`agent_tools.metrics.summarize()`
 	# @used-by :func:`agent_tools.native_profiles._retire_shared_roles()`
 	# @used-by :func:`agent_tools.native_profiles._role_config()`
 	# @used-by :func:`agent_tools.native_profiles._shared_plan()`
@@ -370,6 +368,8 @@ class ResearchQuestionRegistry:
 	# @used-by :meth:`Df.Harness.Gate.SubprocessHygieneChecker.SubprocessHygieneChecker.__collect_subprocess_bindings()`
 	# @used-by :meth:`Df.Harness.Gate.WorktreeIsolationGate.WorktreeIsolationGate.__count_active_open_turns()`
 	# @used-by :meth:`Df.Harness.Gate.XrefStagedGate.XrefStagedGate.__staged_overrides()`
+	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__scan_ag_file()`
+	# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.__push_project_dir()`
 	# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.shell_test_delete_targets()`
 	# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.shell_write_targets()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__collect_hit_lines()`
@@ -1329,7 +1329,6 @@ def state_path(root):
 # @used-by :func:`agent_tools.blocked_report._standard_workflow_errors()`
 # @used-by :func:`agent_tools.blocked_report.evaluate_check_workflow_errors()`
 # @used-by :func:`agent_tools.completion._workflow_gate_resolved()`
-# @used-by :func:`agent_tools.metrics.project_metrics()`
 # @used-by :func:`agent_tools.project_rename_verify._probe_workflow()`
 # @used-by :func:`agent_tools.review.disposition()`
 # @used-by :func:`agent_tools.review.prepare()`
@@ -1338,6 +1337,7 @@ def state_path(root):
 # @used-by :func:`agent_tools.shadow_replay._run_finalize_stage()`
 # @used-by :func:`agent_tools.shadow_replay._run_review_stage()`
 # @used-by :func:`test_finalized_project_contract._complete_review_and_finalize()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.project_metrics()`
 # @used-by :meth:`agent_tools.completion.AnswerPreparationRunner._audit_workflow_scope()`
 # @used-by :meth:`test_analysis_workflow.ContinuationTests.test_resume_uses_existing_capture_and_agent_kb_without_reading_context()`
 # @used-by :meth:`test_analysis_workflow.ProjectCase.review_package()`
@@ -1411,8 +1411,8 @@ def _target_complete(target, item):
 # @used-by :meth:`test_registration_portability.RegistrationTests.test_workflow_registration_status_exposes_all_targets_and_pending_targets()`
 def registration_status(root):
 	return WorkflowStateEngine(root).registration_status()
-# @used-by :func:`agent_tools.metrics.project_metrics()`
 # @used-by :func:`agent_tools.project_rename_verify._probe_workflow()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.project_metrics()`
 # @used-by :meth:`test_finalized_project_contract.FinalizedProjectContractTests.test_rename_project_preserves_all_seven_stages_config_journal_handoff_and_review_lineage()`
 # @used-by :meth:`test_finalized_project_contract.FinalizedProjectContractTests.test_render_analysis_promote_domain_preserves_finalized_invariants()`
 def stage_statuses(root, state):

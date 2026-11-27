@@ -24,7 +24,9 @@ def dfh_cmd_from_call(call: dict[str, Any]) -> str:
 		args = _parse_call_args(call.get('args', call.get('arguments', {})))
 		r = str(args.get('CommandLine') or args.get('cmd') or args.get('command') or '')
 	return r
+# @used-by :func:`agent_tools.meta.transcripts._extract_ag_transcript_info()`
 # @used-by :func:`agent_tools.meta.transcripts._read_ag_rows()`
+# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.read_ag_rows()`
 # @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_hook_and_transcript_callers_delegate_to_df_harness()`
 # @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_trace_and_timesheet_helpers()`
 def dfh_read_ag_rows(path: Path) -> list[dict[str, Any]]:

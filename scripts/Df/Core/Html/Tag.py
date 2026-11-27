@@ -65,8 +65,6 @@ class Tag:
 		return self.__tag in tags
 	# https://github.com/mage2pro/core/blob/11.6.1/Core/Html/Tag.php#L44-L49
 	# @used-by :func:`Df.Core.lib.html.df_tag()`
-	# @used-by :func:`agent_tools.text_cli.main()`
-	# @used-by :func:`agent_tools.upwork_project.run()`
 	# @used-by :meth:`test_df_core_text_misc.DfCoreTextMiscTests.test_html_js_and_option()`
 	def render(self) -> str:
 		c = self.__contentStr()

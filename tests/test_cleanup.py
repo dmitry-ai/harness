@@ -104,7 +104,6 @@ class CleanupTests(TemporaryCase):
 	# @used-by :func:`agent_tools.cli_registry._exec_tdd_exempt_mechanical()`
 	# @used-by :func:`agent_tools.completion.execute()`
 	# @used-by :func:`agent_tools.operations._execute_collect()`
-	# @used-by :func:`agent_tools.perf.timesheet.run_perf_timesheet_cli()`
 	# @used-by :func:`agent_tools.text_cli.main()`
 	# @used-by :func:`agent_tools.upwork_project.run()`
 	# @used-by :func:`test_turn_completion.completed_tail_is_immutable()`
@@ -130,6 +129,7 @@ class CleanupTests(TemporaryCase):
 	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_prepare()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_record_review()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_review_input()`
+	# @used-by :meth:`Df.Harness.Perf.TimesheetBuilder.TimesheetBuilder.run_cli()`
 	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.assert_stable()`
 	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.check_and_review()`
 	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.deliver()`

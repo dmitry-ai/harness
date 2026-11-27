@@ -1634,8 +1634,8 @@ def _active(native):
 # "Auto-name Antigravity conversations from project journal step numbers":
 # https://github.com/dmitry-ai/harness/issues/120
 # @used-by :func:`_sync_antigravity_conversation_title()`
-# @used-by :func:`agent_tools.meta.blocks._conversation_label()`
 # @used-by :func:`sync_conversation_title()`
+# @used-by :meth:`Df.Harness.Meta.Blocks.Blocks.conversation_label()`
 def format_conversation_journal_title(steps) -> str:
 	ordered = sorted({st for st in (steps or ()) if int is type(st) and 1 <= st})
 	return ', '.join((str(st) for st in ordered))
@@ -1647,8 +1647,8 @@ def format_conversation_journal_title(steps) -> str:
 # https://github.com/dmitry-ai/harness/issues/269
 # @used-by :func:`_record()`
 # @used-by :func:`_sync_antigravity_conversation_title()`
-# @used-by :func:`agent_tools.meta.blocks._resolve_conversation_steps()`
 # @used-by :func:`sync_conversation_title()`
+# @used-by :meth:`Df.Harness.Meta.Blocks.Blocks.resolve_conversation_steps()`
 # @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_record_answer_subtracts_overlapping_request_ids_and_excludes_stale_steps_from_title()`
 def conversation_journal_steps(root, journal_directory, conversation_id: str) -> list[int]:
 	from .journal_integrity import collect_conversation_journal_steps

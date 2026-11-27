@@ -204,7 +204,6 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 # @used-by :func:`agent_tools.landing_lease._try_acquire_once()`
 # @used-by :func:`agent_tools.landing_lease._unqueue_owner()`
 # @used-by :func:`agent_tools.landing_lease.release_lease()`
-# @used-by :func:`agent_tools.metrics._save_executor_metadata()`
 # @used-by :func:`agent_tools.native_profiles.build_shared_native()`
 # @used-by :func:`agent_tools.native_profiles.install_native_profiles()`
 # @used-by :func:`agent_tools.native_profiles.retire_owned_project_projections()`
@@ -231,6 +230,7 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 # @used-by :func:`agent_tools.worker_semaphore._try_reserve_once()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__persist_review_index()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__register_package_index()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__append_executor_receipt()`
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner._apply_removal()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.run()`
@@ -325,7 +325,6 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :func:`agent_tools.knowledge.build_project_extra_sources()`
 # @used-by :func:`agent_tools.knowledge.sync_project_attachments_and_kb()`
 # @used-by :func:`agent_tools.landing_lease._save_state()`
-# @used-by :func:`agent_tools.metrics._save_executor_metadata()`
 # @used-by :func:`agent_tools.native_profiles._apply()`
 # @used-by :func:`agent_tools.native_profiles._rollback()`
 # @used-by :func:`agent_tools.parallel_runner._save_timings()`
@@ -362,6 +361,7 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :func:`agent_tools.worker_semaphore._try_reserve_once()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__persist_review_index()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__register_package_index()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__append_executor_receipt()`
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._update_single_turn_locked()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.persist_issue_evidence()`
@@ -388,7 +388,6 @@ def replace_bytes(path: Path, data: bytes):
 # @used-by :func:`agent_tools.analysis.publish_owned()`
 # @used-by :func:`agent_tools.analysis.save_analysis()`
 # @used-by :func:`agent_tools.completion._conflict()`
-# @used-by :func:`agent_tools.metrics._save_executor_metadata()`
 # @used-by :func:`agent_tools.platforms.trace_common.persist_review_proof()`
 # @used-by :func:`agent_tools.review._immutable()`
 # @used-by :func:`agent_tools.review.prepare_verdict_record()`
@@ -399,6 +398,7 @@ def replace_bytes(path: Path, data: bytes):
 # @used-by :func:`agent_tools.text_workflow._immutable()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.prepare_package()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.record_review()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__save_executor_metadata()`
 # @used-by :meth:`test_review_contract.ReviewContractTests.test_merkle_cached_single_reviewer_quorum_recognizes_approved_digests_and_storage_receipts()`
 def write_immutable_bytes(path: Path, payload: bytes, *, diff_error: str='Immutable artifact differs') -> Path:
 	target = Path(path)

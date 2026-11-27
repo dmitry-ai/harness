@@ -119,7 +119,6 @@ def classify_network_error(exc):
 # @used-by :func:`agent_tools.cleanup.remove_antigravity()`
 # @used-by :func:`agent_tools.cleanup.restore_antigravity()`
 # @used-by :func:`agent_tools.experiments._result_bytes()`
-# @used-by :func:`agent_tools.metrics._save_executor_metadata()`
 # @used-by :func:`agent_tools.operations._execute_collect()`
 # @used-by :func:`agent_tools.platforms.codex.native_executor_metadata()`
 # @used-by :func:`agent_tools.platforms.trace_common.make_tool_trace_event()`
@@ -142,6 +141,8 @@ def classify_network_error(exc):
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__register_package_index()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__subject_digest()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.prepare_package()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__append_executor_receipt()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__save_executor_metadata()`
 # @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.prepare()`
 # @used-by :meth:`agent_tools.experiments.ExperimentRunValidator.record()`
 # @used-by :meth:`agent_tools.review.ReviewClassifier._resolve_claim()`
@@ -186,7 +187,6 @@ def _fingerprint(value):
 # @used-by :func:`agent_tools.cli_domains._resolve_project_input()`
 # @used-by :func:`agent_tools.evidence.source_reference()`
 # @used-by :func:`agent_tools.experiments.result_issues()`
-# @used-by :func:`agent_tools.metrics.project_metrics()`
 # @used-by :func:`agent_tools.operations._execute_collect()`
 # @used-by :func:`agent_tools.platforms.codex._review_inputs()`
 # @used-by :func:`agent_tools.review.authenticate_report()`
@@ -213,6 +213,8 @@ def _fingerprint(value):
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__collect_modules()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__load_verified_package()`
 # @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.read_review_input()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__collect_project_executors()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__collect_project_reviews()`
 # @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.load()`
 # @used-by :meth:`agent_tools.experiments.ExperimentPlanStore.preregistration_issues()`
 # @used-by :meth:`agent_tools.experiments.ExperimentRunValidator._collector_artifact()`
@@ -389,8 +391,8 @@ METRIC_KEYS = ('uses', 'cache_hits', 'fresh_attempts', 'failed_attempts', 'http_
 # @used-by :func:`observed_use()`
 def metric_counts(events):
 	return dict(zip(METRIC_KEYS, (len(events), sum((True is x.get('cached') for x in events)), sum((False is x.get('cached') for x in events)), sum((bool(x.get('error')) for x in events)), sum(('http' == x.get('kind') and (x.get('status') or 0) >= 400 for x in events)))))
-# @used-by :func:`agent_tools.metrics.project_metrics()`
 # @used-by :func:`observed_use()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.project_metrics()`
 def bounded_metrics(value):
 	if isinstance(value, list):
 		r = {'version': 2, 'totals': metric_counts(value), 'recent': value[-32:]}
@@ -693,9 +695,9 @@ class HTMLData(HTMLParser):
 			self.text.append(value)
 			self.position += len(value)
 	# @used-by :func:`agent_tools.parallel_runner._run_unittest_modules()`
-	# @used-by :func:`agent_tools.perf.suite_profiler.profile_test_suite()`
 	# @used-by :func:`agent_tools.suite_runner._run_unittest_suite()`
 	# @used-by :func:`extract_bytes()`
+	# @used-by :meth:`Df.Harness.Perf.SuiteProfiler.SuiteProfiler.profile()`
 	# @used-by :meth:`test_registration_portability.RegistrationTests.test_slow_previous_success_does_not_erase_a_newer_failed_attempt()`
 	def result(self):
 		plain = ''.join(self.text)

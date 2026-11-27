@@ -855,7 +855,7 @@ def register(project_dir, domain_or_topic, date_str=None):
 # 2026-11-14
 # "Consolidate token/stage summarize, native_review_proof, read-only SQLite, file:// helpers, and ProjectCleanupScanner across trace_common.py, antigravity.py, codex.py, metrics.py, and cleanup.py":
 # https://github.com/dmitry-ai/harness/issues/75
-# @used-by :func:`agent_tools.metrics.summarize()`
+# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.summarize()`
 def summarize(paths, bindings=None):
 	tools, events, seen = (Counter(), [], set())
 	for path in paths:

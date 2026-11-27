@@ -324,8 +324,6 @@ class ClientTextWorkspace:
 	# @used-by :func:`agent_tools.configuration.replace_managed_block()`
 	# @used-by :func:`agent_tools.git_ignore._merge_managed_block()`
 	# @used-by :func:`agent_tools.grounding_helpers.build_active_corpus_cached()`
-	# @used-by :func:`agent_tools.meta.transcripts._extract_codex_transcript_info()`
-	# @used-by :func:`agent_tools.meta.transcripts._finalize_ag_info()`
 	# @used-by :func:`agent_tools.native_profiles._profile_agents()`
 	# @used-by :func:`agent_tools.native_profiles._role_config()`
 	# @used-by :func:`agent_tools.project_card.sync_block()`
@@ -338,6 +336,8 @@ class ClientTextWorkspace:
 	# @used-by :meth:`ClientTextWorkspace.gate()`
 	# @used-by :meth:`ClientTextWorkspace.gate_requests_for_root()`
 	# @used-by :meth:`ClientTextWorkspace.scope_issues()`
+	# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.__finalize_ag_info()`
+	# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.extract_codex_info()`
 	# @used-by :meth:`agent_tools.experiments.BrowserTraceInspector.unconditional_calls()`
 	# @used-by :meth:`agent_tools.shell_audit.ShellCommandInspector._parse_commit_flag_bundle()`
 	# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._apply_complete_stage()`

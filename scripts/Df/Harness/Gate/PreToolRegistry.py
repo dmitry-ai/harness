@@ -114,7 +114,7 @@ class PreToolRegistry:
 			r = any((tool_name.startswith(pat[:-1]) if pat.endswith('*') else tool_name == pat for pat in tools))
 		return r
 	# @used-by :func:`agent_tools.gates.discover_pre_tool_gates()`
-	# @used-by :func:`agent_tools.perf.suite_worker.run_module_profile()`
+	# @used-by :meth:`Df.Harness.Perf.SuiteWorker.SuiteWorker.run()`
 	# @used-by :meth:`PreToolRegistry.run()`
 	@staticmethod
 	def discover(*, tool_name: str | None=None, extra_dirs: list[Path] | tuple[Path, ...] | None=None, pkg_name: str='agent_tools.gates', pkg_dir: Path | None=None) -> list[dict]:
