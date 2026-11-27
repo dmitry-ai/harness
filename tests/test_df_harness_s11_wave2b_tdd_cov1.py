@@ -45,9 +45,9 @@ class DfHarnessS11Wave2bTddCov1Tests(unittest.TestCase):
 		self.assertTrue(CommandInspector('gradle test --tests Foo').classify_test_command()['is_test_cmd'])
 		self.assertTrue(CommandInspector('python -m unittest discover -p test_a.py').classify_test_command()['is_test_cmd'])
 		self.assertTrue(CommandInspector('python tests/test_a.py').classify_test_command()['is_test_cmd'])
-		self.assertTrue(CommandInspector.shell_write_targets('Set-Content -Path a.py -Value @"\nx = 1\n"@'))
-		self.assertTrue(CommandInspector.shell_code_write_targets('echo "x" > a.py'))
-		self.assertTrue(CommandInspector.shell_test_delete_targets('rm tests/test_a.py'))
+		self.assertTrue(CommandInspector.shell_write_targets('Set-Content -Path a.py -Value @"\nx = 1\n"@', cwd=SCRIPTS))
+		self.assertTrue(CommandInspector.shell_code_write_targets('echo "x" > a.py', cwd=SCRIPTS))
+		self.assertTrue(CommandInspector.shell_test_delete_targets('rm tests/test_a.py', cwd=WT_ROOT))
 	# @used-by :mod:`unittest`
 	def test_diff_contract_executability_and_coverage_end_to_end(self) -> None:
 		from Df.Harness.Tdd.CodeClassifier import CodeClassifier
