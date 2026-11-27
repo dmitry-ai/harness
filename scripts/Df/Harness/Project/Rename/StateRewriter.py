@@ -84,6 +84,7 @@ class StateRewriter:
 		return (old_state, new_state)
 	# @used-by :func:`agent_tools.project_rename_state.refresh_workflow_file_hash()`
 	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__sync_registrations()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_rename_full_coverage()`
 	@classmethod
 	def refresh_workflow_file_hash(cls, new_root: Path, target_file: Path, old_sha: str | None) -> None:
 		new_sha = RenameLineage.capture_file_sha(target_file)

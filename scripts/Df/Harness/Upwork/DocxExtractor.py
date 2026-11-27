@@ -13,6 +13,7 @@ class DocxExtractor:
 	# @used-by :func:`agent_tools.upwork_data.extract_docx_markdown()`
 	# @used-by :meth:`Df.Harness.Upwork.AttachmentExtractor.AttachmentExtractor.__extract_zip_doc()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_docx_pdf_xlsx_odt_and_loom_extractors()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_z_upwork_docx_pdf_csv_and_config_coverage()`
 	# @used-by :meth:`test_upwork_data.UpworkDataExtractorTests.test_docx_extractor_tables_fields_numbering_and_heading_normalization()`
 	def __init__(self, raw_bytes: bytes) -> None:
 		self.raw_bytes = raw_bytes
@@ -187,6 +188,7 @@ class DocxExtractor:
 	# @used-by :func:`agent_tools.upwork_data.extract_docx_markdown()`
 	# @used-by :meth:`Df.Harness.Upwork.AttachmentExtractor.AttachmentExtractor.__extract_zip_doc()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_docx_pdf_xlsx_odt_and_loom_extractors()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_z_upwork_docx_pdf_csv_and_config_coverage()`
 	# @used-by :meth:`test_upwork_data.UpworkDataExtractorTests.test_docx_extractor_tables_fields_numbering_and_heading_normalization()`
 	def extract(self) -> str:
 		with zipfile.ZipFile(io.BytesIO(self.raw_bytes)) as zf:

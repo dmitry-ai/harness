@@ -22,6 +22,7 @@ import sys
 class CliRunner:
 	# @used-by :func:`agent_tools.upwork_project.run()`
 	# @used-by :meth:`CliRunner.main()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_z_upwork_cli_runner_dispatch_coverage()`
 	def __init__(self, args, *, doctor_fn=None, configure_fn=None, check_cfg_fn=None, init_fn=None, extract_fn=None, instances_fn=None, register_fn=None, platform_settings_fn=None, incoming_fn=None, commit_capture_fn=None, drain_incoming_fn=None) -> None:
 		self.__args = args
 		self.__doctor_fn = (lambda: DoctorAuditor().audit()) if None is doctor_fn else doctor_fn
@@ -240,6 +241,7 @@ class CliRunner:
 			r = cls(args).run() if None is run_fn else run_fn(args)
 		return r
 	# @used-by :func:`agent_tools.upwork_project.run()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_z_upwork_cli_runner_dispatch_coverage()`
 	def run(self) -> int:
 		from agent_tools.cli_common import dump_json, operation_error_payload, result_exit_code
 		from agent_tools.operations import COMMANDS, analysis_root, execute

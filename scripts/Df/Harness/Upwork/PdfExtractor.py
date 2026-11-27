@@ -14,6 +14,7 @@ class PdfExtractor:
 	# @used-by :func:`agent_tools.upwork_data.extract_pdf_markdown()`
 	# @used-by :meth:`Df.Harness.Upwork.AttachmentExtractor.AttachmentExtractor.extract_markdown()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_docx_pdf_xlsx_odt_and_loom_extractors()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_z_upwork_docx_pdf_csv_and_config_coverage()`
 	# @used-by :meth:`test_upwork_data.UpworkDataExtractorTests.test_pdf_extractor_xml_layout_and_raw_stream_ligature_fallback()`
 	def __init__(self, raw_bytes: bytes, pdf_path=None, *, poppler_finder=None) -> None:
 		self.pdf_path = pdf_path
@@ -187,6 +188,7 @@ class PdfExtractor:
 	# @used-by :func:`agent_tools.upwork_data.extract_pdf_markdown()`
 	# @used-by :meth:`Df.Harness.Upwork.AttachmentExtractor.AttachmentExtractor.extract_markdown()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_docx_pdf_xlsx_odt_and_loom_extractors()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_z_upwork_docx_pdf_csv_and_config_coverage()`
 	# @used-by :meth:`test_upwork_data.UpworkDataExtractorTests.test_pdf_extractor_xml_layout_and_raw_stream_ligature_fallback()`
 	def extract(self) -> str:
 		r = None
@@ -200,6 +202,7 @@ class PdfExtractor:
 		return r
 	# @used-by :func:`agent_tools.upwork_data._find_poppler_tool()`
 	# @used-by :meth:`PdfExtractor._run_poppler()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_z_upwork_docx_pdf_csv_and_config_coverage()`
 	@staticmethod
 	def find_poppler_tool(name: str) -> str | None:
 		from agent_tools.path_registry import tool_list

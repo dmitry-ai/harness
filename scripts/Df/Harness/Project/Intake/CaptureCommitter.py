@@ -18,6 +18,7 @@ class CaptureCommitter:
 	# @used-by :func:`agent_tools.intake.commit_capture()`
 	# @used-by :meth:`CaptureCommitter.drain_incoming()`
 	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_init()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_intake_and_context_full_coverage()`
 	def __init__(self, capture, *, incoming_root=None, daily_root=None, apply: bool=False, create_bytes_fn=None, index_fn=None, rename_fn=None, default_daily_root=None) -> None:
 		self.__capture = Path(capture)
 		self.__incoming = Path(store_path('incoming_dir') if None is incoming_root else incoming_root)
@@ -126,6 +127,7 @@ class CaptureCommitter:
 			replace_bytes(manifest, IntakePathGuard.json_bytes(receipt))
 	# @used-by :func:`agent_tools.intake.commit_capture()`
 	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_init()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_intake_and_context_full_coverage()`
 	def commit(self) -> dict:
 		report = {'capture': str(self.__capture), 'status': 'retained', 'drained': False}
 		try:
@@ -185,6 +187,7 @@ class CaptureCommitter:
 		return (project, state)
 	# @used-by :func:`agent_tools.intake._restore()`
 	# @used-by :meth:`CaptureCommitter.commit()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_intake_and_context_full_coverage()`
 	@staticmethod
 	def restore(receipt: dict, capture: Path, *, rename_fn=None) -> None:
 		rfn = os.rename if None is rename_fn else rename_fn

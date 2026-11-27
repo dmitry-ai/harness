@@ -21,6 +21,7 @@ class AttachmentKbSyncer:
 		self.__extra_sources_fn = extra_sources_fn
 	# @used-by :func:`agent_tools.knowledge._replace_section2_in_project_md()`
 	# @used-by :meth:`AttachmentKbSyncer.sync()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_website_and_extra_loom_coverage()`
 	@staticmethod
 	def replace_section2(existing_md: str, data: dict, extra_sources: list[dict]) -> str:
 		fresh_md = KbProjectMdFormatter({**data, 'extra_sources': extra_sources}).render()

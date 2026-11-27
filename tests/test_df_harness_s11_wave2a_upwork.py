@@ -162,5 +162,115 @@ class DfHarnessS11Wave2aUpworkTests(unittest.TestCase):
 			self.assertTrue(ConfigurationChecker(p2).check()['valid'])
 		self.assertIn('environments', InstancesReporter(check_exists=False).report())
 		self.assertTrue(callable(DoctorAuditor) and callable(CliRunner))
+	# @used-by :mod:`unittest`
+	def test_z_upwork_docx_pdf_csv_and_config_coverage(self) -> None:
+		from Df.Harness.Upwork.AttachmentExtractor import AttachmentExtractor
+		from Df.Harness.Upwork.DocxExtractor import DocxExtractor
+		from Df.Harness.Upwork.PdfExtractor import PdfExtractor
+		from Df.Harness.Upwork.ProjectConfigurator import ProjectConfigurator
+		self.assertEqual('- A: 1; B: 2', AttachmentExtractor.extract_markdown('a.csv', b'A,B\n1,2\n'))
+		buf = io.BytesIO()
+		doc_xml = '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText>HYPERLINK "https://example.org"</w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>Link</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p></w:body></w:document>'
+		with zipfile.ZipFile(buf, 'w') as zf:
+			zf.writestr('word/document.xml', doc_xml)
+		self.assertIn('[Link](https://example.org)', DocxExtractor(buf.getvalue()).extract())
+		xml_sample = '<pdf2xml><page number="1"><fontspec id="0" family="Helvetica"/><fontspec id="1" family="Helvetica-Bold"/><text top="40" left="50" height="18" font="1">Phase 1: Scope</text><text top="70" left="50" height="14" font="0">•</text><text top="70" left="70" height="14" font="1">Goal:</text><text top="70" left="110" height="14" font="0">Fix <a href="https://example.org">x</a> line</text><text top="88" left="70" height="14" font="0">two.</text><text top="120" left="50" height="14" font="0">Body.</text></page></pdf2xml>'
+		with mock.patch.object(PdfExtractor, '_run_poppler', return_value=xml_sample):
+			self.assertIn('## Phase 1: Scope', PdfExtractor(b'%PDF-1.4').extract())
+		self.assertIsNone(PdfExtractor.find_poppler_tool('nonexistent_poppler_tool_xyz'))
+		with tempfile.TemporaryDirectory() as tmp:
+			p = Path(tmp).resolve()
+			ProjectConfigurator(p).configure()
+			ctx_p = p / '.agents/context.json'
+			cfg = json.loads(ctx_p.read_text(encoding='utf-8'))
+			next((s for s in cfg['sections'] if 'Proposals' == s['title'])).pop('drafts')
+			ctx_p.write_text(json.dumps(cfg), encoding='utf-8')
+			ProjectConfigurator(p).configure()
+			self.assertIn('drafts', next((s for s in json.loads(ctx_p.read_text(encoding='utf-8'))['sections'] if 'Proposals' == s['title'])))
+	# @used-by :mod:`unittest`
+	def test_z_upwork_global_custom_and_doctor(self) -> None:
+		from Df.Harness.Upwork.DoctorAuditor import DoctorAuditor
+		from Df.Harness.Upwork.GlobalCustomizationManager import GlobalCustomizationManager
+		with tempfile.TemporaryDirectory() as tmp:
+			root = Path(tmp).resolve()
+			self.assertTrue(GlobalCustomizationManager.has_entry([{'path': str(root)}], root))
+			self.assertEqual({}, GlobalCustomizationManager.antigravity_global_config_dirs(settings_fn=lambda: {'platforms': {'antigravity': {'enabled': False}}}))
+			fake_res = {'valid': True, 'issues': [], 'profiles': {'explicit': {'config': str(root), 'issues': [], 'valid': True}}}
+			with mock.patch('agent_tools.native_profiles.install_native_profiles', return_value=fake_res):
+				self.assertTrue(GlobalCustomizationManager.install_profile_customizations(root)['valid'])
+				self.assertTrue(GlobalCustomizationManager.check_global({'explicit': root})['valid'])
+				self.assertTrue(GlobalCustomizationManager.install_global(root)['valid'])
+			doc = DoctorAuditor(check_global_fn=lambda **kw: {'valid': True, 'issues': [], 'git_ignore': {}}).audit()
+			self.assertIn('tool_version', doc)
+	# @used-by :mod:`unittest`
+	def test_z_upwork_job_extractor_full_flow(self) -> None:
+		from Df.Harness.Upwork.AttachmentDownloader import AttachmentDownloader
+		from Df.Harness.Upwork.JobExtractor import JobExtractor
+		nuxt_main = json.dumps([{'vuex': 1}, {'jobDetails': 2}, {'job': 3, 'workHistory': 4, 'openJobs': 5, 'sands': 6}, {'ciphertext': '~02main', 'title': 'T', 'description': 'Desc', 'attachments': [{'fileName': 'a.txt', 'uri': '/a'}], 'questions': [{'question': 'Q?'}]}, [{'jobInfo': {'ciphertext': '~02rel'}}], [], {'ontologySkills': [], 'additionalSkills': [{'name': 'Python'}]}])
+		nuxt_rel = json.dumps([{'vuex': 1}, {'jobDetails': 2}, {'job': 3}, {'ciphertext': '~02rel', 'title': 'R', 'description': 'Rel desc'}])
+		class _Mux:
+			# @used-by :meth:`DfHarnessS11Wave2aUpworkTests.test_z_upwork_job_extractor_full_flow()`
+			def __enter__(self):
+				return self
+			# @used-by :meth:`DfHarnessS11Wave2aUpworkTests.test_z_upwork_job_extractor_full_flow()`
+			def __exit__(self, *a):
+				return False
+			# @used-by :meth:`DfHarnessS11Wave2aUpworkTests.test_z_upwork_job_extractor_full_flow()`
+			def attach_target(self, tid, fallback_ws=None):
+				return 'sid-1'
+			# @used-by :meth:`DfHarnessS11Wave2aUpworkTests.test_z_upwork_job_extractor_full_flow()`
+			def detach_target(self, sid):
+				return None
+			# @used-by :meth:`DfHarnessS11Wave2aUpworkTests.test_z_upwork_job_extractor_full_flow()`
+			def send(self, method, params=None, **kw):
+				if 'Target.createTarget' == method:
+					r = {'targetId': 't-new'}
+				elif 'Network.getCookies' == method:
+					r = {'cookies': []}
+				elif 'Runtime.evaluate' == method and 'fetch(' in (params or {}).get('expression', ''):
+					r = {'result': {'value': nuxt_rel}}
+				elif 'Runtime.evaluate' == method and 'userAgent' in (params or {}).get('expression', ''):
+					r = {'result': {'value': 'UA/1'}}
+				else:
+					r = {'result': {'value': {'nuxt': nuxt_main, 'readyState': 'complete'}}}
+				return r
+		cfg = {'workspace_root': tempfile.gettempdir(), 'text': {'browser': {'primary_session_id': 's1', 'sessions': {'s1': {'surface': 'browser', 'endpoint': 'http://127.0.0.1:9222'}}}}}
+		rep = {'valid': True, 'endpoint': 'http://127.0.0.1:9222', 'profile': {'browser_context_id': 'ctx1', 'anchor_target_id': 'anc1'}}
+		with tempfile.TemporaryDirectory() as tmp, mock.patch('agent_tools.text_browser.preflight', return_value=rep), mock.patch('agent_tools.text_browser.discover_cdp_browser', return_value=({}, [], 'ws://127.0.0.1:9222/b')), mock.patch('agent_tools.text_browser.CDPSession', return_value=_Mux()), mock.patch('agent_tools.text_browser._query_target_infos', return_value=[]), mock.patch('agent_tools.text_browser.GuardedCDP._broker_remove_tab', return_value=None), mock.patch.object(AttachmentDownloader, 'download', return_value={'filename': 'a.txt', 'bytes': 1}):
+			out = JobExtractor('~02main', attachments_dir=Path(tmp), config=cfg, cdp_call=lambda *a, **kw: {}).extract()
+		self.assertEqual('~02main', out['job_id'])
+		self.assertIn('~02rel', out['related_descriptions'])
+	# @used-by :mod:`unittest`
+	def test_z_upwork_cli_runner_dispatch_coverage(self) -> None:
+		from Df.Harness.Upwork.CliRunner import CliRunner
+		import types
+		with tempfile.TemporaryDirectory() as tmp:
+			root = Path(tmp).resolve()
+			cap_f = root / 'source.json'
+			cap_f.write_text(json.dumps({'job_id': '~02c1', 'title': 'T', 'description': 'D'}), encoding='utf-8')
+			bad_a = root / 'bad.json'
+			bad_a.write_text('{}', encoding='utf-8')
+			out_f = root / 'cap.json'
+			with mock.patch('agent_tools.cli_common.dump_json'), mock.patch('agent_tools.path_registry.paths_report', return_value={'valid': True}), mock.patch('agent_tools.journal.ensure_project_journal_upgraded', return_value={'valid': True}), mock.patch('agent_tools.configuration.build_native', return_value={'valid': True}), mock.patch('agent_tools.configuration.global_codex_instructions', return_value={'valid': True}), mock.patch('agent_tools.native_profiles.install_native_profiles', return_value={'valid': True}), mock.patch('agent_tools.text_browser.browser_anchor_status', return_value={'valid': True}), mock.patch('agent_tools.cleanup.cleanup_projects', return_value={'valid': True}), mock.patch('agent_tools.cleanup_audit.run_cleanup_report_cli', return_value={'valid': True}), mock.patch('Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.drain_incoming', return_value={'valid': True}):
+				for ns in (
+					types.SimpleNamespace(command='doctor'),
+					types.SimpleNamespace(command='paths', project=root, expand=None, check=False),
+					types.SimpleNamespace(command='journal-upgrade', project=root, journal=None, dry_run=False),
+					types.SimpleNamespace(command='instances', platform=None, instance=None, conversation=None, only_enabled=False, no_exists_check=True),
+					types.SimpleNamespace(command='build-native', root=root, check=True),
+					types.SimpleNamespace(command='policy-instructions'),
+					types.SimpleNamespace(command='install-global', target_profile=None, check=True),
+					types.SimpleNamespace(command='configure', project=root, check=True),
+					types.SimpleNamespace(command='register', project=root, domain='x.test', target='codex'),
+					types.SimpleNamespace(command='inspect', url='~02c1', output=out_f, cdp_port=9222, tab_id=None, session_id=None),
+					types.SimpleNamespace(command='browser-anchor', session_id=None, init_sentinel_tab=None),
+					types.SimpleNamespace(command='init', url='~02c1', domain='x.test', topic=None, date=None, daily_root=root, from_json=cap_f, site_hypothesis=None, no_register=True, launcher_root=root, conversation=None),
+					types.SimpleNamespace(command='intake-drain', capture=None, daily_root=root, apply=False),
+					types.SimpleNamespace(command='cleanup', apply=False, daily_root=root),
+					types.SimpleNamespace(command='cleanup-report'),
+					types.SimpleNamespace(command='validate-analysis', input=bad_a, render=None, format='json', evidence=False),
+				):
+					rc = CliRunner(ns, doctor_fn=lambda: {'valid': True}, check_cfg_fn=lambda p: {'valid': True}, init_fn=lambda *a, **kw: {'valid': True}, extract_fn=lambda *a, **kw: {'job_id': '~02c1', 'coverage': {}}, instances_fn=lambda **kw: {'valid': True}, register_fn=lambda *a, **kw: {'valid': True}).run()
+					self.assertIn(rc, (0, 1))
 if '__main__' == __name__:
 	unittest.main()

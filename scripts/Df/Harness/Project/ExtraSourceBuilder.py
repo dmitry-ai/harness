@@ -16,6 +16,7 @@ class ExtraSourceBuilder:
 	# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.populate()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_project_knowledge_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_website_and_extra_loom_coverage()`
 	def __init__(self, project_root: Path, data: dict, assets: list[dict] | None=None, *, fetch_videos: bool=True, loom_fn=None) -> None:
 		self.__project_root = project_root
 		self.__data = data
@@ -72,6 +73,7 @@ class ExtraSourceBuilder:
 	# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.populate()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_project_knowledge_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_website_and_extra_loom_coverage()`
 	def build(self) -> list[dict]:
 		from agent_tools.path_registry import project_paths
 		pp = project_paths(self.__project_root, exact_root=True)

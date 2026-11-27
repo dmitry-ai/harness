@@ -11,6 +11,7 @@ class GlobalCustomizationManager:
 	# @used-by :func:`agent_tools.upwork_project.antigravity_global_config_dirs()`
 	# @used-by :meth:`GlobalCustomizationManager.check_global()`
 	# @used-by :meth:`GlobalCustomizationManager.install_global()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_z_upwork_global_custom_and_doctor()`
 	@classmethod
 	def antigravity_global_config_dirs(cls, *, settings_fn=None) -> dict[str, Path]:
 		from agent_tools.path_registry import default_platform_paths
@@ -41,6 +42,7 @@ class GlobalCustomizationManager:
 	# @used-by :func:`agent_tools.upwork_project.check_global_customizations()`
 	# @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.audit()`
 	# @used-by :meth:`GlobalCustomizationManager.install_global()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_z_upwork_global_custom_and_doctor()`
 	@classmethod
 	def check_global(cls, config_dirs=None, primary=PRIMARY_AGENTS_DIR, *, git_ignore_path=None, dirs_fn=None) -> dict:
 		from agent_tools.native_profiles import install_native_profiles
@@ -61,10 +63,12 @@ class GlobalCustomizationManager:
 		from agent_tools.runtime_launchers import harness_hook_runner_source as _build_runner
 		return _build_runner(primary, store_dir=store_dir)
 	# @used-by :func:`agent_tools.upwork_project._has_entry()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_z_upwork_global_custom_and_doctor()`
 	@staticmethod
 	def has_entry(entries, target) -> bool:
 		return isinstance(entries, list) and any((isinstance(e, dict) and isinstance(e.get('path'), str) and Path(e['path']).resolve() == Path(target).resolve() for e in entries))
 	# @used-by :func:`agent_tools.upwork_project.install_global_customizations()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_z_upwork_global_custom_and_doctor()`
 	@classmethod
 	def install_global(cls, config_dir=None, primary=PRIMARY_AGENTS_DIR, *, dirs_fn=None, check_fn=None) -> dict:
 		from agent_tools.native_profiles import install_native_profiles
@@ -75,6 +79,7 @@ class GlobalCustomizationManager:
 		r['valid'] = r['valid'] and r['check']['valid']
 		return r
 	# @used-by :func:`agent_tools.upwork_project._install_profile_customizations()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_z_upwork_global_custom_and_doctor()`
 	@staticmethod
 	def install_profile_customizations(config, primary=PRIMARY_AGENTS_DIR) -> dict:
 		from agent_tools.native_profiles import install_native_profiles

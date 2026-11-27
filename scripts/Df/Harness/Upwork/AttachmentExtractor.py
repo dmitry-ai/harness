@@ -110,6 +110,7 @@ class AttachmentExtractor:
 	# @used-by :meth:`Df.Harness.Project.ExtraSourceBuilder.ExtraSourceBuilder.__process_asset()`
 	# @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.__check_attachment()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_docx_pdf_xlsx_odt_and_loom_extractors()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_z_upwork_docx_pdf_csv_and_config_coverage()`
 	@classmethod
 	def extract_markdown(cls, path_or_name, raw_bytes: bytes | None=None, *, pdf_fn=None, docx_fn=None) -> str:
 		path = Path(str(path_or_name))

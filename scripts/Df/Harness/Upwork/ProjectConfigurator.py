@@ -12,6 +12,7 @@ class ProjectConfigurator:
 	# @used-by :func:`agent_tools.upwork_project.configure_project()`
 	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__init__()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__run_configure()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_z_upwork_docx_pdf_csv_and_config_coverage()`
 	def __init__(self, project_root, primary_agents_dir=PRIMARY_AGENTS_DIR, job_url=None, domain_or_topic=None, *, platform=None, settings_fn=None) -> None:
 		self.__root, self.__primary = (Path(project_root).resolve(), Path(primary_agents_dir).resolve())
 		self.__job_url, self.__domain_or_topic, self.__platform = (job_url, domain_or_topic, platform)
@@ -69,6 +70,7 @@ class ProjectConfigurator:
 	# @used-by :func:`agent_tools.upwork_project.configure_project()`
 	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__init__()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__run_configure()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_z_upwork_docx_pdf_csv_and_config_coverage()`
 	def configure(self) -> Path:
 		from agent_tools.journal import ensure_project_journal_upgraded
 		from agent_tools.path_registry import project_paths, relocated_harness_code_dirs

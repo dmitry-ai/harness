@@ -122,5 +122,101 @@ class DfHarnessS11Wave2aProjectExtTests(unittest.TestCase):
 			target, gen_txt, _ = ContextGenerator(root, cfg, now=ts).generate()
 			self.assertTrue(target.is_file())
 			self.assertEqual(content, gen_txt)
+	# @used-by :mod:`unittest`
+	def test_z_project_website_and_extra_loom_coverage(self) -> None:
+		from Df.Harness.Project.AttachmentKbSyncer import AttachmentKbSyncer
+		from Df.Harness.Project.ExtraSourceBuilder import ExtraSourceBuilder
+		from Df.Harness.Project.Rename.PostRenameVerifier import PostRenameVerifier
+		from Df.Harness.Project.WebsiteCardSyncer import WebsiteCardSyncer
+		with tempfile.TemporaryDirectory() as tmp:
+			root = Path(tmp).resolve()
+			(root / '.md').write_text('# Demo\n', encoding='utf-8')
+			(root / '\ua616/KB').mkdir(parents=True, exist_ok=True)
+			(root / '\ua616/data').mkdir(parents=True, exist_ok=True)
+			(root / '\ua616/project.json').write_text(json.dumps({'job_id': '~02p'}), encoding='utf-8')
+			(root / '\ua616/data/workflow.json').write_text(json.dumps({'schema_version': 1, 'project_root': str(root), 'job_id': '~02p', 'reviews': [{'id': 'r1'}]}), encoding='utf-8')
+			val = {'identity': [{'id': 'H-1', 'probability_percent': 80}], 'websites': [{'role': 'target', 'url': 'https://shop.test', 'basis_id': 'H-1'}]}
+			res = WebsiteCardSyncer(root, val).sync()
+			self.assertIn(res['status'], ('published', 'unchanged'))
+			self.assertTrue(WebsiteCardSyncer.website_issues({**val, 'websites': [{'role': 'target', 'url': 'not-a-url', 'basis_id': 'H-1'}]}))
+			ex = ExtraSourceBuilder(root, {'description': 'See https://www.loom.com/share/abc12345'}, [], fetch_videos=True, loom_fn=lambda u: {'markdown': '# Video:\n[00:00] Hi'}).build()
+			self.assertEqual('video', ex[0]['kind'])
+			self.assertIn('[00:00] Hi', ex[0]['body'])
+			self.assertIn('Title', AttachmentKbSyncer.replace_section2('# 2. Current Client Project\nOld\n# 3. Past Client Projects\nPast\n', {'job_id': '~02p', 'title': 'Title', 'description': 'Desc'}, []))
+			self.assertTrue(PostRenameVerifier.capture_pre_snapshot(root, review_auth_fn=lambda r, w: None, stage_statuses_fn=lambda r, w: {})['review_auth_ok'])
+	# @used-by :mod:`unittest`
+	def test_z_project_rename_full_coverage(self) -> None:
+		from Df.Harness.Project.Rename.ProjectRenamer import ProjectRenamer
+		from Df.Harness.Project.Rename.RenameLineage import RenameLineage
+		from Df.Harness.Project.Rename.StateRewriter import StateRewriter
+		from unittest import mock
+		with tempfile.TemporaryDirectory() as tmp:
+			base = Path(tmp).resolve()
+			old_p = base / 'daily/2026/11/26/1 - Old Topic'
+			(old_p / '\ua616/data').mkdir(parents=True, exist_ok=True)
+			(old_p / '.agents/rules').mkdir(parents=True, exist_ok=True)
+			(old_p / '.agents/rules/90-project.md').write_text('Folder name: `Old Topic`;\n', encoding='utf-8')
+			(old_p / '\ua616/project.json').write_text(json.dumps({'job_id': '~02rn2', 'label': 'Old Topic', 'request_date': '2026-11-26'}), encoding='utf-8')
+			launcher = base / 'init'
+			(launcher / '\ua616/data/turns').mkdir(parents=True, exist_ok=True)
+			(launcher / '\ua616/data/turns/t1.json').write_text(json.dumps({'project_root': str(old_p)}), encoding='utf-8')
+			ag_dir = base / 'ag'
+			ag_dir.mkdir(parents=True, exist_ok=True)
+			(ag_dir / 'p1.json').write_text(json.dumps({'id': 'p1', 'name': 'Old', 'projectResources': {'resources': [{'folderUri': old_p.as_uri()}]}}), encoding='utf-8')
+			with self.assertRaises(OSError):
+				ProjectRenamer(old_p, domain='fail.test', register_native=False, update_index_fn=lambda *a: (_ for _ in ()).throw(OSError('boom'))).rename()
+			self.assertTrue(old_p.is_dir())
+			# @used-by :meth:`DfHarnessS11Wave2aProjectExtTests.test_z_project_rename_full_coverage()`
+			def _fake_reg(self_reg, **kw):
+				if kw.get('registrars') and 'antigravity' in kw['registrars']:
+					kw['registrars']['antigravity'](old_p.parent / '1 - shop2.test', 'shop2.test', '2026-11-26')
+				return {'complete': True, 'registrations': {}}
+			with mock.patch('agent_tools.platforms.antigravity.register_antigravity_project', return_value={'project_id': 'p1'}), mock.patch('Df.Harness.Project.Registry.Registry.register', new=_fake_reg):
+				res = ProjectRenamer(old_p, domain='shop2.test', register_native=True, antigravity_projects_dirs={'A0': ag_dir}, antigravity_folders_json=base / 'folders.json', launcher_root=launcher).rename()
+			self.assertTrue(res['valid'])
+			new_p = Path(res['project_dir'])
+			StateRewriter.refresh_workflow_file_hash(new_p, new_p / '\ua616/project.json', 'a' * 64)
+			self.assertIsNotNone(RenameLineage.find_sibling_project_path(str(base / 'daily/2026/11/26/2 - Other'), new_p, base / 'daily'))
+			self.assertTrue(RenameLineage.same_journal_identity_with_rename(new_p / '\ua66e', old_p / '\ua66e', lambda p: Path(p).resolve()))
+			out = ProjectRenamer.apply_domain_promotion(new_p, {'identity': [{'id': 'H-1', 'probability_percent': 85}], 'websites': [{'role': 'target', 'url': 'https://shop2.test', 'basis_id': 'H-1'}]}, {'valid': True})
+			self.assertEqual('already_matches_domain', out['domain_promotion']['reason'])
+	# @used-by :mod:`unittest`
+	def test_z_project_intake_and_context_full_coverage(self) -> None:
+		from Df.Harness.Project.Context.ContextAssembler import ContextAssembler
+		from Df.Harness.Project.Intake.CaptureCommitter import CaptureCommitter
+		from Df.Harness.Project.Intake.IntakePathGuard import IntakePathGuard
+		from Df.Harness.Upwork.ProjectInitializer import ProjectInitializer
+		with tempfile.TemporaryDirectory() as tmp:
+			base = Path(tmp).resolve()
+			inc, daily = (base / 'incoming', base / 'daily')
+			cap = inc / '02in2-abcd1234'
+			att = cap / 'attachments/note.txt'
+			att.parent.mkdir(parents=True, exist_ok=True)
+			att.write_bytes(b'Attachment text.')
+			sha = hashlib.sha256(b'Attachment text.').hexdigest()
+			src = {'job_id': '~02in2', 'title': 'Audit Store', 'description': 'Fix cart.', 'saved_attachments': [{'path': str(att), 'filename': 'note.txt', 'sha256': sha}]}
+			(cap / 'source.json').write_text(json.dumps(src), encoding='utf-8')
+			init_r = ProjectInitializer('~02in2', domain_or_topic='shop3.test', date_str='2026-11-26', daily_root=daily, extracted_data=src, register_native=False).initialize()
+			proj = Path(init_r['project_dir'])
+			self.assertEqual('planned', CaptureCommitter(cap, incoming_root=inc, daily_root=daily, apply=False).commit()['status'])
+			self.assertEqual('drained', CaptureCommitter(cap, incoming_root=inc, daily_root=daily, apply=True).commit()['status'])
+			r_dir = base / 'restore_cap'
+			r_dir.mkdir(parents=True, exist_ok=True)
+			ret = IntakePathGuard.retired_path(r_dir, 'x.txt')
+			ret.write_text('ok', encoding='utf-8')
+			CaptureCommitter.restore({'entries': [{'original_relative_provenance': 'x.txt'}]}, r_dir)
+			self.assertTrue((r_dir / 'x.txt').is_file())
+			(proj / 'result/r1').mkdir(parents=True, exist_ok=True)
+			(proj / 'result/r1/draft.md').write_text('Draft body.  \n', encoding='utf-8')
+			j_req, j_res = (proj / '\ua66e/\u227b/1\u201320/1.md', proj / '\ua66e/\u227a/1\u201320/1.md')
+			j_req.parent.mkdir(parents=True, exist_ok=True)
+			j_res.parent.mkdir(parents=True, exist_ok=True)
+			j_req.write_text('Request text.\n', encoding='utf-8')
+			j_res.write_text('Response text.\n', encoding='utf-8')
+			cfg = {'version': 1, 'output': '\ua66e/0/Context.md', 'sections': [{'title': 'All', 'drafts': ['result'], 'journals': ['\ua66e'], 'optional': True}]}
+			txt, srcs = ContextAssembler(proj, cfg).assemble()
+			self.assertIn('Draft body.', txt)
+			self.assertIn('Response text.', txt)
+			self.assertTrue(srcs)
 if '__main__' == __name__:
 	unittest.main()

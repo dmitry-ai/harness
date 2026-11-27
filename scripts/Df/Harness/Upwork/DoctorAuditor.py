@@ -9,6 +9,7 @@ from pathlib import Path
 class DoctorAuditor:
 	# @used-by :func:`agent_tools.upwork_project.doctor()`
 	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__init__()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_z_upwork_global_custom_and_doctor()`
 	def __init__(self, primary=None, *, git_ignore_path=None, settings_fn=None, platform_settings_fn=None, check_global_fn=None) -> None:
 		self.__primary, self.__git_ignore_path = (primary, git_ignore_path)
 		self.__settings_fn = settings if None is settings_fn else settings_fn
@@ -32,6 +33,7 @@ class DoctorAuditor:
 		return hashlib.sha256(b''.join((p.relative_to(primary).as_posix().encode() + hashlib.sha256(p.read_bytes()).digest() for p in version_files))).hexdigest()
 	# @used-by :func:`agent_tools.upwork_project.doctor()`
 	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__init__()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_z_upwork_global_custom_and_doctor()`
 	def audit(self) -> dict:
 		from agent_tools.operations import COMMANDS
 		from agent_tools.path_registry import load_registry, paths_report

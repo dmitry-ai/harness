@@ -18,6 +18,7 @@ class JobExtractor:
 	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
 	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_inspect()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_extract_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_z_upwork_job_extractor_full_flow()`
 	def __init__(self, url_or_id: str, cdp_port: int | None=9222, fetch_related: bool=True, attachments_dir=None, tab_id: str | None=None, *, session_id: str | None=None, config: dict | None=None, http_get=None, cdp_call=None) -> None:
 		self.__url_or_id = url_or_id
 		self.__cdp_port = cdp_port
@@ -161,6 +162,7 @@ class JobExtractor:
 	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
 	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_inspect()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_extract_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_z_upwork_job_extractor_full_flow()`
 	def extract(self) -> dict:
 		from agent_tools.text_browser import GuardedCDP, preflight
 		job_id = JobUrlParser.normalize_job_id(self.__url_or_id)

@@ -45,6 +45,7 @@ class RenameLineage:
 	def capture_file_sha(path: Path) -> str | None:
 		return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
 	# @used-by :func:`agent_tools.project_rename_state.find_sibling_project_path()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_rename_full_coverage()`
 	@classmethod
 	def find_sibling_project_path(cls, raw_val: str, project_root: Path, daily_root: Path) -> Path | None:
 		r: Path | None = None
@@ -77,6 +78,7 @@ class RenameLineage:
 				r.append((src.as_posix(), dst.as_posix()))
 		return r
 	# @used-by :func:`agent_tools.project_rename_state.same_journal_identity_with_rename()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_rename_full_coverage()`
 	@classmethod
 	def same_journal_identity_with_rename(cls, first: str | Path | None, second: str | Path | None, canon_fn) -> bool:
 		r = False

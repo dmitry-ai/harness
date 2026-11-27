@@ -101,6 +101,7 @@ class PostRenameVerifier:
 		return post_j
 	# @used-by :func:`agent_tools.project_rename_verify.capture_pre_rename_snapshot()`
 	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.rename()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_website_and_extra_loom_coverage()`
 	@classmethod
 	def capture_pre_snapshot(cls, old_root: Path, *, review_auth_fn=None, stage_statuses_fn=None) -> dict:
 		wf_state, stages = cls.__probe_workflow(old_root, stage_statuses_fn)

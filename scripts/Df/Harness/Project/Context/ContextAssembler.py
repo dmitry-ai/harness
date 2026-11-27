@@ -10,6 +10,7 @@ class ContextAssembler:
 	# @used-by :func:`agent_tools.context.assemble()`
 	# @used-by :meth:`Df.Harness.Project.Context.ContextGenerator.ContextGenerator.__build()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_project_context_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_intake_and_context_full_coverage()`
 	def __init__(self, root: Path, manifest: dict | None=None, now: datetime | None=None) -> None:
 		self.__root = root
 		self.__manifest = manifest
@@ -124,6 +125,7 @@ class ContextAssembler:
 	# @used-by :func:`agent_tools.context.assemble()`
 	# @used-by :meth:`Df.Harness.Project.Context.ContextGenerator.ContextGenerator.__build()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_project_context_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_intake_and_context_full_coverage()`
 	def assemble(self) -> tuple[str, list[Path]]:
 		from agent_tools.path_registry import canonicalize_root_dir, project_paths
 		root = canonicalize_root_dir(self.__root)

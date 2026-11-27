@@ -22,6 +22,7 @@ from pathlib import Path
 class ProjectInitializer:
 	# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_init()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_intake_and_context_full_coverage()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_project_management_classes()`
 	def __init__(self, url_or_id: str, domain_or_topic=None, date_str=None, daily_root=None, primary_agents_dir=PRIMARY_AGENTS_DIR, extracted_data=None, register_antigravity=None, antigravity_projects_dir=None, antigravity_folders_json=None, site_hypothesis=None, platform=None, register_native=None, all_platforms=None, launcher_root=None, conversation_id=None, topic=None, *, default_daily_root=None, platform_settings_fn=None, configure_fn=None, resolve_dir_fn=None, register_ag_fn=None, extra_sources_fn=None) -> None:
 		self.__url_or_id, self.__domain_or_topic, self.__topic, self.__date_str = (url_or_id, domain_or_topic, topic, date_str)
@@ -112,6 +113,7 @@ class ProjectInitializer:
 		return data
 	# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_init()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_intake_and_context_full_coverage()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_project_management_classes()`
 	def initialize(self) -> dict:
 		platform = platform_name(self.__platform)

@@ -82,6 +82,7 @@ class IntakePathGuard:
 	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__unlink_and_mark_drained()`
 	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.restore()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_project_intake_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_intake_and_context_full_coverage()`
 	@classmethod
 	def retired_path(cls, capture: Path, name: str) -> Path:
 		return cls.within(capture, name).with_name('.intake-retired-' + df_sha256(name.encode('utf-8'))[:24])

@@ -13,6 +13,7 @@ class WebsiteCardSyncer:
 	# @used-by :func:`agent_tools.knowledge.sync_website_card()`
 	# @used-by :meth:`Df.Harness.Analysis.Publisher.Publisher.publish()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncAuditor.CardSyncAuditor.audit()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_website_and_extra_loom_coverage()`
 	def __init__(self, root, value: dict, *, selections=None, check: bool=False) -> None:
 		self.__root, self.__value, self.__selections, self.__check = (root, value, selections, check)
 	# @used-by :meth:`WebsiteCardSyncer.website_issues()`
@@ -63,6 +64,7 @@ class WebsiteCardSyncer:
 	# @used-by :func:`agent_tools.knowledge.sync_website_card()`
 	# @used-by :meth:`Df.Harness.Analysis.Publisher.Publisher.publish()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncAuditor.CardSyncAuditor.audit()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_website_and_extra_loom_coverage()`
 	def sync(self) -> dict:
 		from agent_tools.path_registry import project_paths
 		pp = project_paths(self.__root, exact_root=True)
@@ -100,6 +102,7 @@ class WebsiteCardSyncer:
 	# @used-by :meth:`WebsiteCardSyncer.__sync_selected()`
 	# @used-by :meth:`WebsiteCardSyncer.sync_initial()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_project_knowledge_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_website_and_extra_loom_coverage()`
 	@classmethod
 	def website_issues(cls, value: dict) -> list[dict]:
 		if 'websites' not in value:

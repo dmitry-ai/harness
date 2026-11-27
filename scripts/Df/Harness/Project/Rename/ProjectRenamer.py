@@ -22,6 +22,7 @@ class ProjectRenamer:
 	# @used-by :func:`agent_tools.project_rename.rename_project()`
 	# @used-by :meth:`ProjectRenamer.maybe_promote_domain()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_project_rename_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_rename_full_coverage()`
 	def __init__(self, project_root: str | Path, *, domain: str | None=None, topic: str | None=None, daily_root: Path | None=None, register_native: bool | None=None, antigravity_projects_dirs: dict[str, Path] | None=None, antigravity_folders_json: Path | None=None, targets: list[str] | None=None, registrars: dict | None=None, launcher_root: Path | None=None, update_index_fn=None, pre_snap_fn=None, verify_fn=None) -> None:
 		self.__project_root, self.__domain, self.__topic = (project_root, domain, topic)
 		self.__daily_root, self.__register_native = (daily_root, register_native)
@@ -196,6 +197,7 @@ class ProjectRenamer:
 			raise FileExistsError(f'Target project directory already exists: {new_root}')
 		return (old_root, new_root, new_label, new_kind, pj_old)
 	# @used-by :func:`agent_tools.project_rename.apply_domain_promotion()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_rename_full_coverage()`
 	@classmethod
 	def apply_domain_promotion(cls, project_root: Path, analysis_value: dict, result: dict, *, register_native: bool | None=None, launcher_root: Path | None=None, maybe_promote_fn=None) -> dict:
 		promo = cls.maybe_promote_domain(project_root, analysis_value, register_native=register_native, launcher_root=launcher_root) if None is maybe_promote_fn else maybe_promote_fn(project_root, analysis_value, register_native=register_native, launcher_root=launcher_root)
@@ -253,6 +255,7 @@ class ProjectRenamer:
 	# @used-by :meth:`ProjectRenamer.__do_dir_rename()`
 	# @used-by :meth:`ProjectRenamer.__rollback()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_project_rename_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_rename_full_coverage()`
 	# @used-by :meth:`test_intake.IntakeTests.test_concurrent_replacement_during_retirement_keeps_both_versions()`
 	# @used-by :meth:`test_native_profiles.NativeProfileTests.renamed_article()`
 	# @used-by :meth:`test_native_profiles.NativeProfileTests.test_obsolete_skill_under_linked_parent_is_preserved()`
