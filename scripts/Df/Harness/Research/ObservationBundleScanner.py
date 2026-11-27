@@ -11,6 +11,7 @@ import re
 # 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class ObservationBundleScanner:
 	# @used-by :meth:`Df.Harness.Research.EvidenceQuerier.EvidenceQuerier.__summarize_bundle()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_research.DfHarnessS11Wave2CCovResearchTests.test_link_auditor_and_observation_bundle_scanner()`
 	def __init__(self, obs_file: Path, data: dict, valid_status: bool) -> None:
 		self.__obs_file = obs_file
 		self.__data = data
@@ -134,6 +135,7 @@ class ObservationBundleScanner:
 				pass
 		return (raw_text, blob_lines)
 	# @used-by :meth:`Df.Harness.Research.EvidenceQuerier.EvidenceQuerier.__summarize_bundle()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_research.DfHarnessS11Wave2CCovResearchTests.test_link_auditor_and_observation_bundle_scanner()`
 	def scan(self) -> tuple[dict, str, list[str]]:
 		state: dict = {'is_shell': False, 'invalid_reason': None, 'title': None, 'h1_list': [], 'word_count': None, 'raw_anchors': set(), 'ambiguous_anchors': set(), 'sections': [], 'headings': [], 'plain_text': '', 'recheck_challenge': False}
 		ext_files = sorted(self.__obs_file.parent.glob('extracted-*.json'))

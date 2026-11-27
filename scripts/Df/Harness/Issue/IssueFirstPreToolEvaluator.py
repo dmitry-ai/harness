@@ -13,6 +13,7 @@ from agent_tools.tdd_gate import classify_code_path, shell_write_targets
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class IssueFirstPreToolEvaluator:
 	# @used-by :func:`agent_tools.issue_first_gate.evaluate_pre_tool_use_issue_first()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_issue_first_pretool_evaluator_bg_scanner_and_var_match()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_issue_first_evaluator_inheritor_and_pretool()`
 	def __init__(self, name: str, args: dict, payload: dict) -> None:
 		self.__name = name
@@ -88,6 +89,7 @@ class IssueFirstPreToolEvaluator:
 		return r
 	# @used-by :func:`agent_tools.issue_first_gate.build_code_write_issue_first_event()`
 	# @used-by :meth:`IssueFirstPreToolEvaluator.extract_antigravity_events()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_tail.DfHarnessS11Wave2CCovTailTests.test_issue_build_write_event_parent_linked_urls_and_dense_range()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_bg_scanner_recorder_and_issue_lib_helpers()`
 	@classmethod
 	def build_code_write_event(cls, step: int, raw_path: str | Path, *, cwd: Path | None=None, content: str | None=None, sub_step: int | None=None, cmd_outputs=None) -> dict | None:
@@ -120,6 +122,7 @@ class IssueFirstPreToolEvaluator:
 				r.append(ev)
 		return r
 	# @used-by :func:`agent_tools.issue_first_gate.evaluate_pre_tool_use_issue_first()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_issue_first_pretool_evaluator_bg_scanner_and_var_match()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_issue_first_evaluator_inheritor_and_pretool()`
 	def evaluate(self) -> str | None:
 		pending = self.__collect_pending_targets()

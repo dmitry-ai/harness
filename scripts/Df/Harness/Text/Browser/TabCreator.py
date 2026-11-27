@@ -7,6 +7,7 @@ from Df.Harness.lib.browser import dfh_query_target_infos
 # 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class TabCreator:
 	# @used-by :meth:`Df.Harness.Text.Browser.GuardedCdp.GuardedCdp.__broker_create_tab()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_guarded_cdp_create_select_call_and_tab_broker()`
 	def __init__(self, cdp_sess, get, anchor_target_id, verified_ctx, url, endpoint):
 		self.__sess = cdp_sess
 		self.__get = get
@@ -43,6 +44,7 @@ class TabCreator:
 			raise RuntimeError('M-2A broker created tab could not be uniquely correlated in Target.getTargets')
 		return target_id
 	# @used-by :meth:`Df.Harness.Text.Browser.GuardedCdp.GuardedCdp.__broker_create_tab()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_guarded_cdp_create_select_call_and_tab_broker()`
 	def create(self):
 		placeholder = f'about:blank#{uuid.uuid4().hex}'
 		anchor_sid, ext_tab_id = (self.__sess.attach_target(self.__anchor_tid), None)

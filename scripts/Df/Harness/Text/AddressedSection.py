@@ -55,5 +55,6 @@ class AddressedSection:
 			yield node
 			node = node.parent
 	# @used-by :func:`agent_tools.article.render_map()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_text.DfHarnessS11Wave2CCovTextTests.test_article_linter_structure_source_exporter_and_sections()`
 	def span_dict(self) -> dict:
 		return {'start': self.line, 'end': self.end, 'subtree_end': max([self.end, *(c.end for c in self.descendants())])}

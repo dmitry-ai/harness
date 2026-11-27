@@ -5,6 +5,7 @@ from Df.Harness.lib.shell import ISSUE_LINKED_CODE_SUFFIXES, dfh_extract_issue_u
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class IssueCloseVerifier:
 	# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.verify_issue_ready_for_close()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_issue_close_verifier_parent_children()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_git_gate_worktree_locks_and_issues()`
 	def __init__(self, gate) -> None:
 		self.__gate = gate
@@ -29,6 +30,7 @@ class IssueCloseVerifier:
 		return {'verified': True, 'repo': str(self.__gate.root), 'issue_url': issue_url, 'commit_sha': child_shas[0] if child_shas else '', 'child_issues': [c['number'] for c in completed], 'pushed': True}
 	# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.verify_issue_ready_for_close()`
 	# @used-by :meth:`IssueCloseVerifier.__verify_parent_children()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_issue_close_verifier_parent_children()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_git_gate_worktree_locks_and_issues()`
 	def verify(self, repo: str, number: int, *, project_root: str | Path | None=None, visiting: set[int] | None=None, git_cache=None) -> dict:
 		from Df.Harness.Issue.EvidenceWorkspace import EvidenceWorkspace

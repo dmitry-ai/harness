@@ -16,6 +16,7 @@ _TRACK_RES = {'culprit': _CULPRIT_RE, 'journal_reporting': _JOURNAL_RE, 'test_es
 class ProblemTrackAuditor:
 	# @used-by :func:`agent_tools.problem_tracks.companion_track_issues()`
 	# @used-by :meth:`Df.Harness.Grounding.DfAnalysisValidator.DfAnalysisValidator.__check_problem_blocks()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_locale_problem_track_scope_deferral_tier0_and_facade()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_df_analysis_problem_tracks_scatter_banner_and_statements()`
 	def __init__(self, blocks: list[dict]) -> None:
 		self.__blocks = blocks
@@ -42,6 +43,7 @@ class ProblemTrackAuditor:
 		return raw_blocks[-1]
 	# @used-by :func:`agent_tools.problem_tracks.companion_track_issues()`
 	# @used-by :meth:`Df.Harness.Grounding.DfAnalysisValidator.DfAnalysisValidator.__check_problem_blocks()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_locale_problem_track_scope_deferral_tier0_and_facade()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_df_analysis_problem_tracks_scatter_banner_and_statements()`
 	def audit(self) -> list[str]:
 		matches = [self.__block_track_matches(blk) for blk in self.__blocks]

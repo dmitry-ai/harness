@@ -9,6 +9,8 @@ _LOCALE_SCRIPT_MAP = {'ru': 'cyrillic', 'uk': 'cyrillic', 'be': 'cyrillic', 'bg'
 class LocaleVerifier:
 	# @used-by :func:`agent_tools.source_grounding.verify_target_locale()`
 	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.lint()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_locale_problem_track_scope_deferral_tier0_and_facade()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_tail.DfHarnessS11Wave2CCovTailTests.test_grounding_ingestor_kb_membership_and_locale_fallback()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_locale_verifier_probability_and_scope_deferral()`
 	def __init__(self, text: str, *, target_locale: str='en-US', container_text: str | None=None, is_title: bool=False, allow_explicit_english_request: bool=False, min_target_ratio: float=0.35, min_alpha: int=15, default_locale: str | None=None) -> None:
 		self.__text = text
@@ -165,6 +167,8 @@ class LocaleVerifier:
 		return r
 	# @used-by :func:`agent_tools.source_grounding.verify_target_locale()`
 	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.lint()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_locale_problem_track_scope_deferral_tier0_and_facade()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_tail.DfHarnessS11Wave2CCovTailTests.test_grounding_ingestor_kb_membership_and_locale_fallback()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_locale_verifier_probability_and_scope_deferral()`
 	def verify(self) -> list[dict]:
 		r: list[dict] = []

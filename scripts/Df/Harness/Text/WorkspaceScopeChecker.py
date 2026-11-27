@@ -5,6 +5,7 @@ from Df.Harness.lib.text_sections import dfh_scope_blocks
 # 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class WorkspaceScopeChecker:
 	# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.scope_issues()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_text.DfHarnessS11Wave2CCovTextTests.test_article_linter_structure_source_exporter_and_sections()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_flow.DfHarnessS11Wave2CTextFlowTests.test_workspace_integrity_and_review_classes()`
 	def __init__(self, op: dict, base, candidate: str) -> None:
 		self.__op = op
@@ -28,6 +29,7 @@ class WorkspaceScopeChecker:
 					permit.update((key for key in names if any((key == node or key.startswith(node + '.') for node in chosen))))
 		return permit
 	# @used-by :meth:`Df.Harness.Text.Workspace.Workspace.scope_issues()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_text.DfHarnessS11Wave2CCovTextTests.test_article_linter_structure_source_exporter_and_sections()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_flow.DfHarnessS11Wave2CTextFlowTests.test_workspace_integrity_and_review_classes()`
 	def check(self) -> list[dict]:
 		r: list[dict] = []

@@ -9,6 +9,7 @@ class WorktreeRebaseVerifier:
 	# @used-by :func:`agent_tools.worktree_flow._rebase_and_test()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeLander.WorktreeLander.__land_under_lease()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeLander.WorktreeLander.__run_optimistic_loop()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_worktree_lock_finder_rebase_and_removal_guard()`
 	def __init__(self, main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, run_tests: bool, workers: int | None, no_tests_reason: str | None=None, git_exec_fn=None, polyglot_test_fn=None) -> None:
 		self.__main_repo = main_repo
 		self.__wt_path = wt_path
@@ -74,6 +75,7 @@ class WorktreeRebaseVerifier:
 	# @used-by :func:`agent_tools.worktree_flow._rebase_and_test()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeLander.WorktreeLander.__land_under_lease()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeLander.WorktreeLander.__run_optimistic_loop()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_worktree_lock_finder_rebase_and_removal_guard()`
 	def verify(self) -> tuple[dict | None, int, dict | None, dict | None]:
 		from agent_tools.python_integrity import verify_worktree_python_changes
 		from agent_tools.xref_gate import verify_worktree_xref_changes

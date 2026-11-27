@@ -7,11 +7,11 @@ class CommitVerifier:
 		self.__gate = gate
 	# @used-by :meth:`CommitVerifier.verify()`
 	def __check_markdown(self, relative: list[str]) -> None:
-		from agent_tools.links import validate_file
+		from Df.Harness.Research.LinkAuditor import LinkAuditor
 		for name in relative:
 			path = self.__gate.root / name
 			if path.is_file() and '.md' == path.suffix.lower():
-				errors = validate_file(path, readable_links=True)
+				errors = LinkAuditor(path, readable_links=True).validate_file()
 				if errors:
 					raise ValueError('\n'.join(errors))
 	# @used-by :meth:`CommitVerifier.verify()`
@@ -29,14 +29,14 @@ class CommitVerifier:
 	# @uses :meth:`Df.Harness.Git.RepoGate.RepoGate.assert_toplevel()`
 	# @uses :meth:`Df.Harness.Git.RepoGate.RepoGate.verify_agent_staged()`
 	def verify(self, paths: list[str], *, message: str | None=None) -> list[str]:
-		from agent_tools.text_workflow import gate_paths
+		from Df.Harness.lib.text_workflow import dfh_gate_paths
 		self.__gate.assert_toplevel()
 		self.__gate.ensure_hooks()
 		r = self.__gate.normalize_paths(paths)
 		self.__check_staged_diff(r)
 		self.__check_markdown(r)
 		self.__gate.git('diff', '--cached', '--check')
-		gate_paths([self.__gate.root / name for name in r])
+		dfh_gate_paths([self.__gate.root / name for name in r])
 		self.__gate.verify_staged_blob_sizes(r)
 		if None is not message and (not message.strip()):
 			raise ValueError('Empty commit message')

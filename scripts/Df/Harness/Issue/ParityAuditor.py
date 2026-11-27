@@ -8,6 +8,7 @@ import json
 class ParityAuditor:
 	# @used-by :func:`agent_tools.issues.parity.check_similar_project_parity()`
 	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.audit()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_parity_auditor_pending_peers_read_cache_and_repo_locator()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_parity_and_scope_completeness()`
 	def __init__(self, root: Path, repo_touched: dict[Path, set[str]], turn_issues: dict[str, dict], turn_state: dict | None, candidate_repos: list[Path], violations: list[str]) -> None:
 		self.__root = root
@@ -94,6 +95,7 @@ class ParityAuditor:
 		return (resolution, matched_ev)
 	# @used-by :func:`agent_tools.issues.parity.check_similar_project_parity()`
 	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.audit()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_parity_auditor_pending_peers_read_cache_and_repo_locator()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_parity_and_scope_completeness()`
 	def audit(self) -> dict:
 		from agent_tools.path_registry import canonicalize_root_dir, evaluate_similar_project_touches

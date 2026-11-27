@@ -19,6 +19,8 @@ import re
 class TurnAuditor:
 	# @used-by :func:`agent_tools.issue_lifecycle._check_multi_subtask_decomposition()`
 	# @used-by :func:`agent_tools.issue_lifecycle.code_and_issue_lifecycle_status()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_turn_auditor_scope_completeness_and_turn_scope_resolver()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_tail.DfHarnessS11Wave2CCovTailTests.test_issue_build_write_event_parent_linked_urls_and_dense_range()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_parity_and_scope_completeness()`
 	def __init__(self, root: Path, turn: dict, turn_state: dict | None=None, response=None, *, workspace: EvidenceWorkspace | None=None, linter: Linter | None=None) -> None:
 		self.root, self.turn, self.turn_state, self.response = (Path(root).resolve(), turn, turn_state, response)
@@ -234,6 +236,7 @@ class TurnAuditor:
 				if 'closed' != eff_state:
 					self.violations.append(f'GitHub issue {issue_url} remains {eff_state}; close it via df_github_issue.py close after git push before answer-prepare')
 	# @used-by :func:`agent_tools.issue_lifecycle.code_and_issue_lifecycle_status()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_turn_auditor_scope_completeness_and_turn_scope_resolver()`
 	def audit(self) -> dict:
 		required_by_repo, repo_by_url = self.__collect_repos_and_issues()
 		committed_by_repo: dict[Path, set[str]] = {}
@@ -248,6 +251,8 @@ class TurnAuditor:
 		return {'verified': not self.violations, 'touched_repos': {str(k): sorted(v) for k, v in self.repo_touched.items()}, 'issues': self.checked_issues, 'similar_projects': sim_status, 'violations': self.violations, 'warnings': self.warnings, **({'deferred_children': getattr(self, 'deferred_children', [])} if getattr(self, 'deferred_children', None) else {})}
 	# @used-by :meth:`TurnAuditor.__getattr__()`
 	# @used-by :meth:`TurnAuditor.audit()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_turn_auditor_scope_completeness_and_turn_scope_resolver()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_tail.DfHarnessS11Wave2CCovTailTests.test_issue_build_write_event_parent_linked_urls_and_dense_range()`
 	def check_multi_subtask_decomposition(self, committed_by_repo: dict[Path, set[str]], required_by_repo: dict[Path, set[str]]) -> None:
 		active_repos = [cr for cr, rels in sorted(self.repo_touched.items(), key=lambda x: str(x[0])) if rels or committed_by_repo.get(cr)]
 		if active_repos:

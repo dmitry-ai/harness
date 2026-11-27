@@ -41,6 +41,8 @@ class ShellSegmenter:
 	# @used-by :func:`agent_tools.cli_output_json._body_without_header()`
 	# @used-by :func:`agent_tools.evidence.contains_quote()`
 	# @used-by :func:`agent_tools.shell_audit._split_shell_segments()`
+	# @used-by :func:`test_df_harness_s11_wave2c_cov_browser._make_broker_sess()`
+	# @used-by :func:`test_df_harness_s11_wave2c_cov_issues_a._make_issue_api()`
 	# @used-by :func:`test_issue_preflight_and_batch._make_fake_gh()`
 	# @used-by :meth:`Df.DotPyFinder.__resolve_target()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.InlineCalcVerifier.InlineCalcVerifier.__decimal_matches()`
@@ -162,6 +164,8 @@ class ShellSegmenter:
 	# @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_guidance_uses_current_canonical_loader_without_copying_rule_bodies()`
 	# @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests._init_and_register()`
 	# @used-by :meth:`test_df_article.SlopDetectionTests.test_orphan_analysis_paragraph_is_reported()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_headless_shell_and_headless_dom_collector()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_tail.DfHarnessS11Wave2CCovTailTests.test_issue_build_write_event_parent_linked_urls_and_dense_range()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_shell_audit_single_class_modules_and_facade()`
 	# @used-by :meth:`test_df_proposal.ProposalTransformTests.test_reordering_moves_child_references_and_keeps_prose()`
 	# @used-by :meth:`test_onboarding.InitializationTests.test_concurrent_numbers_and_same_job_are_exclusive()`

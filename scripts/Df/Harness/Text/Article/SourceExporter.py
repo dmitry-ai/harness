@@ -8,6 +8,7 @@ from Df.Harness.lib.text_sections import ANCHOR_LINK, ARTICLE_BARE_REF, ARTICLE_
 class SourceExporter:
 	# @used-by :func:`agent_tools.article.to_source()`
 	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__transform_keyed()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_text.DfHarnessS11Wave2CCovTextTests.test_article_linter_structure_source_exporter_and_sections()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_article_subsystem_roundtrip_and_audit()`
 	def __init__(self, text: str) -> None:
 		self.__text = text
@@ -65,6 +66,7 @@ class SourceExporter:
 			r = dfh_transform_prose(line.raw, lambda v: ARTICLE_BARE_REF.sub(lambda m: self.__convert_bare(current, m), ANCHOR_LINK.sub(lambda m: self.__convert_link(current, aliases, standalone, m), v)))
 		return r
 	# @used-by :func:`agent_tools.article.to_source()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_text.DfHarnessS11Wave2CCovTextTests.test_article_linter_structure_source_exporter_and_sections()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_article_subsystem_roundtrip_and_audit()`
 	def export(self) -> str:
 		lines = dfh_scan(self.__text)

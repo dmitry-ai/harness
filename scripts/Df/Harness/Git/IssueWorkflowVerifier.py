@@ -6,6 +6,7 @@ import json
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class IssueWorkflowVerifier:
 	# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.verify_issue_workflow()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_issue_workflow_verifier_tracked_evidence()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_git_gate_worktree_locks_and_issues()`
 	def __init__(self, gate) -> None:
 		self.__gate = gate
@@ -50,6 +51,7 @@ class IssueWorkflowVerifier:
 			for url in urls:
 				self.__verify_single_url(proj_root, repo_slug, url)
 	# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.verify_issue_workflow()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_issue_workflow_verifier_tracked_evidence()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_git_gate_worktree_locks_and_issues()`
 	# @uses :meth:`Df.Harness.Git.RepoGate.RepoGate.__getattr__()`
 	def verify(self, relative: list[str], message: str | None=None, *, agent_context: bool=True) -> None:

@@ -14,9 +14,9 @@ class ProbabilityClaimChecker:
 	# @used-by :func:`agent_tools.causal_checks.unsupported_probability_claims()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_locale_verifier_probability_and_scope_deferral()`
 	def check(self) -> list[str]:
-		from agent_tools.text_core import scan
+		from Df.Harness.lib.text_core import dfh_scan
 		r: list[str] = []
-		for line in (ln for ln in scan(self.__text) if 'prose' == ln.kind):
+		for line in (ln for ln in dfh_scan(self.__text) if 'prose' == ln.kind):
 			value = re.sub('\\[[^\\]]*\\]\\([^)]*\\)', ' ', re.sub('`[^`]*`|\u00ab[^\u00bb]*\u00bb|"[^"\\n]*"', ' ', line.raw))
 			if (not _NEGATION_RE.search(value)) and _EQUALITY_RE.search(value) and _IGNORANCE_RE.search(value) and _LINK_RE.search(value):
 				r.append(f'CAUSAL-PROBABILITY:{line.no}: absence of discriminating evidence does not establish equal probabilities; state the prior/basis or leave the cause unresolved')

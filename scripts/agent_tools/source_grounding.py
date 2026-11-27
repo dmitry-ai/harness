@@ -76,15 +76,19 @@ def extract_block_links(block, root: Path, doc_path: Path | None):
 # @used-by :mod:`agent_tools.source_grounding`
 def extract_blockquote_quotes(content: str, *, min_guillemet_len: int=8, allow_backtick_quotes: bool=False, min_orig_len: int=12) -> list[str]:
 	return dfh_extract_blockquote_quotes(content, min_guillemet_len=min_guillemet_len, allow_backtick_quotes=allow_backtick_quotes, min_orig_len=min_orig_len)
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_locale_problem_track_scope_deferral_tier0_and_facade()`
 # @used-by :mod:`agent_tools.source_grounding`
 def extract_domain_entities(text: str, *, include_substring_metrics: bool=False) -> dict[str, list[str]]:
 	return DomainFactExtractor.extract_domain_entities(text, include_substring_metrics=include_substring_metrics)
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_locale_problem_track_scope_deferral_tier0_and_facade()`
 # @used-by :mod:`agent_tools.source_grounding`
 def extract_fact_tuples(path: Path, raw_text: str | None=None, *, root: Path | None=None) -> list[dict]:
 	return DomainFactExtractor(path, raw_text, root=root).extract()
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_locale_problem_track_scope_deferral_tier0_and_facade()`
 # @used-by :mod:`agent_tools.source_grounding`
 def extract_ticket_metadata(path: Path, raw: str) -> tuple[bool, set[int], str | None]:
 	return DomainFactExtractor.extract_ticket_metadata(path, raw)
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_locale_problem_track_scope_deferral_tier0_and_facade()`
 # @used-by :mod:`agent_tools.source_grounding`
 def fact_tuple_contradictions(sline: str, infos: list[dict], ledger_tuples: list[dict] | None=None) -> list[str]:
 	return FactContradictionChecker(sline, infos, ledger_tuples=ledger_tuples).check()
@@ -119,6 +123,7 @@ def markdown_parser() -> MarkdownIt:
 # @used-by :mod:`agent_tools.source_grounding`
 def norm_quote_text(value: str) -> str:
 	return dfh_norm_quote_text(value)
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_locale_problem_track_scope_deferral_tier0_and_facade()`
 # @used-by :mod:`agent_tools.source_grounding`
 def order_url_issues(sline: str, ev_nums: set[str], combined_raw: str, src_label: str) -> list[str]:
 	return DomainFactExtractor.order_url_issues(sline, ev_nums, combined_raw, src_label)
@@ -142,9 +147,11 @@ def resolve_local_href(root: Path, href: str, doc_path: Path | None=None) -> Pat
 # @used-by :mod:`agent_tools.source_grounding`
 def sync_fact_ledger(root: Path) -> dict:
 	return Tier0Index.for_root(root).sync_ledger()
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_locale_problem_track_scope_deferral_tier0_and_facade()`
 # @used-by :mod:`agent_tools.source_grounding`
 def ticket_author_issues(sline: str, combined_norm: str, src_label: str) -> list[str]:
 	return DomainFactExtractor.ticket_author_issues(sline, combined_norm, src_label)
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_locale_problem_track_scope_deferral_tier0_and_facade()`
 # @used-by :mod:`agent_tools.source_grounding`
 def ticket_message_issues(sline: str, valid_msg_nums: set[int], bound_ticket_ids: set[str]) -> list[str]:
 	return DomainFactExtractor.ticket_message_issues(sline, valid_msg_nums, bound_ticket_ids)

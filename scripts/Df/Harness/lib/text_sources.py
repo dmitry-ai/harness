@@ -26,6 +26,7 @@ def _write_attempt_if_newer(root, candidate: str, observation, reference, previo
 	if None is previous or dt.fromisoformat(value['observed_at']) >= dt.fromisoformat(previous['observed_at']):
 		replace_bytes(index, dfh_json_data(value))
 # @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__review_source_handlers()`
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_text.DfHarnessS11Wave2CCovTextTests.test_cli_runner_source_render_and_text_helpers()`
 def dfh_check_claim_sources(root, identifiers, *, reference=None) -> dict:
 	path = dfh_registry_path(root, reference)
 	selected = dfh_claim_subset(json.loads(path.read_text(encoding='utf-8-sig')), identifiers)
@@ -33,6 +34,7 @@ def dfh_check_claim_sources(root, identifiers, *, reference=None) -> dict:
 	if not issues:
 		issues.extend(evidence_contract_issues(root, selected))
 	return {'valid': not issues, 'issues': issues, 'inputs': dfh_evidence_inputs(root, selected) if not issues else {}, 'coverage': 'Saved primary bytes, quotes, locators and declared method contracts; source applicability and entailment require authored review.'}
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_text.DfHarnessS11Wave2CCovTextTests.test_cli_runner_source_render_and_text_helpers()`
 # @used-by :meth:`test_text_integration.TextBoundaryTests.test_network_source_checks_distinguish_missing_anchor_and_skip_inline_code()`
 def dfh_check_source_links(text: str, *, fetcher=None) -> list[Finding]:
 	prose = '\n'.join((line.raw for line in dfh_scan(text) if 'prose' == line.kind))

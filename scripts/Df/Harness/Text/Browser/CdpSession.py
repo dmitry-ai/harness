@@ -16,6 +16,7 @@ class CdpSession:
 	# @used-by :meth:`Df.Harness.Text.Browser.PreflightChecker.PreflightChecker.__mux()`
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__run_mux()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_browser.DfHarnessS11Wave2CBrowserTests.test_cdp_session_headless_shell_and_dom_poller()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_cdp_dom_collector_and_cdp_session_pipe_lifecycle()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
 	def __init__(self, browser_ws, config=None, *, cdp_call=None):
 		self.browser_ws = browser_ws
@@ -32,6 +33,7 @@ class CdpSession:
 	# @used-by :meth:`Df.Harness.Text.Browser.PreflightChecker.PreflightChecker.__mux()`
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__run_mux()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_browser.DfHarnessS11Wave2CBrowserTests.test_cdp_session_headless_shell_and_dom_poller()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_cdp_dom_collector_and_cdp_session_pipe_lifecycle()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
 	def __enter__(self):
 		if None is self.__override:
@@ -57,6 +59,7 @@ class CdpSession:
 	# @used-by :meth:`Df.Harness.Text.Browser.PreflightChecker.PreflightChecker.__mux()`
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__run_mux()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_browser.DfHarnessS11Wave2CBrowserTests.test_cdp_session_headless_shell_and_dom_poller()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_cdp_dom_collector_and_cdp_session_pipe_lifecycle()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
 	def __exit__(self, exc_type, exc, tb):
 		self.close()
@@ -84,6 +87,7 @@ class CdpSession:
 				r = msg.get('result', {})
 				break
 		return r
+	# @used-by :func:`test_df_harness_s11_wave2c_cov_browser._make_headless_mux()`
 	# @used-by :meth:`Df.Harness.Text.Browser.AnchorStatusChecker.AnchorStatusChecker.__init_sentinel()`
 	# @used-by :meth:`Df.Harness.Text.Browser.CdpDomCollector.CdpDomCollector.__capture_via_cdp()`
 	# @used-by :meth:`Df.Harness.Text.Browser.GuardedCdp.GuardedCdp.__poll_target()`
@@ -124,6 +128,7 @@ class CdpSession:
 				proc.kill()
 				proc.wait(timeout=2)
 			self.__close_streams(proc)
+	# @used-by :func:`test_df_harness_s11_wave2c_cov_browser._make_headless_mux()`
 	# @used-by :meth:`Df.Harness.Text.Browser.AnchorStatusChecker.AnchorStatusChecker.__init_sentinel()`
 	# @used-by :meth:`Df.Harness.Text.Browser.CdpDomCollector.CdpDomCollector.__capture_via_cdp()`
 	# @used-by :meth:`Df.Harness.Text.Browser.GuardedCdp.GuardedCdp.__poll_target()`
@@ -140,6 +145,7 @@ class CdpSession:
 				pass
 		self.__session_targets.pop(session_id, None)
 	# @used-by :func:`Df.Harness.lib.browser.dfh_query_target_infos()`
+	# @used-by :func:`test_df_harness_s11_wave2c_cov_browser._make_headless_mux()`
 	# @used-by :meth:`CdpSession.attach_target()`
 	# @used-by :meth:`CdpSession.detach_target()`
 	# @used-by :meth:`Df.Harness.Text.Browser.AnchorStatusChecker.AnchorStatusChecker.__init_sentinel()`
@@ -153,6 +159,7 @@ class CdpSession:
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__create_temp_tab()`
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__download_assets()`
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.eval_session()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_cdp_dom_collector_and_cdp_session_pipe_lifecycle()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
 	def send(self, method, params=None, *, session_id=None, timeout_ms=12000):
 		params = deepcopy(params or {})

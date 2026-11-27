@@ -51,6 +51,7 @@ def dfh_argument_values(arguments, flag):
 	return values
 # @used-by :meth:`Df.Harness.Research.BatchCollector.BatchCollector.__lazy_headless_fetch()`
 # @used-by :meth:`Df.Harness.Research.BrowserCollector.BrowserCollector.__read_dom()`
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_anchor_status_preflight_ext_sentinel_and_lib_helpers()`
 def dfh_browser_seam(name: str, default):
 	mod = sys.modules.get('agent_tools.text_browser')
 	cand = getattr(mod, name, None) if None is not mod else None
@@ -124,6 +125,7 @@ def dfh_endpoint_with_meta(session):
 		raise ValueError('A configured loopback CDP endpoint is required')
 	return (endpoint.rstrip('/'), ws_path, used_active_port)
 # @used-by :func:`Df.Harness.lib.native_ag_plan._rewrite_mcp_chrome_servers()`
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_anchor_status_preflight_ext_sentinel_and_lib_helpers()`
 def dfh_headless_mcp_args(config=None):
 	exe = dfh_resolve_headless_shell(config)
 	return ['--headless', '--isolated', f'--executablePath={exe.as_posix()}']
@@ -147,6 +149,7 @@ def dfh_headless_shell_candidates(cfg):
 # @used-by :meth:`Df.Harness.Text.Browser.GuardedCdp.GuardedCdp.__init__()`
 # @used-by :meth:`Df.Harness.Text.Browser.HeadlessShell.HeadlessShell.__wait_version()`
 # @used-by :meth:`Df.Harness.Text.Browser.PreflightChecker.PreflightChecker.__run_checks()`
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_anchor_status_preflight_ext_sentinel_and_lib_helpers()`
 def dfh_http_json(url):
 	with urlopen(url, timeout=8) as response:
 		r = json.load(response)

@@ -8,6 +8,7 @@ class SitemapExtractor:
 	# @used-by :func:`agent_tools.research._extract_sitemap()`
 	# @used-by :meth:`Df.Harness.Research.ChallengeClassifier.ChallengeClassifier.__is_sitemap_input()`
 	# @used-by :meth:`Df.Harness.Research.Extractor.Extractor.__extract_html()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_research.DfHarnessS11Wave2CCovResearchTests.test_extractor_docx_pdf_tracking_and_sitemap_images()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_research.DfHarnessS11Wave2CResearchTests.test_extractor_json_summarizer_and_challenge_classifier()`
 	def __init__(self, text: str) -> None:
 		self.__text = text
@@ -73,6 +74,7 @@ class SitemapExtractor:
 	# @used-by :func:`agent_tools.research._extract_sitemap()`
 	# @used-by :meth:`Df.Harness.Research.ChallengeClassifier.ChallengeClassifier.__is_sitemap_input()`
 	# @used-by :meth:`Df.Harness.Research.Extractor.Extractor.__extract_html()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_research.DfHarnessS11Wave2CCovResearchTests.test_extractor_docx_pdf_tracking_and_sitemap_images()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_research.DfHarnessS11Wave2CResearchTests.test_extractor_json_summarizer_and_challenge_classifier()`
 	def extract(self) -> dict | None:
 		parsed = self.__parse_root()

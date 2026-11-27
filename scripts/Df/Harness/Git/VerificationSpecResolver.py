@@ -11,6 +11,7 @@ class VerificationSpecResolver:
 	# @used-by :func:`agent_tools.polyglot_land.resolve_repo_verification_spec()`
 	# @used-by :meth:`Df.Harness.Git.PolyglotTestRunner.PolyglotTestRunner.run()`
 	# @used-by :meth:`Df.Harness.Git.RepoHealthChecker.RepoHealthChecker.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_verification_spec_resolver_expand_and_node_auto()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_landing_lease_and_polyglot_land()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_helper_branches_lease_and_fifo()`
 	def __init__(self, main_repo: Path, wt_path: Path | None=None, *, slug: str | None=None) -> None:
@@ -65,6 +66,7 @@ class VerificationSpecResolver:
 	# @used-by :func:`agent_tools.polyglot_land.resolve_repo_verification_spec()`
 	# @used-by :meth:`Df.Harness.Git.PolyglotTestRunner.PolyglotTestRunner.run()`
 	# @used-by :meth:`Df.Harness.Git.RepoHealthChecker.RepoHealthChecker.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_verification_spec_resolver_expand_and_node_auto()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_landing_lease_and_polyglot_land()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_helper_branches_lease_and_fifo()`
 	def resolve(self) -> dict[str, Any] | None:

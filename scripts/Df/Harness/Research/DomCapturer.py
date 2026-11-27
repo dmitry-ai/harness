@@ -9,6 +9,7 @@ from Df.Harness.Research.Response import Response
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class DomCapturer:
 	# @used-by :func:`agent_tools.research.capture_dom()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_research.DfHarnessS11Wave2CCovResearchTests.test_dom_capturer_and_network_link_checker_fetch()`
 	def __init__(self, root, url: str, tab_id: str, *, session_id=None, refresh_reason=None, context=None, config=None, guard=None) -> None:
 		self.__root = root
 		self.__url = url
@@ -45,6 +46,7 @@ class DomCapturer:
 			raise ValueError('DOM session/target differs from the explicitly selected guard')
 		return guard
 	# @used-by :func:`agent_tools.research.capture_dom()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_research.DfHarnessS11Wave2CCovResearchTests.test_dom_capturer_and_network_link_checker_fetch()`
 	# @uses :meth:`Df.Harness.Text.Browser.GuardedCdp.GuardedCdp.inspect()`
 	def capture(self) -> dict:
 		from Df.Harness.lib.browser import dfh_save_cdp_identity

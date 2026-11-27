@@ -8,6 +8,7 @@ from Df.Harness.lib.research import BROWSER_MODES, PROFILES
 class BatchCollector:
 	# @used-by :func:`agent_tools.research.collect_plan()`
 	# @used-by :meth:`BatchCollector.collect_http_batch()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_research.DfHarnessS11Wave2CCovResearchTests.test_batch_lazy_headless_and_http_browser_fallback()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_research.DfHarnessS11Wave2CResearchTests.test_batch_http_and_browser_collectors_and_site_summarizer()`
 	def __init__(self, root, plan: dict, *, fetcher=None, browser: str='auto', cdp_port=None, session_id=None, cdp_fetcher=None, http_get=None, cdp_call=None) -> None:
 		self.__root = root
@@ -97,6 +98,7 @@ class BatchCollector:
 		plan = {'requests': [{'url': u, 'profile': profile, 'scope': scope, 'session_id': session_id, 'refresh_reason': refresh_reason, 'max_age': max_age, 'headers': headers, 'context': context, 'browser': browser} for u in cleaned]}
 		return cls(root, plan, fetcher=fetcher, browser=browser, cdp_port=cdp_port, session_id=session_id, cdp_fetcher=cdp_fetcher, http_get=http_get, cdp_call=cdp_call).run()
 	# @used-by :func:`agent_tools.research.collect_plan()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_research.DfHarnessS11Wave2CCovResearchTests.test_batch_lazy_headless_and_http_browser_fallback()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_research.DfHarnessS11Wave2CResearchTests.test_batch_http_and_browser_collectors_and_site_summarizer()`
 	def run(self) -> dict:
 		if self.__browser not in BROWSER_MODES:

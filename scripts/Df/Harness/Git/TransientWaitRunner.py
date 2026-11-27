@@ -14,6 +14,7 @@ import time
 class TransientWaitRunner:
 	# @used-by :func:`agent_tools.repo_wait.is_transient_contention_error()`
 	# @used-by :func:`agent_tools.repo_wait.run_with_transient_wait()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_transient_wait_runner_active_turn_and_lease_probe()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_git_ignore_tags_and_repo_wait()`
 	def __init__(self, root: Path | None, fn: Callable[[], dict[str, Any]] | None=None, *, wait_timeout: float=0.0, poll_interval: float=DEFAULT_WAIT_POLL_SECONDS, wait_repos: list[Path] | tuple[Path, ...] | None=None, conversation: str | None=None, platform: str | None=None, backend: Path | str | None=None) -> None:
 		self.__root = root
@@ -171,6 +172,7 @@ class TransientWaitRunner:
 		return repos
 	# @used-by :func:`agent_tools.repo_wait.is_transient_contention_error()`
 	# @used-by :func:`agent_tools.repo_wait.run_with_transient_wait()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_transient_wait_runner_active_turn_and_lease_probe()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_git_ignore_tags_and_repo_wait()`
 	def run(self, *, probe_exc: BaseException | None=None) -> Any:
 		if None is not probe_exc:

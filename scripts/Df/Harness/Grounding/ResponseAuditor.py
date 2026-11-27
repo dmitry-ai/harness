@@ -17,6 +17,8 @@ import re
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class ResponseAuditor:
 	# @used-by :func:`agent_tools.response_grounding.response_source_and_kb_issues()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_evidence_bundle_ingestor_and_response_auditor()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_tail.DfHarnessS11Wave2CCovTailTests.test_grounding_ingestor_kb_membership_and_locale_fallback()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_response_auditor_ingestor_and_tier0_index()`
 	def __init__(self, root: Path, response: str, requests: list[dict], *, touched_files=None, turn=None, native=None) -> None:
 		self.root, self.response, self.requests, self.touched_files, self.turn, self.native = (Path(root).resolve(), response, requests, touched_files, turn, native)
@@ -255,6 +257,8 @@ class ResponseAuditor:
 			r = 0.6 <= len(c_set & set(o_tokens)) / max(1, len(c_set))
 		return r
 	# @used-by :func:`agent_tools.response_grounding.response_source_and_kb_issues()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_evidence_bundle_ingestor_and_response_auditor()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_tail.DfHarnessS11Wave2CCovTailTests.test_grounding_ingestor_kb_membership_and_locale_fallback()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_response_auditor_ingestor_and_tier0_index()`
 	def validate(self) -> list[str]:
 		self.extract_markdown_refs()

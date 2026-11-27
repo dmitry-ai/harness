@@ -75,6 +75,7 @@ class NetworkLinkChecker:
 		return results
 	# @used-by :func:`agent_tools.links.fetch_page()`
 	# @used-by :meth:`NetworkLinkChecker.__init__()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_research.DfHarnessS11Wave2CCovResearchTests.test_dom_capturer_and_network_link_checker_fetch()`
 	@staticmethod
 	def fetch_page(url: str, timeout: float=15) -> Page:
 		if urlsplit(url).scheme not in ('http', 'https'):

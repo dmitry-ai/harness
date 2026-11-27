@@ -11,6 +11,7 @@ _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 class ReadCache:
 	# @used-by :meth:`Df.Harness.Git.IssueCloseVerifier.IssueCloseVerifier.verify()`
 	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__init__()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_parity_auditor_pending_peers_read_cache_and_repo_locator()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_dirty_scanner_read_cache_and_locator()`
 	def __init__(self) -> None:
 		self.__diff_cache: dict[tuple[Path, str, tuple[str, ...]], dict[str, set[str]]] = {}
@@ -201,6 +202,7 @@ class ReadCache:
 	def dirty_paths(self, repo: Path) -> list[str]:
 		return [rel_path for _, rel_path in self.__dirty_entries(repo)]
 	# @used-by :meth:`Df.Harness.Git.IssueCloseVerifier.IssueCloseVerifier.__ensure_clean()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_parity_auditor_pending_peers_read_cache_and_repo_locator()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_dirty_scanner_read_cache_and_locator()`
 	# @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_diff_cache_runs_once_for_dirty_repo_and_zero_times_for_clean_repo()`
 	# @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_historical_header_ignored_while_added_removed_and_untracked_refs_caught()`
@@ -237,6 +239,7 @@ class ReadCache:
 		norms = [p.replace('\\', '/').lstrip('./') for p in rel_paths]
 		return any((d == n or (d.endswith('/') and n.startswith(d)) for d in dirty for n in norms))
 	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__inspect_latest_commits()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_parity_auditor_pending_peers_read_cache_and_repo_locator()`
 	def latest_commit_urls_for_files(self, repo: Path, rel_paths: list[str], extract_urls_fn) -> list[str]:
 		_, file_to_urls, complete = self.__load_log(repo, extract_urls_fn)
 		found: list[str] = []
@@ -290,6 +293,7 @@ class ReadCache:
 			self.__upstream_cache[key] = cached
 		return cached
 	# @used-by :meth:`Df.Harness.Gate.RepoTagGate.RepoTagGate.finalize_close_check()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_parity_auditor_pending_peers_read_cache_and_repo_locator()`
 	def verify_commit_pushed(self, repo: Path, commit_sha: str, issue_url: str) -> bool:
 		has_upstream, unpushed = self.upstream_unpushed(repo)
 		if has_upstream and 0 < unpushed:

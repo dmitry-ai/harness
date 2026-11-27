@@ -4,6 +4,7 @@ import json
 # 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class TabRemover:
 	# @used-by :meth:`Df.Harness.Text.Browser.GuardedCdp.GuardedCdp.__broker_remove_tab()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_guarded_cdp_create_select_call_and_tab_broker()`
 	def __init__(self, cdp_sess, anchor_target_id, ext_tab_id, target_id):
 		self.__sess = cdp_sess
 		self.__anchor_tid = anchor_target_id
@@ -33,6 +34,7 @@ class TabRemover:
 				self.__sess.detach_target(anchor_sid)
 		return r
 	# @used-by :meth:`Df.Harness.Text.Browser.GuardedCdp.GuardedCdp.__broker_remove_tab()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_guarded_cdp_create_select_call_and_tab_broker()`
 	def remove(self) -> bool:
 		closed = self.__remove_via_broker() if self.__anchor_tid and None is not self.__ext_tab_id else False
 		if not closed and self.__target_id:

@@ -9,6 +9,7 @@ class TagSelector:
 	# @used-by :func:`agent_tools.repo_tags.pick_preferred_tag()`
 	# @used-by :meth:`Df.Harness.Git.CommitTagger.CommitTagger.ensure()`
 	# @used-by :meth:`Df.Harness.Git.RetroTagger.RetroTagger.__build_entry()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_git_read_audit_unquote_and_tag_selector()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_git_ignore_tags_and_repo_wait()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_helper_branches_audit_and_tags()`
 	def __init__(self, tags: Iterable[str]) -> None:
@@ -33,6 +34,7 @@ class TagSelector:
 	# @used-by :func:`agent_tools.repo_tags.pick_preferred_tag()`
 	# @used-by :meth:`Df.Harness.Git.CommitTagger.CommitTagger.ensure()`
 	# @used-by :meth:`Df.Harness.Git.RetroTagger.RetroTagger.__build_entry()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_git_read_audit_unquote_and_tag_selector()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_git_ignore_tags_and_repo_wait()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_helper_branches_audit_and_tags()`
 	def pick(self) -> str | None:

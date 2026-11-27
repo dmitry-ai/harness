@@ -59,6 +59,7 @@ _FLOW_OPTIONS = {
 }
 class CliRunner:
 	# @used-by :func:`agent_tools.text_cli.main()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_text.DfHarnessS11Wave2CCovTextTests.test_cli_runner_source_render_and_text_helpers()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_flow.DfHarnessS11Wave2CTextFlowTests.test_claims_sources_and_cli_runner_classes()`
 	def __init__(self, argv=None, *, default_kind: str | None='article') -> None:
 		self.__argv = argv
@@ -193,6 +194,7 @@ class CliRunner:
 			print(f'{path}: ' + ', '.join((f'{sum((f.severity == level for f in findings))} {level}(s)' for level in ('error', 'warning', 'note'))))
 		return int(any(('error' == f.severity for f in findings)))
 	# @used-by :func:`agent_tools.text_cli.main()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_text.DfHarnessS11Wave2CCovTextTests.test_cli_runner_source_render_and_text_helpers()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_flow.DfHarnessS11Wave2CTextFlowTests.test_claims_sources_and_cli_runner_classes()`
 	def run(self) -> int:
 		if hasattr(sys.stdout, 'reconfigure'):

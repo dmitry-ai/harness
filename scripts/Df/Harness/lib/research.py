@@ -112,6 +112,7 @@ def dfh_bounded_metrics(value):
 	return r
 # @used-by :func:`agent_tools.research.classify_network_error()`
 # @used-by :meth:`Df.Harness.Research.Collector.Collector.__execute_fetch()`
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_research.DfHarnessS11Wave2CCovResearchTests.test_research_lib_blob_errors_relocation_and_tab()`
 def dfh_classify_network_error(exc):
 	cause = exc.reason if isinstance(exc, URLError) and None is not getattr(exc, 'reason', None) else exc
 	if isinstance(cause, socket.gaierror):
@@ -146,6 +147,7 @@ def dfh_document_urls(text: str):
 		yield match.group().rstrip('.,;!?)')
 # @used-by :func:`agent_tools.research.extract_github_blob_lines()`
 # @used-by :meth:`Df.Harness.Research.ObservationBundleScanner.ObservationBundleScanner.__scan_raw_html()`
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_research.DfHarnessS11Wave2CCovResearchTests.test_research_lib_blob_errors_relocation_and_tab()`
 def dfh_extract_github_blob_lines(raw_text: str) -> list[str]:
 	r: list[str] = []
 	if raw_text:
@@ -195,6 +197,7 @@ def dfh_fingerprint(value) -> str:
 # @used-by :meth:`Df.Harness.Text.Workspace.Workspace.read_check()`
 # @used-by :meth:`Df.Harness.Text.WorkspaceCheckRunner.WorkspaceCheckRunner.__check_replay()`
 # @used-by :meth:`Df.Harness.Text.WorkspaceCheckRunner.WorkspaceCheckRunner.__collect_target_and_lint_issues()`
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_research.DfHarnessS11Wave2CCovResearchTests.test_research_lib_blob_errors_relocation_and_tab()`
 def dfh_inside(root, relative) -> Path:
 	root_p = Path(root).resolve()
 	target = (root_p / relative).resolve()
@@ -340,6 +343,7 @@ def dfh_research_seam(name: str, default_fn, *, module_name: str='agent_tools.re
 	cand = getattr(mod, name, None) if None is not mod else None
 	return cand if callable(cand) and (True is not getattr(cand, '_df_default_research_facade', False)) else default_fn
 # @used-by :func:`agent_tools.research.select_dom_tab()`
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_research.DfHarnessS11Wave2CCovResearchTests.test_research_lib_blob_errors_relocation_and_tab()`
 def dfh_select_dom_tab(tabs, url, tab_id):
 	matches = [t for t in tabs if 'page' == t.get('type') and t.get('id') == tab_id and (urldefrag(t.get('url', ''))[0] == urldefrag(url)[0])]
 	if 1 != len(matches):

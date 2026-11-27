@@ -151,6 +151,7 @@ class EvidenceWorkspace:
 	# @used-by :func:`agent_tools.issue_lifecycle.evidence_issue_state()`
 	# @used-by :meth:`Df.Harness.Issue.ScopeCompletenessChecker.ScopeCompletenessChecker.__flag_unclosed_parent()`
 	# @used-by :meth:`Df.Harness.Issue.ScopeCompletenessChecker.ScopeCompletenessChecker.find_open_deferred_children()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_service_all_commands_and_evidence_workspace()`
 	@staticmethod
 	def evidence_issue_state(root: Path, repo_slug: str, number: int, candidate_repos=()) -> str | None:
 		r = None
@@ -166,6 +167,7 @@ class EvidenceWorkspace:
 				continue
 		return r
 	# @used-by :func:`agent_tools.github_issue._find_existing_issue_comments()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_service_all_commands_and_evidence_workspace()`
 	def find_existing_issue_comments(self, source_files: list[tuple[Path, bytes]], repo: str, issue_num: int, project_root: str | Path | None=None) -> list[int]:
 		safe_repo, r = (repo.replace('/', '__'), [])
 		for gh_root, _ in self.resolve_issue_targets(source_files, repo, project_root=project_root):
@@ -186,6 +188,7 @@ class EvidenceWorkspace:
 	# @used-by :func:`agent_tools.github_issue.find_tracked_child_issues()`
 	# @used-by :meth:`Df.Harness.Git.IssueCloseVerifier.IssueCloseVerifier.verify()`
 	# @used-by :meth:`Df.Harness.Issue.ScopeCompletenessChecker.ScopeCompletenessChecker.__flag_unclosed_parent()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_service_all_commands_and_evidence_workspace()`
 	# @used-by :meth:`test_repo_locator_perf.RepoLocatorPerformanceTests.test_find_tracked_child_issues_passes_code_repo_without_rescanning()`
 	def find_tracked_child_issues(self, repo: str, parent_number: int, *, project_root: str | Path | None=None, code_repo: Path | None=None) -> list[dict[str, Any]]:
 		pnum = int(parent_number)
@@ -223,6 +226,7 @@ class EvidenceWorkspace:
 				r = (target_path / '\ua616/KB/Evidence/GitHub', target_path / '\ua616/data/turns')
 		return r
 	# @used-by :func:`agent_tools.github_issue._load_saved_issue_container_text()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_service_all_commands_and_evidence_workspace()`
 	def load_saved_issue_container_text(self, source_files: list[tuple[Path, bytes]], repo: str, issue_num: int | None, project_root: str | Path | None=None) -> str | None:
 		r = None
 		if None is not issue_num:
@@ -239,6 +243,7 @@ class EvidenceWorkspace:
 						continue
 		return r
 	# @used-by :func:`agent_tools.github_issue._meta_dir_for_project_root()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_service_all_commands_and_evidence_workspace()`
 	@staticmethod
 	def meta_dir_for_project_root(proj_root: Path) -> Path | None:
 		from agent_tools.path_registry import project_paths
@@ -303,6 +308,7 @@ class EvidenceWorkspace:
 			for tfile in targets:
 				self.__update_single_turn_locked(turns_dir, tfile, repo, int(issue_num), record, action, rec_cid, rec_plat)
 	# @used-by :func:`agent_tools.github_issue._repo_matches_github_slug()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_service_all_commands_and_evidence_workspace()`
 	@staticmethod
 	def repo_matches_slug(code_repo: Path, repo: str) -> bool:
 		return RepoLocator.repo_matches_slug(code_repo, repo)

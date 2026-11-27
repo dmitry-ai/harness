@@ -13,6 +13,7 @@ _PS_PROC_QUERY = 'Get-CimInstance Win32_Process | Select-Object ProcessId,Name,C
 class WorktreeLockFinder:
 	# @used-by :func:`agent_tools.worktree_guard.find_worktree_lock_holders()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeRemovalGuard.WorktreeRemovalGuard.__find_holders()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_worktree_lock_finder_rebase_and_removal_guard()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_flow_guard_and_land()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_helper_branches_lease_and_fifo()`
 	def __init__(self, wt_path: Path, *, process_rows: list[dict[str, Any]] | None=None) -> None:
@@ -56,6 +57,7 @@ class WorktreeLockFinder:
 		return r
 	# @used-by :func:`agent_tools.worktree_guard.find_worktree_lock_holders()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeRemovalGuard.WorktreeRemovalGuard.__find_holders()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_worktree_lock_finder_rebase_and_removal_guard()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_flow_guard_and_land()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_helper_branches_lease_and_fifo()`
 	def find(self) -> list[dict[str, Any]]:

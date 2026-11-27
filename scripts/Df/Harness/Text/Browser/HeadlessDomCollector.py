@@ -15,6 +15,7 @@ class HeadlessDomCollector:
 	# @used-by :func:`agent_tools.text_browser.collect_headless_dom()`
 	# @used-by :meth:`Df.Harness.Text.Browser.CdpDomCollector.CdpDomCollector.collect()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_browser.DfHarnessS11Wave2CBrowserTests.test_preflight_guarded_cdp_tab_broker_and_collectors()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_headless_shell_and_headless_dom_collector()`
 	def __init__(self, root, url, *, timeout=15, config=None, headless_shell=None):
 		self.__root = root
 		self.__url = url
@@ -74,6 +75,7 @@ class HeadlessDomCollector:
 	# @used-by :func:`agent_tools.text_browser.collect_headless_dom()`
 	# @used-by :meth:`Df.Harness.Text.Browser.CdpDomCollector.CdpDomCollector.collect()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_browser.DfHarnessS11Wave2CBrowserTests.test_preflight_guarded_cdp_tab_broker_and_collectors()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_headless_shell_and_headless_dom_collector()`
 	def collect(self) -> dict:
 		if None is self.__root or not str(self.__root).strip():
 			raise ValueError('An explicit project root is required')

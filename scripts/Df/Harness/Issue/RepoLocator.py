@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 from Df.Core.lib.array.first import df_first
-from Df.Harness.Git.RepoGate import RepoGate
 from Df.Harness.lib.worktree import dfh_git_config_file
 import os
 import re
@@ -23,6 +22,7 @@ class RepoLocator:
 	# @used-by :meth:`Df.Harness.Grounding.Doc5RequirementChecker.Doc5RequirementChecker.__workspace_repo_slugs()`
 	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.find_local_code_repo()`
 	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.origin_repo_slug()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_parity_auditor_pending_peers_read_cache_and_repo_locator()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_dirty_scanner_read_cache_and_locator()`
 	def __init__(self, *, search_fn=None, git_read_fn=None) -> None:
 		self.__search_fn = search_fn
@@ -178,6 +178,7 @@ class RepoLocator:
 			for slug in cls.extract_config_slugs(resolved):
 				slug_map.setdefault(slug.lower(), resolved)
 	# @used-by :func:`agent_tools.issues.repo_locator.clear_repo_locator_cache()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_parity_auditor_pending_peers_read_cache_and_repo_locator()`
 	@classmethod
 	def clear_cache(cls) -> None:
 		cls.__global_cache['expires_at'] = 0.0
@@ -199,6 +200,7 @@ class RepoLocator:
 		return r
 	# @used-by :func:`agent_tools.issues.repo_locator.find_local_code_repo()`
 	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.find_local_code_repo()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_parity_auditor_pending_peers_read_cache_and_repo_locator()`
 	def find_local_code_repo(self, repo: str, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]] | None=None, *, repo_root: str | Path | None=None) -> Path | None:
 		seen: set[Path] = set()
 		r = self.__first_matching(self.__collect_candidates(project_root, source_files, repo_root), repo, seen)
@@ -213,6 +215,7 @@ class RepoLocator:
 		slugs = self.extract_config_slugs(Path(code_repo))
 		r = df_first(slugs)
 		if None is r and self.__config_may_have_origin(Path(code_repo)):
+			from Df.Harness.Git.RepoGate import RepoGate
 			proc = self.__git_read_fn(code_repo, ['remote', 'get-url', 'origin'], check=False) if None is not self.__git_read_fn else RepoGate(Path(code_repo)).run_read(['remote', 'get-url', 'origin'], check=False)
 			if 0 == proc.returncode:
 				m = _GITHUB_SLUG_RE.search(proc.stdout.decode('utf-8', errors='replace').strip())
@@ -228,6 +231,7 @@ class RepoLocator:
 		return any((target == slug.lower() for slug in cls.extract_config_slugs(code_repo)))
 	# @used-by :func:`agent_tools.issues.repo_locator._search_registry_and_roots()`
 	# @used-by :meth:`RepoLocator.find_local_code_repo()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_parity_auditor_pending_peers_read_cache_and_repo_locator()`
 	@classmethod
 	def search_registry_and_roots(cls, repo: str, seen: set[Path]) -> Path | None:
 		from agent_tools.path_registry import load_registry, store_value

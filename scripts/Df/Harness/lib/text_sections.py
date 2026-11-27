@@ -203,6 +203,7 @@ def dfh_section_at(sections: list, line_no: int):
 	return r
 # @used-by :meth:`Df.Harness.Text.Article.StructureAuditor.StructureAuditor.__check_section_link()`
 # @used-by :meth:`Df.Harness.Text.Proposal.Linter.Linter.check_references()`
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_tail.DfHarnessS11Wave2CCovTailTests.test_issue_build_write_event_parent_linked_urls_and_dense_range()`
 def dfh_validate_ref_range(start, end, known, findings, line_no, excerpt, *, order_key, order_rule='REF-RANGE', order_msg='range endpoints are in reverse document order', allow_same=False, check_dense=False, start_checked=False, end_prefix='§') -> None:
 	if not start_checked and start and (start not in known):
 		findings.append(Finding('error', 'REF-DANGLING', line_no, f'§{start} does not exist', excerpt))

@@ -22,6 +22,7 @@ class Extractor:
 	# @used-by :meth:`Df.Harness.Research.EvidenceQuerier.EvidenceQuerier.__attach_grep()`
 	# @used-by :meth:`Extractor.extract_file()`
 	# @used-by :meth:`Extractor.extract_observation()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_research.DfHarnessS11Wave2CCovResearchTests.test_extractor_docx_pdf_tracking_and_sitemap_images()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_research.DfHarnessS11Wave2CResearchTests.test_extractor_json_summarizer_and_challenge_classifier()`
 	def __init__(self, body: bytes, content_type: str, profile: str, charset: str='utf-8', *, status=None) -> None:
 		self.__body = body
@@ -142,6 +143,7 @@ class Extractor:
 		return r
 	# @used-by :func:`agent_tools.research.extract_bytes()`
 	# @used-by :meth:`Df.Harness.Research.EvidenceQuerier.EvidenceQuerier.__attach_grep()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_research.DfHarnessS11Wave2CCovResearchTests.test_extractor_docx_pdf_tracking_and_sitemap_images()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_research.DfHarnessS11Wave2CResearchTests.test_extractor_json_summarizer_and_challenge_classifier()`
 	def extract(self) -> dict:
 		if self.__profile not in PROFILES:

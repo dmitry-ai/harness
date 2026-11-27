@@ -22,6 +22,7 @@ def dfh_extract_comment_issue_urls(text: str) -> set[str]:
 # @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__has_workspace_parent_issue()`
 # @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__inspect_latest_commits()`
 # @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.inspect_touched_code_file()`
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_parity_auditor_pending_peers_read_cache_and_repo_locator()`
 # @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_landing_lease_and_polyglot_land()`
 def dfh_extract_issue_urls(text: str) -> list[str]:
 	return dfa_unique_fast(_GITHUB_ISSUE_URL_RE.findall(text or ''))

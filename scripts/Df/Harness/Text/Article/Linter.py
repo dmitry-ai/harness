@@ -14,6 +14,7 @@ from Df.Harness.lib.text_sections import dfh_detect_kind, dfh_lint_document
 class Linter:
 	# @used-by :func:`Df.Harness.lib.text_sections.dfh_lint_document()`
 	# @used-by :func:`agent_tools.article.lint_text()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_text.DfHarnessS11Wave2CCovTextTests.test_article_linter_structure_source_exporter_and_sections()`
 	def __init__(self, text: str, *, kind: str | None=None, lang: str | None=None, path: Path | None=None, lexicon=None, bans=None, link_style=None) -> None:
 		self.__text = text
 		self.__kind = kind
@@ -24,6 +25,7 @@ class Linter:
 		self.__link_style = link_style
 	# @used-by :func:`Df.Harness.lib.text_sections.dfh_lint_document()`
 	# @used-by :func:`agent_tools.article.lint_text()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_text.DfHarnessS11Wave2CCovTextTests.test_article_linter_structure_source_exporter_and_sections()`
 	def lint(self) -> list[Finding]:
 		kind = self.__kind or dfh_detect_kind(self.__path, self.__text)
 		if 'proposal' == kind:

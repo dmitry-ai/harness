@@ -14,6 +14,7 @@ class BatchRunner:
 	# @used-by :func:`agent_tools.issues.batch_commands.run_batch_close()`
 	# @used-by :func:`agent_tools.issues.batch_commands.run_batch_create()`
 	# @used-by :meth:`BatchRunner.register_subparsers()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_acceptance_gate_and_batch_runner_close_and_subparsers()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_batch_runner_repo_auditor_and_transfer_runner()`
 	def __init__(self, service, args: argparse.Namespace, mode: str) -> None:
 		self.__service = service
@@ -101,6 +102,7 @@ class BatchRunner:
 		return r
 	# @used-by :func:`agent_tools.github_issue.build_parser()`
 	# @used-by :func:`agent_tools.issues.batch_commands.register_issue_subparsers()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_acceptance_gate_and_batch_runner_close_and_subparsers()`
 	@classmethod
 	def register_subparsers(cls, sub, sub_defs, common_tail_specs, service_fn) -> None:
 		batch_defs = (
@@ -113,6 +115,7 @@ class BatchRunner:
 			p.set_defaults(func=fn)
 	# @used-by :func:`agent_tools.issues.batch_commands.run_batch_close()`
 	# @used-by :func:`agent_tools.issues.batch_commands.run_batch_create()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_acceptance_gate_and_batch_runner_close_and_subparsers()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_batch_runner_repo_auditor_and_transfer_runner()`
 	def run(self) -> int:
 		spec_path, spec_raw, items, defaults = self.__load_spec()

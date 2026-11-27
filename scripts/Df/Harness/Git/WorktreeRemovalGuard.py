@@ -9,6 +9,7 @@ import stat
 class WorktreeRemovalGuard:
 	# @used-by :func:`agent_tools.worktree_guard.remove_worktree_fail_closed()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeCleaner.WorktreeCleaner.cleanup()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_worktree_lock_finder_rebase_and_removal_guard()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_flow_guard_and_land()`
 	def __init__(self, main_repo: Path, wt_path: Path, *, force: bool, git_exec_fn, lock_finder_fn=None) -> None:
 		self.__main_repo = main_repo
@@ -58,6 +59,7 @@ class WorktreeRemovalGuard:
 			errors.append(f'{target.as_posix()}: {exc}')
 	# @used-by :func:`agent_tools.worktree_guard.remove_worktree_fail_closed()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeCleaner.WorktreeCleaner.cleanup()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_worktree_lock_finder_rebase_and_removal_guard()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_flow_guard_and_land()`
 	def remove(self) -> dict[str, Any]:
 		git_err, rem_errors = ('', [])

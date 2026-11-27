@@ -130,6 +130,7 @@ class DfAnalysisValidator:
 					errs.append(f'DOC-5 / df-analysis: Section # 0 metadata is missing required "{req_key}" key')
 		return errs
 	# @used-by :func:`agent_tools.statements.analysis_gate_issues()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_df_analysis_validator_general_and_section_lists()`
 	@classmethod
 	def analysis_gate_issues(cls, response: str, *, requests: list | tuple=(), turn_context: dict | None=None) -> list[str]:
 		return [*dfh_markdown_table_issues(response), *cls(response, requests=requests, mode='auto', turn_context=turn_context).validate()]

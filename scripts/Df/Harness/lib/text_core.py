@@ -164,6 +164,7 @@ def dfh_detect_language(text: str) -> str:
 # @used-by :meth:`Df.Harness.Text.ProseLinter.ProseLinter.__check_bans()`
 # @used-by :meth:`Df.Harness.Text.ProseLinter.ProseLinter.__check_lexicon()`
 # @used-by :meth:`Df.Harness.Text.ProseLinter.ProseLinter.__check_prose_details()`
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_text.DfHarnessS11Wave2CCovTextTests.test_article_linter_structure_source_exporter_and_sections()`
 def dfh_excerpt(text: str, match, width: int=40) -> str:
 	start, end = (max(match.start() - width, 0), min(match.end() + width, len(text)))
 	return ('…' if start else '') + text[start:end] + ('…' if end < len(text) else '')
@@ -262,6 +263,7 @@ def dfh_reference_document(text: str, match) -> str | None:
 # @used-by :meth:`Df.Harness.Text.Proposal.Renderer.Renderer.render()`
 # @used-by :meth:`Df.Harness.Text.Proposal.SourceExporter.SourceExporter.export()`
 # @used-by :meth:`Df.Harness.Text.ResponseChecker.ResponseChecker.check()`
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_text.DfHarnessS11Wave2CCovTextTests.test_article_linter_structure_source_exporter_and_sections()`
 # @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_article_subsystem_roundtrip_and_audit()`
 # @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_text_core_linters_replayer_and_sections()`
 # @used-by :meth:`test_source_admission.LinkPresentationTests.findings()`

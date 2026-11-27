@@ -9,6 +9,7 @@ class KeyedProseRewriter:
 	# @used-by :func:`agent_tools.text_sections.rewrite_keyed_prose()`
 	# @used-by :meth:`Df.Harness.Text.Article.Renderer.Renderer.__render_lines()`
 	# @used-by :meth:`Df.Harness.Text.Proposal.Renderer.Renderer.__render_lines()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_text.DfHarnessS11Wave2CCovTextTests.test_article_linter_structure_source_exporter_and_sections()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_text_core_linters_replayer_and_sections()`
 	def __init__(self, raw: str, line_no: int, mapping: dict, findings: list[Finding], external_changes: list, *, format_ref, anchors=None, dangling_hint: str='') -> None:
 		self.__raw = raw
@@ -56,6 +57,7 @@ class KeyedProseRewriter:
 	# @used-by :func:`agent_tools.text_sections.rewrite_keyed_prose()`
 	# @used-by :meth:`Df.Harness.Text.Article.Renderer.Renderer.__render_lines()`
 	# @used-by :meth:`Df.Harness.Text.Proposal.Renderer.Renderer.__render_lines()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_text.DfHarnessS11Wave2CCovTextTests.test_article_linter_structure_source_exporter_and_sections()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_text_core_linters_replayer_and_sections()`
 	def rewrite(self) -> str:
 		return dfh_transform_prose(self.__raw, self.__convert)

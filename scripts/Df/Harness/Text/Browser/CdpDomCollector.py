@@ -16,6 +16,7 @@ class CdpDomCollector:
 	# @used-by :meth:`Df.Harness.Research.BatchCollector.BatchCollector.__lazy_headless_fetch()`
 	# @used-by :meth:`Df.Harness.Research.BrowserCollector.BrowserCollector.__read_dom()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_browser.DfHarnessS11Wave2CBrowserTests.test_preflight_guarded_cdp_tab_broker_and_collectors()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_cdp_dom_collector_and_cdp_session_pipe_lifecycle()`
 	def __init__(self, root, url, *, cdp_port=None, session_id=None, timeout=15, config=None, http_get=None, cdp_call=None, headless_shell=None):
 		self.__root = root
 		self.__url = url
@@ -83,6 +84,7 @@ class CdpDomCollector:
 	# @used-by :meth:`Df.Harness.Research.BatchCollector.BatchCollector.__lazy_headless_fetch()`
 	# @used-by :meth:`Df.Harness.Research.BrowserCollector.BrowserCollector.__read_dom()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_browser.DfHarnessS11Wave2CBrowserTests.test_preflight_guarded_cdp_tab_broker_and_collectors()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_cdp_dom_collector_and_cdp_session_pipe_lifecycle()`
 	def collect(self) -> dict:
 		if None is self.__root or not str(self.__root).strip():
 			raise ValueError('An explicit project root is required')

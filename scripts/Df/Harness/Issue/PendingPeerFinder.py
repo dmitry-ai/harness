@@ -11,6 +11,7 @@ class PendingPeerFinder:
 	# @used-by :func:`agent_tools.github_issue._pending_similar_peer_slugs()`
 	# @used-by :func:`agent_tools.issues.service_helpers.pending_similar_peer_slugs()`
 	# @used-by :meth:`Df.Harness.Issue.Service.Service.__finalize_close()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_parity_auditor_pending_peers_read_cache_and_repo_locator()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_issue_turn_lib_session_scope_and_pending_peers()`
 	def __init__(self, workspace: EvidenceWorkspace, code_repo: Path | None, *, repo: str, project_root: str | Path | None=None, source_files: list[tuple[Path, bytes]]=()) -> None:
 		self.__workspace = workspace
@@ -51,6 +52,7 @@ class PendingPeerFinder:
 	# @used-by :func:`agent_tools.github_issue._pending_similar_peer_slugs()`
 	# @used-by :func:`agent_tools.issues.service_helpers.pending_similar_peer_slugs()`
 	# @used-by :meth:`Df.Harness.Issue.Service.Service.__finalize_close()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_parity_auditor_pending_peers_read_cache_and_repo_locator()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_issue_turn_lib_session_scope_and_pending_peers()`
 	def find(self) -> list[str]:
 		r: list[str] = []

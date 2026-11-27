@@ -2,8 +2,8 @@
 from __future__ import annotations
 from pathlib import Path
 from urllib.parse import urldefrag, urlsplit
+from Df.Harness.lib.research import MAX_BYTES
 from agent_tools.evidence_loader import load_observation_bundle
-from agent_tools.research import MAX_BYTES
 import json
 import re
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382

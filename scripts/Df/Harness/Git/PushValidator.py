@@ -9,6 +9,7 @@ from Df.Harness.lib.shell import dfh_normalize_commit_message, dfh_parse_issue_u
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class PushValidator:
 	# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.verify_write_invocation()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_push_validator_commit_msg_file_and_specs()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_helper_branches_audit_and_tags()`
 	def __init__(self, gate) -> None:
 		self.__gate = gate
@@ -55,6 +56,7 @@ class PushValidator:
 				if is_agent:
 					self.__gate.verify_agent_staged(clean, message=msg, use_index=not bool(pathspecs))
 	# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.verify_write_invocation()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_push_validator_commit_msg_file_and_specs()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_helper_branches_audit_and_tags()`
 	def validate(self, argv: list[str] | tuple[str, ...], *, subcommand: str | None=None, cwd: Path | None=None, agent_context: bool | None=None) -> None:
 		cmd_name = subcommand if None is not subcommand else ShellInspector().classify_git_argv(argv)[0]

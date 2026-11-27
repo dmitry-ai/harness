@@ -13,6 +13,7 @@ class IssueFirstEvaluator:
 	# @used-by :func:`agent_tools.issue_first_gate.evaluate_issue_first_events()`
 	# @used-by :meth:`Df.Harness.Issue.IssueFirstPreToolEvaluator.IssueFirstPreToolEvaluator.__check_pending_target()`
 	# @used-by :meth:`Df.Harness.Issue.IssueFirstPreToolEvaluator.IssueFirstPreToolEvaluator.evaluate()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_issue_first_pretool_evaluator_bg_scanner_and_var_match()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_issue_first_evaluator_inheritor_and_pretool()`
 	def __init__(self, events: list[dict] | tuple[dict, ...] | None, *, requests: list | tuple | None=None, project_root: Path | None=None) -> None:
 		self.__events = events or ()
@@ -245,6 +246,7 @@ class IssueFirstEvaluator:
 	# @used-by :func:`agent_tools.issue_first_gate.evaluate_issue_first_events()`
 	# @used-by :meth:`Df.Harness.Issue.IssueFirstPreToolEvaluator.IssueFirstPreToolEvaluator.__check_pending_target()`
 	# @used-by :meth:`Df.Harness.Issue.IssueFirstPreToolEvaluator.IssueFirstPreToolEvaluator.evaluate()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_issue_first_pretool_evaluator_bg_scanner_and_var_match()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_issue_first_evaluator_inheritor_and_pretool()`
 	def evaluate(self) -> dict:
 		self.__collect_known_repos()

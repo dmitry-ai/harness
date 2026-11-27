@@ -230,6 +230,7 @@ class Tier0Index:
 	# @used-by :func:`agent_tools.source_grounding.discover_entity_tier0_sources()`
 	# @used-by :func:`agent_tools.source_grounding.sync_fact_ledger()`
 	# @used-by :meth:`Df.Harness.Grounding.LocalSourceAuditor.LocalSourceAuditor.__init__()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_locale_problem_track_scope_deferral_tier0_and_facade()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_response_auditor_ingestor_and_tier0_index()`
 	# @used-by :meth:`test_source_grounding.SourceGroundingRefactorTests.test_tier0_source_index_schema_upgrade_and_single_read()`
 	@classmethod
@@ -317,6 +318,7 @@ class Tier0Index:
 			r = path.as_posix()
 		return r
 	# @used-by :func:`agent_tools.source_grounding._get_tier0_file_entry()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_locale_problem_track_scope_deferral_tier0_and_facade()`
 	def seed_entries(self, mem_idx: dict[str, dict]) -> None:
 		self.entries = mem_idx
 		_TIER0_INDEX_CACHE[self.root_key] = mem_idx

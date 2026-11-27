@@ -12,6 +12,7 @@ class NumberedParser:
 	# @used-by :meth:`Df.Harness.Text.Article.Linter.Linter.lint()`
 	# @used-by :meth:`Df.Harness.Text.Article.Renderer.Renderer.render()`
 	# @used-by :meth:`Df.Harness.Text.Article.SourceExporter.SourceExporter.export()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_text.DfHarnessS11Wave2CCovTextTests.test_article_linter_structure_source_exporter_and_sections()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_article_subsystem_roundtrip_and_audit()`
 	def __init__(self, lines: list[Line], findings: list[Finding] | None=None) -> None:
 		self.__lines = lines
@@ -44,6 +45,7 @@ class NumberedParser:
 	# @used-by :meth:`Df.Harness.Text.Article.Linter.Linter.lint()`
 	# @used-by :meth:`Df.Harness.Text.Article.Renderer.Renderer.render()`
 	# @used-by :meth:`Df.Harness.Text.Article.SourceExporter.SourceExporter.export()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_text.DfHarnessS11Wave2CCovTextTests.test_article_linter_structure_source_exporter_and_sections()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_docs.DfHarnessS11Wave2CTextDocsTests.test_article_subsystem_roundtrip_and_audit()`
 	def parse(self) -> list[Section]:
 		r, by_key, roots = ([], {}, {})

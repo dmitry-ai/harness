@@ -75,6 +75,7 @@ def dfh_immutable_text(path: Path, payload: bytes) -> Path:
 def dfh_read_json_sig(path) -> dict:
 	return json.loads(Path(path).read_text(encoding='utf-8-sig'))
 # @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__workspace_handlers()`
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_text.DfHarnessS11Wave2CCovTextTests.test_cli_runner_source_render_and_text_helpers()`
 # @used-by :meth:`test_text_integration.TextReviewTests.test_independent_routine_verdict_apply_and_exact_journal()`
 def dfh_record_text_answer(root, journal, requests, response, turn) -> dict:
 	from agent_tools.journal import record_answer as save

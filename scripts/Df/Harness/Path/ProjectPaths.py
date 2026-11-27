@@ -546,6 +546,14 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_harness_s11_wave2b_xref`
 	# @used-by :mod:`test_df_harness_s11_wave2b`
 	# @used-by :mod:`test_df_harness_s11_wave2c_browser`
+	# @used-by :mod:`test_df_harness_s11_wave2c_cov_browser`
+	# @used-by :mod:`test_df_harness_s11_wave2c_cov_git`
+	# @used-by :mod:`test_df_harness_s11_wave2c_cov_grounding`
+	# @used-by :mod:`test_df_harness_s11_wave2c_cov_issues_a`
+	# @used-by :mod:`test_df_harness_s11_wave2c_cov_issues_b`
+	# @used-by :mod:`test_df_harness_s11_wave2c_cov_research`
+	# @used-by :mod:`test_df_harness_s11_wave2c_cov_tail`
+	# @used-by :mod:`test_df_harness_s11_wave2c_cov_text`
 	# @used-by :mod:`test_df_harness_s11_wave2c_cross_wave`
 	# @used-by :mod:`test_df_harness_s11_wave2c_git`
 	# @used-by :mod:`test_df_harness_s11_wave2c_grounding`
@@ -734,6 +742,7 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Text.IntakeSourceEvaluator.IntakeSourceEvaluator.__load_verified_project_state()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 	# @used-by :meth:`Df.Harness.Workflow.WorkflowResumer.WorkflowResumer.__apply()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_tail.DfHarnessS11Wave2CCovTailTests.test_grounding_ingestor_kb_membership_and_locale_fallback()`
 	@property
 	def project_json(self) -> Path:
 		return Path(self.paths_str['project_json'])

@@ -131,6 +131,7 @@ def dfh_parse_explicit_items(text: str) -> tuple[list[tuple[str, str]], list[tup
 # @used-by :func:`agent_tools.statements._parse_section_items()`
 # @used-by :meth:`Df.Harness.Grounding.DfAnalysisValidator.DfAnalysisValidator.__check_problem_sections()`
 # @used-by :meth:`Df.Harness.Grounding.ScatterBannerAuditor.ScatterBannerAuditor.__collect_candidates()`
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_df_analysis_validator_general_and_section_lists()`
 def dfh_parse_section_items(body: str) -> list[tuple[str, str]]:
 	masked = dfh_mask_fenced_lines(body)
 	levels = [len(m.group(1)) for _, raw, fenced in masked if (not fenced) and (m := _SUBHEAD_RE.match(raw.strip()))]

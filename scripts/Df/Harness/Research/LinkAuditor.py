@@ -12,6 +12,8 @@ import re
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class LinkAuditor:
 	# @used-by :func:`agent_tools.links.validate_file()`
+	# @used-by :meth:`Df.Harness.Git.CommitVerifier.CommitVerifier.__check_markdown()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_research.DfHarnessS11Wave2CCovResearchTests.test_link_auditor_and_observation_bundle_scanner()`
 	def __init__(self, file_path: Path, **options) -> None:
 		self.__file_path = Path(file_path)
 		self.__options = options
@@ -177,6 +179,8 @@ class LinkAuditor:
 			errors.extend(cls.readable_link_issues(content))
 		return errors
 	# @used-by :func:`agent_tools.links.validate_file()`
+	# @used-by :meth:`Df.Harness.Git.CommitVerifier.CommitVerifier.__check_markdown()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_research.DfHarnessS11Wave2CCovResearchTests.test_link_auditor_and_observation_bundle_scanner()`
 	def validate_file(self) -> list[str]:
 		file_path = self.__file_path
 		try:

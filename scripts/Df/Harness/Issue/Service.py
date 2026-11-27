@@ -25,6 +25,8 @@ class Service:
 	__dump_fn = None
 	__verify_fn = None
 	# @used-by :func:`agent_tools.github_issue._service()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_acceptance_gate_and_batch_runner_close_and_subparsers()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_service_all_commands_and_evidence_workspace()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_batch_runner_repo_auditor_and_transfer_runner()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_service_metadata_prepender_and_comment_validators()`
 	def __init__(self, *, api_fn=None, linter: Linter | None=None, workspace: EvidenceWorkspace | None=None, conversation_id: str | None=None) -> None:
@@ -223,10 +225,12 @@ class Service:
 	def call_api(self, endpoint: str, *, method: str='GET', payload: dict[str, Any] | None=None, paginate: bool=False) -> Any:
 		return self.__api(endpoint, method=method, payload=payload, paginate=paginate)
 	# @used-by :func:`agent_tools.github_issue.cmd_audit_repo()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_service_all_commands_and_evidence_workspace()`
 	def cmd_audit_repo(self, args: argparse.Namespace) -> int:
 		return RepoAuditor(self.__api, self.linter, args).audit()
 	# @used-by :func:`agent_tools.github_issue.cmd_close()`
 	# @used-by :meth:`test_addon_observability.AddonObservabilityTests.test_close_blocks_antigravity_addons_when_companion_unhealthy()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_service_all_commands_and_evidence_workspace()`
 	# @used-by :meth:`test_issue_decomposition.IssueDecompositionTests.test_service_cmd_close_routes_through_module_gh_api_and_checks_readback()`
 	# @used-by :meth:`test_polyglot_land.PolyglotLandTests.test_close_blocks_on_unhealthy_repo_health_command()`
 	def cmd_close(self, args: argparse.Namespace) -> int:
@@ -241,6 +245,7 @@ class Service:
 			r = 2 if not comment_ok else self.__finalize_close(args, repo, number, comment_id, code_repo, consumable, project_root)
 		return r
 	# @used-by :func:`agent_tools.github_issue.cmd_comment()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_service_all_commands_and_evidence_workspace()`
 	def cmd_comment(self, args: argparse.Namespace) -> int:
 		repo = self.linter.validate_repo(args.repo)
 		b_path, b_raw, body = self.linter.read_utf8_no_bom_file(args.body_file)
@@ -254,6 +259,7 @@ class Service:
 			r = self.run_verified_mutation(action='comment', repo=repo, consumable=consumable, target_locale=target_locale, container_text=container_text, expected_title=None, expected_body=body, write_fn=lambda: self.__write_comment(args, repo, body), read_fn=lambda cid: self.__api(f'repos/{repo}/issues/comments/{cid}', method='GET'), kind='comment', id_key='comment_id', consume_input=args.consume_input, project_root=project_root)
 		return r
 	# @used-by :func:`agent_tools.github_issue.cmd_create()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_service_all_commands_and_evidence_workspace()`
 	def cmd_create(self, args: argparse.Namespace) -> int:
 		repo, consumable = (self.linter.validate_repo(args.repo), [])
 		target_locale, project_root = (getattr(args, 'target_locale', 'en-US') or 'en-US', getattr(args, 'project_root', None))
@@ -273,6 +279,7 @@ class Service:
 			r = self.__execute_create(args, repo, title, body, eff_parent, consumable, target_locale, project_root)
 		return r
 	# @used-by :func:`agent_tools.github_issue.cmd_edit()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_service_all_commands_and_evidence_workspace()`
 	def cmd_edit(self, args: argparse.Namespace) -> int:
 		repo, number, consumable = (self.linter.validate_repo(args.repo), args.issue, [])
 		target_locale, project_root = (getattr(args, 'target_locale', 'en-US') or 'en-US', getattr(args, 'project_root', None))
@@ -289,12 +296,15 @@ class Service:
 			r = self.__execute_edit(args, repo, number, title, body, parent_num, active_parent, eff_parent, consumable, target_locale, project_root)
 		return r
 	# @used-by :func:`agent_tools.github_issue.cmd_fetch()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_service_all_commands_and_evidence_workspace()`
 	def cmd_fetch(self, args: argparse.Namespace) -> int:
 		return IssueFetcher(self, args).fetch()
 	# @used-by :func:`agent_tools.github_issue.cmd_lint()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_service_all_commands_and_evidence_workspace()`
 	def cmd_lint(self, args: argparse.Namespace) -> int:
 		return IssueLintRunner(self.linter, args).run()
 	# @used-by :func:`agent_tools.github_issue.cmd_transfer_repo()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_service_all_commands_and_evidence_workspace()`
 	def cmd_transfer_repo(self, args: argparse.Namespace) -> int:
 		return RepoTransferRunner(self.__api, self.linter, self.workspace, args).transfer()
 	# @used-by :meth:`Service.__execute_create()`

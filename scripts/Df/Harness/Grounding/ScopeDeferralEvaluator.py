@@ -9,6 +9,7 @@ _EXPLICIT_STOP_CONSENT_RE = re.compile(r'(?i)(?:stop\s+(?:the|this)\s+turn|end\s
 class ScopeDeferralEvaluator:
 	# @used-by :func:`agent_tools.scope_deferral.evaluate_scope_deferral()`
 	# @used-by :meth:`ScopeDeferralEvaluator.check_runner()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_locale_problem_track_scope_deferral_tier0_and_facade()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_locale_verifier_probability_and_scope_deferral()`
 	def __init__(self, turn: dict[str, Any] | None, turn_state: dict[str, Any] | None, lifecycle_chk: dict[str, Any] | None, response: str | None=None, *, blocked_report: bool=False) -> None:
 		self.__turn = turn
@@ -71,6 +72,7 @@ class ScopeDeferralEvaluator:
 		if not chk['verified']:
 			runner._fail_gate('scope_deferral', '; '.join(chk['violations']))
 	# @used-by :func:`agent_tools.scope_deferral.evaluate_scope_deferral()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_locale_problem_track_scope_deferral_tier0_and_facade()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_locale_verifier_probability_and_scope_deferral()`
 	def evaluate(self) -> dict[str, Any]:
 		deferred = [d for d in ((self.__lifecycle_chk or {}).get('deferred_children') or ()) if isinstance(d, dict)]

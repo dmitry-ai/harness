@@ -11,6 +11,7 @@ from agent_tools.runtime import settings
 class AnchorStatusChecker:
 	# @used-by :func:`agent_tools.text_browser.browser_anchor_status()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_browser.DfHarnessS11Wave2CBrowserTests.test_preflight_guarded_cdp_tab_broker_and_collectors()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_anchor_status_preflight_ext_sentinel_and_lib_helpers()`
 	def __init__(self, *, session_id=None, init_sentinel_tab=None, config=None, http_get=None, cdp_call=None):
 		self.__cfg = settings() if None is config else deepcopy(config)
 		self.__sid = session_id or self.__cfg.get('text', {}).get('browser', {}).get('primary_session_id') or 'chrome-default'
@@ -36,6 +37,7 @@ class AnchorStatusChecker:
 		return r
 	# @used-by :func:`agent_tools.text_browser.browser_anchor_status()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_browser.DfHarnessS11Wave2CBrowserTests.test_preflight_guarded_cdp_tab_broker_and_collectors()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_anchor_status_preflight_ext_sentinel_and_lib_helpers()`
 	def check(self) -> dict:
 		session = dfh_session({'session_id': self.__sid}, self.__cfg)
 		prof_cfg = session.get('profile', {})

@@ -12,6 +12,7 @@ READ_SUBCOMMANDS = ('status', 'diff', 'log', 'rev-parse', 'show', 'ls-files')
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class GitReadAudit:
 	# @used-by :meth:`Df.Harness.Git.ShellInspector.ShellInspector.unflagged_git_read_commands()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_git_read_audit_unquote_and_tag_selector()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_shell_audit_single_class_modules_and_facade()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_helper_branches_audit_and_tags()`
 	def __init__(self, text: str) -> None:
@@ -51,6 +52,7 @@ class GitReadAudit:
 			r = token[1:-1].replace('\\"', '"').replace("\\'", "'").replace('\\\\', '\\')
 		return r
 	# @used-by :meth:`Df.Harness.Git.ShellInspector.ShellInspector.unflagged_git_read_commands()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_git.DfHarnessS11Wave2CCovGitTests.test_git_read_audit_unquote_and_tag_selector()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_shell_audit_single_class_modules_and_facade()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_helper_branches_audit_and_tags()`
 	def detect(self) -> list[str]:

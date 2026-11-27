@@ -20,6 +20,8 @@ class GuardedCdp:
 	# @used-by :meth:`Df.Harness.Text.Browser.CdpDomCollector.CdpDomCollector.collect()`
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.extract()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_browser.DfHarnessS11Wave2CBrowserTests.test_preflight_guarded_cdp_tab_broker_and_collectors()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_guarded_cdp_create_select_call_and_tab_broker()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_research.DfHarnessS11Wave2CCovResearchTests.test_dom_capturer_and_network_link_checker_fetch()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_cross_wave.DfHarnessS11Wave2CCrossWaveTests.test_link_audit_accepts_wave2c_call_sites_and_guarded_cdp_class_seam()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.guard()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.test_m2a_extension_manifest_key_and_multi_profile_tab_broker_isolation()`
@@ -170,6 +172,7 @@ class GuardedCdp:
 			raise PermissionError('Caller-supplied CDP context/session routing is unsupported')
 		if 'navigate' == op and 'Page.navigate' == method and (not any((fnmatchcase(params.get('url', ''), p) for p in self.session['target_url_patterns']))):
 			raise PermissionError('Navigation URL is outside the authorized session')
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_guarded_cdp_create_select_call_and_tab_broker()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.test_m2a_extension_manifest_key_and_multi_profile_tab_broker_isolation()`
 	def call(self, method, params=None, *, include_identity=False):
 		params = deepcopy(params or {})
@@ -206,6 +209,7 @@ class GuardedCdp:
 			id_ref, id_hash = dfh_save_cdp_identity(self.root, {'schema_version': 1, 'observed_at': datetime.now(timezone.utc).isoformat(timespec='microseconds'), 'session_id': self.spec['session_id'], 'endpoint': endpoint, 'browser': report['browser']['product'], 'browser_websocket': browser_ws, 'target_id': target_id, 'target_mode': target_mode, 'closed_after_capture': closed, 'profile': report['profile']})
 			r = {'url': data.get('url') or url, 'html': data['html'], 'title': data.get('title') or '', 'target_id': target_id, 'target_mode': target_mode, 'closed_after_capture': closed, 'cdp_identity': id_ref, 'cdp_identity_sha256': id_hash, 'endpoint': endpoint}
 		return r
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_guarded_cdp_create_select_call_and_tab_broker()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.test_only_real_created_target_can_be_mutated_and_ownership_change_stops_close()`
 	def create_target(self, url, *, background=False, hidden=False):
 		if 'browser' != self.session['surface']:
@@ -229,6 +233,7 @@ class GuardedCdp:
 		with self.__lock():
 			r = self.__check(require_target=require_target)
 		return r
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_browser.DfHarnessS11Wave2CCovBrowserTests.test_guarded_cdp_create_select_call_and_tab_broker()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.test_only_real_created_target_can_be_mutated_and_ownership_change_stops_close()`
 	def select_owned(self, identifier):
 		with self.__lock():

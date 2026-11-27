@@ -15,6 +15,7 @@ class AcceptanceGate:
 	# @used-by :func:`agent_tools.issues.acceptance_gate.check_close_acceptance_receipt()`
 	# @used-by :func:`agent_tools.issues.acceptance_gate.check_close_readiness()`
 	# @used-by :meth:`Df.Harness.Issue.Service.Service.__check_close_commit_readiness()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_acceptance_gate_and_batch_runner_close_and_subparsers()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_service_metadata_prepender_and_comment_validators()`
 	def __init__(self, code_repo: Path | None, repo: str, number: int, *, project_root: str | Path | None=None) -> None:
 		self.__code_repo = code_repo
@@ -86,6 +87,7 @@ class AcceptanceGate:
 		return (err, stage)
 	# @used-by :func:`agent_tools.issues.acceptance_gate.check_close_readiness()`
 	# @used-by :meth:`Df.Harness.Issue.Service.Service.__check_close_commit_readiness()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_a.DfHarnessS11Wave2CCovIssuesATests.test_acceptance_gate_and_batch_runner_close_and_subparsers()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_service_metadata_prepender_and_comment_validators()`
 	def check_readiness(self, workspace, args, consumable: list[tuple[Path, bytes]], *, verify_fn=None, is_tracked_fn=None) -> tuple[Path | None, str | None, str]:
 		from agent_tools.addon_observability import check_close_companion_health

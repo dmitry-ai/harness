@@ -127,6 +127,7 @@ def dfh_gh_api_call(endpoint: str, *, method: str='GET', payload: dict[str, Any]
 # @used-by :func:`agent_tools.issue_first_gate.is_df_github_issue_command()`
 # @used-by :meth:`Df.Harness.Issue.BgTaskRecorder.BgTaskRecorder.__record_seg_issues()`
 # @used-by :meth:`Df.Harness.Issue.IssueFirstPreToolEvaluator.IssueFirstPreToolEvaluator.build_issue_action_events()`
+# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_issue_first_pretool_evaluator_bg_scanner_and_var_match()`
 # @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_bg_scanner_recorder_and_issue_lib_helpers()`
 def dfh_is_df_issue_command_text(cmd: str, direct_re=None) -> bool:
 	pat = direct_re if None is not direct_re else _DF_ISSUE_CMD_RE

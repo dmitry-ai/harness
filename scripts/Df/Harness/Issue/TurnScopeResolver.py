@@ -6,6 +6,7 @@ import os
 class TurnScopeResolver:
 	# @used-by :func:`agent_tools.issues.turn_scope.select_target_open_turns()`
 	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.record_issue_in_open_turns()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_turn_auditor_scope_completeness_and_turn_scope_resolver()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_issue_turn_lib_session_scope_and_pending_peers()`
 	def __init__(self, open_files: list[tuple[Path, str, str]], active_plat: str, active_cid: str, *, env: dict[str, str] | None=None) -> None:
 		self.__open_files = open_files
@@ -36,6 +37,7 @@ class TurnScopeResolver:
 		return r
 	# @used-by :func:`agent_tools.issues.turn_scope.select_target_open_turns()`
 	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.record_issue_in_open_turns()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_turn_auditor_scope_completeness_and_turn_scope_resolver()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_issue_turn_lib_session_scope_and_pending_peers()`
 	def select(self) -> tuple[list[Path], str, str]:
 		if not self.__active_cid:
