@@ -52,7 +52,7 @@ def create_bytes(path: Path, data: bytes):
 # @used-by :meth:`test_portability.ProjectionTests.test_shared_generation_uses_one_owner_across_projects_and_profile_install()`
 def data_dir_for(path: Path, *, exact_root: bool=False) -> Path:
 	return dfh_data_dir_for(path, exact_root=exact_root)
-# @used-by :func:`agent_tools.issues.service_helpers._decode_gh_stdout()`
+# @used-by :func:`Df.Harness.lib.issue._decode_gh_stdout()`
 # @used-by :meth:`Df.Harness.Experiment.NativeGeoExtractor.NativeGeoExtractor.extract_country()`
 # @used-by :meth:`Df.Harness.Experiment.PreregistrationAuditor.PreregistrationAuditor.__is_plan_commit()`
 def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=True):
@@ -78,6 +78,7 @@ def journal_data_dir_for(eff: Path) -> Path:
 # @used-by :meth:`Df.Harness.Git.LandingLease.LandingLease.__try_once()`
 # @used-by :meth:`Df.Harness.Git.LandingLease.LandingLease.__unqueue()`
 # @used-by :meth:`Df.Harness.Git.LandingLease.LandingLease.release()`
+# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.__update_single_turn_locked()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__append_executor_receipt()`
 # @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.sync()`
 # @used-by :meth:`Df.Harness.Project.Context.ContextGenerator.ContextGenerator.generate()`
@@ -91,7 +92,6 @@ def journal_data_dir_for(eff: Path) -> Path:
 # @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.resolve_or_create()`
 # @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.initialize()`
 # @used-by :meth:`Df.Harness.Workflow.StateUpdater.StateUpdater.update()`
-# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._update_single_turn_locked()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.apply()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.begin()`
 # @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.verify()`
@@ -137,6 +137,9 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :meth:`Df.Harness.Git.GlobalIgnoreSyncer.GlobalIgnoreSyncer.__write_verified()`
 # @used-by :meth:`Df.Harness.Git.LandingLease.LandingLease.__save()`
 # @used-by :meth:`Df.Harness.Git.WorktreeExcludeManager.WorktreeExcludeManager.__append_pattern()`
+# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.__update_single_turn_locked()`
+# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.persist_issue_evidence()`
+# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.persist_repo_transfer_evidence()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__append_executor_receipt()`
 # @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.sync()`
 # @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__write_files()`
@@ -164,9 +167,6 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 # @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__load_and_prepare_fs()`
 # @used-by :meth:`Df.Harness.Workflow.StateUpdater.StateUpdater.update()`
-# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._update_single_turn_locked()`
-# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.persist_issue_evidence()`
-# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.persist_repo_transfer_evidence()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.apply()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.save_index()`
 # @used-by :meth:`test_analysis_workflow.PublicationTests.test_interrupted_state_write_preserves_published_output_for_recovery()`

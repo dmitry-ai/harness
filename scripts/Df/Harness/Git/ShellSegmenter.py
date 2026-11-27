@@ -5,6 +5,7 @@ _SEPARATORS = frozenset({';', '\r', '\n', '&&', '||', '|'})
 _TOKEN_RE = re.compile(r'("(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|&&|\|\||[;\|\r\n]|[^"\'\s;\|\&]+|\s+)')
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class ShellSegmenter:
+	# @used-by :func:`Df.Harness.lib.issue.dfh_is_df_issue_command_text()`
 	# @used-by :func:`agent_tools.shell_audit._split_shell_segments()`
 	# @used-by :meth:`Df.Harness.Git.CdpBypassAudit.CdpBypassAudit.detect()`
 	# @used-by :meth:`Df.Harness.Git.GitSegmentExtractor.GitSegmentExtractor.extract()`
@@ -23,6 +24,9 @@ class ShellSegmenter:
 	# @used-by :func:`Df.Harness.lib.hook_runtime_ops.dfh_scan_doc4_sentence_issues()`
 	# @used-by :func:`Df.Harness.lib.hook_subagent_ops._process_row_message()`
 	# @used-by :func:`Df.Harness.lib.hook_verif_ops.dfh_is_shadow_replay_cmd()`
+	# @used-by :func:`Df.Harness.lib.issue.dfh_build_create_payload()`
+	# @used-by :func:`Df.Harness.lib.issue.dfh_is_df_issue_command_text()`
+	# @used-by :func:`Df.Harness.lib.issue.dfh_is_excluded_meta_rel()`
 	# @used-by :func:`Df.Harness.lib.path_template.dfh_glob_parent_stat()`
 	# @used-by :func:`Df.Harness.lib.path_template.dfh_normalize_path_str()`
 	# @used-by :func:`Df.Harness.lib.rule_splitter._partition_rule_sections()`
@@ -35,15 +39,6 @@ class ShellSegmenter:
 	# @used-by :func:`agent_tools.evidence.contains_quote()`
 	# @used-by :func:`agent_tools.grounding_domains.extract_domain_entities()`
 	# @used-by :func:`agent_tools.grounding_helpers.audit_block_lines()`
-	# @used-by :func:`agent_tools.issue_first_gate._is_excluded_meta_rel()`
-	# @used-by :func:`agent_tools.issues.git_read_cache._extract_diff_header_path()`
-	# @used-by :func:`agent_tools.issues.git_read_cache._parse_log_index()`
-	# @used-by :func:`agent_tools.issues.git_read_cache._parse_porcelain_z_entries()`
-	# @used-by :func:`agent_tools.issues.git_read_cache._read_head_oid()`
-	# @used-by :func:`agent_tools.issues.git_read_cache._read_packed_ref()`
-	# @used-by :func:`agent_tools.issues.git_read_cache._resolve_git_dir()`
-	# @used-by :func:`agent_tools.issues.repo_commands.run_transfer_repo()`
-	# @used-by :func:`agent_tools.issues.service_helpers.build_create_payload()`
 	# @used-by :func:`agent_tools.proposal._check_references()`
 	# @used-by :func:`agent_tools.proposal._parent_name()`
 	# @used-by :func:`agent_tools.proposal.parse_blocks()`
@@ -96,6 +91,15 @@ class ShellSegmenter:
 	# @used-by :meth:`Df.Harness.Git.WorktreeCommandGuard.WorktreeCommandGuard.__has_managed_delete()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeCommandGuard.WorktreeCommandGuard.check()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeExcludeManager.WorktreeExcludeManager.__tracked_entries()`
+	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.has_enumerated_slop_title()`
+	# @used-by :meth:`Df.Harness.Issue.ReadCache.ReadCache.__extract_diff_header_path()`
+	# @used-by :meth:`Df.Harness.Issue.ReadCache.ReadCache.__parse_log_index()`
+	# @used-by :meth:`Df.Harness.Issue.ReadCache.ReadCache.__read_head_oid()`
+	# @used-by :meth:`Df.Harness.Issue.ReadCache.ReadCache.__read_packed_ref()`
+	# @used-by :meth:`Df.Harness.Issue.ReadCache.ReadCache.__resolve_git_dir()`
+	# @used-by :meth:`Df.Harness.Issue.ReadCache.ReadCache.find_commit_for_issue()`
+	# @used-by :meth:`Df.Harness.Issue.ReadCache.ReadCache.parse_porcelain_z_entries()`
+	# @used-by :meth:`Df.Harness.Issue.RepoTransferRunner.RepoTransferRunner.transfer()`
 	# @used-by :meth:`Df.Harness.Path.CacheStore.CacheStore.__linked_worktree_main_repo()`
 	# @used-by :meth:`Df.Harness.Project.DriftAuditor.DriftAuditor.audit()`
 	# @used-by :meth:`Df.Harness.Project.LabelStateUpdater.LabelStateUpdater.update()`
@@ -143,8 +147,6 @@ class ShellSegmenter:
 	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.__resolve_module_attr_in_repo()`
 	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.is_valid_external_target()`
 	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.resolve_stdlib_symbol()`
-	# @used-by :meth:`agent_tools.issues.git_read_cache.RepoReadCache.find_commit_for_issue()`
-	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter.has_enumerated_slop_title()`
 	# @used-by :meth:`agent_tools.research.HTMLData.handle_endtag()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_external_refs()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._extract_markdown_refs()`

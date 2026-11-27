@@ -4,7 +4,7 @@ from pathlib import Path
 # 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
 from Df.Harness.Tdd.Exemption import Exemption
 from . import diff_executability
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._inspect_touched_code_file()`
+# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.inspect_touched_code_file()`
 # @used-by :mod:`agent_tools.tdd.exemption`
 def filter_repo_turn_issue_urls(comment_urls: set[str], turn_issues: dict, repo_slug: str | None) -> list[str]:
 	return Exemption.filter_repo_turn_issue_urls(comment_urls, turn_issues, repo_slug)
@@ -13,7 +13,7 @@ def filter_repo_turn_issue_urls(comment_urls: set[str], turn_issues: dict, repo_
 # @used-by :mod:`agent_tools.tdd`
 def is_diff_exempt(path: str | Path, old_text: str | None, new_text: str | None, *, repo_root: Path | None=None, message: str | None=None, project_root: Path | None=None) -> bool:
 	return diff_executability.is_non_executable_diff(path, old_text, new_text, repo_root=repo_root, message=message, project_root=project_root)
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._inspect_touched_code_file()`
+# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.inspect_touched_code_file()`
 # @used-by :mod:`agent_tools.tdd.exemption`
 # @used-by :mod:`agent_tools.tdd_gate`
 # @used-by :mod:`agent_tools.tdd`

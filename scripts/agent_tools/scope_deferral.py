@@ -77,8 +77,8 @@ def evaluate_scope_deferral(turn: dict[str, Any] | None, turn_state: dict[str, A
 		if None is not response and (not _has_deferral_disclosure(response)):
 			violations.append(f'SCOPE-2 deferral disclosure violation: response leaves open deferred child issue(s) ({urls_str}) without explicitly stating the deferral rationale and citing user confirmation or blocker')
 	return {'verified': not violations, 'deferred_children': deferred, 'stop_consent': consent, 'violations': violations}
-# @used-by :func:`agent_tools.issues.scope_completeness.flag_parent_and_deferred_children()`
 # @used-by :func:`evaluate_scope_deferral()`
+# @used-by :meth:`Df.Harness.Issue.ScopeCompletenessChecker.ScopeCompletenessChecker.check()`
 def find_explicit_stop_consent(turn: dict[str, Any] | None, turn_state: dict[str, Any] | None=None) -> dict[str, Any] | None:
 	r: dict[str, Any] | None = None
 	for item, ans_id, ans_text in _iter_clarification_answers(_collect_clarifications(turn, turn_state)):

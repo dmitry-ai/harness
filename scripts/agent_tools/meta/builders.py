@@ -8,14 +8,14 @@ from Df.Harness.Meta.Builders import Builders
 # "Decompose metadata.py into modular metadata collection package":
 # https://github.com/dmitry-ai/harness/issues/170
 # 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
-# @used-by :func:`agent_tools.issues.turn_scope._resolve_antigravity_parent_cid()`
+# @used-by :meth:`Df.Harness.Issue.TurnScopeResolver.TurnScopeResolver.__resolve_antigravity_parent_cid()`
 def _collect_ag_issue_ctx(environ: dict[str, str], active_cid: str) -> dict[str, Any]:
 	return Builders.collect_ag_issue_ctx(environ, active_cid)
-# @used-by :func:`agent_tools.issues.turn_scope.detect_active_session()`
+# @used-by :meth:`Df.Harness.Issue.SessionDetector.SessionDetector.detect()`
 def _detect_env_platform(environ: dict[str, str]) -> tuple[str | None, str | None, int | None]:
 	return Builders.detect_env_platform(environ)
 # @used-by :meth:`Df.Harness.Cleanup.AuditLogger.AuditLogger.run()`
-# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._prepend_issue_metadata()`
+# @used-by :meth:`Df.Harness.Issue.IssueMetadataPrepender.IssueMetadataPrepender.prepend()`
 # @used-by :meth:`test_metadata.MetadataFormattingAndCollectionTests.test_build_github_issue_metadata_live_env_child_subagent_and_standalone()`
 # @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_builders_honor_facade_monkeypatch_seam_and_match_metadata_parity()`
 # @used-by :mod:`agent_tools.meta`

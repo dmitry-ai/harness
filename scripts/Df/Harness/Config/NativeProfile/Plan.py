@@ -51,14 +51,13 @@ class Plan:
 	# @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_plan_codex_link()`
 	# @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_retire_profile_roles()`
 	# @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_retire_profile_skills()`
-	# @used-by :func:`agent_tools.issues.comment_grounding.check_comment_preflight()`
-	# @used-by :func:`agent_tools.issues.repo_commands.run_fetch()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_check()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_prepare()`
+	# @used-by :meth:`Df.Harness.Issue.CommentGrounder.CommentGrounder.check_preflight()`
+	# @used-by :meth:`Df.Harness.Issue.Service.Service.__write_comment()`
+	# @used-by :meth:`Df.Harness.Issue.Service.Service.cmd_close()`
+	# @used-by :meth:`Df.Harness.Issue.Service.Service.cmd_edit()`
 	# @used-by :meth:`Plan.file()`
-	# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_close()`
-	# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_comment()`
-	# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_edit()`
 	# @used-by :meth:`test_df_harness_s11_wave2d.DfHarnessS11Wave2DTests.test_config_and_native_profile_classes()`
 	def issue(self, path, message) -> None:
 		self.issues.append({'file': str(path), 'message': message})

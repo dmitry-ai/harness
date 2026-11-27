@@ -206,10 +206,6 @@ class AntigravityContinuationTests(ProjectCase):
 	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_rules_audit()`
 	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_shadow_replay()`
 	# @used-by :func:`agent_tools.issues.comment_grounding.check_comment_preflight()`
-	# @used-by :func:`agent_tools.issues.comment_grounding.validate_close_comment()`
-	# @used-by :func:`agent_tools.issues.repo_commands.run_fetch()`
-	# @used-by :func:`agent_tools.issues.scope_completeness._flag_unclosed_parent()`
-	# @used-by :func:`agent_tools.issues.scope_completeness.find_open_deferred_children()`
 	# @used-by :meth:`AntigravityContinuationTests.test_explicit_upwork_init_binds_generic_workspace_without_rewriting_user_text()`
 	# @used-by :meth:`AntigravityContinuationTests.test_foreign_or_multiple_native_workspaces_cannot_claim_identical_request()`
 	# @used-by :meth:`AntigravityContinuationTests.test_historical_explicit_project_root_receipt_reconciles_without_rewriting_saved_state()`

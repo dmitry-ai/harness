@@ -12,23 +12,23 @@ class IssueWorkflowVerifier:
 	# @used-by :meth:`IssueWorkflowVerifier.__verify_single_url()`
 	@staticmethod
 	def __extract_parent(ev_data: dict, u_slug: str) -> int | None:
-		from agent_tools.github_issue import extract_parent_issue_number
+		from Df.Harness.Issue.Linter import Linter
 		iss_obj = ev_data.get('issue') if isinstance(ev_data.get('issue'), dict) else ev_data
 		raw_p = ev_data.get('parent_number')
 		if not isinstance(raw_p, int) or isinstance(raw_p, bool):
 			raw_p = iss_obj.get('parent_number') if isinstance(iss_obj, dict) else None
 		if not isinstance(raw_p, int) or isinstance(raw_p, bool):
-			raw_p = extract_parent_issue_number(str((iss_obj or {}).get('body') or ''), u_slug)
+			raw_p = Linter.extract_parent_number(str((iss_obj or {}).get('body') or ''), u_slug)
 		return raw_p if isinstance(raw_p, int) and (not isinstance(raw_p, bool)) else None
 	# @used-by :meth:`IssueWorkflowVerifier.__verify_tracked_evidence()`
 	def __verify_single_url(self, proj_root: Path, repo_slug: str, url: str) -> None:
-		from agent_tools.issue_lifecycle import evidence_issue_files
+		from Df.Harness.Issue.EvidenceWorkspace import EvidenceWorkspace
 		parsed = dfh_parse_issue_url(url)
 		if None is not parsed:
 			u_slug, u_num = parsed
 			if u_slug.lower() != repo_slug.lower():
 				raise ValueError(f'EXEC-5 ISSUE-FIRST-GATE: Referenced issue {url} does not match repository {repo_slug}')
-			ev_files = evidence_issue_files(proj_root, u_slug, f'issue-{u_num}.json', candidate_repos=[self.__gate.root])
+			ev_files = EvidenceWorkspace.evidence_issue_files(proj_root, u_slug, f'issue-{u_num}.json', candidate_repos=[self.__gate.root])
 			if not ev_files:
 				raise ValueError(f'EXEC-5 ISSUE-FIRST-GATE: Referenced issue {url} has no saved API read-back Evidence JSON (issue-{u_num}.json); create or fetch the parent issue via df_github_issue.py before writing tests or code')
 			try:
@@ -37,12 +37,12 @@ class IssueWorkflowVerifier:
 				ev_data = None
 			if isinstance(ev_data, dict):
 				parent_num = self.__extract_parent(ev_data, u_slug)
-				if None is not parent_num and parent_num != u_num and (not evidence_issue_files(proj_root, u_slug, f'issue-{parent_num}.json', candidate_repos=[self.__gate.root])):
+				if None is not parent_num and parent_num != u_num and (not EvidenceWorkspace.evidence_issue_files(proj_root, u_slug, f'issue-{parent_num}.json', candidate_repos=[self.__gate.root])):
 					raise ValueError(f'EXEC-5 ISSUE-FIRST-GATE: Child issue {url} references parent #{parent_num}, which has no saved API read-back Evidence JSON (issue-{parent_num}.json)')
 	# @used-by :meth:`IssueWorkflowVerifier.verify()`
 	def __verify_tracked_evidence(self, stripped_msg: str | None, all_new_diff_urls: set[str]) -> None:
-		from agent_tools.issue_lifecycle import origin_repo_slug
-		repo_slug = origin_repo_slug(self.__gate.root)
+		from Df.Harness.Issue.EvidenceWorkspace import EvidenceWorkspace
+		repo_slug = EvidenceWorkspace.origin_repo_slug(self.__gate.root)
 		if repo_slug:
 			urls: list[str] = [stripped_msg] if None is not stripped_msg else []
 			urls.extend((u for u in sorted(all_new_diff_urls) if u not in urls))

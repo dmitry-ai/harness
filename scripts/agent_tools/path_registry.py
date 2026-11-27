@@ -16,7 +16,7 @@ from .path_cache import clear_path_cache, default_runtime_file, get_ttl_overlay_
 _CODE_ANCHOR = resolve_code_anchor(Path(__file__).resolve().parents[2])
 DEFAULT_REGISTRY_FILE = Path(__file__).resolve().parents[2] / 'paths.json'
 # @used-by :func:`_refresh_known_overlay_links()`
-# @used-by :func:`agent_tools.issues.repo_locator._index_discovery_roots()`
+# @used-by :meth:`Df.Harness.Issue.RepoLocator.RepoLocator.__index_discovery_roots()`
 # @used-by :meth:`test_path_registry_perf.PathRegistryPerformanceTests.test_refresh_known_overlay_links_uses_ttl_and_resets_on_clear()`
 def _candidate_discovery_roots(reg: PathRegistry) -> tuple[tuple, tuple[Path, ...]]:
 	return dfh_candidate_discovery_roots(reg)
@@ -30,9 +30,9 @@ def _path_key(value: str | Path) -> str:
 # @used-by :meth:`test_path_registry_perf.PathRegistryPerformanceTests.test_refresh_known_overlay_links_uses_ttl_and_resets_on_clear()`
 def _refresh_known_overlay_links(reg: PathRegistry) -> dict[str, Path]:
 	return dfh_refresh_known_overlay_links(reg, candidate_roots_fn=_candidate_discovery_roots, default_registry_file=DEFAULT_REGISTRY_FILE)
-# @used-by :func:`agent_tools.issues.parity.check_similar_project_parity()`
 # @used-by :func:`agent_tools.text_workflow._roots()`
 # @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.is_issue_tracked()`
+# @used-by :meth:`Df.Harness.Issue.ParityAuditor.ParityAuditor.audit()`
 # @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_github_issue()`
 # @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_journal()`
 # @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_problem()`
@@ -79,7 +79,7 @@ def discover_overlay_file(root: str | Path, *, registry: PathRegistry | None=Non
 # @used-by unused
 def escape_template_literal(value: str) -> str:
 	return dfh_escape_template_literal(value)
-# @used-by :func:`agent_tools.issues.parity.check_similar_project_parity()`
+# @used-by :meth:`Df.Harness.Issue.ParityAuditor.ParityAuditor.audit()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_similar_projects_groups_symmetric_overlays_affiliated_paths_and_validation()`
 def evaluate_similar_project_touches(touched_repo_files: list[Path] | tuple[Path, ...] | set[Path], *, registry: PathRegistry | None=None) -> list[dict[str, Any]]:
 	return SimilarProjectAuditor(touched_repo_files, registry=registry).run()
@@ -95,11 +95,11 @@ def expand_template(template: str, variables: dict[str, str], *, env: dict[str, 
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_is_tracked_workspace_supports_registered_single_projects_and_declarative_opt_outs()`
 def is_tracked_workspace(root: str | Path, *, registry: PathRegistry | None=None, projects_dirs=None) -> tuple[bool, Path]:
 	return dfh_is_tracked_workspace(root, registry=registry, projects_dirs=projects_dirs)
-# @used-by :func:`agent_tools.issues.repo_locator._search_registry_and_roots()`
 # @used-by :func:`agent_tools.research.inside()`
 # @used-by :func:`canonicalize_root_dir()`
 # @used-by :func:`discover_overlay_file()`
 # @used-by :meth:`Df.Harness.Git.VerificationSpecResolver.VerificationSpecResolver.resolve()`
+# @used-by :meth:`Df.Harness.Issue.RepoLocator.RepoLocator.search_registry_and_roots()`
 # @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.audit()`
 # @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.__resolve_indexed()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
@@ -126,17 +126,6 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 # @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
 # @used-by :func:`agent_tools.doc5_replay_audit.audit_local_saved_turns()`
 # @used-by :func:`agent_tools.evidence.source_reference()`
-# @used-by :func:`agent_tools.issue_first_inherit._candidate_project_roots()`
-# @used-by :func:`agent_tools.issues.acceptance_gate._load_acceptance_receipt()`
-# @used-by :func:`agent_tools.issues.comment_grounding._resolve_grounding_root()`
-# @used-by :func:`agent_tools.issues.parity._load_similar_project_exemptions()`
-# @used-by :func:`agent_tools.issues.parity._peer_code_repo_candidates()`
-# @used-by :func:`agent_tools.issues.repo_locator._append_peer_repos()`
-# @used-by :func:`agent_tools.issues.repo_locator._append_project_paths()`
-# @used-by :func:`agent_tools.issues.repo_locator._index_discovery_roots()`
-# @used-by :func:`agent_tools.issues.service_helpers.pending_similar_peer_slugs()`
-# @used-by :func:`agent_tools.issues.service_helpers.resolve_metadata_project_root()`
-# @used-by :func:`agent_tools.issues.turn_scope._candidate_turns_dirs()`
 # @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
 # @used-by :func:`agent_tools.research.collect()`
 # @used-by :func:`agent_tools.research.compute_site_summary()`
@@ -186,6 +175,22 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 # @used-by :meth:`Df.Harness.Git.TransientWaitRunner.TransientWaitRunner.__workspace_code_repos()`
 # @used-by :meth:`Df.Harness.Git.WorktreePathResolver.WorktreePathResolver.__resolve_deleted()`
 # @used-by :meth:`Df.Harness.Git.WorktreeRebaseVerifier.WorktreeRebaseVerifier.__run_land_checks()`
+# @used-by :meth:`Df.Harness.Issue.AcceptanceGate.AcceptanceGate.__load_receipt()`
+# @used-by :meth:`Df.Harness.Issue.CommentGrounder.CommentGrounder.__resolve_root()`
+# @used-by :meth:`Df.Harness.Issue.CompetingTurnChecker.CompetingTurnChecker.__candidate_turns_dirs()`
+# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.__target_for_project_root()`
+# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.evidence_issue_files()`
+# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.issue_target_for_path()`
+# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.meta_dir_for_project_root()`
+# @used-by :meth:`Df.Harness.Issue.IssueFirstInheritor.IssueFirstInheritor.__candidate_project_roots()`
+# @used-by :meth:`Df.Harness.Issue.IssueMetadataPrepender.IssueMetadataPrepender.resolve_project_root()`
+# @used-by :meth:`Df.Harness.Issue.ParityAuditor.ParityAuditor.__load_exemptions()`
+# @used-by :meth:`Df.Harness.Issue.ParityAuditor.ParityAuditor.peer_code_repo_candidates()`
+# @used-by :meth:`Df.Harness.Issue.PendingPeerFinder.PendingPeerFinder.find()`
+# @used-by :meth:`Df.Harness.Issue.RepoLocator.RepoLocator.__append_peer_repos()`
+# @used-by :meth:`Df.Harness.Issue.RepoLocator.RepoLocator.__append_project_paths()`
+# @used-by :meth:`Df.Harness.Issue.RepoLocator.RepoLocator.__index_discovery_roots()`
+# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__collect_repos_and_issues()`
 # @used-by :meth:`Df.Harness.Meta.Builders.Builders.__find_issue_state_pair()`
 # @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_journal()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__save_executor_metadata()`
@@ -265,11 +270,6 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 # @used-by :meth:`Df.Harness.Workflow.StateUpdater.StateUpdater.__init__()`
 # @used-by :meth:`Df.Harness.Workflow.StatusSnapshotBuilder.StatusSnapshotBuilder.__init__()`
 # @used-by :meth:`Df.Harness.Workflow.WorkflowResumer.WorkflowResumer.resume()`
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._collect_repos_and_issues()`
-# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._target_for_project_root()`
-# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.evidence_issue_files()`
-# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.issue_target_for_path()`
-# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.meta_dir_for_project_root()`
 # @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
 # @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
 # @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._ingest_evidence_files()`
@@ -299,9 +299,9 @@ def relocated_harness_code_dirs(*, primary: str | Path | None=None, registry: Pa
 # @used-by unused
 def relocated_roots(*, registry: PathRegistry | None=None) -> dict[str, str]:
 	return dfh_relocated_roots(registry=registry)
-# @used-by :func:`agent_tools.issues.comment_grounding._resolve_grounding_root()`
-# @used-by :func:`agent_tools.issues.service_helpers.resolve_metadata_project_root()`
 # @used-by :meth:`Df.Harness.Analysis.Publisher.Publisher.__resolve_project_root()`
+# @used-by :meth:`Df.Harness.Issue.CommentGrounder.CommentGrounder.__resolve_root()`
+# @used-by :meth:`Df.Harness.Issue.IssueMetadataPrepender.IssueMetadataPrepender.resolve_project_root()`
 # @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_journal_upgrade()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_mid_process_overlay_creation_and_edit_invalidate_reverse_links_and_stay_fast()`
@@ -322,6 +322,10 @@ def resolve_project_root(target: str | Path, *, registry: PathRegistry | None=No
 # @used-by :meth:`test_project_rename.ProjectRenameTests.test_rename_preserves_launcher_handoff_reg_hash_and_review_lineage()`
 def same_project_root(first: str | Path | None, second: str | Path | None, *, registry: PathRegistry | None=None) -> bool:
 	return dfh_same_project_root(first, second, registry=registry)
+# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.__target_for_project_root()`
+# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.evidence_issue_files()`
+# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.issue_target_for_path()`
+# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.resolve_issue_targets()`
 # @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__init__()`
 # @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.drain_incoming()`
 # @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.resolve_project()`
@@ -329,16 +333,12 @@ def same_project_root(first: str | Path | None, second: str | Path | None, *, re
 # @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_init()`
 # @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__run_intake_drain()`
 # @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.resolve_or_create()`
-# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._target_for_project_root()`
-# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.evidence_issue_files()`
-# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.issue_target_for_path()`
-# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.resolve_issue_targets()`
 # @used-by :mod:`agent_tools.intake`
 # @used-by :mod:`agent_tools.runtime`
 def store_path(name: str, *, registry: PathRegistry | None=None) -> Path:
 	return dfh_store_path(name, registry=registry)
-# @used-by :func:`agent_tools.issues.repo_locator._search_registry_and_roots()`
-# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.resolve_issue_targets()`
+# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.resolve_issue_targets()`
+# @used-by :meth:`Df.Harness.Issue.RepoLocator.RepoLocator.search_registry_and_roots()`
 def store_value(name: str, *, registry: PathRegistry | None=None) -> Any:
 	return dfh_store_value(name, registry=registry)
 # @used-by :func:`agent_tools.text_core.default_shell()`
@@ -361,7 +361,7 @@ def tool_value(name: str, *, project_root: str | Path | None=None, registry: Pat
 def var_value(name: str, *, registry: PathRegistry | None=None) -> str:
 	return dfh_var_value(name, registry=registry)
 # @used-by :func:`agent_tools.text_browser._endpoint_lock()`
-# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._target_for_project_root()`
-# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.issue_target_for_path()`
+# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.__target_for_project_root()`
+# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.issue_target_for_path()`
 def workspace_override(path: str | Path, key: str | None=None, *, registry: PathRegistry | None=None) -> Any:
 	return dfh_workspace_override(path, key, registry=registry)

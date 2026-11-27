@@ -24,7 +24,6 @@ def _parse_commit_subcommand_args(argv: list[str] | tuple[str, ...]) -> tuple[li
 # @used-by unused
 def _scan_git_global_opts(argv: list[str] | tuple[str, ...], *, base_dir: Path | None=None) -> tuple[int | None, bool, Path | None]:
 	return _INSPECTOR.scan_git_global_opts(argv, base_dir=base_dir)
-# @used-by :func:`agent_tools.issue_first_bg.is_df_issue_command_text()`
 # @used-by :meth:`Df.Harness.Gate.FailfastGate.FailfastGate.__normalize_test_cmd()`
 # @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.__collect_write_matches()`
 # @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.classify_test_command()`
@@ -45,12 +44,9 @@ def _unquote(token: str) -> str:
 # @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.is_git_commit_command()`
 def classify_git_argv(argv: list[str] | tuple[str, ...]) -> tuple[str | None, bool]:
 	return _INSPECTOR.classify_git_argv(argv)
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._inspect_touched_code_file()`
 def extract_comment_issue_urls(text: str) -> set[str]:
 	return dfh_extract_comment_issue_urls(text)
 # @used-by :func:`Df.Harness.lib.completion_child_trace._process_tool_calls_row()`
-# @used-by :func:`agent_tools.issue_first_bg._record_bg_seg_issues()`
-# @used-by :func:`agent_tools.issue_first_gate.build_issue_action_events()`
 # @used-by :func:`test_doc5_golden_feature_turn._extract_fixture_issue_actions()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__record_subagent_tool_calls()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__record_tool_calls()`
@@ -61,9 +57,6 @@ def extract_comment_issue_urls(text: str) -> set[str]:
 # @used-by :meth:`test_issue_preflight_and_batch.IssuePreflightAndBatchTests.test_batch_create_verifies_readback_and_action_extraction()`
 def extract_issue_actions_from_outputs(outputs: list[str] | tuple[str, ...]) -> list[dict]:
 	return _INSPECTOR.extract_issue_actions(outputs)
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._has_workspace_parent_issue()`
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._inspect_latest_commits()`
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._inspect_touched_code_file()`
 # @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_git_read_cache_detects_issue_url_in_untracked_dotpy()`
 # @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_clean_null_and_unique_fast_delegation_to_df()`
 # @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_diff_cache_runs_once_for_dirty_repo_and_zero_times_for_clean_repo()`
@@ -72,7 +65,6 @@ def extract_issue_urls(text: str) -> list[str]:
 	return dfa_unique_fast(_GITHUB_ISSUE_URL_RE.findall(text or ''))
 # @used-by :meth:`Df.Harness.Gate.CdpBypassGate.CdpBypassGate.__check_write_content()`
 # @used-by :meth:`Df.Harness.Tdd.Exemption.Exemption.verify_staged_issue_urls()`
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._inspect_touched_code_file()`
 # @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_gates_and_classifiers_recognize_dotpy_files()`
 def is_code_file(rel_path: str | Path) -> bool:
 	return (Path(rel_path).suffix.lower() or (Path(rel_path).name.lower() if Path(rel_path).name.startswith('.') else '')) in _ISSUE_LINKED_CODE_SUFFIXES
@@ -84,9 +76,6 @@ def normalize_commit_message(message: str | None) -> str:
 # @used-by :func:`agent_tools.git_gate.run_git_read()`
 # @used-by :func:`agent_tools.git_ignore.resolve_global_git_ignore_path()`
 # @used-by :func:`agent_tools.git_ignore.resolve_managed_git_ignore_target()`
-# @used-by :func:`agent_tools.issue_first_gate.build_code_write_issue_first_event()`
-# @used-by :func:`agent_tools.issue_first_gate.evaluate_pre_tool_use_issue_first()`
-# @used-by :func:`agent_tools.issue_first_gate.resolve_issue_first_target()`
 # @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__resolve_pre_tool_target()`
 # @used-by :meth:`Df.Harness.Cli.GitShim.GitShim.__normalize_arg_token()`
 # @used-by :meth:`Df.Harness.Cli.GitShim.GitShim.__resolve_git_from_path()`
@@ -106,16 +95,10 @@ def normalize_commit_message(message: str | None) -> str:
 # @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_git_blob_size_gates_cygwin_paths_and_stale_credential_locks()`
 def normalize_host_path(value: str | Path) -> Path:
 	return HostPathNormalizer(value).normalize()
-# @used-by :func:`agent_tools.issue_first_gate._seed_open_issues_from_requests()`
-# @used-by :func:`agent_tools.issues.parity.merge_turn_issue_item()`
 # @used-by :meth:`Df.Harness.Tdd.Exemption.Exemption.__is_same_repo_url()`
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__recipe_matches_repo()`
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__validate_recipe_inputs()`
 # @used-by :meth:`Df.Harness.Tdd.RatchetGuard.RatchetGuard.__find_issue_approval()`
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._committed_parent_numbers()`
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._has_workspace_parent_issue()`
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._parent_linked_committed_urls()`
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._verify_required_repo_issues()`
 def parse_issue_url(url: str) -> tuple[str, int] | None:
 	return dfh_parse_issue_url(url)
 # @used-by :meth:`Df.Harness.Gate.CdpBypassGate.CdpBypassGate.check()`

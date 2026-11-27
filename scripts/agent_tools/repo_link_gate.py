@@ -6,7 +6,7 @@ from Df.Harness.Gate.RepoLinkGate import RepoLinkGate
 from Df.Harness.Gate.RepoLinkResolver import RepoLinkResolver
 GITHUB_BLOB_TREE_RE = RepoLinkResolver.GITHUB_BLOB_TREE_RE
 # @used-by :func:`agent_tools.links.chat_reply_link_issues()`
-# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._check_body_blocks()`
+# @used-by :meth:`Df.Harness.Issue.Linter.Linter.__check_body_blocks()`
 # @used-by :mod:`agent_tools.repo_link_gate`
 def chat_repo_link_issues(content: str, *, root: Path | None=None) -> list[str]:
 	return RepoLinkGate.check_chat(content, root=root)

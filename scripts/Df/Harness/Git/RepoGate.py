@@ -68,6 +68,18 @@ class RepoGate:
 	# @used-by :meth:`Df.Harness.Git.WorktreeStatusInspector.WorktreeStatusInspector.__rev_distance()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeStatusInspector.WorktreeStatusInspector.inspect()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeTransaction.WorktreeTransaction.__commit_in_wt()`
+	# @used-by :meth:`Df.Harness.Issue.AcceptanceGate.AcceptanceGate.__verify_repo_close()`
+	# @used-by :meth:`Df.Harness.Issue.AcceptanceGate.AcceptanceGate.check_readiness()`
+	# @used-by :meth:`Df.Harness.Issue.DirtyIssueFirstScanner.DirtyIssueFirstScanner.__parse_dirty_porcelain()`
+	# @used-by :meth:`Df.Harness.Issue.DirtyIssueFirstScanner.DirtyIssueFirstScanner.scan()`
+	# @used-by :meth:`Df.Harness.Issue.IssueFirstPreToolEvaluator.IssueFirstPreToolEvaluator.resolve_target()`
+	# @used-by :meth:`Df.Harness.Issue.ParityAuditor.ParityAuditor.peer_code_repo_candidates()`
+	# @used-by :meth:`Df.Harness.Issue.RepoLocator.RepoLocator.origin_repo_slug()`
+	# @used-by :meth:`Df.Harness.Issue.Service.Service.__check_close_commit_readiness()`
+	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__bind_issue_repos()`
+	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__collect_repos_and_issues()`
+	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__collect_touched_repos()`
+	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__verify_required_repo_issues()`
 	# @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_shell_audit_inspector_and_single_pass_repo_gate_commit()`
 	# @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_git_pre_commit_blocks_oversized_python_file()`
 	# @used-by :meth:`test_code_style_gate.CodeStyleGateTests.test_pre_tool_use_gate_and_pre_commit_enforce_code_style()`
@@ -157,6 +169,14 @@ class RepoGate:
 			raise RuntimeError(result.stderr.decode('utf-8', errors='replace').strip())
 		return result.stdout
 	# @used-by :func:`agent_tools.git_gate.is_issue_tracked_code_repo()`
+	# @used-by :meth:`Df.Harness.Issue.AcceptanceGate.AcceptanceGate.check_readiness()`
+	# @used-by :meth:`Df.Harness.Issue.DirtyIssueFirstScanner.DirtyIssueFirstScanner.__parse_dirty_porcelain()`
+	# @used-by :meth:`Df.Harness.Issue.IssueFirstPreToolEvaluator.IssueFirstPreToolEvaluator.resolve_target()`
+	# @used-by :meth:`Df.Harness.Issue.ParityAuditor.ParityAuditor.peer_code_repo_candidates()`
+	# @used-by :meth:`Df.Harness.Issue.Service.Service.__check_close_commit_readiness()`
+	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__bind_issue_repos()`
+	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__collect_repos_and_issues()`
+	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__collect_touched_repos()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_git_gate_worktree_locks_and_issues()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
@@ -247,6 +267,8 @@ class RepoGate:
 	# @used-by :meth:`Df.Harness.Git.WorktreeStatusInspector.WorktreeStatusInspector.__enrich_entry()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeStatusInspector.WorktreeStatusInspector.__rev_distance()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeStatusInspector.WorktreeStatusInspector.inspect()`
+	# @used-by :meth:`Df.Harness.Issue.DirtyIssueFirstScanner.DirtyIssueFirstScanner.scan()`
+	# @used-by :meth:`Df.Harness.Issue.RepoLocator.RepoLocator.origin_repo_slug()`
 	# @used-by :meth:`RepoGate.extract_added_diff_urls()`
 	# @used-by :meth:`RepoGate.git()`
 	def run_read(self, args: list[str] | tuple[str, ...], *, check: bool=True, input_bytes: bytes | None=None):
@@ -289,6 +311,8 @@ class RepoGate:
 		if agent_context and relative:
 			run_staged_gate('code_size_gate', 'verify_staged_code_size_ratchet', self.root, relative, use_index=use_index)
 	# @used-by :func:`agent_tools.git_gate.verify_repo_issue_ready_for_close()`
+	# @used-by :meth:`Df.Harness.Issue.AcceptanceGate.AcceptanceGate.__verify_repo_close()`
+	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__verify_required_repo_issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_helper_branches_audit_and_tags()`
 	def verify_issue_ready_for_close(self, repo: str, number: int, *, project_root: str | Path | None=None, _visiting: set[int] | None=None, git_cache=None) -> dict:
 		return IssueCloseVerifier(self).verify(repo, number, project_root=project_root, visiting=_visiting, git_cache=git_cache)

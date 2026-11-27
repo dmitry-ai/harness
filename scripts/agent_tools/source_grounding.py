@@ -72,7 +72,7 @@ _READ_ONLY_GROUNDING: ContextVar[bool] = ContextVar('harness_read_only_grounding
 # @used-by :func:`Df.Harness.lib.completion_commands.dfh_check_answer()`
 # @used-by :func:`Df.Harness.lib.completion_recovery._scan_readonly_turn()`
 # @used-by :func:`Df.Harness.lib.completion_recovery.dfh_recover_checkpoint()`
-# @used-by :func:`agent_tools.issues.comment_grounding.check_comment_grounding()`
+# @used-by :meth:`Df.Harness.Issue.CommentGrounder.CommentGrounder.check_grounding()`
 @contextmanager
 def read_only_grounding():
 	tok = _READ_ONLY_GROUNDING.set(True)
@@ -940,10 +940,10 @@ def load_fact_ledger(root: Path) -> list[dict]:
 # "Eliminate local/external quote, metric, and identifier fabrication via local source grounding, Stop hook, fresh-read provenance, and A.A audit gates":
 # https://github.com/dmitry-ai/harness/issues/34
 # @used-by :func:`Df.Harness.lib.hook_markdown_ops.dfh_check_doc_grounding_and_links()`
-# @used-by :func:`agent_tools.issues.comment_grounding.check_comment_grounding()`
+# @used-by :meth:`Df.Harness.Issue.CommentGrounder.CommentGrounder.check_grounding()`
+# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__check_comments_evidence()`
+# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__lint_saved_issue_obj()`
 # @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.__validate_response()`
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._check_comments_evidence()`
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._lint_saved_issue_obj()`
 # @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_local_grounding()`
 # @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue45_provenance_tiers_and_tier2_rejection()`
 # @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue46_ast_arithmetic_grounding()`
@@ -1077,7 +1077,7 @@ def _locale_to_target(locale_code: str | None) -> str | None:
 # "Unify quote normalization, MarkdownIt link/quote traversal, locale checks, numeric corpus tokenization, and Evidence loading across response_grounding.py, completion.py, source_grounding.py, claims.py, and review.py":
 # https://github.com/dmitry-ai/harness/issues/59
 # @used-by :func:`Df.Harness.lib.completion_checks.dfh_intermediate_or_language_issues()`
-# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter.lint()`
+# @used-by :meth:`Df.Harness.Issue.Linter.Linter.lint()`
 # @used-by :meth:`test_source_grounding.SourceGroundingRefactorTests.test_language_neutral_slash_commands_enforce_user_default_locale_without_breaking_english_requests()`
 def verify_target_locale(text: str, *, target_locale: str='en-US', container_text: str | None=None, is_title: bool=False, allow_explicit_english_request: bool=False, min_target_ratio: float=0.35, min_alpha: int=15, default_locale: str | None=None) -> list[dict]:
 	r: list[dict] = []

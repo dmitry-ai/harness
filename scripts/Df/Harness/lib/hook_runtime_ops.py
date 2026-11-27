@@ -56,9 +56,9 @@ def _update_fence(stripped: str, in_fence: bool, marker: str) -> tuple[bool, str
 	return r
 # @used-by :func:`Df.Harness.lib.hook_markdown_ops.dfh_check_turn_budget_gate()`
 # @used-by :func:`Df.Harness.lib.turn_routing_ops._collect_turn_candidates()`
-# @used-by :func:`agent_tools.issue_first_inherit._iter_candidate_issue_nums()`
 # @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__check_df_issue_turn_intent()`
 # @used-by :meth:`Df.Harness.Git.TransientWaitRunner.TransientWaitRunner.__active_turn_paths()`
+# @used-by :meth:`Df.Harness.Issue.IssueFirstInheritor.IssueFirstInheritor.__iter_candidate_issue_nums()`
 # @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_incremental_disk_cache_appends_and_invalidation()`
 # @used-by :meth:`test_hook_unification.HookUnificationTests.test_iter_turn_state_files_skips_aux_files()`
 # @used-by :meth:`test_stop_gate_contract.StopGateContractTests.test_continuation_active_guards_against_unchanged_readiness_loops_but_allows_progress()`

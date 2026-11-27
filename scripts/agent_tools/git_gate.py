@@ -65,16 +65,10 @@ def git(root: Path, *args) -> bytes:
 # @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_git_blob_size_gates_cygwin_paths_and_stale_credential_locks()`
 def is_agent_git_context(env: dict[str, str] | None=None, *, ancestor_names: list[str] | tuple[str, ...] | None=None) -> bool:
 	return AgentContextDetector(env, ancestor_names=ancestor_names).detect()
-# @used-by :func:`agent_tools.issue_first_gate.resolve_issue_first_target()`
 # @used-by :func:`agent_tools.issues.acceptance_gate.check_close_readiness()`
-# @used-by :func:`agent_tools.issues.parity._peer_code_repo_candidates()`
-# @used-by :func:`agent_tools.issues.service_helpers._parse_dirty_porcelain()`
 # @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__touched_git_repos()`
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._bind_issue_repos()`
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._collect_repos_and_issues()`
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._collect_touched_repos()`
-# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._check_close_commit_readiness()`
 # @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_issue_tracked_code_repo_requires_github_issue_url_in_code_and_commit_message()`
+# @used-by :mod:`agent_tools.github_issue`
 def is_issue_tracked_code_repo(root: Path) -> bool:
 	return GitRepoGate(root).is_issue_tracked()
 # @used-by :func:`Df.Harness.lib.cli_domain_ops._op_git_read()`
@@ -104,8 +98,9 @@ def run_git_hook(hook_name: str, argv: list[str] | tuple[str, ...]=(), cwd: Path
 	cleanup_stale_credential_locks()
 	repo_root = resolve_git_repo_from_argv((), cwd=cwd)
 	return GitRepoGate(repo_root).run_hook(hook_name, argv, stdin_text=stdin_text, agent_context=agent_context) if None is not repo_root else 0
+# @used-by :func:`agent_tools.issues.repo_locator.find_local_code_repo()`
 # @used-by :func:`agent_tools.issues.repo_locator.origin_repo_slug()`
-# @used-by :func:`agent_tools.issues.service_helpers.dirty_issue_first_files()`
+# @used-by :func:`agent_tools.issues.repo_locator.repo_matches_slug()`
 # @used-by :func:`agent_tools.repo_tags.commit_date_day()`
 # @used-by :func:`agent_tools.repo_tags.list_repo_tags()`
 # @used-by :func:`agent_tools.repo_tags.remote_has_tag()`
@@ -139,12 +134,12 @@ def verify_issue_workflow(root: Path, relative: list[str], message: str | None=N
 def verify_push_blob_sizes(root: Path, stdin_lines: list[str] | None=None) -> None:
 	GitRepoGate(root).verify_push_blob_sizes(stdin_lines=stdin_lines, extracted_max=EXTRACTED_MAX_BYTES, github_max=GITHUB_MAX_BLOB_BYTES)
 # @used-by :func:`agent_tools.issues.acceptance_gate.check_close_readiness()`
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._verify_required_repo_issues()`
-# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._check_close_commit_readiness()`
 # @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_verify_issue_ready_for_close_allows_committed_header_issue_during_sibling_edit()`
 # @used-by :meth:`test_git_lifecycle_memoization.GitLifecycleMemoizationTests.test_verify_issue_ready_for_close_memoizes_parent_child_and_catches_defects()`
 # @used-by :meth:`test_github_issue.TestGitHubIssueTool.test_parent_child_issue_linking_bundled_subtasks_and_parent_closure()`
 # @used-by :meth:`test_repo_tag_close_gate.RepoTagCloseGateTests.test_verify_close_rejects_untagged_invalid_and_unpushed_tags_and_accepts_pushed_valid()`
+# @used-by :mod:`agent_tools.github_issue`
+# @used-by :mod:`agent_tools.issues.service`
 def verify_repo_issue_ready_for_close(code_repo: Path, repo: str, number: int, *, project_root: str | Path | None=None, git_cache=None) -> dict:
 	return GitRepoGate(code_repo, strict=True).verify_issue_ready_for_close(repo, number, project_root=project_root, git_cache=git_cache)
 # @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_git_blob_size_gates_cygwin_paths_and_stale_credential_locks()`

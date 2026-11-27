@@ -244,7 +244,7 @@ def external_anchor_issues(label: str, href: str, norm_url: str, observed_anchor
 		errs.append(f'VERIFY-1 / LINK-2: Documentation link [{label}]({href}) omits a section #anchor despite {len(anchors)} available anchor(s) in the saved observation (cite an exact #anchor or record anchor_exception)')
 	return errs
 # @used-by :func:`markdown_table_issues()`
-# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._check_body_blocks()`
+# @used-by :meth:`Df.Harness.Issue.Linter.Linter.__check_body_blocks()`
 def find_markdown_table_lines(text: str) -> list[int]:
 	masked = _mask_fenced_lines(text)
 	hits: list[int] = []

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 from Df.Harness.Git.LandingLease import LandingLease
 from Df.Harness.Git.RepoGate import RepoGate
-from agent_tools.issues.git_read_cache import _parse_porcelain_z
+from Df.Harness.Issue.ReadCache import ReadCache
 import time
 DEFAULT_WAIT_POLL_SECONDS = 1.0
 DEFAULT_WAIT_TIMEOUT_SECONDS = 180.0
@@ -25,7 +25,7 @@ class RepoWaiter:
 	def __dirty_files(self) -> list[str]:
 		proc = RepoGate(self.__main_repo).run_read(['status', '--porcelain', '-z'], check=False)
 		raw = proc.stdout.decode('utf-8', errors='replace') if 0 == proc.returncode else ''
-		return _parse_porcelain_z(raw)
+		return ReadCache.parse_porcelain_z(raw)
 	# @used-by :meth:`RepoWaiter.wait()`
 	def __probe(self) -> dict[str, Any]:
 		st = LandingLease(self.__main_repo, leases_dir=self.__leases_dir).status()

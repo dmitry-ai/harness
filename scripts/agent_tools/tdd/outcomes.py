@@ -15,12 +15,13 @@ _ZERO_TESTS_RE = OutcomeParser.ZERO_TESTS_RE
 # @used-by :mod:`agent_tools.tdd.outcomes`
 def _infer_exit_code_from_log_text(text: str) -> int | None:
 	return OutcomeParser.infer_exit_code_from_log_text(text)
-# @used-by :func:`agent_tools.issue_first_bg._bg_fin_outputs()`
-# @used-by :func:`agent_tools.issue_first_bg._register_bg_issue_tasks()`
+# @used-by :meth:`Df.Harness.Issue.BgTaskRecorder.BgTaskRecorder.__bg_fin_outputs()`
+# @used-by :meth:`Df.Harness.Issue.IssueFirstBgScanner.IssueFirstBgScanner.__bg_fin_outputs()`
+# @used-by :meth:`Df.Harness.Issue.IssueFirstBgScanner.IssueFirstBgScanner.__register_bg_tasks()`
 # @used-by :mod:`agent_tools.tdd.outcomes`
 def _uri_to_local_path(uri: str) -> Path | None:
 	return OutcomeParser.uri_to_local_path(uri)
-# @used-by :func:`agent_tools.issue_first_bg._register_bg_issue_tasks()`
+# @used-by :meth:`Df.Harness.Issue.IssueFirstBgScanner.IssueFirstBgScanner.__register_bg_tasks()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__update_bg_tasks()`
 # @used-by :mod:`agent_tools.tdd.outcomes`
 def extract_bg_task_ids(text: str) -> list[str]:

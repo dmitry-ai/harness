@@ -18,7 +18,7 @@ def verify_directory_python_integrity(root_dir: Path) -> list[str]:
 # @used-by :mod:`agent_tools.python_integrity`
 def verify_python_file_integrity(path: Path, *, rel_label: str | None=None) -> list[str]:
 	return PythonIntegrity.verify_file(path, rel_label=rel_label)
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._check_repo_commits_and_files()`
+# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__check_repo_commits_and_files()`
 # @used-by :meth:`test_python_integrity_gate.PythonIntegrityGateTests.test_snapshot_promotion_and_auditor_reject_undefined_global()`
 # @used-by :mod:`agent_tools.python_integrity`
 def verify_touched_python_files(repo_root: Path, rel_paths: list[str] | set[str]) -> list[str]:

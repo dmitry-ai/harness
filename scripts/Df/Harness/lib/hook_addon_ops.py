@@ -53,7 +53,7 @@ def _win_pid_alive(pid: int) -> bool:
 		finally:
 			ctypes.windll.kernel32.CloseHandle(handle)
 	return r
-# @used-by :func:`agent_tools.issues.acceptance_gate.check_close_readiness()`
+# @used-by :meth:`Df.Harness.Issue.AcceptanceGate.AcceptanceGate.check_readiness()`
 # @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_addon_and_markdown_ops()`
 # @used-by :mod:`agent_tools.addon_observability`
 def dfh_check_close_companion_health(repo: str, code_repo: Path | None=None) -> str | None:
@@ -154,8 +154,8 @@ def dfh_inspect_companion_runtime_health(runtime_json: str | Path | None=None, *
 				issues, state, pid, rt_path = _runtime_issues_from_data(data, alive_fn)
 				r = {'healthy': not issues, 'issues': issues, 'path': str(target), 'pid': pid, 'runtime_path': rt_path, 'state': state}
 	return r
-# @used-by :func:`agent_tools.issues.service_helpers._parse_dirty_porcelain()`
 # @used-by :meth:`Df.Harness.Git.DirtyMainChecker.DirtyMainChecker.find_blocking()`
+# @used-by :meth:`Df.Harness.Issue.DirtyIssueFirstScanner.DirtyIssueFirstScanner.__parse_dirty_porcelain()`
 # @used-by :meth:`test_df_harness_s11_wave2d_hook_cov.DfHarnessS11Wave2dHookCovTests.test_addon_and_markdown_ops()`
 # @used-by :mod:`agent_tools.addon_observability`
 def dfh_is_live_runtime_data_file(code_repo: Path, rel_posix: str) -> bool:

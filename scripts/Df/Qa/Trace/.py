@@ -52,6 +52,9 @@ class Trace:
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__trailing_comment_urls()`
 	# @used-by :meth:`Df.Harness.Git.GlobalIgnoreSyncer.GlobalIgnoreSyncer.__merge_block()`
 	# @used-by :meth:`Df.Harness.Git.RetroTagger.RetroTagger.__plan()`
+	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.__check_body_blocks()`
+	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.__clause_has_triple_enumeration()`
+	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.__has_backtick_enumeration()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__compute_payload()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__replace_existing()`
 	# @used-by :meth:`Df.Harness.Upwork.DocxExtractor.DocxExtractor.__normalize_heading_levels()`
@@ -59,9 +62,6 @@ class Trace:
 	# @used-by :meth:`Df.Harness.Xref.Java.Lexer.Lexer.__tokenize_java_step()`
 	# @used-by :meth:`Df.Harness.Xref.Js.Lexer.Lexer.__tokenize_js_step()`
 	# @used-by :meth:`Trace.__len__()`
-	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._check_body_blocks()`
-	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._clause_has_triple_enumeration()`
-	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._has_backtick_enumeration()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.scope_issues()`
 	# @used-by :meth:`test_github_issue.TestGitHubIssueTool.test_create_prepends_tab_indented_json_metadata_header_and_supports_opt_out()`
 	# @used-by :meth:`test_metadata.MetadataFormattingAndCollectionTests.test_render_prepend_extract_and_strip_tab_indented_json_header()`

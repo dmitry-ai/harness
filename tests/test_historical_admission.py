@@ -193,15 +193,14 @@ class HistoricalAdmissionTests(unittest.TestCase):
 		self.assertEqual(first['turns'][0]['status'], 'delivered')
 		self.assertTrue(first['turns'][0]['preparation_verified'])
 		return first
-	# @used-by :func:`agent_tools.issues.repo_commands.run_audit_repo()`
+	# @used-by :meth:`Df.Harness.Issue.Service.Service.__execute_edit()`
+	# @used-by :meth:`Df.Harness.Issue.Service.Service.__parse_edit_inputs()`
+	# @used-by :meth:`Df.Harness.Issue.Service.Service.cmd_edit()`
 	# @used-by :meth:`HistoricalAdmissionTests.test_legacy_record_has_visible_proof_gap_and_unchanged_history()`
 	# @used-by :meth:`HistoricalAdmissionTests.test_proof_evidence_review_document_and_journal_changes_remain_conflicts()`
 	# @used-by :meth:`HistoricalAdmissionTests.test_real_pre_change_legacy_conflict_remains_conflict_permanently()`
 	# @used-by :meth:`HistoricalAdmissionTests.test_real_pre_change_legacy_record_reports_legacy_proof_gap_and_remains_stable()`
 	# @used-by :meth:`HistoricalAdmissionTests.test_unreconciled_target_edit_temporary_conflict_preserves_original_delivery_provenance()`
-	# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._execute_edit()`
-	# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._parse_edit_inputs()`
-	# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_edit()`
 	def state(self, case):
 		path = next((case.project / 'ꘖ/data/turns').glob('*.json'))
 		return path, json.loads(path.read_text(encoding='utf-8'))

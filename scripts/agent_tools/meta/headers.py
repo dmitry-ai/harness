@@ -19,7 +19,7 @@ def _is_harness_metadata_obj(obj: Any) -> bool:
 # @used-by :func:`Df.Harness.lib.cleanup_lifecycle_ops._step_response_time()`
 # @used-by :func:`Df.Harness.lib.completion_record._maybe_prepend_journal_metadata()`
 # @used-by :func:`test_turn_completion.assert_journal_response_body()`
-# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._prepend_issue_metadata()`
+# @used-by :meth:`Df.Harness.Issue.IssueMetadataPrepender.IssueMetadataPrepender.prepend()`
 # @used-by :meth:`test_cleanup.CleanupReportTests.test_cli_logs_actual_stdin_answer_from_either_platform_without_running_cleanup()`
 # @used-by :meth:`test_cleanup.CleanupReportTests.test_exact_answer_and_filename_use_the_same_istanbul_time_across_utc_midnight()`
 # @used-by :meth:`test_cleanup.CleanupReportTests.test_repeated_and_concurrent_answers_never_overwrite_logs_in_the_same_minute()`
@@ -39,7 +39,7 @@ def extract_leading_metadata_header(text: str) -> tuple[dict[str, Any] | None, s
 	return HeaderRenderer.extract_leading(text)
 # @used-by :func:`Df.Harness.lib.completion_record._maybe_prepend_journal_metadata()`
 # @used-by :func:`Df.Harness.lib.hook_stop_ops._build_emergency_response()`
-# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._prepend_issue_metadata()`
+# @used-by :meth:`Df.Harness.Issue.IssueMetadataPrepender.IssueMetadataPrepender.prepend()`
 # @used-by :meth:`test_metadata.MetadataFormattingAndCollectionTests.test_render_prepend_extract_and_strip_tab_indented_json_header()`
 # @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_headers_submodule_roundtrips_and_ignores_non_harness_json()`
 # @used-by :mod:`agent_tools.meta`

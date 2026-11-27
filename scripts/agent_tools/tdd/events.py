@@ -10,7 +10,7 @@ def _antigravity_segment_is_interrupted(seg_rows: list[dict]) -> bool:
 # @used-by :mod:`agent_tools.tdd.events`
 def _is_git_commit_command(cmd: str, *, cwd: Path | None=None) -> tuple[bool, Path | None]:
 	return EventsExtractor.is_git_commit_command(cmd, cwd=cwd)
-# @used-by :func:`agent_tools.issue_first_bg._dispatch_segment_call()`
+# @used-by :meth:`Df.Harness.Issue.IssueFirstBgScanner.IssueFirstBgScanner.__dispatch_single_call()`
 # @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_events_module_behavior_and_parity()`
 # @used-by :mod:`agent_tools.tdd.events`
 def _normalize_args_dict(raw_args) -> dict:
@@ -73,7 +73,7 @@ def build_file_write_tdd_event(step: int, raw_path: str | Path, *, cwd: Path | N
 # @used-by :mod:`agent_tools.tdd`
 def extract_antigravity_tdd_events(transcript_path: Path, *, cwd: Path | None=None) -> list[dict]:
 	return EventsExtractor(transcript_path, cwd=cwd).extract()
-# @used-by :func:`agent_tools.issue_first_gate.build_code_write_issue_first_event()`
+# @used-by :meth:`Df.Harness.Issue.IssueFirstPreToolEvaluator.IssueFirstPreToolEvaluator.build_code_write_event()`
 # @used-by :mod:`agent_tools.tdd.events`
 def is_denied_write_output(outputs) -> bool:
 	return EventsExtractor.is_denied_write_output(outputs)

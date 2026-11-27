@@ -54,32 +54,8 @@ class WorktreeLockFinder:
 					parsed = []
 				r = [parsed] if isinstance(parsed, dict) else (parsed if isinstance(parsed, list) else [])
 		return r
-	# @used-by :func:`Df.Harness.lib.native_codex_roles._match_owned_role_block()`
-	# @used-by :func:`Df.Harness.lib.storage._iter_str_json_objects()`
-	# @used-by :func:`agent_tools.cli_output_json._truncated_top_level_failure()`
-	# @used-by :func:`agent_tools.grounding_domains.extract_fact_tuples()`
 	# @used-by :func:`agent_tools.worktree_guard.find_worktree_lock_holders()`
-	# @used-by :meth:`Df.Harness.Git.IssueActionExtractor.IssueActionExtractor.__decode_text()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeRemovalGuard.WorktreeRemovalGuard.__find_holders()`
-	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__insert_offset()`
-	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.__php_html_segment()`
-	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.consume_shebang()`
-	# @used-by :meth:`Df.Harness.Tdd.CommentScanners.CommentScanners.__find_heredoc_end()`
-	# @used-by :meth:`Df.Harness.Tdd.CommentScanners.CommentScanners.scan_cpp_raw()`
-	# @used-by :meth:`Df.Harness.Tdd.CommentScanners.CommentScanners.scan_heredoc()`
-	# @used-by :meth:`Df.Harness.Tdd.CommentScanners.CommentScanners.scan_line_block()`
-	# @used-by :meth:`Df.Harness.Tdd.CommentScanners.CommentScanners.scan_line_comment()`
-	# @used-by :meth:`Df.Harness.Tdd.CommentScanners.CommentScanners.scan_ps_herestring()`
-	# @used-by :meth:`Df.Harness.Tdd.DiffContract.DiffContract.__parse_batch_blobs()`
-	# @used-by :meth:`Df.Harness.Tdd.ExtCommentLexer.ExtCommentLexer.__scan_long_bracket()`
-	# @used-by :meth:`Df.Harness.Tdd.ExtCommentLexer.ExtCommentLexer.__scan_rust_raw_str()`
-	# @used-by :meth:`Df.Harness.Tdd.MarkupCommentLexer.MarkupCommentLexer.__consume_astro_frontmatter()`
-	# @used-by :meth:`Df.Harness.Tdd.MarkupCommentLexer.MarkupCommentLexer.__sfc_html_segment()`
-	# @used-by :meth:`Df.Harness.Upwork.DocxExtractor.DocxExtractor.__load_numbering()`
-	# @used-by :meth:`Df.Harness.Upwork.DocxExtractor.DocxExtractor.__num_props()`
-	# @used-by :meth:`Df.Harness.Upwork.DocxExtractor.DocxExtractor.__parse_paragraph()`
-	# @used-by :meth:`Df.Harness.Upwork.DocxExtractor.DocxExtractor.__read_abstract_nums()`
-	# @used-by :meth:`Df.Harness.Upwork.PdfExtractor.PdfExtractor.__collect_visual_lines()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_flow_guard_and_land()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_helper_branches_lease_and_fifo()`
 	def find(self) -> list[dict[str, Any]]:

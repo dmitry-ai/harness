@@ -9,6 +9,8 @@ _TEMP_CONSUMED_RE = re.compile(r'(?i)"consumed_files"\s*:\s*\[\s*"[^"]*(?:[/\\]t
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class IssueActionExtractor:
 	# @used-by :meth:`Df.Harness.Git.ShellInspector.ShellInspector.extract_issue_actions()`
+	# @used-by :meth:`Df.Harness.Issue.BgTaskRecorder.BgTaskRecorder.__record_seg_issues()`
+	# @used-by :meth:`Df.Harness.Issue.IssueFirstPreToolEvaluator.IssueFirstPreToolEvaluator.build_issue_action_events()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_shell_audit_single_class_modules_and_facade()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_helper_branches_audit_and_tags()`
 	def __init__(self, outputs: list[str] | tuple[str, ...]) -> None:
@@ -16,7 +18,7 @@ class IssueActionExtractor:
 	# @used-by :meth:`IssueActionExtractor.extract()`
 	@staticmethod
 	def __decode_text(text: str, decoder: json.JSONDecoder) -> list[dict]:
-		from agent_tools.issues.batch_commands import extract_actions_from_decoded_obj
+		from Df.Harness.lib.issue import dfh_extract_actions_from_decoded_obj
 		out: list[dict] = []
 		pos = 0
 		while True:
@@ -33,13 +35,15 @@ class IssueActionExtractor:
 			tail = text[end_idx:] if -1 == nl_idx else text[end_idx:nl_idx]
 			pos = end_idx
 			if (not tail.strip()) and isinstance(obj, dict):
-				out.extend(extract_actions_from_decoded_obj(obj))
+				out.extend(dfh_extract_actions_from_decoded_obj(obj))
 		return out
 	# @used-by :meth:`IssueActionExtractor.extract()`
 	@staticmethod
 	def __is_eligible_text(text: object) -> bool:
 		return isinstance(text, str) and '"action"' in text and '"repo"' in text and (not _RAN_TESTS_RE.search(text)) and (not _SHOWING_RE.search(text)) and (not _TEMP_CONSUMED_RE.search(text))
 	# @used-by :meth:`Df.Harness.Git.ShellInspector.ShellInspector.extract_issue_actions()`
+	# @used-by :meth:`Df.Harness.Issue.BgTaskRecorder.BgTaskRecorder.__record_seg_issues()`
+	# @used-by :meth:`Df.Harness.Issue.IssueFirstPreToolEvaluator.IssueFirstPreToolEvaluator.build_issue_action_events()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_shell_audit_single_class_modules_and_facade()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_helper_branches_audit_and_tags()`
 	def extract(self) -> list[dict]:

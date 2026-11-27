@@ -28,6 +28,7 @@ class PageDecoder:
 	# @used-by :func:`Df.Harness.lib.config_blocks.dfh_load_project_receipt()`
 	# @used-by :func:`Df.Harness.lib.config_codex.dfh_native_config()`
 	# @used-by :func:`Df.Harness.lib.hook_trace_cache.dfh_parse_jsonl_bytes()`
+	# @used-by :func:`Df.Harness.lib.issue.dfh_gh_api_call()`
 	# @used-by :func:`Df.Harness.lib.native_ag_plan._plan_ag_config_json()`
 	# @used-by :func:`Df.Harness.lib.native_codex_plan._plan_codex_config_toml()`
 	# @used-by :func:`Df.Harness.lib.native_codex_roles._collect_role_backup_originals()`
@@ -36,9 +37,6 @@ class PageDecoder:
 	# @used-by :func:`Df.Harness.lib.runtime_snapshot_ops.dfh_git_read()`
 	# @used-by :func:`Df.Harness.lib.storage.dfh_read_addressed_json()`
 	# @used-by :func:`Df.Harness.lib.trace_common.dfh_read_jsonl_objects()`
-	# @used-by :func:`agent_tools.issues.repo_locator.origin_repo_slug()`
-	# @used-by :func:`agent_tools.issues.service_helpers._parse_dirty_porcelain()`
-	# @used-by :func:`agent_tools.issues.service_helpers.gh_api_call()`
 	# @used-by :func:`agent_tools.links._readable_escapes()`
 	# @used-by :func:`agent_tools.links.fetch_page()`
 	# @used-by :func:`agent_tools.repo_tags.commit_date_day()`
@@ -90,6 +88,15 @@ class PageDecoder:
 	# @used-by :meth:`Df.Harness.Git.WorktreeStatusInspector.WorktreeStatusInspector.__current_branch()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeStatusInspector.WorktreeStatusInspector.__rev_distance()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeStatusInspector.WorktreeStatusInspector.inspect()`
+	# @used-by :meth:`Df.Harness.Issue.DirtyIssueFirstScanner.DirtyIssueFirstScanner.__parse_dirty_porcelain()`
+	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.read_utf8_no_bom_file()`
+	# @used-by :meth:`Df.Harness.Issue.ReadCache.ReadCache.__dirty_entries()`
+	# @used-by :meth:`Df.Harness.Issue.ReadCache.ReadCache.__load_log()`
+	# @used-by :meth:`Df.Harness.Issue.ReadCache.ReadCache.__tracked_diff_urls()`
+	# @used-by :meth:`Df.Harness.Issue.ReadCache.ReadCache.find_commit_for_issue()`
+	# @used-by :meth:`Df.Harness.Issue.ReadCache.ReadCache.latest_commit_urls_for_files()`
+	# @used-by :meth:`Df.Harness.Issue.ReadCache.ReadCache.upstream_unpushed()`
+	# @used-by :meth:`Df.Harness.Issue.RepoLocator.RepoLocator.origin_repo_slug()`
 	# @used-by :meth:`Df.Harness.Perf.TimesheetCommon.TimesheetCommon.load_jsonl_rows()`
 	# @used-by :meth:`Df.Harness.Platform.Antigravity.ProjectRegistrar.ProjectRegistrar.__register_single()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__read_state()`
@@ -107,13 +114,6 @@ class PageDecoder:
 	# @used-by :meth:`Df.Harness.Upwork.AttachmentExtractor.AttachmentExtractor.extract_markdown()`
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__capture_on_page()`
 	# @used-by :meth:`Df.Harness.Upwork.PdfLigatureRepairer.PdfLigatureRepairer.parse_streams()`
-	# @used-by :meth:`agent_tools.issues.git_read_cache.RepoReadCache._dirty_entries()`
-	# @used-by :meth:`agent_tools.issues.git_read_cache.RepoReadCache._load_log()`
-	# @used-by :meth:`agent_tools.issues.git_read_cache.RepoReadCache._tracked_diff_urls()`
-	# @used-by :meth:`agent_tools.issues.git_read_cache.RepoReadCache.find_commit_for_issue()`
-	# @used-by :meth:`agent_tools.issues.git_read_cache.RepoReadCache.latest_commit_urls_for_files()`
-	# @used-by :meth:`agent_tools.issues.git_read_cache.RepoReadCache.upstream_unpushed()`
-	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter.read_utf8_no_bom_file()`
 	# @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex._stat_and_read()`
 	# @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex.ensure_entry()`
 	# @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex.load_source_info()`

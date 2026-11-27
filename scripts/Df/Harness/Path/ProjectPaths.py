@@ -157,9 +157,9 @@ class ProjectPaths:
 		return val
 	# @used-by :func:`Df.Harness.lib.completion_checks.dfh_is_client_deliverable_path()`
 	# @used-by :func:`Df.Harness.lib.path_state._fast_sig()`
+	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.issue_target_for_path()`
+	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.meta_dir_for_project_root()`
 	# @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.update()`
-	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.issue_target_for_path()`
-	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.meta_dir_for_project_root()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
 	# @used-by :meth:`test_path_registry_perf.PathRegistryPerformanceTests.test_project_paths_fast_cache_hits_and_invalidates_on_fs_mutations()`
@@ -255,6 +255,9 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.verify()`
 	# @used-by :meth:`Df.Harness.Experiment.RunLoader.RunLoader.__load_raw()`
 	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__write_run()`
+	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.__target_for_project_root()`
+	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.evidence_issue_files()`
+	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.issue_target_for_path()`
 	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__save_executor_metadata()`
 	# @used-by :meth:`Df.Harness.Project.Context.LetterDiscoverer.LetterDiscoverer.default_config()`
 	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__run_locked()`
@@ -270,9 +273,6 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
 	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.evidence_paths()`
 	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.kb_paths()`
-	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._target_for_project_root()`
-	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.evidence_issue_files()`
-	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.issue_target_for_path()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._ingest_evidence_files()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
 	@property
@@ -543,6 +543,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_harness_s11_wave2b`
 	# @used-by :mod:`test_df_harness_s11_wave2c_cross_wave`
 	# @used-by :mod:`test_df_harness_s11_wave2c_git`
+	# @used-by :mod:`test_df_harness_s11_wave2c_issues`
 	# @used-by :mod:`test_df_harness_s11_wave2d_cli_cov`
 	# @used-by :mod:`test_df_harness_s11_wave2d_completion_cov`
 	# @used-by :mod:`test_df_harness_s11_wave2d_completion`
@@ -786,7 +787,7 @@ class ProjectPaths:
 		return Path(self.paths_str['scratch_dir'])
 	# @used-by :func:`Df.Harness.lib.completion_checks.dfh_similar_projects_metadata()`
 	# @used-by :func:`Df.Harness.lib.completion_recovery._allowed_similar_peers()`
-	# @used-by :func:`agent_tools.issues.service_helpers.pending_similar_peer_slugs()`
+	# @used-by :meth:`Df.Harness.Issue.PendingPeerFinder.PendingPeerFinder.find()`
 	# @used-by :meth:`Df.Harness.Path.PathReporter.PathReporter.__build_project_report()`
 	# @used-by :meth:`Df.Harness.Path.PathReporter.PathReporter.__discover_overlays()`
 	# @used-by :meth:`Df.Harness.Path.SimilarProjectAuditor.SimilarProjectAuditor.__eval_overlay_peers()`
@@ -834,12 +835,14 @@ class ProjectPaths:
 	# @used-by :func:`Df.Harness.lib.journal.dfh_turns_dir()`
 	# @used-by :func:`Df.Harness.lib.path_resolve._workspace_is_explicitly_tracked()`
 	# @used-by :func:`agent_tools.doc5_replay_audit.audit_local_saved_turns()`
-	# @used-by :func:`agent_tools.issues.parity._load_similar_project_exemptions()`
-	# @used-by :func:`agent_tools.issues.service_helpers.pending_similar_peer_slugs()`
-	# @used-by :func:`agent_tools.issues.turn_scope._candidate_turns_dirs()`
 	# @used-by :meth:`Df.Harness.Completion.BudgetEvaluator.BudgetEvaluator.run()`
 	# @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__check_df_issue_turn_intent()`
 	# @used-by :meth:`Df.Harness.Git.TransientWaitRunner.TransientWaitRunner.__active_turn_paths()`
+	# @used-by :meth:`Df.Harness.Issue.CompetingTurnChecker.CompetingTurnChecker.__candidate_turns_dirs()`
+	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.__target_for_project_root()`
+	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.issue_target_for_path()`
+	# @used-by :meth:`Df.Harness.Issue.ParityAuditor.ParityAuditor.__load_exemptions()`
+	# @used-by :meth:`Df.Harness.Issue.PendingPeerFinder.PendingPeerFinder.find()`
 	# @used-by :meth:`Df.Harness.Meta.Builders.Builders.__find_issue_state_pair()`
 	# @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_journal()`
 	# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__launcher_stale_files()`
@@ -850,8 +853,6 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__candidate_recipe_dirs()`
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 	# @used-by :meth:`Df.Harness.Tdd.RatchetGuard.RatchetGuard.turn_receipt_dirs()`
-	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._target_for_project_root()`
-	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.issue_target_for_path()`
 	# @used-by :meth:`test_blocked_report_hygiene_and_doc5_m2.BlockedReportHygieneAndDoc5M2Tests.test_blocked_report_records_journal_despite_hygiene_failures_and_allows_doc5()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`

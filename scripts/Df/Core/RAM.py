@@ -87,8 +87,6 @@ class RAM:
 	# @used-by :func:`Df.Harness.lib.storage.dfh_write_immutable_bytes()`
 	# @used-by :func:`Df.Harness.lib.trace_review.dfh_verify_review_proof_core()`
 	# @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
-	# @used-by :func:`agent_tools.issue_first_gate._find_git_repo_root()`
-	# @used-by :func:`agent_tools.issues.service_helpers.dirty_issue_first_files()`
 	# @used-by :func:`agent_tools.links.validate_file()`
 	# @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
 	# @used-by :func:`agent_tools.research._write_cached_extraction()`
@@ -142,6 +140,9 @@ class RAM:
 	# @used-by :meth:`Df.Harness.Git.WorktreeRemovalGuard.WorktreeRemovalGuard.remove()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeTransaction.WorktreeTransaction.__stage_into_worktree()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeTransaction.WorktreeTransaction.remove()`
+	# @used-by :meth:`Df.Harness.Issue.DirtyIssueFirstScanner.DirtyIssueFirstScanner.scan()`
+	# @used-by :meth:`Df.Harness.Issue.IssueFirstPreToolEvaluator.IssueFirstPreToolEvaluator.__find_git_repo_root()`
+	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__check_repo_commits_and_files()`
 	# @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__load_existing_group()`
 	# @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__load_or_create_group()`
 	# @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__write_pending_step()`
@@ -200,7 +201,6 @@ class RAM:
 	# @used-by :meth:`Df.Harness.Xref.Js.Tags.Tags.is_valid_external()`
 	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.is_valid_external_target()`
 	# @used-by :meth:`RAM.get()`
-	# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._check_repo_commits_and_files()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.begin()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.index()`
 	# @used-by :meth:`test_agent_tools.ContextTests.test_missing_input_fails_and_dry_run_writes_nothing()`

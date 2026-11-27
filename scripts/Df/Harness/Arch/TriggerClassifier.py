@@ -115,6 +115,7 @@ class TriggerClassifier:
 		return r
 	# @used-by :func:`agent_tools.arch.triggers.classify_markdown_arch_trigger()`
 	# @used-by :meth:`Df.Harness.Arch.Evaluator.Evaluator.evaluate_response()`
+	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.check_arch_policy()`
 	# @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_structure_visitor_and_trigger_classifier_detect_df_cross_imports()`
 	@staticmethod
 	def classify_markdown(text: str, *, is_issue: bool=False, is_parent_issue: bool=False) -> dict:

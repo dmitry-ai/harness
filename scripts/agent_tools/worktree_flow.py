@@ -63,8 +63,6 @@ def _merge_and_finalize(main_repo: Path, wt_path: Path, branch: str, target_bran
 # @used-by unused
 def _rebase_and_test(main_repo: Path, wt_path: Path, branch: str, target_branch: str, *, run_tests: bool, workers: int | None, no_tests_reason: str | None=None) -> tuple[dict | None, int, dict | None, dict | None]:
 	return WorktreeRebaseVerifier(main_repo, wt_path, branch, target_branch, run_tests=run_tests, workers=workers, no_tests_reason=no_tests_reason, git_exec_fn=_git_exec, polyglot_test_fn=polyglot_land.run_polyglot_land_tests).verify()
-# @used-by :func:`agent_tools.issues.repo_locator._config_may_have_origin_remote()`
-# @used-by :func:`agent_tools.issues.repo_locator._extract_config_slugs()`
 # @used-by :meth:`Df.Harness.Gate.RepoTagGate.RepoTagGate.__resolve_origin_push_target()`
 def git_config_file(code_repo: Path) -> Path:
 	return dfh_git_config_file(code_repo)
@@ -74,7 +72,6 @@ def git_config_file(code_repo: Path) -> Path:
 # @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_origin_repo_slug_and_linked_worktree_detection()`
 def is_linked_worktree(path: Path | str) -> bool:
 	return (Path(path).resolve() / '.git').is_file()
-# @used-by :func:`agent_tools.issues.repo_locator._initial_repo_candidates()`
 def prioritized_worktree_candidates(repo_root: str | Path | None=None, cwd: Path | None=None) -> list[Path]:
 	cands: list[Path] = []
 	if None is not repo_root and str(repo_root).strip():
@@ -86,7 +83,6 @@ def prioritized_worktree_candidates(repo_root: str | Path | None=None, cwd: Path
 			break
 	return cands
 # @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__touched_git_repos()`
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._collect_touched_repos()`
 def resolve_touched_repo_file(path: Path, is_tracked_fn) -> tuple[Path, str] | None:
 	return WorktreePathResolver(path, is_tracked_fn).resolve()
 # @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_worktree_begin()`

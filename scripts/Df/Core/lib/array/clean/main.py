@@ -39,10 +39,10 @@ def df_clean_keys(a: dict[Any, Any], *remove: Any) -> dict[Any, Any]:
 # @used-by :func:`agent_tools.diagnostics.problem()`
 # @used-by :func:`agent_tools.meta.blocks._build_journal_trace()`
 # @used-by :func:`agent_tools.meta.blocks._build_turn_trace()`
+# @used-by :meth:`Df.Harness.Issue.Service.Service.__execute_edit()`
 # @used-by :meth:`Df.Harness.Meta.Blocks.Blocks.build_journal_trace()`
 # @used-by :meth:`Df.Harness.Meta.Blocks.Blocks.build_turn_trace()`
 # @used-by :meth:`Df.Harness.Project.Diagnostics.Diagnostics.__init__()`
-# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._execute_edit()`
 # @used-by :meth:`test_df_core_array.DfCoreArrayTests.test_assert_clean_and_filter()`
 # @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_clean_null_and_unique_fast_delegation_to_df()`
 # @used-by :mod:`agent_tools.diagnostics`

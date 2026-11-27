@@ -4,7 +4,7 @@ from pathlib import Path
 from Df.Core.lib.git import df_git_root
 from Df.Harness.Git.CommitTagger import CommitTagger
 from Df.Harness.Git.RepoGate import RepoGate
-from agent_tools.issues.repo_locator import origin_repo_slug
+from Df.Harness.Issue.EvidenceWorkspace import EvidenceWorkspace
 import re
 _LINE_FRAG_RE = re.compile(r'^L(\d+)(?:-L?(\d+))?$')
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
@@ -48,7 +48,7 @@ class BlobUrlBuilder:
 		repo_root = raw_root.resolve() if None is not raw_root else None
 		if None is repo_root:
 			raise ValueError(f'Path is not inside a Git repository: {self.__target}')
-		slug = origin_repo_slug(repo_root)
+		slug = EvidenceWorkspace.origin_repo_slug(repo_root)
 		if not slug:
 			raise ValueError(f'Repository has no GitHub remote slug: {repo_root}')
 		rel_path = self.__target.relative_to(repo_root).as_posix()

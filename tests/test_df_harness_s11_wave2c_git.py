@@ -108,7 +108,7 @@ class DfHarnessS11Wave2CGitTests(unittest.TestCase):
 			cleaned = CredentialLockCleaner(max_age_seconds=60.0, candidates=[lock_f], check_running=False).clean()
 			self.assertEqual([str(lock_f)], cleaned)
 			IssueWorkflowVerifier(gate).verify(['wt_file.txt'], agent_context=False)
-			with mock.patch('agent_tools.github_issue.find_tracked_child_issues', return_value=[]), mock.patch('agent_tools.repo_tag_gate.finalize_commit_close_check', return_value={'verified': True, 'commit_sha': 'abc'}):
+			with mock.patch('Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.find_tracked_child_issues', return_value=[]), mock.patch('agent_tools.repo_tag_gate.finalize_commit_close_check', return_value={'verified': True, 'commit_sha': 'abc'}):
 				res = IssueCloseVerifier(gate).verify('dmitry-ai/harness', 382)
 			self.assertTrue(res['verified'])
 	# @used-by :mod:`unittest`
@@ -277,7 +277,7 @@ class DfHarnessS11Wave2CGitTests(unittest.TestCase):
 			self.__git(repo, 'checkout', '--', 'README.md')
 			gate = RepoGate(repo)
 			PushValidator(gate).validate(['push', 'origin', 'main'], agent_context=False)
-			with mock.patch('agent_tools.github_issue.find_tracked_child_issues', return_value=[]):
+			with mock.patch('Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.find_tracked_child_issues', return_value=[]):
 				self.assertRaises(ValueError, gate.verify_issue_ready_for_close, 'dmitry-ai/harness', 999)
 			self.assertTrue(RetroTagger(repo, apply=True, push=False, extra_commits=['HEAD']).run()['valid'])
 	# @used-by :mod:`unittest`

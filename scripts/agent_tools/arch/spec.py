@@ -16,7 +16,6 @@ def extract_arch_specs(markdown_text: str) -> list[dict]:
 # @used-by :mod:`agent_tools.arch`
 def extract_declared_participants(specs: list[dict]) -> list[str]:
 	return SpecValidator.extract_declared_participants(specs)
-# @used-by :func:`agent_tools.issues.linter._check_arch_policy()`
 # @used-by :meth:`test_arch_spec_and_triggers.ArchSpecAndTriggersTests.test_spec_validator_accepts_gof_ru_and_idiom_exception()`
 # @used-by :meth:`test_arch_spec_and_triggers.ArchSpecAndTriggersTests.test_spec_validator_rejects_unknown_mismatched_and_incomplete_specs()`
 # @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_catalog_and_spec_validator_resolve_patterns_and_idiom_exceptions()`

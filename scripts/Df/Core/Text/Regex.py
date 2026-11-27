@@ -129,6 +129,9 @@ class Regex(O):
 	# @used-by :func:`Df.Harness.lib.hook_runtime_ops._scan_hook_line()`
 	# @used-by :func:`Df.Harness.lib.hook_runtime_ops._scan_workflow_line()`
 	# @used-by :func:`Df.Harness.lib.hook_runtime_ops._update_fence()`
+	# @used-by :func:`Df.Harness.lib.issue.dfh_is_df_issue_command_text()`
+	# @used-by :func:`Df.Harness.lib.issue_turn._next_skip_depth()`
+	# @used-by :func:`Df.Harness.lib.issue_turn.dfh_extract_implemented_m_roots()`
 	# @used-by :func:`Df.Harness.lib.journal_upgrade._execute_upgrade()`
 	# @used-by :func:`Df.Harness.lib.journal_upgrade._summarize_v2_buckets()`
 	# @used-by :func:`Df.Harness.lib.path_template._expand_braced_token()`
@@ -156,9 +159,6 @@ class Regex(O):
 	# @used-by :func:`agent_tools.cli_command_grounding._extract_recommended_commands()`
 	# @used-by :func:`agent_tools.cli_output_json._truncated_top_level_failure()`
 	# @used-by :func:`agent_tools.grounding_domains._collect_json_fact_tuples()`
-	# @used-by :func:`agent_tools.issue_first_bg._has_direct_issue_seg()`
-	# @used-by :func:`agent_tools.issues.parity._next_skip_depth()`
-	# @used-by :func:`agent_tools.issues.parity.extract_implemented_m_roots()`
 	# @used-by :func:`agent_tools.links.parse_markdown_headings()`
 	# @used-by :func:`agent_tools.links.readable_reference()`
 	# @used-by :func:`agent_tools.links.validate_file()`
@@ -200,6 +200,10 @@ class Regex(O):
 	# @used-by :meth:`Df.Harness.Git.BlobSizeValidator.BlobSizeValidator.__collect_push_revs()`
 	# @used-by :meth:`Df.Harness.Git.GitSegmentExtractor.GitSegmentExtractor.extract()`
 	# @used-by :meth:`Df.Harness.Git.HostPathNormalizer.HostPathNormalizer.normalize()`
+	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.__check_body_blocks()`
+	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.__collect_m_subtask_groups()`
+	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.validate_repo()`
+	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.validate_slug_part()`
 	# @used-by :meth:`Df.Harness.Meta.HeaderRenderer.HeaderRenderer.extract_leading()`
 	# @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__resolve_rel_to_root()`
 	# @used-by :meth:`Df.Harness.Path.SlotResolver.SlotResolver.__prepare_maps()`
@@ -245,10 +249,6 @@ class Regex(O):
 	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.parse_tag_line()`
 	# @used-by :meth:`Regex.matchInt()`
 	# @used-by :meth:`Regex.test()`
-	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._check_body_blocks()`
-	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter._collect_m_subtask_groups()`
-	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter.validate_repo()`
-	# @used-by :meth:`agent_tools.issues.linter.IssueMarkdownLinter.validate_slug_part()`
 	# @used-by :meth:`agent_tools.source_grounding.LocalSourceGroundingAuditor._check_prose_line()`
 	# @used-by :meth:`test_df_core_text_misc.DfCoreTextMiscTests.test_text_helpers_part1()`
 	def match(self) -> str | list[str] | None | bool:

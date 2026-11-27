@@ -40,6 +40,7 @@ class SpecValidator:
 	# @used-by :meth:`Df.Harness.Arch.Evaluator.Evaluator.evaluate_response()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__build_package_payload()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.inspect_status()`
+	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.check_arch_policy()`
 	# @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_catalog_and_spec_validator_resolve_patterns_and_idiom_exceptions()`
 	def __init__(self, *, catalog: dict | None=None) -> None:
 		self.__catalog = catalog
@@ -144,6 +145,7 @@ class SpecValidator:
 	# @used-by :meth:`Df.Harness.Arch.Evaluator.Evaluator.evaluate_response()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__build_package_payload()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.inspect_status()`
+	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.check_arch_policy()`
 	# @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_catalog_and_spec_validator_resolve_patterns_and_idiom_exceptions()`
 	def validate(self, text: str, *, require_full_fields: bool=True) -> dict:
 		cat = Catalog.load() if None is self.__catalog else self.__catalog

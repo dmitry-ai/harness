@@ -20,12 +20,12 @@ def _has_shebang(path: Path, content: str | None=None) -> bool:
 # @used-by :mod:`agent_tools.tdd.classifier`
 def _norm_posix(path: str | Path) -> str:
 	return CodeClassifier.norm_posix(path)
-# @used-by :func:`agent_tools.issue_first_gate.resolve_issue_first_target()`
-# @used-by :func:`agent_tools.issues.service_helpers._parse_dirty_porcelain()`
 # @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__resolve_pre_tool_target()`
 # @used-by :meth:`Df.Harness.Arch.Enforcement.Enforcement.__staged_code_entries()`
 # @used-by :meth:`Df.Harness.Arch.TriggerClassifier.TriggerClassifier.__append_scale_reasons()`
 # @used-by :meth:`Df.Harness.Arch.TriggerClassifier.TriggerClassifier.classify_code_change()`
+# @used-by :meth:`Df.Harness.Issue.DirtyIssueFirstScanner.DirtyIssueFirstScanner.__parse_dirty_porcelain()`
+# @used-by :meth:`Df.Harness.Issue.IssueFirstPreToolEvaluator.IssueFirstPreToolEvaluator.resolve_target()`
 # @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_gates_and_classifiers_recognize_dotpy_files()`
 # @used-by :meth:`test_tdd_decomposition.TddDecompositionTests.test_classifier_module_behavior_and_parity()`
 # @used-by :meth:`test_tdd_gate.TddGateCoreTests.test_universal_code_vs_test_vs_non_code_classification()`

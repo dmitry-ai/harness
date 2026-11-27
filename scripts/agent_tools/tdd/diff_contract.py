@@ -14,7 +14,7 @@ MIXED_COMMIT_COMMENT_THRESHOLD = DiffContract.MIXED_COMMIT_COMMENT_THRESHOLD
 # @used-by :mod:`agent_tools.tdd`
 def check_staged_mixed_commit_warning(repo_root: Path, staged_paths: list[str], *, use_index: bool=True, threshold: int=MIXED_COMMIT_COMMENT_THRESHOLD) -> dict[str, Any] | None:
 	return DiffContract.check_staged_mixed_commit_warning(repo_root, staged_paths, use_index=use_index, threshold=threshold)
-# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._check_repo_commits_and_files()`
+# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__check_repo_commits_and_files()`
 # @used-by :meth:`test_mixed_commit_audit.MixedCommitAuditTests.test_detect_mixed_commit_warning_threshold_and_exports()`
 # @used-by :mod:`agent_tools.tdd.diff_contract`
 # @used-by :mod:`agent_tools.tdd.diff_executability`

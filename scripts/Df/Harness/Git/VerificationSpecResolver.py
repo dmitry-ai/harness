@@ -68,9 +68,9 @@ class VerificationSpecResolver:
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_landing_lease_and_polyglot_land()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_helper_branches_lease_and_fifo()`
 	def resolve(self) -> dict[str, Any] | None:
-		from agent_tools.issues.workspace import IssueEvidenceWorkspace
+		from Df.Harness.Issue.EvidenceWorkspace import EvidenceWorkspace
 		reg = load_registry()
-		eff_slug = (self.__slug or IssueEvidenceWorkspace.origin_repo_slug(self.__main_repo) or '').strip().lower()
+		eff_slug = (self.__slug or EvidenceWorkspace.origin_repo_slug(self.__main_repo) or '').strip().lower()
 		raw_map = reg.raw.get('repo_verification') or {}
 		found: dict[str, Any] | None = None
 		if eff_slug and isinstance(raw_map, dict):

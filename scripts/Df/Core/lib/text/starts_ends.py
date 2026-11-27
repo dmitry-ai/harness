@@ -18,6 +18,7 @@ def df_ends_with(haystack: str, n: str | list[str]) -> bool:
 # Return True iff `haystack` starts with `n` (or any prefix in list `n`); empty needle returns True.
 # https://github.com/mage2pro/core/blob/11.6.1/Core/lib/text/starts-ends.php#L36-L93
 # @used-by :func:`Df.Core.lib.text.prepend_append.df_prepend()`
+# @used-by :func:`Df.Harness.lib.issue.dfh_is_excluded_meta_rel()`
 # @used-by :func:`agent_tools.issue_first_gate._is_excluded_meta_rel()`
 # @used-by :meth:`Df.Core.Text.Marker.Marker.marked()`
 # @used-by :meth:`Df.Qa.Trace.Trace.__init__()`

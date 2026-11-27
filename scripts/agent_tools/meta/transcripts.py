@@ -29,7 +29,7 @@ def _extract_turn_steps_from_state(state: dict[str, Any]) -> list[int]:
 # @used-by :mod:`agent_tools.metadata`
 def _find_turn_state_for_conversation(turns_dir: Path, conversation_id: str) -> tuple[Path, dict[str, Any]] | None:
 	return TranscriptReader.find_turn_state_for_conversation(turns_dir, conversation_id)
-# @used-by :func:`agent_tools.issues.turn_scope._fallback_env_session()`
+# @used-by :meth:`Df.Harness.Issue.SessionDetector.SessionDetector.__fallback_env_session()`
 # @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_transcripts_submodule_parses_antigravity_codex_and_turn_state()`
 # @used-by :mod:`agent_tools.meta`
 # @used-by :mod:`agent_tools.metadata`

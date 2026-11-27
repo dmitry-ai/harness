@@ -11,7 +11,6 @@ REGISTRY_PATH_HINTS = TriggerClassifier.REGISTRY_PATH_HINTS
 # @used-by :mod:`agent_tools.arch`
 def classify_code_change_trigger(rel_path: str, old_text: str | None, new_text: str | None, *, changed_prod_files: list[str] | tuple[str, ...]=()) -> dict:
 	return TriggerClassifier().classify_code_change(rel_path, old_text, new_text, changed_prod_files=changed_prod_files)
-# @used-by :func:`agent_tools.issues.linter._check_arch_policy()`
 # @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_structure_visitor_and_trigger_classifier_detect_df_cross_imports()`
 # @used-by :mod:`agent_tools.arch.triggers`
 # @used-by :mod:`agent_tools.arch`

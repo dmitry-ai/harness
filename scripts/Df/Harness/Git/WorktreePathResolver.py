@@ -7,6 +7,7 @@ _SKIP_PREFIXES = ('.git/', '\ua616/', '\ua66e/', '_/', '\U0001f56e/', '\u2c0f/\u
 class WorktreePathResolver:
 	# @used-by :func:`agent_tools.worktree_flow.resolve_touched_repo_file()`
 	# @used-by :meth:`Df.Harness.Git.TransientWaitRunner.TransientWaitRunner.__map_path_to_repo()`
+	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__collect_touched_repos()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_flow_guard_and_land()`
 	def __init__(self, path: Path, is_tracked_fn) -> None:
 		self.__path = path
@@ -27,6 +28,7 @@ class WorktreePathResolver:
 		return r
 	# @used-by :func:`agent_tools.worktree_flow.resolve_touched_repo_file()`
 	# @used-by :meth:`Df.Harness.Git.TransientWaitRunner.TransientWaitRunner.__map_path_to_repo()`
+	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__collect_touched_repos()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_flow_guard_and_land()`
 	def resolve(self) -> tuple[Path, str] | None:
 		r: tuple[Path, str] | None = None

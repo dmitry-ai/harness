@@ -31,14 +31,14 @@ class IssueCloseVerifier:
 	# @used-by :meth:`IssueCloseVerifier.__verify_parent_children()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_git_gate_worktree_locks_and_issues()`
 	def verify(self, repo: str, number: int, *, project_root: str | Path | None=None, visiting: set[int] | None=None, git_cache=None) -> dict:
-		from agent_tools.github_issue import find_tracked_child_issues
-		from agent_tools.issues.git_read_cache import RepoReadCache
+		from Df.Harness.Issue.EvidenceWorkspace import EvidenceWorkspace
+		from Df.Harness.Issue.ReadCache import ReadCache
 		from agent_tools.repo_tag_gate import finalize_commit_close_check
-		cache = git_cache if None is not git_cache else RepoReadCache()
+		cache = git_cache if None is not git_cache else ReadCache()
 		issue_url = f'https://github.com/{repo}/issues/{number}'
 		self.__ensure_clean(cache, issue_url)
 		commit_sha = cache.find_commit_for_issue(self.__gate.root, issue_url, dfh_extract_issue_urls)
-		children = find_tracked_child_issues(repo, number, project_root=project_root, code_repo=self.__gate.root)
+		children = EvidenceWorkspace().find_tracked_child_issues(repo, number, project_root=project_root, code_repo=self.__gate.root)
 		seen = set(visiting or ())
 		if children and int(number) not in seen:
 			seen.add(int(number))

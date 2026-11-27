@@ -27,9 +27,9 @@ def _check_parallel_answer_md_guard(args: Any, path: Any) -> None:
 # @used-by :func:`Df.Harness.lib.cli_operation_defs._add_single_operation_parser()`
 # @used-by :func:`Df.Harness.lib.cli_registry_defs.dfh_add_registered_parsers()`
 # @used-by :func:`Df.Harness.lib.completion_commands.dfh_add_completion_parser_arguments()`
-# @used-by :func:`agent_tools.issues.batch_commands.register_issue_subparsers()`
 # @used-by :func:`agent_tools.text_cli.main()`
 # @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__build_parser()`
+# @used-by :meth:`Df.Harness.Issue.BatchRunner.BatchRunner.register_subparsers()`
 # @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__build_parser()`
 # @used-by :meth:`test_cli_common.CliCommonTests.test_declarative_arg_specs_and_routers_parse_expected_flags()`
 def dfh_add_arg_specs(parser: Any, specs: tuple | list) -> None:
@@ -60,9 +60,9 @@ def dfh_consume_scratch_input(args: Any, path: Any, payload: bytes, result: dict
 				result['consumed_input'] = str(target)
 			r = result
 	return r
-# @used-by :func:`agent_tools.issues.batch_commands._run_batch_items()`
-# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._finalize_close()`
-# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._verify_mutation_readback()`
+# @used-by :meth:`Df.Harness.Issue.BatchRunner.BatchRunner.run()`
+# @used-by :meth:`Df.Harness.Issue.Service.Service.__finalize_close()`
+# @used-by :meth:`Df.Harness.Issue.Service.Service.__verify_mutation_readback()`
 # @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_input_guards_and_error_payloads()`
 # @used-by :mod:`agent_tools.github_issue`
 def dfh_consume_unchanged_files(files: list[tuple[Path, bytes]]) -> list[str]:
@@ -72,27 +72,21 @@ def dfh_consume_unchanged_files(files: list[tuple[Path, bytes]]) -> list[str]:
 			path.unlink()
 			r.append(str(path))
 	return r
+# @used-by :func:`Df.Harness.lib.issue.dfh_emit_grounding_failure()`
 # @used-by :func:`agent_tools.github_issue.main()`
-# @used-by :func:`agent_tools.issues.batch_commands._run_batch_items()`
-# @used-by :func:`agent_tools.issues.comment_grounding.check_comment_preflight()`
-# @used-by :func:`agent_tools.issues.comment_grounding.emit_grounding_failure()`
-# @used-by :func:`agent_tools.issues.comment_grounding.validate_close_comment()`
-# @used-by :func:`agent_tools.issues.repo_commands.run_audit_repo()`
-# @used-by :func:`agent_tools.issues.repo_commands.run_fetch()`
-# @used-by :func:`agent_tools.issues.repo_commands.run_lint()`
-# @used-by :func:`agent_tools.issues.repo_commands.run_transfer_repo()`
 # @used-by :func:`agent_tools.text_cli.findings_output()`
 # @used-by :func:`agent_tools.text_cli.main()`
 # @used-by :meth:`Df.Harness.Cli.Dispatcher.Dispatcher.__run_validate_links()`
+# @used-by :meth:`Df.Harness.Issue.BatchRunner.BatchRunner.run()`
+# @used-by :meth:`Df.Harness.Issue.CloseCommentValidator.CloseCommentValidator.validate()`
+# @used-by :meth:`Df.Harness.Issue.CommentGrounder.CommentGrounder.check_preflight()`
+# @used-by :meth:`Df.Harness.Issue.IssueFetcher.IssueFetcher.fetch()`
+# @used-by :meth:`Df.Harness.Issue.IssueLintRunner.IssueLintRunner.run()`
+# @used-by :meth:`Df.Harness.Issue.RepoAuditor.RepoAuditor.audit()`
+# @used-by :meth:`Df.Harness.Issue.RepoTransferRunner.RepoTransferRunner.transfer()`
+# @used-by :meth:`Df.Harness.Issue.Service.Service.__dump()`
 # @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.run()`
-# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._edit_parent_only()`
-# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._execute_edit()`
-# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._finalize_close()`
-# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._post_close_comment()`
-# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._verify_close_prereqs()`
-# @used-by :meth:`agent_tools.issues.service.GitHubIssueService._verify_mutation_readback()`
-# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.cmd_create()`
-# @used-by :meth:`agent_tools.issues.service.GitHubIssueService.run_verified_mutation()`
+# @used-by :mod:`agent_tools.issues.service`
 def dfh_dump_json(payload: Any, *, stream: Any=None) -> None:
 	print(json.dumps(payload, ensure_ascii=False, indent=2), file=stream or sys.stdout)
 # @used-by :func:`Df.Harness.lib.cli_domain_ops._load_consumed()`
