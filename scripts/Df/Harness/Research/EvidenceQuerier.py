@@ -146,11 +146,11 @@ class EvidenceQuerier:
 				self.__attach_grep(entry, obs_file, data, state, raw_text, blob_lines, has_lc, rx)
 			r = entry
 		return r
+	# @used-by :func:`Df.Harness.lib.browser.dfh_checked_ws()`
+	# @used-by :func:`Df.Harness.lib.browser.dfh_endpoint_with_meta()`
 	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_question_search()`
 	# @used-by :func:`Df.Harness.lib.markdown.dfh_display_address()`
 	# @used-by :func:`agent_tools.research.evidence_query()`
-	# @used-by :func:`agent_tools.text_browser._checked_ws()`
-	# @used-by :func:`agent_tools.text_browser._endpoint_with_meta()`
 	# @used-by :meth:`Df.Harness.Upwork.JobUrlParser.JobUrlParser.extract_upwork_job_url_id()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_research.DfHarnessS11Wave2CResearchTests.test_evidence_querier_and_grepper()`
 	def query(self) -> dict:

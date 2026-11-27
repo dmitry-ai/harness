@@ -39,7 +39,6 @@ def bounded_metrics(value):
 # @used-by :mod:`agent_tools.research`
 def capture_dom(root, url, tab_id, *, session_id=None, refresh_reason=None, context=None, config=None, guard=None):
 	return DomCapturer(root, url, tab_id, session_id=session_id, refresh_reason=refresh_reason, context=context, config=config, guard=guard).capture()
-# @used-by :func:`agent_tools.text_browser._poll_dom_on_session()`
 # @used-by :meth:`Df.Harness.Analysis.HtmlQuoteVerifier.HtmlQuoteVerifier.verify()`
 # @used-by :meth:`Df.Harness.Analysis.ObservationBundleLoader.ObservationBundleLoader.__extract_html()`
 # @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m3_passive_cloudflare_jsd_script_is_admitted_while_real_interstitial_is_blocked()`

@@ -35,17 +35,20 @@ class BatchCollector:
 	# @used-by :meth:`BatchCollector.__run_plan_entry()`
 	@staticmethod
 	def __lazy_headless_fetch(shared_shell: dict, proj_root, target: str, *, cdp_port=None, timeout: float=15, config=None, http_get=None, cdp_call=None) -> dict:
-		from agent_tools.text_browser import ManagedHeadlessShell, collect_cdp_dom
+		from Df.Harness.Text.Browser.CdpDomCollector import CdpDomCollector
+		from Df.Harness.Text.Browser.HeadlessShell import HeadlessShell
+		from Df.Harness.lib.browser import dfh_browser_seam
 		if None is shared_shell['instance']:
-			shared_shell['instance'] = ManagedHeadlessShell(config).__enter__()
-		return collect_cdp_dom(proj_root, target, cdp_port=cdp_port, timeout=timeout, config=config, headless_shell=shared_shell['instance'])
+			shared_shell['instance'] = HeadlessShell(config).__enter__()
+		fn = dfh_browser_seam('collect_cdp_dom', lambda r, t, **kw: CdpDomCollector(r, t, **kw).collect())
+		return fn(proj_root, target, cdp_port=cdp_port, timeout=timeout, config=config, headless_shell=shared_shell['instance'])
 	# @used-by :meth:`BatchCollector.collect_browser_batch()`
 	@staticmethod
 	def __run_browser_url(root, url: str, opts: dict, shared_shell: dict, use_lazy: bool) -> dict:
 		try:
 			if use_lazy and None is shared_shell['instance']:
-				from agent_tools.text_browser import ManagedHeadlessShell
-				shared_shell['instance'] = ManagedHeadlessShell(opts['config']).__enter__()
+				from Df.Harness.Text.Browser.HeadlessShell import HeadlessShell
+				shared_shell['instance'] = HeadlessShell(opts['config']).__enter__()
 			r = BrowserCollector(root, url, headless_shell=shared_shell['instance'], **opts).collect()
 		except (OSError, ValueError, KeyError, TypeError) as exc:
 			r = {'url': url, 'error': type(exc).__name__, 'detail': str(exc)}

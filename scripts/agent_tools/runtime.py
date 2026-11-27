@@ -38,8 +38,8 @@ def default_user_locale(config=None) -> str | None:
 # @used-by unused
 def enabled_platforms(*, config=None):
 	return dfh_enabled_platforms(config=config, settings_fn=settings)
+# @used-by :func:`Df.Harness.lib.browser.dfh_profile()`
 # @used-by :func:`agent_tools.platforms.codex._cx_ops()`
-# @used-by :func:`agent_tools.text_browser._profile()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_codex_custom_system_paths_trace_requests_metadata_and_answers()`
 def extract_platform_homes(plat_cfg, *, platform='', include_disabled=False):
 	return dfh_extract_platform_homes(plat_cfg, platform=platform, include_disabled=include_disabled)
@@ -132,6 +132,7 @@ def platform_key_for_adapter(adapter_name, config=None):
 # @used-by :mod:`agent_tools.upwork_project`
 def platform_name(value=None, *, config=None):
 	return dfh_platform_name(value=value, config=config, settings_fn=settings)
+# @used-by :func:`Df.Harness.lib.browser.dfh_resolve_cdp_port()`
 # @used-by :func:`agent_tools.platforms.antigravity._ag_ops()`
 # @used-by :func:`agent_tools.platforms.antigravity._native_invocation()`
 # @used-by :func:`agent_tools.platforms.codex._cx_ops()`
@@ -140,7 +141,6 @@ def platform_name(value=None, *, config=None):
 # @used-by :func:`agent_tools.platforms.codex.native_requests()`
 # @used-by :func:`agent_tools.platforms.codex.require_current_binding()`
 # @used-by :func:`agent_tools.platforms.codex.shared_control()`
-# @used-by :func:`agent_tools.text_browser.resolve_cdp_port()`
 # @used-by :func:`agent_tools.upwork_project.doctor()`
 # @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`agent_tools.upwork_project.run()`
@@ -203,6 +203,8 @@ def role_settings(platform, role, seen=()):
 # @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_sanctioned_addon_roots_and_cdp_bypass_gate()`
 def sanctioned_addon_code_roots(config=None):
 	return dfh_cached_addon_roots(config, sys.modules[__name__], _expand_path)
+# @used-by :func:`Df.Harness.lib.browser.dfh_resolve_cdp_port()`
+# @used-by :func:`Df.Harness.lib.browser.dfh_resolve_headless_shell()`
 # @used-by :func:`_resolve_platform_cfg()`
 # @used-by :func:`agent_tools.cleanup.cleanup_projects()`
 # @used-by :func:`agent_tools.cleanup.record_cleanup_answer()`
@@ -228,12 +230,6 @@ def sanctioned_addon_code_roots(config=None):
 # @used-by :func:`agent_tools.registration.register_project()`
 # @used-by :func:`agent_tools.registration.register_projects()`
 # @used-by :func:`agent_tools.repo_tags.commit_date_day()`
-# @used-by :func:`agent_tools.text_browser.browser_anchor_status()`
-# @used-by :func:`agent_tools.text_browser.collect_cdp_dom()`
-# @used-by :func:`agent_tools.text_browser.collect_headless_dom()`
-# @used-by :func:`agent_tools.text_browser.preflight()`
-# @used-by :func:`agent_tools.text_browser.resolve_cdp_port()`
-# @used-by :func:`agent_tools.text_browser.resolve_headless_shell()`
 # @used-by :func:`agent_tools.text_core.default_shell()`
 # @used-by :func:`agent_tools.upwork_project.antigravity_global_config_dirs()`
 # @used-by :func:`agent_tools.upwork_project.check_configuration()`
@@ -277,6 +273,13 @@ def sanctioned_addon_code_roots(config=None):
 # @used-by :meth:`Df.Harness.Project.Registry.Registry.__init__()`
 # @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__sync_registrations()`
 # @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.update_projects_index()`
+# @used-by :meth:`Df.Harness.Text.Browser.AnchorStatusChecker.AnchorStatusChecker.__init__()`
+# @used-by :meth:`Df.Harness.Text.Browser.CdpDomCollector.CdpDomCollector.collect()`
+# @used-by :meth:`Df.Harness.Text.Browser.CdpSession.CdpSession.__init__()`
+# @used-by :meth:`Df.Harness.Text.Browser.GuardedCdp.GuardedCdp.__init__()`
+# @used-by :meth:`Df.Harness.Text.Browser.HeadlessDomCollector.HeadlessDomCollector.collect()`
+# @used-by :meth:`Df.Harness.Text.Browser.HeadlessShell.HeadlessShell.__init__()`
+# @used-by :meth:`Df.Harness.Text.Browser.PreflightChecker.PreflightChecker.__init__()`
 # @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.main()`
 # @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.__init__()`
 # @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.__init__()`
@@ -287,9 +290,6 @@ def sanctioned_addon_code_roots(config=None):
 # @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.resolve_or_create()`
 # @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.initialize()`
 # @used-by :meth:`Df.Harness.Workflow.RegistrationStatusChecker.RegistrationStatusChecker.status()`
-# @used-by :meth:`agent_tools.text_browser.CDPSession.__init__()`
-# @used-by :meth:`agent_tools.text_browser.GuardedCDP.__init__()`
-# @used-by :meth:`agent_tools.text_browser.ManagedHeadlessShell.__init__()`
 # @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner.__init__()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_native_profiles_generates_arch_auditor_for_antigravity_and_codex()`
 # @used-by :meth:`test_cleanup.CleanupTests.setUp()`

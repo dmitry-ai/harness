@@ -23,7 +23,7 @@ class WorktreeCleaner:
 	# @used-by :func:`agent_tools.worktree_flow.worktree_cleanup()`
 	# @used-by :func:`git_fixture_cache._cleanup_templates()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeMerger.WorktreeMerger.__cleanup_worktree()`
-	# @used-by :meth:`agent_tools.text_browser.ManagedHeadlessShell.close()`
+	# @used-by :meth:`Df.Harness.Text.Browser.HeadlessShell.HeadlessShell.close()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_flow_guard_and_land()`
 	def cleanup(self) -> dict:
 		main_repo = RepoGate(self.__repo).main_repo()

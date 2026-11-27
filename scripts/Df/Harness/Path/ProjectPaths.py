@@ -204,6 +204,7 @@ class ProjectPaths:
 	def continuation_md(self) -> Path:
 		return Path(self.paths_str['continuation_md'])
 	# @used-by :func:`Df.Harness.lib.blocked_report_ops._check_text_workflow_gate()`
+	# @used-by :func:`Df.Harness.lib.browser.dfh_endpoint_lock()`
 	# @used-by :func:`Df.Harness.lib.completion_core.dfh_turns_folder()`
 	# @used-by :func:`Df.Harness.lib.journal.dfh_turns_dir()`
 	# @used-by :func:`Df.Harness.lib.journal_upgrade.dfh_upgrade_journal()`
@@ -211,7 +212,6 @@ class ProjectPaths:
 	# @used-by :func:`Df.Harness.lib.research.dfh_observed_use()`
 	# @used-by :func:`Df.Harness.lib.shadow_command.dfh_persist_shadow_replay_receipt()`
 	# @used-by :func:`Df.Harness.lib.storage.dfh_data_dir_for()`
-	# @used-by :func:`agent_tools.text_browser._endpoint_lock()`
 	# @used-by :func:`agent_tools.text_claims.save_registry()`
 	# @used-by :func:`agent_tools.text_workflow._folder()`
 	# @used-by :func:`agent_tools.worktree_flow.worktree_land()`
@@ -243,11 +243,11 @@ class ProjectPaths:
 	@property
 	def data_dir(self) -> Path:
 		return Path(self.paths_str['data_dir'])
+	# @used-by :func:`Df.Harness.lib.browser.dfh_save_cdp_identity()`
 	# @used-by :func:`Df.Harness.lib.cli_domain_ops.dfh_execute_collect()`
 	# @used-by :func:`Df.Harness.lib.completion_checks.dfh_factual_kb_note_issues()`
 	# @used-by :func:`Df.Harness.lib.completion_compaction.dfh_compaction_status()`
 	# @used-by :func:`Df.Harness.lib.trace_review.dfh_persist_review_proof()`
-	# @used-by :func:`agent_tools.text_browser.save_cdp_identity()`
 	# @used-by :func:`test_df_harness_s11_wave2a_workflow._seed_project()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__load_state()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.verify()`
@@ -344,9 +344,9 @@ class ProjectPaths:
 	@property
 	def journal_root_dir(self) -> Path:
 		return Path(self.paths_str['journal_root_dir'])
+	# @used-by :func:`Df.Harness.lib.browser.dfh_save_cdp_identity()`
 	# @used-by :func:`Df.Harness.lib.completion_checks.dfh_factual_kb_note_issues()`
 	# @used-by :func:`agent_tools.evidence.source_reference()`
-	# @used-by :func:`agent_tools.text_browser.save_cdp_identity()`
 	# @used-by :func:`agent_tools.text_claims.registry_path()`
 	# @used-by :func:`agent_tools.text_sources._evaluate()`
 	# @used-by :meth:`Df.Harness.Analysis.LocalSourceResolver.LocalSourceResolver.resolve()`
@@ -410,6 +410,7 @@ class ProjectPaths:
 	def metrics_json(self) -> Path:
 		return Path(self.paths_str['metrics_json'])
 	# @used-by :func:`Df.Core.lib.fs.df_uri_file_decode()`
+	# @used-by :func:`Df.Harness.lib.browser.dfh_endpoint_with_meta()`
 	# @used-by :func:`Df.Harness.lib.completion_checks.dfh_is_client_deliverable_path()`
 	# @used-by :func:`Df.Harness.lib.completion_links._normalize_file_href_path()`
 	# @used-by :func:`Df.Harness.lib.config_blocks.dfh_has_linked_ancestor()`
@@ -437,7 +438,6 @@ class ProjectPaths:
 	# @used-by :func:`Df.Harness.lib.runtime_validate.dfh_expand_path()`
 	# @used-by :func:`Df.Harness.lib.trace_common.dfh_local_uri_to_path()`
 	# @used-by :func:`Df.Harness.lib.uri.dfh_local_uri_to_path()`
-	# @used-by :func:`agent_tools.text_browser._endpoint_with_meta()`
 	# @used-by :func:`check_pre_invocation._ensure_scripts_on_path()`
 	# @used-by :func:`check_stop_gate._ensure_scripts_on_path()`
 	# @used-by :func:`conftest.configure_test_environment()`
@@ -544,6 +544,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_harness_s11_wave2b_xref_cov`
 	# @used-by :mod:`test_df_harness_s11_wave2b_xref`
 	# @used-by :mod:`test_df_harness_s11_wave2b`
+	# @used-by :mod:`test_df_harness_s11_wave2c_browser`
 	# @used-by :mod:`test_df_harness_s11_wave2c_cross_wave`
 	# @used-by :mod:`test_df_harness_s11_wave2c_git`
 	# @used-by :mod:`test_df_harness_s11_wave2c_grounding`

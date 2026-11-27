@@ -14,6 +14,7 @@ class ChallengeClassifier:
 	# @used-by :func:`agent_tools.research.classify_html_challenge()`
 	# @used-by :meth:`Df.Harness.Research.Extractor.Extractor.__extract_html()`
 	# @used-by :meth:`Df.Harness.Research.ObservationBundleScanner.ObservationBundleScanner.__scan_raw_html()`
+	# @used-by :meth:`Df.Harness.Text.Browser.DomPoller.DomPoller.__is_settled()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_research.DfHarnessS11Wave2CResearchTests.test_extractor_json_summarizer_and_challenge_classifier()`
 	def __init__(self, raw_html: str, *, parsed: dict | None=None, status: int | None=None) -> None:
 		self.__raw_html = raw_html
@@ -55,6 +56,7 @@ class ChallengeClassifier:
 	# @used-by :func:`agent_tools.research.classify_html_challenge()`
 	# @used-by :meth:`Df.Harness.Research.Extractor.Extractor.__extract_html()`
 	# @used-by :meth:`Df.Harness.Research.ObservationBundleScanner.ObservationBundleScanner.__scan_raw_html()`
+	# @used-by :meth:`Df.Harness.Text.Browser.DomPoller.DomPoller.__is_settled()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_research.DfHarnessS11Wave2CResearchTests.test_extractor_json_summarizer_and_challenge_classifier()`
 	def is_challenge(self) -> bool:
 		if not isinstance(self.__raw_html, str) or self.__is_sitemap_input():

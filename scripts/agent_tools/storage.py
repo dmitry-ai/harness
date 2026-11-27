@@ -60,10 +60,10 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 # @used-by unused
 def journal_data_dir_for(eff: Path) -> Path:
 	return dfh_journal_data_dir_for(eff)
+# @used-by :func:`Df.Harness.lib.browser.dfh_endpoint_lock()`
 # @used-by :func:`Df.Harness.lib.research.dfh_observed_use()`
 # @used-by :func:`agent_tools.completion._completion_ops()`
 # @used-by :func:`agent_tools.snapshot.snapshot_draft()`
-# @used-by :func:`agent_tools.text_browser._endpoint_lock()`
 # @used-by :func:`agent_tools.text_claims.save_registry()`
 # @used-by :func:`agent_tools.text_review.record()`
 # @used-by :func:`agent_tools.text_sources._attempt()`
@@ -178,7 +178,7 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :meth:`test_turn_completion.WatcherLifecycleTests.test_equal_byte_replacement_does_not_create_temporary_files_or_touch_mtime()`
 def replace_bytes(path: Path, data: bytes):
 	dfh_replace_bytes(path, data)
-# @used-by :func:`agent_tools.text_browser.save_cdp_identity()`
+# @used-by :func:`Df.Harness.lib.browser.dfh_save_cdp_identity()`
 # @used-by :func:`agent_tools.text_review.prepare()`
 # @used-by :func:`agent_tools.text_sources.probe_links()`
 # @used-by :func:`agent_tools.text_sources.save_source_check()`

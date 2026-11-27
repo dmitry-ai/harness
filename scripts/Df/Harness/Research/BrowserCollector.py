@@ -61,8 +61,10 @@ class BrowserCollector:
 		if None is not self.__cdp_fetcher:
 			capture = self.__cdp_fetcher(self.__root, target, cdp_port=self.__cdp_port, timeout=fetch_timeout, config=self.__config, http_get=self.__http_get, cdp_call=self.__cdp_call)
 		else:
-			from agent_tools.text_browser import collect_cdp_dom
-			capture = collect_cdp_dom(self.__root, target, cdp_port=self.__cdp_port, session_id=self.__session_id, timeout=fetch_timeout, config=self.__config, http_get=self.__http_get, cdp_call=self.__cdp_call, headless_shell=self.__headless_shell)
+			from Df.Harness.Text.Browser.CdpDomCollector import CdpDomCollector
+			from Df.Harness.lib.browser import dfh_browser_seam
+			fn = dfh_browser_seam('collect_cdp_dom', lambda r, t, **kw: CdpDomCollector(r, t, **kw).collect())
+			capture = fn(self.__root, target, cdp_port=self.__cdp_port, session_id=self.__session_id, timeout=fetch_timeout, config=self.__config, http_get=self.__http_get, cdp_call=self.__cdp_call, headless_shell=self.__headless_shell)
 		if not isinstance(capture, dict) or not isinstance(capture.get('html'), str):
 			raise ValueError('CDP DOM capture did not return HTML payload')
 		cdp_meta.update(capture)

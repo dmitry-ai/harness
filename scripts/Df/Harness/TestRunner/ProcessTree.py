@@ -39,9 +39,9 @@ class ProcessTree:
 	# @used-by :meth:`Df.Harness.TestRunner.SuiteRunner.SuiteRunner.__poll_module_proc()`
 	# @used-by :meth:`Df.Harness.TestRunner.SuiteRunner.SuiteRunner.__terminate_active()`
 	# @used-by :meth:`Df.Harness.TestRunner.WatchdogRunner.WatchdogRunner.__poll_until_exit()`
+	# @used-by :meth:`Df.Harness.Text.Browser.CdpSession.CdpSession.close()`
+	# @used-by :meth:`Df.Harness.Text.Browser.HeadlessShell.HeadlessShell.__stop_process()`
 	# @used-by :meth:`ProcessTree.__finish_kill()`
-	# @used-by :meth:`agent_tools.text_browser.CDPSession.close()`
-	# @used-by :meth:`agent_tools.text_browser.ManagedHeadlessShell.close()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_runner_process_tree_watchdog_semaphore_and_pytest_modes()`
 	def kill(self) -> None:
 		if None is self.__proc.poll():

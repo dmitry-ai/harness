@@ -122,14 +122,14 @@ def normalize_path_str(raw: str, *, preserve_trailing_slash: bool=False) -> str:
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_similar_projects_groups_symmetric_overlays_affiliated_paths_and_validation()`
 def paths_report(project: str | Path | None=None, *, expand: str | None=None, check: bool=False, registry: PathRegistry | None=None) -> dict[str, Any]:
 	return PathReporter(project, expand=expand, check=check, registry=registry).run()
+# @used-by :func:`Df.Harness.lib.browser.dfh_endpoint_lock()`
+# @used-by :func:`Df.Harness.lib.browser.dfh_save_cdp_identity()`
 # @used-by :func:`Df.Harness.lib.grounding.dfh_load_fact_ledger()`
 # @used-by :func:`Df.Harness.lib.research.dfh_observed_use()`
 # @used-by :func:`Df.Harness.lib.worktree.dfh_prepare_worktrees_base_dir()`
 # @used-by :func:`agent_tools.doc5_replay_audit.audit_local_saved_turns()`
 # @used-by :func:`agent_tools.evidence.source_reference()`
 # @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
-# @used-by :func:`agent_tools.text_browser._endpoint_lock()`
-# @used-by :func:`agent_tools.text_browser.save_cdp_identity()`
 # @used-by :func:`agent_tools.text_claims.registry_path()`
 # @used-by :func:`agent_tools.text_claims.save_registry()`
 # @used-by :func:`agent_tools.text_sources._evaluate()`
@@ -360,7 +360,7 @@ def tool_value(name: str, *, project_root: str | Path | None=None, registry: Pat
 # @used-by :mod:`agent_tools.runtime`
 def var_value(name: str, *, registry: PathRegistry | None=None) -> str:
 	return dfh_var_value(name, registry=registry)
-# @used-by :func:`agent_tools.text_browser._endpoint_lock()`
+# @used-by :func:`Df.Harness.lib.browser.dfh_endpoint_lock()`
 # @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.__target_for_project_root()`
 # @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.issue_target_for_path()`
 def workspace_override(path: str | Path, key: str | None=None, *, registry: PathRegistry | None=None) -> Any:

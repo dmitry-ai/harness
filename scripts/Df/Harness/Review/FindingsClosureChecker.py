@@ -11,7 +11,7 @@ class FindingsClosureChecker:
 		self.__evaluator = evaluator
 		self.__entry = entry
 	# @used-by :meth:`Df.Harness.Review.QuorumEvaluator.QuorumEvaluator.findings_closed()`
-	# @used-by :meth:`agent_tools.text_browser.CDPSession.close()`
+	# @used-by :meth:`Df.Harness.Text.Browser.CdpSession.CdpSession.close()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_review_quorum_and_authorizer_classes()`
 	def closed(self) -> bool:
 		data = json.loads(inside(self.__root, self.__entry['report']).read_text(encoding='utf-8'))
