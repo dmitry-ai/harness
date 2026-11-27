@@ -32,17 +32,15 @@ class PageDecoder:
 	# @used-by :func:`Df.Harness.lib.native_ag_plan._plan_ag_config_json()`
 	# @used-by :func:`Df.Harness.lib.native_codex_plan._plan_codex_config_toml()`
 	# @used-by :func:`Df.Harness.lib.native_codex_roles._collect_role_backup_originals()`
+	# @used-by :func:`Df.Harness.lib.research._decode_readable_match()`
 	# @used-by :func:`Df.Harness.lib.runtime_snapshot_ops.dfh_check_runtime_snapshot()`
 	# @used-by :func:`Df.Harness.lib.runtime_snapshot_ops.dfh_export_git_archive()`
 	# @used-by :func:`Df.Harness.lib.runtime_snapshot_ops.dfh_git_read()`
 	# @used-by :func:`Df.Harness.lib.storage.dfh_read_addressed_json()`
 	# @used-by :func:`Df.Harness.lib.trace_common.dfh_read_jsonl_objects()`
-	# @used-by :func:`agent_tools.links._readable_escapes()`
-	# @used-by :func:`agent_tools.links.fetch_page()`
 	# @used-by :func:`agent_tools.repo_tags.commit_date_day()`
 	# @used-by :func:`agent_tools.repo_tags.list_repo_tags()`
 	# @used-by :func:`agent_tools.repo_tags.tags_at_commit()`
-	# @used-by :func:`agent_tools.research.extract_bytes()`
 	# @used-by :func:`agent_tools.upwork_extract.decode_page()`
 	# @used-by :func:`agent_tools.worktree_flow._current_branch()`
 	# @used-by :func:`test_arch_audit_gates._record_verdict()`
@@ -107,6 +105,7 @@ class PageDecoder:
 	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__sync_antigravity_native_files()`
 	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.update_projects_index()`
 	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.__update_project_json()`
+	# @used-by :meth:`Df.Harness.Research.NetworkLinkChecker.NetworkLinkChecker.fetch_page()`
 	# @used-by :meth:`Df.Harness.Review.PackageReader.PackageReader.__validate_current()`
 	# @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__load_and_check()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffContract.DiffContract.__parse_batch_blobs()`
@@ -127,6 +126,7 @@ class PageDecoder:
 	# @used-by :meth:`test_df_analysis_companion_tracks.DfAnalysisCompanionTracksTests.test_skill_rules_and_docs_codify_mandatory_separate_companion_tracks()`
 	# @used-by :meth:`test_df_analysis_rules_contract.DfAnalysisRulesAndSkillContractTests.test_rules_adapters_and_docs_codify_df_analysis_and_pass_lint()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_extract_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_research.DfHarnessS11Wave2CResearchTests.test_batch_http_and_browser_collectors_and_site_summarizer()`
 	# @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_registered_intake_and_attachment_are_primary_but_quote_must_match_locator()`
 	# @used-by :meth:`test_github_issue.TestGitHubIssueTool.test_create_and_consume_input_with_readback_verification()`
 	# @used-by :meth:`test_issue_first_pre_tool_use.IssueFirstPreToolUseGateTests.test_cli_subprocess_smoke()`

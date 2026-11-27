@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from Df.Harness.Git.HostPathNormalizer import HostPathNormalizer
 from Df.Harness.Git.WorktreeExcludeManager import WorktreeExcludeManager
-from agent_tools.path_registry import project_paths
 import subprocess
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
@@ -61,5 +60,9 @@ def dfh_has_origin_remote(repo: Path, *, remote: str='origin') -> bool:
 # @used-by :meth:`Df.Harness.Git.WorktreeCreator.WorktreeCreator.begin()`
 # @used-by :meth:`Df.Harness.Git.WorktreeTransaction.WorktreeTransaction.create()`
 def dfh_prepare_worktrees_base_dir(repo: Path | str, *, worktrees_dir: Path | str | None=None) -> tuple[Path, dict]:
-	base = HostPathNormalizer(str(worktrees_dir)).normalize().resolve() if None is not worktrees_dir else project_paths(Path(repo).resolve()).worktrees_dir.resolve()
+	if None is not worktrees_dir:
+		base = HostPathNormalizer(str(worktrees_dir)).normalize().resolve()
+	else:
+		from agent_tools.path_registry import project_paths
+		base = project_paths(Path(repo).resolve()).worktrees_dir.resolve()
 	return (base, WorktreeExcludeManager(base).ensure())

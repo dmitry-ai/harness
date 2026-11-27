@@ -88,9 +88,6 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :func:`agent_tools.article.check_link_style()`
 	# @used-by :func:`agent_tools.article.check_structure()`
 	# @used-by :func:`agent_tools.cli_output_json.extract_top_level_json_objects()`
-	# @used-by :func:`agent_tools.links.parse_markdown_headings()`
-	# @used-by :func:`agent_tools.research._grep_section_windows()`
-	# @used-by :func:`agent_tools.research.extract_markdown()`
 	# @used-by :func:`agent_tools.text_core._excerpt()`
 	# @used-by :func:`agent_tools.text_core.bold_spans()`
 	# @used-by :func:`agent_tools.text_core.check_response()`
@@ -111,6 +108,9 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :meth:`Df.Harness.Grounding.ScatterBannerAuditor.ScatterBannerAuditor.__proposal_slice()`
 	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.has_enumerated_slop_title()`
 	# @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.replace_section2()`
+	# @used-by :meth:`Df.Harness.Research.EvidenceGrepper.EvidenceGrepper.__clip_snippet()`
+	# @used-by :meth:`Df.Harness.Research.MarkdownExtractor.MarkdownExtractor.__collect_html_anchors()`
+	# @used-by :meth:`Df.Harness.Research.MarkdownHeadingParser.MarkdownHeadingParser.__collect_rows()`
 	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.lex_php()`
 	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.lex_python()`
 	# @used-by :meth:`Df.Harness.Tdd.MarkupCommentLexer.MarkupCommentLexer.__consume_astro_frontmatter()`

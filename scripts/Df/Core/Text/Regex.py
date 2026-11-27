@@ -140,6 +140,7 @@ class Regex(O):
 	# @used-by :func:`Df.Harness.lib.issue_turn.dfh_extract_implemented_m_roots()`
 	# @used-by :func:`Df.Harness.lib.journal_upgrade._execute_upgrade()`
 	# @used-by :func:`Df.Harness.lib.journal_upgrade._summarize_v2_buckets()`
+	# @used-by :func:`Df.Harness.lib.markdown.dfh_decode_file_uri()`
 	# @used-by :func:`Df.Harness.lib.path_template._expand_braced_token()`
 	# @used-by :func:`Df.Harness.lib.path_template._split_path_root()`
 	# @used-by :func:`Df.Harness.lib.path_template.dfh_normalize_path_str()`
@@ -148,6 +149,7 @@ class Regex(O):
 	# @used-by :func:`Df.Harness.lib.request_binding._slash_link_upwork_ids()`
 	# @used-by :func:`Df.Harness.lib.request_binding._strip_user_request_wrapper()`
 	# @used-by :func:`Df.Harness.lib.request_binding.dfh_extract_leading_upwork_init_ids()`
+	# @used-by :func:`Df.Harness.lib.research.dfh_readable_reference()`
 	# @used-by :func:`Df.Harness.lib.rule_splitter._partition_rule_sections()`
 	# @used-by :func:`Df.Harness.lib.rule_splitter._used_rule_indices()`
 	# @used-by :func:`Df.Harness.lib.shell.dfh_extract_comment_issue_urls()`
@@ -163,11 +165,6 @@ class Regex(O):
 	# @used-by :func:`agent_tools.article.render()`
 	# @used-by :func:`agent_tools.article.to_source()`
 	# @used-by :func:`agent_tools.cli_output_json._truncated_top_level_failure()`
-	# @used-by :func:`agent_tools.links.parse_markdown_headings()`
-	# @used-by :func:`agent_tools.links.readable_reference()`
-	# @used-by :func:`agent_tools.links.validate_file()`
-	# @used-by :func:`agent_tools.markdown_links.decode_file_uri()`
-	# @used-by :func:`agent_tools.research._summarize_json_collections()`
 	# @used-by :func:`agent_tools.text_core.check_markdown_lists()`
 	# @used-by :func:`agent_tools.text_core.check_prose()`
 	# @used-by :func:`agent_tools.text_core.command_blocks()`
@@ -212,6 +209,9 @@ class Regex(O):
 	# @used-by :meth:`Df.Harness.Perf.TimesheetCommon.TimesheetCommon.__parse_header_meta()`
 	# @used-by :meth:`Df.Harness.Project.Context.LetterDiscoverer.LetterDiscoverer.is_excluded()`
 	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__validate_inputs()`
+	# @used-by :meth:`Df.Harness.Research.JsonCollectionSummarizer.JsonCollectionSummarizer.__collect_item_fields()`
+	# @used-by :meth:`Df.Harness.Research.LinkAuditor.LinkAuditor.__resolve_local_path_text()`
+	# @used-by :meth:`Df.Harness.Research.MarkdownHeadingParser.MarkdownHeadingParser.__extract_frontmatter()`
 	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.scan_word_or_char()`
 	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.is_test_file()`
 	# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.unwrap_watchdog_prefix()`

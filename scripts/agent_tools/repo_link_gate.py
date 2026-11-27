@@ -5,13 +5,13 @@ from pathlib import Path
 from Df.Harness.Gate.RepoLinkGate import RepoLinkGate
 from Df.Harness.Gate.RepoLinkResolver import RepoLinkResolver
 GITHUB_BLOB_TREE_RE = RepoLinkResolver.GITHUB_BLOB_TREE_RE
-# @used-by :func:`agent_tools.links.chat_reply_link_issues()`
 # @used-by :meth:`Df.Harness.Issue.Linter.Linter.__check_body_blocks()`
+# @used-by :meth:`Df.Harness.Research.LinkAuditor.LinkAuditor.chat_reply_link_issues()`
 # @used-by :mod:`agent_tools.repo_link_gate`
 def chat_repo_link_issues(content: str, *, root: Path | None=None) -> list[str]:
 	return RepoLinkGate.check_chat(content, root=root)
 # @used-by :func:`Df.Harness.lib.hook_markdown_ops.dfh_check_doc_grounding_and_links()`
-# @used-by :func:`agent_tools.links.validate_file()`
+# @used-by :meth:`Df.Harness.Research.LinkAuditor.LinkAuditor.validate_file()`
 # @used-by :mod:`agent_tools.repo_link_gate`
 def file_repo_link_issues(doc_path: Path, content: str, *, repo_root: Path | None=None) -> list[str]:
 	return RepoLinkGate.check_file(doc_path, content, repo_root=repo_root)

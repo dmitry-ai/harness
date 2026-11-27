@@ -4,9 +4,6 @@ from pathlib import Path
 from typing import Any
 from Df.Harness.Issue.RepoLocator import RepoLocator, V2_CODE_RELS
 from Df.Harness.lib.trace import dfh_cmd_from_call, dfh_row_outputs
-from agent_tools.cli_output_json import top_level_json_has_failure
-from agent_tools.hook_crash_audit import _load_turn_rows
-from agent_tools.tdd_gate import _BG_TASK_FINISHED_RE, parse_command_outcome
 import re
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 _EXCLUDED_CLI_RE = re.compile(r'\b(?:pytest|unittest|run-tests|test-watchdog|perf-profile-tests|answer-check|answer-prepare|tdd-check|issue-first-check|analysis-check|rules-audit|collect|collect-http|collect-browser|xref-check|git-read)\b', re.IGNORECASE)
@@ -20,6 +17,7 @@ class Doc5RequirementChecker:
 	# @used-by :meth:`Doc5RequirementChecker.is_required()`
 	@classmethod
 	def __earliest_cli_failure_step(cls, turn: dict[str, Any], native: dict[str, Any] | None) -> int | None:
+		from agent_tools.hook_crash_audit import _load_turn_rows
 		rows = _load_turn_rows(native, turn)
 		bg_steps: dict[str, int] = {}
 		hits: list[int] = []
@@ -48,6 +46,7 @@ class Doc5RequirementChecker:
 	# @used-by :meth:`Doc5RequirementChecker.__earliest_cli_failure_step()`
 	@classmethod
 	def __inspect_call_failure(cls, call: dict[str, Any], matched: str, step_idx: int, bg_steps: dict[str, int], hits: list[int]) -> None:
+		from agent_tools.tdd_gate import parse_command_outcome
 		cmd = dfh_cmd_from_call(call)
 		if cmd and _HARNESS_CLI_RE.search(cmd) and (not _EXCLUDED_CLI_RE.search(cmd)):
 			out_info = parse_command_outcome(matched)
@@ -58,6 +57,7 @@ class Doc5RequirementChecker:
 	# @used-by :meth:`Doc5RequirementChecker.__earliest_cli_failure_step()`
 	@classmethod
 	def __record_bg_cli_failures(cls, rows: list[dict[str, Any]], bg_steps: dict[str, int], hits: list[int]) -> None:
+		from agent_tools.tdd_gate import _BG_TASK_FINISHED_RE
 		for row in rows:
 			if row.get('type') in ('EPHEMERAL_MESSAGE', 'SYSTEM_MESSAGE', 'GENERIC') and row.get('content'):
 				m_fin = _BG_TASK_FINISHED_RE.search(str(row.get('content')))
@@ -88,6 +88,8 @@ class Doc5RequirementChecker:
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_cli_command_and_doc5_requirement_auditors()`
 	@staticmethod
 	def is_failed_cli_output(text: str) -> bool:
+		from agent_tools.cli_output_json import top_level_json_has_failure
+		from agent_tools.tdd_gate import parse_command_outcome
 		out = parse_command_outcome(text)
 		rc = out.get('exit_code')
 		if None is not rc:

@@ -71,7 +71,10 @@ def df_trim_text_a(s: str, trimA: list[str], f: Callable[[str, str], str]) -> st
 	return r
 # Chop `trim` prefix (or first matching prefix in list `trim`) from string or list `s`.
 # https://github.com/mage2pro/core/blob/11.6.1/Core/lib/text/trim.php#L136-L171
+# @used-by :func:`Df.Harness.lib.markdown.dfh_display_address()`
+# @used-by :func:`Df.Harness.lib.markdown.dfh_technical_label()`
 # @used-by :func:`agent_tools.markdown_links.display_address()`
+# @used-by :func:`agent_tools.markdown_links.numeric_text()`
 # @used-by :func:`agent_tools.markdown_links.technical_label()`
 # @used-by :func:`agent_tools.worktree_flow._apply_porcelain_line()`
 # @used-by :func:`df_trim_text_left_right()`

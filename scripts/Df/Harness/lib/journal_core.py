@@ -305,8 +305,8 @@ def dfh_resolve_journal_dir(root: Path, selected=None) -> Path:
 # @used-by :func:`Df.Harness.lib.completion_links._resolve_local_target()`
 # @used-by :func:`Df.Harness.lib.completion_record.dfh_matches_recorded_response()`
 # @used-by :func:`Df.Harness.lib.grounding._resolve_candidate_file()`
-# @used-by :func:`agent_tools.links.validate_file()`
 # @used-by :meth:`Df.Harness.Completion.JournalReconciler.JournalReconciler.__resolve_effective_response()`
+# @used-by :meth:`Df.Harness.Research.LinkAuditor.LinkAuditor.__validate_local_target()`
 # @used-by :meth:`Df.Harness.Workflow.ReceiptVerifier.ReceiptVerifier.__resolve_artifact()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`

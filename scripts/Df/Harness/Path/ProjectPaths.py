@@ -208,10 +208,9 @@ class ProjectPaths:
 	# @used-by :func:`Df.Harness.lib.journal.dfh_turns_dir()`
 	# @used-by :func:`Df.Harness.lib.journal_upgrade.dfh_upgrade_journal()`
 	# @used-by :func:`Df.Harness.lib.path_resolve.dfh_resolve_journal_data_dir()`
+	# @used-by :func:`Df.Harness.lib.research.dfh_observed_use()`
 	# @used-by :func:`Df.Harness.lib.shadow_command.dfh_persist_shadow_replay_receipt()`
 	# @used-by :func:`Df.Harness.lib.storage.dfh_data_dir_for()`
-	# @used-by :func:`agent_tools.research.collect()`
-	# @used-by :func:`agent_tools.research.observed_use()`
 	# @used-by :func:`agent_tools.text_browser._endpoint_lock()`
 	# @used-by :func:`agent_tools.text_claims.save_registry()`
 	# @used-by :func:`agent_tools.text_workflow._folder()`
@@ -234,6 +233,8 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.migrate_journal_state()`
 	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.refresh_workflow_file_hash()`
 	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.rewrite()`
+	# @used-by :meth:`Df.Harness.Research.Collector.Collector.__persist_fresh()`
+	# @used-by :meth:`Df.Harness.Research.Collector.Collector.collect()`
 	# @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.default_slots_dir()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_context_config()`
 	# @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.claim_snapshot()`
@@ -246,9 +247,6 @@ class ProjectPaths:
 	# @used-by :func:`Df.Harness.lib.completion_checks.dfh_factual_kb_note_issues()`
 	# @used-by :func:`Df.Harness.lib.completion_compaction.dfh_compaction_status()`
 	# @used-by :func:`Df.Harness.lib.trace_review.dfh_persist_review_proof()`
-	# @used-by :func:`agent_tools.research.collect()`
-	# @used-by :func:`agent_tools.research.evidence_query()`
-	# @used-by :func:`agent_tools.research.extract_file()`
 	# @used-by :func:`agent_tools.text_browser.save_cdp_identity()`
 	# @used-by :func:`test_df_harness_s11_wave2a_workflow._seed_project()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__load_state()`
@@ -267,6 +265,9 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.validate()`
 	# @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.verify_snapshot()`
 	# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.populate()`
+	# @used-by :meth:`Df.Harness.Research.Collector.Collector.__persist_fresh()`
+	# @used-by :meth:`Df.Harness.Research.EvidenceQuerier.EvidenceQuerier.__collect_obs_files()`
+	# @used-by :meth:`Df.Harness.Research.Extractor.Extractor.extract_file()`
 	# @used-by :meth:`Df.Harness.Review.DispositionRecorder.DispositionRecorder.record()`
 	# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.__write_candidate()`
 	# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.prepare()`
@@ -304,8 +305,9 @@ class ProjectPaths:
 	# @used-by :meth:`ProjectPaths.journal_dir()`
 	def has_explicit_path(self, name: str) -> bool:
 		return name in self.__explicit_overlay_paths
-	# @used-by :func:`agent_tools.research.collect()`
 	# @used-by :meth:`Df.Harness.Analysis.ObservationResolver.ObservationResolver.__lookup_index()`
+	# @used-by :meth:`Df.Harness.Research.Collector.Collector.__persist_fresh()`
+	# @used-by :meth:`Df.Harness.Research.Collector.Collector.collect()`
 	@property
 	def http_index_json(self) -> Path:
 		return Path(self.paths_str['http_index_json'])
@@ -344,12 +346,6 @@ class ProjectPaths:
 		return Path(self.paths_str['journal_root_dir'])
 	# @used-by :func:`Df.Harness.lib.completion_checks.dfh_factual_kb_note_issues()`
 	# @used-by :func:`agent_tools.evidence.source_reference()`
-	# @used-by :func:`agent_tools.research.collect()`
-	# @used-by :func:`agent_tools.research.compute_site_summary()`
-	# @used-by :func:`agent_tools.research.evidence_query()`
-	# @used-by :func:`agent_tools.research.extract_file()`
-	# @used-by :func:`agent_tools.research.extract_observation()`
-	# @used-by :func:`agent_tools.research.load_observation()`
 	# @used-by :func:`agent_tools.text_browser.save_cdp_identity()`
 	# @used-by :func:`agent_tools.text_claims.registry_path()`
 	# @used-by :func:`agent_tools.text_sources._evaluate()`
@@ -377,6 +373,12 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.__write_kb_pages()`
 	# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.populate()`
 	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__sync_selected()`
+	# @used-by :meth:`Df.Harness.Research.Collector.Collector.__persist_fresh()`
+	# @used-by :meth:`Df.Harness.Research.Collector.Collector.load_observation()`
+	# @used-by :meth:`Df.Harness.Research.EvidenceQuerier.EvidenceQuerier.query()`
+	# @used-by :meth:`Df.Harness.Research.Extractor.Extractor.extract_file()`
+	# @used-by :meth:`Df.Harness.Research.Extractor.Extractor.extract_observation()`
+	# @used-by :meth:`Df.Harness.Research.SiteSummarizer.SiteSummarizer.summarize()`
 	# @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.__default_analysis()`
 	# @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.load_analysis()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
@@ -400,7 +402,7 @@ class ProjectPaths:
 	@property
 	def manual_kb_dir(self) -> Path:
 		return Path(self.paths_str['manual_kb_dir'])
-	# @used-by :func:`agent_tools.research.observed_use()`
+	# @used-by :func:`Df.Harness.lib.research.dfh_observed_use()`
 	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.project_metrics()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
@@ -413,6 +415,8 @@ class ProjectPaths:
 	# @used-by :func:`Df.Harness.lib.config_blocks.dfh_has_linked_ancestor()`
 	# @used-by :func:`Df.Harness.lib.grounding_md.dfh_is_documentation_url()`
 	# @used-by :func:`Df.Harness.lib.journal_upgrade._assert_not_linked_tree()`
+	# @used-by :func:`Df.Harness.lib.markdown.dfh_decode_file_uri()`
+	# @used-by :func:`Df.Harness.lib.markdown.dfh_display_address()`
 	# @used-by :func:`Df.Harness.lib.native_links.dfh_absolute()`
 	# @used-by :func:`Df.Harness.lib.native_links.dfh_direct_link_matches_target()`
 	# @used-by :func:`Df.Harness.lib.native_links.dfh_exists()`
@@ -428,14 +432,11 @@ class ProjectPaths:
 	# @used-by :func:`Df.Harness.lib.path_state._fast_sig()`
 	# @used-by :func:`Df.Harness.lib.path_template.dfh_is_linked()`
 	# @used-by :func:`Df.Harness.lib.path_template.dfh_normalize_path_str()`
+	# @used-by :func:`Df.Harness.lib.research.dfh_readable_reference()`
 	# @used-by :func:`Df.Harness.lib.runtime_cache._file_stat_key()`
 	# @used-by :func:`Df.Harness.lib.runtime_validate.dfh_expand_path()`
 	# @used-by :func:`Df.Harness.lib.trace_common.dfh_local_uri_to_path()`
 	# @used-by :func:`Df.Harness.lib.uri.dfh_local_uri_to_path()`
-	# @used-by :func:`agent_tools.links.readable_reference()`
-	# @used-by :func:`agent_tools.links.validate_file()`
-	# @used-by :func:`agent_tools.markdown_links.decode_file_uri()`
-	# @used-by :func:`agent_tools.markdown_links.display_address()`
 	# @used-by :func:`agent_tools.text_browser._endpoint_with_meta()`
 	# @used-by :func:`check_pre_invocation._ensure_scripts_on_path()`
 	# @used-by :func:`check_stop_gate._ensure_scripts_on_path()`
@@ -455,6 +456,8 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Project.Intake.IntakePathGuard.IntakePathGuard.plain()`
 	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync()`
 	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync_initial()`
+	# @used-by :meth:`Df.Harness.Research.LinkAuditor.LinkAuditor.__resolve_local_path_text()`
+	# @used-by :meth:`Df.Harness.Research.ObservationBundleScanner.ObservationBundleScanner.__scan_raw_html()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__find_uncovered()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffCoverageHook.DiffCoverageHook.prepare_env()`
 	# @used-by :meth:`Df.Harness.Tdd.OutcomeParser.OutcomeParser.uri_to_local_path()`
@@ -545,6 +548,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_harness_s11_wave2c_git`
 	# @used-by :mod:`test_df_harness_s11_wave2c_grounding`
 	# @used-by :mod:`test_df_harness_s11_wave2c_issues`
+	# @used-by :mod:`test_df_harness_s11_wave2c_research`
 	# @used-by :mod:`test_df_harness_s11_wave2d_cli_cov`
 	# @used-by :mod:`test_df_harness_s11_wave2d_completion_cov`
 	# @used-by :mod:`test_df_harness_s11_wave2d_completion`

@@ -5,10 +5,11 @@ from urllib.parse import urlsplit
 from Df.Harness.Grounding.CliCommandAuditor import CliCommandAuditor
 from Df.Harness.Grounding.EvidenceBundleIngestor import EvidenceBundleIngestor
 from Df.Harness.Grounding.LocalSourceAuditor import LocalSourceAuditor
+from Df.Harness.Research.LinkAuditor import LinkAuditor
 from Df.Harness.lib.grounding import dfh_extract_blockquote_quotes, dfh_is_normative_harness_doc, dfh_markdown_parser, dfh_norm_quote_text, dfh_quote_segments_present
 from Df.Harness.lib.grounding_md import dfh_external_anchor_issues
-from agent_tools.links import _bare_urls, chat_reply_link_issues
-from agent_tools.markdown_links import iter_inline_segments
+from Df.Harness.lib.markdown import dfh_iter_inline_segments
+from Df.Harness.lib.research import dfh_bare_urls
 from agent_tools.repo_link_gate import hydrate_local_repo_urls
 from agent_tools.upwork_data import extract_upwork_job_url_id
 import json
@@ -19,7 +20,7 @@ class ResponseAuditor:
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_response_auditor_ingestor_and_tier0_index()`
 	def __init__(self, root: Path, response: str, requests: list[dict], *, touched_files=None, turn=None, native=None) -> None:
 		self.root, self.response, self.requests, self.touched_files, self.turn, self.native = (Path(root).resolve(), response, requests, touched_files, turn, native)
-		self.errors = list(chat_reply_link_issues(response, root=self.root))
+		self.errors = list(LinkAuditor.chat_reply_link_issues(response, root=self.root))
 		self.local_repo_urls: set[str] = set()
 		self.authored_links: list[tuple[str, str]] = []
 		self.authored_urls: list[str] = []
@@ -133,7 +134,7 @@ class ResponseAuditor:
 				txt = kb_file.read_text(encoding='utf-8')
 			except OSError:
 				continue
-			for u in _bare_urls(txt):
+			for u in dfh_bare_urls(txt):
 				nu = EvidenceBundleIngestor.norm_url(u)
 				kb_urls.add(nu)
 				tk = EvidenceBundleIngestor.discourse_topic_key(nu)
@@ -160,7 +161,7 @@ class ResponseAuditor:
 	def __extract_inline_block_refs(self, block) -> str | None:
 		ext_in_block: list[str] = []
 		has_local_link = False
-		for seg in iter_inline_segments(block.children, include_images=False):
+		for seg in dfh_iter_inline_segments(block.children, include_images=False):
 			if 'link' != seg[0]:
 				self.__record_text_urls(seg, ext_in_block)
 			elif seg[1].startswith(('http://', 'https://')):
@@ -189,7 +190,7 @@ class ResponseAuditor:
 				pass
 	# @used-by :meth:`ResponseAuditor.__collect_client_urls()`
 	def __record_client_text_urls(self, text: str, job_ids: set[str]) -> None:
-		for u in _bare_urls(text):
+		for u in dfh_bare_urls(text):
 			self.client_urls.add(EvidenceBundleIngestor.norm_url(u))
 			jid = extract_upwork_job_url_id(u, allow_query_or_fragment=True)
 			if jid:
@@ -203,7 +204,7 @@ class ResponseAuditor:
 	# @used-by :meth:`ResponseAuditor.__extract_inline_block_refs()`
 	def __record_text_urls(self, seg, ext_in_block: list[str]) -> None:
 		if 'text' == seg[1].type:
-			for u in _bare_urls(seg[2]):
+			for u in dfh_bare_urls(seg[2]):
 				if u.startswith(('http://', 'https://')):
 					self.authored_urls.append(u)
 					ext_in_block.append(u)

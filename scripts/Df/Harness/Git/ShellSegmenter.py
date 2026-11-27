@@ -44,8 +44,6 @@ class ShellSegmenter:
 	# @used-by :func:`agent_tools.proposal._parent_name()`
 	# @used-by :func:`agent_tools.proposal.parse_blocks()`
 	# @used-by :func:`agent_tools.proposal.render()`
-	# @used-by :func:`agent_tools.research._summarize_observation_bundle()`
-	# @used-by :func:`agent_tools.research.extract_bytes()`
 	# @used-by :func:`agent_tools.shell_audit._split_shell_segments()`
 	# @used-by :func:`agent_tools.text_claims.primary_numbers()`
 	# @used-by :func:`agent_tools.text_core.check_response()`
@@ -114,6 +112,10 @@ class ShellSegmenter:
 	# @used-by :meth:`Df.Harness.Project.LabelValidator.LabelValidator.is_valid_domain()`
 	# @used-by :meth:`Df.Harness.Project.RegistrationExpectation.RegistrationExpectation.build()`
 	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.maybe_promote_domain()`
+	# @used-by :meth:`Df.Harness.Research.Extractor.Extractor.extract()`
+	# @used-by :meth:`Df.Harness.Research.HtmlData.HtmlData.handle_endtag()`
+	# @used-by :meth:`Df.Harness.Research.ObservationBundleScanner.ObservationBundleScanner.__scan_raw_json_title()`
+	# @used-by :meth:`Df.Harness.Research.ObservationBundleScanner.ObservationBundleScanner.__scan_raw_response()`
 	# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.__match_go_or_cargo()`
 	# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.__match_python_unittest()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffExecutability.DiffExecutability.__git_diff_entries()`
@@ -155,7 +157,6 @@ class ShellSegmenter:
 	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.__resolve_module_attr_in_repo()`
 	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.is_valid_external_target()`
 	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.resolve_stdlib_symbol()`
-	# @used-by :meth:`agent_tools.research.HTMLData.handle_endtag()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.scope_issues()`
 	# @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_guidance_uses_current_canonical_loader_without_copying_rule_bodies()`
 	# @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests._init_and_register()`

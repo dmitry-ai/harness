@@ -79,6 +79,9 @@ class RAM:
 	# @used-by :func:`Df.Harness.lib.path_schema.dfh_infer_default_profile()`
 	# @used-by :func:`Df.Harness.lib.path_schema.dfh_v2_software_deliverable_dir()`
 	# @used-by :func:`Df.Harness.lib.request_binding.dfh_completion_project_id()`
+	# @used-by :func:`Df.Harness.lib.research._resolve_relocated_target()`
+	# @used-by :func:`Df.Harness.lib.research.dfh_inside()`
+	# @used-by :func:`Df.Harness.lib.research.dfh_observed_use()`
 	# @used-by :func:`Df.Harness.lib.rule_splitter.dfh_split_rules()`
 	# @used-by :func:`Df.Harness.lib.rule_splitter.dfh_split_rules_main()`
 	# @used-by :func:`Df.Harness.lib.runtime_snapshot_ops.dfh_ensure_repo_git_hooks()`
@@ -86,12 +89,7 @@ class RAM:
 	# @used-by :func:`Df.Harness.lib.shadow_clone.dfh_cleanup_shadow_root()`
 	# @used-by :func:`Df.Harness.lib.storage.dfh_write_immutable_bytes()`
 	# @used-by :func:`Df.Harness.lib.trace_review.dfh_verify_review_proof_core()`
-	# @used-by :func:`agent_tools.links.validate_file()`
 	# @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
-	# @used-by :func:`agent_tools.research._write_cached_extraction()`
-	# @used-by :func:`agent_tools.research.collect()`
-	# @used-by :func:`agent_tools.research.inside()`
-	# @used-by :func:`agent_tools.research.observed_use()`
 	# @used-by :func:`agent_tools.snapshot.snapshot_draft()`
 	# @used-by :func:`agent_tools.text_claims.registry_path()`
 	# @used-by :func:`agent_tools.text_claims.save_registry()`
@@ -174,6 +172,10 @@ class RAM:
 	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.update_projects_index()`
 	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.migrate_journal_state()`
 	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync()`
+	# @used-by :meth:`Df.Harness.Research.Collector.Collector.__persist_fresh()`
+	# @used-by :meth:`Df.Harness.Research.Collector.Collector.collect()`
+	# @used-by :meth:`Df.Harness.Research.Extractor.Extractor.__write_cached()`
+	# @used-by :meth:`Df.Harness.Research.LinkAuditor.LinkAuditor.__validate_local_target()`
 	# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.__activate_release()`
 	# @used-by :meth:`Df.Harness.Shadow.ReplayRunner.ReplayRunner.run()`
 	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.__is_project_marker_dir()`

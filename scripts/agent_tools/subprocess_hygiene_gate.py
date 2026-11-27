@@ -16,10 +16,7 @@ def evaluate_pre_tool_use_subprocess_hygiene(name: str, args: dict, payload: dic
 # @used-by :mod:`agent_tools.subprocess_hygiene_gate`
 def is_subprocess_hygiene_target(path: str | Path) -> bool:
 	return SubprocessHygieneChecker.is_target(path)
-# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.verify_agent_staged()`
-# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.verify_code_size_ratchet()`
-# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.verify_subprocess_hygiene()`
-# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.verify_tdd_commit()`
+# @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.__run_staged_gate()`
 # @used-by :mod:`agent_tools.subprocess_hygiene_gate`
 def run_staged_gate(mod_name: str, func_name: str, *args, **kwargs) -> None:
 	SubprocessHygieneStagedGate.run_staged_gate(mod_name, func_name, *args, **kwargs)

@@ -39,10 +39,8 @@ class Later(datetime):
 	# @used-by :func:`Df.Harness.lib.cleanup_audit_ops.dfh_istanbul_stamp()`
 	# @used-by :func:`Df.Harness.lib.cleanup_audit_ops.dfh_record_cleanup_answer_log()`
 	# @used-by :func:`Df.Harness.lib.completion_core.dfh_now()`
+	# @used-by :func:`Df.Harness.lib.research.dfh_observed_use()`
 	# @used-by :func:`Df.Harness.lib.runtime_context.dfh_request_day()`
-	# @used-by :func:`agent_tools.research.capture_dom()`
-	# @used-by :func:`agent_tools.research.collect()`
-	# @used-by :func:`agent_tools.research.observed_use()`
 	# @used-by :func:`agent_tools.text_browser.collect_cdp_dom()`
 	# @used-by :func:`agent_tools.text_browser.collect_headless_dom()`
 	# @used-by :func:`agent_tools.text_sources._attempt()`
@@ -60,6 +58,8 @@ class Later(datetime):
 	# @used-by :meth:`Df.Harness.Project.RegistrationAttemptStarter.RegistrationAttemptStarter.__build_entry()`
 	# @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.__build_entry()`
 	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.__update_project_json()`
+	# @used-by :meth:`Df.Harness.Research.Collector.Collector.__persist_fresh()`
+	# @used-by :meth:`Df.Harness.Research.DomCapturer.DomCapturer.capture()`
 	# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.__activate_release()`
 	# @used-by :meth:`Df.Harness.Runtime.SnapshotPromoter.SnapshotPromoter.__promote_locked()`
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`

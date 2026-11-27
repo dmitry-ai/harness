@@ -349,9 +349,9 @@ class CDPSession:
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
 class ManagedHeadlessShell:
-	# @used-by :func:`agent_tools.research.collect_browser_batch()`
-	# @used-by :func:`agent_tools.research.collect_plan()`
 	# @used-by :func:`collect_headless_dom()`
+	# @used-by :meth:`Df.Harness.Research.BatchCollector.BatchCollector.__lazy_headless_fetch()`
+	# @used-by :meth:`Df.Harness.Research.BatchCollector.BatchCollector.__run_browser_url()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
 	def __init__(self, config=None, *, executable=None):
 		self.config = settings() if None is config else config
@@ -361,9 +361,9 @@ class ManagedHeadlessShell:
 		self.endpoint = None
 		self.browser_ws = None
 		self.version = None
-	# @used-by :func:`agent_tools.research.collect_browser_batch()`
-	# @used-by :func:`agent_tools.research.collect_plan()`
 	# @used-by :func:`collect_headless_dom()`
+	# @used-by :meth:`Df.Harness.Research.BatchCollector.BatchCollector.__lazy_headless_fetch()`
+	# @used-by :meth:`Df.Harness.Research.BatchCollector.BatchCollector.__run_browser_url()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
 	def __enter__(self):
 		if not self.executable.is_file():
@@ -760,9 +760,9 @@ def _poll_dom_on_session(cdp_sess, session_id, timeout, *, single_pass=False):
 # "Implement /df-article and /df-proposal client-text skills, AI-slop linter, scoped baseline diffs, and semantic § rendering":
 # https://github.com/dmitry-ai/harness/issues/13
 class GuardedCDP:
-	# @used-by :func:`agent_tools.research.capture_dom()`
 	# @used-by :func:`collect_cdp_dom()`
 	# @used-by :func:`test_text_browser.dom_fixture()`
+	# @used-by :meth:`Df.Harness.Research.DomCapturer.DomCapturer.__resolve_guard()`
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.extract()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_cross_wave.DfHarnessS11Wave2CCrossWaveTests.test_link_audit_accepts_wave2c_call_sites_and_guarded_cdp_class_seam()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.guard()`
@@ -877,12 +877,11 @@ class GuardedCDP:
 			except Exception:
 				closed = False
 		return closed
-	# @used-by :func:`agent_tools.research.capture_dom()`
+	# @used-by :meth:`Df.Harness.Research.DomCapturer.DomCapturer.capture()`
 	def inspect(self, *, require_target=True):
 		with self._lock():
 			r = self._check(require_target=require_target)
 		return r
-	# @used-by :func:`agent_tools.research.capture_dom()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.test_m2a_extension_manifest_key_and_multi_profile_tab_broker_isolation()`
 	def call(self, method, params=None, *, include_identity=False):
 		params = deepcopy(params or {})
@@ -1135,8 +1134,8 @@ def collect_headless_dom(root, url, *, timeout=15, config=None, headless_shell=N
 # 2026-11-16
 # "Isolate public DOM captures in chrome-headless-shell, enforce fail-closed primary Chrome profile verification, and block loopback CDP bypasses":
 # https://github.com/dmitry-ai/harness/issues/80
-# @used-by :func:`agent_tools.research.collect_browser()`
-# @used-by :func:`agent_tools.research.collect_plan()`
+# @used-by :meth:`Df.Harness.Research.BatchCollector.BatchCollector.__lazy_headless_fetch()`
+# @used-by :meth:`Df.Harness.Research.BrowserCollector.BrowserCollector.__read_dom()`
 def collect_cdp_dom(root, url, *, cdp_port=None, session_id=None, timeout=15, config=None, http_get=None, cdp_call=None, headless_shell=None):
 	if None is root or not str(root).strip():
 		raise ValueError('An explicit project root is required')
@@ -1261,9 +1260,9 @@ def probe_cdp_arguments(browser_ws, call):
 # 2026-11-13
 # "Deduplicate HTTP/CDP collection pipeline with browser fallback, extraction cache, and CDP primitives across research.py and text_browser.py":
 # https://github.com/dmitry-ai/harness/issues/66
-# @used-by :func:`agent_tools.research.capture_dom()`
 # @used-by :func:`collect_cdp_dom()`
 # @used-by :func:`collect_headless_dom()`
+# @used-by :meth:`Df.Harness.Research.DomCapturer.DomCapturer.capture()`
 # @used-by :meth:`GuardedCDP.capture_authenticated_dom()`
 # @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m4_collect_browser_public_and_authenticated_cdp_identity_provenance()`
 # @used-by :meth:`test_text_browser.TextBrowserTests.test_collect_plan_delegates_to_collect_http_and_shared_cdp_primitives()`

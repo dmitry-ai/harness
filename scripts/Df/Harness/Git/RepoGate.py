@@ -11,7 +11,6 @@ from Df.Harness.Git.IssueWorkflowVerifier import IssueWorkflowVerifier
 from Df.Harness.Git.PushValidator import PushValidator
 from Df.Harness.Git.WorktreeTransaction import WorktreeTransaction
 from Df.Harness.lib.shell import READ_SUBCOMMANDS, dfh_extract_comment_issue_urls
-from agent_tools.subprocess_hygiene_gate import run_staged_gate
 import os
 import subprocess
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
@@ -296,20 +295,28 @@ class RepoGate:
 					r = anc
 					break
 		return r
+	# @used-by :meth:`RepoGate.verify_agent_staged()`
+	# @used-by :meth:`RepoGate.verify_code_size_ratchet()`
+	# @used-by :meth:`RepoGate.verify_subprocess_hygiene()`
+	# @used-by :meth:`RepoGate.verify_tdd_commit()`
+	@staticmethod
+	def __run_staged_gate(mod_name: str, fn_name: str, *args, **kwargs) -> None:
+		from agent_tools.subprocess_hygiene_gate import run_staged_gate
+		run_staged_gate(mod_name, fn_name, *args, **kwargs)
 	# @used-by :meth:`Df.Harness.Git.CommitVerifier.CommitVerifier.verify()`
 	# @uses :func:`agent_tools.staged_gates.verify_staged_extra_gates()`
 	def verify_agent_staged(self, relative: list[str], *, message: str | None=None, use_index: bool=True) -> None:
 		self.verify_issue_workflow(relative, message=message, agent_context=True)
 		self.verify_tdd_commit(relative, message=message, agent_context=True, use_index=use_index)
 		self.verify_code_size_ratchet(relative, agent_context=True, use_index=use_index)
-		run_staged_gate('staged_gates', 'verify_staged_extra_gates', self.root, relative, use_index=use_index)
+		self.__run_staged_gate('staged_gates', 'verify_staged_extra_gates', self.root, relative, use_index=use_index)
 	# @used-by :meth:`RepoGate.verify_agent_staged()`
 	# @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_git_pre_commit_blocks_oversized_python_file()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_git_gate_commit_and_hooks()`
 	# @uses :func:`agent_tools.code_size_gate.verify_staged_code_size_ratchet()`
 	def verify_code_size_ratchet(self, relative: list[str], *, agent_context: bool=True, use_index: bool=True) -> None:
 		if agent_context and relative:
-			run_staged_gate('code_size_gate', 'verify_staged_code_size_ratchet', self.root, relative, use_index=use_index)
+			self.__run_staged_gate('code_size_gate', 'verify_staged_code_size_ratchet', self.root, relative, use_index=use_index)
 	# @used-by :func:`agent_tools.git_gate.verify_repo_issue_ready_for_close()`
 	# @used-by :meth:`Df.Harness.Issue.AcceptanceGate.AcceptanceGate.__verify_repo_close()`
 	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__verify_required_repo_issues()`
@@ -333,13 +340,13 @@ class RepoGate:
 	# @uses :func:`agent_tools.subprocess_hygiene_gate.verify_staged_subprocess_hygiene()`
 	def verify_subprocess_hygiene(self, relative: list[str], *, agent_context: bool=True, use_index: bool=True) -> None:
 		if agent_context and relative:
-			run_staged_gate('subprocess_hygiene_gate', 'verify_staged_subprocess_hygiene', self.root, relative, use_index=use_index)
+			self.__run_staged_gate('subprocess_hygiene_gate', 'verify_staged_subprocess_hygiene', self.root, relative, use_index=use_index)
 	# @used-by :meth:`RepoGate.verify_agent_staged()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_git_gate_commit_and_hooks()`
 	# @uses :func:`agent_tools.tdd.enforcement.verify_staged_tdd_diff()`
 	def verify_tdd_commit(self, relative: list[str], message: str | None=None, *, agent_context: bool=True, use_index: bool=True) -> None:
 		if agent_context and relative:
-			run_staged_gate('tdd_gate', 'verify_staged_tdd_diff', self.root, relative, message=message, project_root=self.tdd_project_root(), use_index=use_index)
+			self.__run_staged_gate('tdd_gate', 'verify_staged_tdd_diff', self.root, relative, message=message, project_root=self.tdd_project_root(), use_index=use_index)
 	# @used-by :func:`agent_tools.git_gate.verify_git_write_invocation()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_git_gate_commit_and_hooks()`
 	def verify_write_invocation(self, argv: list[str] | tuple[str, ...], *, subcommand: str | None=None, cwd: Path | None=None, agent_context: bool | None=None) -> None:

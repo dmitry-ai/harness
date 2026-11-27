@@ -72,8 +72,8 @@ def local_file(root, reference):
 def pointer(*parts):
 	return JsonPointer.render_pointer(*parts)
 # @used-by :func:`Df.Harness.lib.completion_links._validate_fragment()`
-# @used-by :func:`agent_tools.links.validate_file()`
 # @used-by :meth:`Df.Harness.Gate.RepoLinkResolver.RepoLinkResolver.__validate_doc_or_json_anchor()`
+# @used-by :meth:`Df.Harness.Research.LinkAuditor.LinkAuditor.__validate_target_fragment()`
 # @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_source_registry_and_escaped_pointers_resolve()`
 def resolve_pointer(value, fragment, *, decode_uri: bool=True):
 	return JsonPointer(value, fragment, decode_uri=decode_uri).resolve()

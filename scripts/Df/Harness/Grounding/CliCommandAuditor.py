@@ -3,9 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 from Df.Harness.lib.trace import dfh_cmd_from_call, dfh_row_outputs
-from agent_tools.cli_output_json import top_level_json_has_failure
-from agent_tools.hook_crash_audit import _load_turn_rows
-from agent_tools.tdd_gate import _BG_TASK_FINISHED_RE, parse_command_outcome
 import re
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 _CLI_CMD_RE = re.compile(r'''(?:harness|upwork_project|df_github_issue)\.py["']?\s+([a-z][a-z0-9-]+)([^\r\n`\u00bb]*)''', re.IGNORECASE)
@@ -27,6 +24,7 @@ class CliCommandAuditor:
 		self.__native = native
 	# @used-by :meth:`CliCommandAuditor.audit()`
 	def __collect_passing_commands(self) -> list[str]:
+		from agent_tools.hook_crash_audit import _load_turn_rows
 		rows = _load_turn_rows(self.__native, self.__turn)
 		passing: list[str] = []
 		bg_cmds: dict[str, str] = {}
@@ -73,6 +71,7 @@ class CliCommandAuditor:
 	# @used-by :meth:`CliCommandAuditor.__collect_passing_commands()`
 	@classmethod
 	def __record_call_outcome(cls, call: dict[str, Any], matched: str, bg_cmds: dict[str, str], passing: list[str]) -> None:
+		from agent_tools.tdd_gate import parse_command_outcome
 		cmd = dfh_cmd_from_call(call)
 		if cmd:
 			out_info = parse_command_outcome(matched)
@@ -83,6 +82,7 @@ class CliCommandAuditor:
 	# @used-by :meth:`CliCommandAuditor.__collect_passing_commands()`
 	@classmethod
 	def __resolve_bg_completions(cls, rows: list[dict[str, Any]], bg_cmds: dict[str, str], passing: list[str]) -> None:
+		from agent_tools.tdd_gate import _BG_TASK_FINISHED_RE
 		for row in rows:
 			if row.get('type') in ('EPHEMERAL_MESSAGE', 'SYSTEM_MESSAGE', 'GENERIC') and row.get('content'):
 				m_fin = _BG_TASK_FINISHED_RE.search(str(row.get('content')))
@@ -106,6 +106,8 @@ class CliCommandAuditor:
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_cli_command_and_doc5_requirement_auditors()`
 	@staticmethod
 	def is_passing_output(text: str) -> bool:
+		from agent_tools.cli_output_json import top_level_json_has_failure
+		from agent_tools.tdd_gate import parse_command_outcome
 		out = parse_command_outcome(text)
 		return (0 == out.get('exit_code') or ('pass' == out.get('status') and None is out.get('exit_code'))) and (not top_level_json_has_failure(text))
 	# @used-by :func:`agent_tools.cli_command_grounding.response_turn_gate_issues()`

@@ -58,8 +58,8 @@ def extract_candidate_domains(texts: list[str]) -> list[str]:
 # @used-by :mod:`agent_tools.upwork_data`
 def extract_client_names(work_history: list[dict]) -> list[dict]:
 	return ClientMetadataExtractor.extract_client_names(work_history)
-# @used-by :func:`agent_tools.research.extract_bytes()`
 # @used-by :func:`extract_attachment_markdown()`
+# @used-by :meth:`Df.Harness.Research.Extractor.Extractor.__extract_docx()`
 # @used-by :meth:`test_readable_links.ReadableReferenceTests.test_docx_hyperlinks_are_readable_without_altering_their_visible_source_text()`
 # @used-by :mod:`agent_tools.upwork_data`
 def extract_docx_markdown(raw_bytes: bytes) -> str:
@@ -68,8 +68,8 @@ def extract_docx_markdown(raw_bytes: bytes) -> str:
 # @used-by :mod:`agent_tools.upwork_data`
 def extract_loom_video(url: str, timeout: float=15.0, opener=None) -> dict:
 	return LoomVideoExtractor(url, timeout=timeout, opener=opener).extract()
-# @used-by :func:`agent_tools.research.extract_bytes()`
 # @used-by :func:`extract_attachment_markdown()`
+# @used-by :meth:`Df.Harness.Research.Extractor.Extractor.__extract_pdf()`
 # @used-by :mod:`agent_tools.upwork_data`
 def extract_pdf_markdown(raw_bytes: bytes, pdf_path=None) -> str:
 	return PdfMarkdownExtractor(raw_bytes, pdf_path=pdf_path, poppler_finder=_find_poppler_tool).extract()

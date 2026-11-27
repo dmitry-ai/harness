@@ -170,8 +170,8 @@ def dfh_load_fact_ledger(root: Path) -> list[dict]:
 # @used-by :meth:`Df.Harness.Grounding.LocaleVerifier.LocaleVerifier.__extract_body_prose()`
 # @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.extract_markdown_refs()`
 def dfh_markdown_parser():
-	from agent_tools.markdown_links import parser as md_parser
-	return md_parser(preserve_links=True)
+	from Df.Harness.lib.markdown import dfh_markdown_it_parser
+	return dfh_markdown_it_parser(preserve_links=True)
 # @used-by :func:`agent_tools.source_grounding.norm_quote_text()`
 # @used-by :func:`dfh_quote_segments_present()`
 # @used-by :meth:`Df.Harness.Grounding.ActiveCorpusBuilder.ActiveCorpusBuilder.resolve_text_helpers()`
@@ -217,8 +217,8 @@ def dfh_resolve_local_href(root: Path, href: str, doc_path: Path | None=None) ->
 	r: Path | None = None
 	raw = urldefrag((href or '').strip())[0].split('?', 1)[0].strip()
 	if raw and (not raw.lower().startswith(('http://', 'https://', 'mailto:', 'javascript:', 'conversation://', '#'))):
-		from agent_tools.links import decode_file_uri
-		p = Path(decode_file_uri(raw))
+		from Df.Harness.lib.markdown import dfh_decode_file_uri
+		p = Path(dfh_decode_file_uri(raw))
 		cands = [p] if p.is_absolute() else ([doc_path.parent / p, Path(root) / p] if None is not doc_path else [Path(root) / p])
 		for cand in cands:
 			res = _resolve_candidate_file(cand)

@@ -11,8 +11,6 @@ from Df.Harness.lib.storage import dfh_create_bytes, dfh_data_dir_for, dfh_iter_
 # @used-by :func:`agent_tools.journal.record_answer()`
 # @used-by :func:`agent_tools.journal.record_step()`
 # @used-by :func:`agent_tools.native_profiles._facade_ops()`
-# @used-by :func:`agent_tools.research._write_cached_extraction()`
-# @used-by :func:`agent_tools.research.collect()`
 # @used-by :func:`agent_tools.snapshot.snapshot_draft()`
 # @used-by :func:`agent_tools.text_claims.save_registry()`
 # @used-by :func:`agent_tools.text_workflow.write_candidate_output()`
@@ -25,6 +23,8 @@ from Df.Harness.lib.storage import dfh_create_bytes, dfh_data_dir_for, dfh_iter_
 # @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__init__()`
 # @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.populate()`
 # @used-by :meth:`Df.Harness.Project.OnceFileWriter.OnceFileWriter.write()`
+# @used-by :meth:`Df.Harness.Research.Collector.Collector.__persist_fresh()`
+# @used-by :meth:`Df.Harness.Research.Extractor.Extractor.__write_cached()`
 # @used-by :meth:`Df.Harness.Upwork.AttachmentDownloader.AttachmentDownloader.download()`
 # @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_inspect()`
 # @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_context_config()`
@@ -60,9 +60,8 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 # @used-by unused
 def journal_data_dir_for(eff: Path) -> Path:
 	return dfh_journal_data_dir_for(eff)
+# @used-by :func:`Df.Harness.lib.research.dfh_observed_use()`
 # @used-by :func:`agent_tools.completion._completion_ops()`
-# @used-by :func:`agent_tools.research.collect()`
-# @used-by :func:`agent_tools.research.observed_use()`
 # @used-by :func:`agent_tools.snapshot.snapshot_draft()`
 # @used-by :func:`agent_tools.text_browser._endpoint_lock()`
 # @used-by :func:`agent_tools.text_claims.save_registry()`
@@ -87,6 +86,8 @@ def journal_data_dir_for(eff: Path) -> Path:
 # @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.save()`
 # @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__sync_antigravity_native_files()`
 # @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.update_projects_index()`
+# @used-by :meth:`Df.Harness.Research.Collector.Collector.__persist_fresh()`
+# @used-by :meth:`Df.Harness.Research.Collector.Collector.collect()`
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 # @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.__try_reserve_once()`
 # @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.resolve_or_create()`
@@ -115,14 +116,12 @@ def locked(path: Path, timeout: float=15, *, create=True):
 # @used-by :meth:`test_review_contract.ReviewContractTests.test_merkle_cached_single_reviewer_quorum_recognizes_approved_digests_and_storage_receipts()`
 def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, error_msg: str='Invalid immutable artifact') -> tuple[bytes, dict]:
 	return dfh_read_addressed_json(path, suffix=suffix, stem_match=stem_match, error_msg=error_msg)
+# @used-by :func:`Df.Harness.lib.research.dfh_observed_use()`
 # @used-by :func:`agent_tools.analysis.publish_owned()`
 # @used-by :func:`agent_tools.cleanup._finish_pending()`
 # @used-by :func:`agent_tools.cleanup.remove_antigravity()`
 # @used-by :func:`agent_tools.cleanup.restore_antigravity()`
 # @used-by :func:`agent_tools.native_profiles._facade_ops()`
-# @used-by :func:`agent_tools.research._write_cached_extraction()`
-# @used-by :func:`agent_tools.research.collect()`
-# @used-by :func:`agent_tools.research.observed_use()`
 # @used-by :func:`agent_tools.snapshot.snapshot_draft()`
 # @used-by :func:`agent_tools.text_claims.save_registry()`
 # @used-by :func:`agent_tools.text_review.record()`
@@ -157,6 +156,8 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.__update_project_json()`
 # @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.rewrite()`
 # @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.rewrite_launcher_handoffs()`
+# @used-by :meth:`Df.Harness.Research.Collector.Collector.__persist_fresh()`
+# @used-by :meth:`Df.Harness.Research.Extractor.Extractor.__write_cached()`
 # @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.update()`
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 # @used-by :meth:`Df.Harness.TestRunner.ParallelRunner.ParallelRunner.__save_timings()`

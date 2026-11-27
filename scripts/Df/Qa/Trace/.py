@@ -41,9 +41,8 @@ class Trace:
 	# @used-by :func:`Df.Harness.lib.config_blocks.dfh_extract_managed_block()`
 	# @used-by :func:`Df.Harness.lib.native_codex_roles._strip_owned_role_block()`
 	# @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_profile_agents()`
+	# @used-by :func:`Df.Harness.lib.research.dfh_bare_urls()`
 	# @used-by :func:`agent_tools.git_ignore.merge_managed_git_ignore()`
-	# @used-by :func:`agent_tools.links._bare_urls()`
-	# @used-by :func:`agent_tools.links.parse_markdown_headings()`
 	# @used-by :func:`agent_tools.text_core.check_code()`
 	# @used-by :func:`agent_tools.text_core.check_prose()`
 	# @used-by :func:`agent_tools.text_sections.content_blocks()`
@@ -57,6 +56,7 @@ class Trace:
 	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.__has_backtick_enumeration()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__compute_payload()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__replace_existing()`
+	# @used-by :meth:`Df.Harness.Research.MarkdownHeadingParser.MarkdownHeadingParser.__extract_frontmatter()`
 	# @used-by :meth:`Df.Harness.Upwork.DocxExtractor.DocxExtractor.__normalize_heading_levels()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Lexer.Lexer.__tokenize_java_atom()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Lexer.Lexer.__tokenize_java_step()`

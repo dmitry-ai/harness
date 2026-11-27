@@ -23,7 +23,7 @@ def _candidate_discovery_roots(reg: PathRegistry) -> tuple[tuple, tuple[Path, ..
 # @used-by :func:`project_paths()`
 def _journal_cache_sig(root: Path, reg: PathRegistry) -> tuple:
 	return dfh_journal_cache_sig(root, reg)
-# @used-by :func:`agent_tools.research.inside()`
+# @used-by :func:`Df.Harness.lib.research._resolve_relocated_target()`
 # @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.__resolve_indexed()`
 def _path_key(value: str | Path) -> str:
 	return dfh_path_key(value)
@@ -95,7 +95,7 @@ def expand_template(template: str, variables: dict[str, str], *, env: dict[str, 
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_is_tracked_workspace_supports_registered_single_projects_and_declarative_opt_outs()`
 def is_tracked_workspace(root: str | Path, *, registry: PathRegistry | None=None, projects_dirs=None) -> tuple[bool, Path]:
 	return dfh_is_tracked_workspace(root, registry=registry, projects_dirs=projects_dirs)
-# @used-by :func:`agent_tools.research.inside()`
+# @used-by :func:`Df.Harness.lib.research._resolve_relocated_target()`
 # @used-by :func:`canonicalize_root_dir()`
 # @used-by :func:`discover_overlay_file()`
 # @used-by :meth:`Df.Harness.Git.VerificationSpecResolver.VerificationSpecResolver.resolve()`
@@ -123,17 +123,11 @@ def normalize_path_str(raw: str, *, preserve_trailing_slash: bool=False) -> str:
 def paths_report(project: str | Path | None=None, *, expand: str | None=None, check: bool=False, registry: PathRegistry | None=None) -> dict[str, Any]:
 	return PathReporter(project, expand=expand, check=check, registry=registry).run()
 # @used-by :func:`Df.Harness.lib.grounding.dfh_load_fact_ledger()`
+# @used-by :func:`Df.Harness.lib.research.dfh_observed_use()`
 # @used-by :func:`Df.Harness.lib.worktree.dfh_prepare_worktrees_base_dir()`
 # @used-by :func:`agent_tools.doc5_replay_audit.audit_local_saved_turns()`
 # @used-by :func:`agent_tools.evidence.source_reference()`
 # @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
-# @used-by :func:`agent_tools.research.collect()`
-# @used-by :func:`agent_tools.research.compute_site_summary()`
-# @used-by :func:`agent_tools.research.evidence_query()`
-# @used-by :func:`agent_tools.research.extract_file()`
-# @used-by :func:`agent_tools.research.extract_observation()`
-# @used-by :func:`agent_tools.research.load_observation()`
-# @used-by :func:`agent_tools.research.observed_use()`
 # @used-by :func:`agent_tools.text_browser._endpoint_lock()`
 # @used-by :func:`agent_tools.text_browser.save_cdp_identity()`
 # @used-by :func:`agent_tools.text_claims.registry_path()`
@@ -233,6 +227,12 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 # @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.rewrite_launcher_handoffs()`
 # @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync()`
 # @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync_initial()`
+# @used-by :meth:`Df.Harness.Research.Collector.Collector.collect()`
+# @used-by :meth:`Df.Harness.Research.Collector.Collector.load_observation()`
+# @used-by :meth:`Df.Harness.Research.EvidenceQuerier.EvidenceQuerier.query()`
+# @used-by :meth:`Df.Harness.Research.Extractor.Extractor.extract_file()`
+# @used-by :meth:`Df.Harness.Research.Extractor.Extractor.extract_observation()`
+# @used-by :meth:`Df.Harness.Research.SiteSummarizer.SiteSummarizer.summarize()`
 # @used-by :meth:`Df.Harness.Review.DispositionRecorder.DispositionRecorder.record()`
 # @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.__default_analysis()`
 # @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.update()`
@@ -310,7 +310,7 @@ def relocated_roots(*, registry: PathRegistry | None=None) -> dict[str, str]:
 # @used-by :meth:`test_path_registry_perf.PathRegistryPerformanceTests.test_resolve_project_root_skips_host_overlay_scan_for_temp_subdirs()`
 def resolve_project_root(target: str | Path, *, registry: PathRegistry | None=None, env: dict[str, str] | None=None) -> Path:
 	return dfh_resolve_project_root(target, registry=registry, env=env, default_registry_file=DEFAULT_REGISTRY_FILE)
-# @used-by :func:`agent_tools.research.inside()`
+# @used-by :func:`Df.Harness.lib.research._resolve_relocated_target()`
 # @used-by :meth:`Df.Harness.Experiment.PreregistrationAuditor.PreregistrationAuditor.__is_plan_commit()`
 # @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.read_envelope()`
 # @used-by :meth:`Df.Harness.Workflow.StateLoader.StateLoader.load()`
