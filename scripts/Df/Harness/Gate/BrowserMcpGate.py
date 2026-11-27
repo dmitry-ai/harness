@@ -16,6 +16,7 @@ class BrowserMcpGate:
 		return bool(_CDP_PROTOCOL_RE.search(prompt))
 	# @used-by :func:`agent_tools.gates.browser_mcp._turn_has_background_mcp_new_page()`
 	# @used-by :meth:`BrowserMcpGate.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_browser_bulk_read_external_write_and_registry_gates()`
 	@staticmethod
 	def turn_has_background_mcp_new_page(payload: dict) -> bool:
 		t_raw = (payload or {}).get('transcriptPath') or ''

@@ -15,6 +15,8 @@ class CodeSizeAnalyzer:
 	# @used-by :meth:`Df.Harness.Gate.CodeSizeChecker.CodeSizeChecker.is_legacy_oversized_baseline()`
 	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_gate_classes_enforce_python_and_pretool_checks()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_browser_bulk_read_external_write_and_registry_gates()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_gate_bulk_size_external_issue_and_subproc()`
 	def __init__(self, source: str) -> None:
 		self.__source = source or ''
 	# @used-by :meth:`CodeSizeAnalyzer.__collect_excluded_lines()`
@@ -150,6 +152,8 @@ class CodeSizeAnalyzer:
 	# @used-by :meth:`Df.Harness.Gate.CodeSizeChecker.CodeSizeChecker.is_legacy_oversized_baseline()`
 	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_gate_classes_enforce_python_and_pretool_checks()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_browser_bulk_read_external_write_and_registry_gates()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_gate_bulk_size_external_issue_and_subproc()`
 	def analyze(self) -> dict:
 		try:
 			tree = ast.parse(self.__source)

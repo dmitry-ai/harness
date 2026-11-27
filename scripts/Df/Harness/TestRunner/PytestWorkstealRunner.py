@@ -74,6 +74,7 @@ class PytestWorkstealRunner:
 		return 'pytest' if 'pytest' == req and PytestWorkstealRunner.xdist_available() else 'unittest'
 	# @used-by :func:`agent_tools.pytest_worksteal_runner.run_pytest_for_parallel()`
 	# @used-by :meth:`Df.Harness.TestRunner.ParallelRunner.ParallelRunner.run()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_runner_process_tree_watchdog_semaphore_and_pytest_modes()`
 	@staticmethod
 	def run_for_parallel(tests_dir: Path, modules: list[Path], *, workers: int, failfast: bool=True, module_timeout: float=300.0, env_extra: dict[str, str] | None=None) -> dict:
 		raw = PytestWorkstealRunner(tests_dir, modules, workers=workers, failfast=failfast, timeout=module_timeout, env_extra=env_extra).run()
@@ -82,6 +83,7 @@ class PytestWorkstealRunner:
 		return {'duration_seconds': raw['elapsed'], 'exit_code': 0 if ok else 1, 'failed_module': None if ok else 'pytest-xdist', 'failure_output': '' if ok else raw['output'][-4000:], 'ok': ok, 'passed_modules': len(modules) if ok else 0, 'runner': 'pytest', 'slowest_modules': [], 'summary': status_line, 'timed_out': raw['timed_out'], 'total_modules': len(modules), 'total_tests': raw['total_tests'], 'valid': ok, 'workers': workers}
 	# @used-by :func:`agent_tools.pytest_worksteal_runner.run_pytest_for_suite()`
 	# @used-by :meth:`Df.Harness.TestRunner.SuiteRunner.SuiteRunner.run()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_runner_process_tree_watchdog_semaphore_and_pytest_modes()`
 	@staticmethod
 	def run_for_suite(base: Path, ordered: list[Path], *, workers: int, failfast: bool=True, module_timeout: float=300.0, env_extra: dict[str, str] | None=None) -> dict:
 		raw = PytestWorkstealRunner(base, ordered, workers=workers, failfast=failfast, timeout=module_timeout, env_extra=env_extra).run()
@@ -91,6 +93,7 @@ class PytestWorkstealRunner:
 		return {'cancelled_modules': 0, 'elapsed': raw['elapsed'], 'exit_code': 0 if ok else 1, 'failed_modules': 0 if ok or raw['timed_out'] else 1, 'failfast': bool(failfast), 'module_timeout': float(module_timeout), 'ok': ok, 'passed_modules': len(ordered) if ok else 0, 'results': res, 'runner': 'pytest', 'scheduled_order': [m.relative_to(base).as_posix() for m in ordered], 'skipped_tests': raw['skipped_tests'], 'tests_dir': base.as_posix(), 'timed_out_modules': 1 if raw['timed_out'] else 0, 'total_modules': len(ordered), 'total_tests': raw['total_tests'], 'workers': workers}
 	# @used-by :func:`agent_tools.pytest_worksteal_runner.xdist_available()`
 	# @used-by :meth:`PytestWorkstealRunner.resolve_runner_mode()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_runner_process_tree_watchdog_semaphore_and_pytest_modes()`
 	@staticmethod
 	def xdist_available() -> bool:
 		return None is not importlib.util.find_spec('pytest') and None is not importlib.util.find_spec('xdist')

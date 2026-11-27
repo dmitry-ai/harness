@@ -147,6 +147,7 @@ class Tags:
 	# @used-by :func:`agent_tools.xref.js_tags.is_valid_js_external()`
 	# @used-by :meth:`Df.Harness.Xref.Js.Syncer.Syncer.__collect_actual_js_used_by()`
 	# @used-by :meth:`Df.Harness.Xref.Js.Syncer.Syncer.__sync_js_def_edit()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_xref_cov.DfHarnessS11Wave2bXrefCovTests.test_js_xref_covers_classes_arrows_templates_imports_and_sync()`
 	@staticmethod
 	def is_valid_external(raw_value: str, repo_root: Path) -> bool:
 		token = raw_value.split()[0] if raw_value.strip() else ''
@@ -206,6 +207,7 @@ class Tags:
 	# @used-by :meth:`Df.Harness.Xref.Js.Syncer.Syncer.__check_js_see_tags()`
 	# @used-by :meth:`Df.Harness.Xref.Js.Syncer.Syncer.__collect_actual_js_used_by()`
 	# @used-by :meth:`Df.Harness.Xref.Js.Syncer.Syncer.__validate_js_file_uses()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_xref_cov.DfHarnessS11Wave2bXrefCovTests.test_js_xref_covers_classes_arrows_templates_imports_and_sync()`
 	@staticmethod
 	def resolve_link(target_raw: str, note: str, current_rel: str, repo_index: dict) -> tuple[bool, str | None]:
 		return Tags.__resolve_import_link(target_raw, note, current_rel, repo_index) if target_raw.startswith('import(') else Tags.__resolve_member_in_file(current_rel, target_raw, repo_index)

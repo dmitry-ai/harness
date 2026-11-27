@@ -176,6 +176,7 @@ class Syncer:
 		return errs
 	# @used-by :func:`agent_tools.xref.js_sync.check_js_repo()`
 	# @used-by :meth:`Df.Harness.Xref.Engine.Engine.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_xref_cov.DfHarnessS11Wave2bXrefCovTests.test_js_xref_covers_classes_arrows_templates_imports_and_sync()`
 	@staticmethod
 	def check_repo(repo_root: Path, *, files: list[str] | None=None, overrides_map: dict[str, str] | None=None) -> dict:
 		repo_index = Model(repo_root, overrides_map=overrides_map).build_repo_index()

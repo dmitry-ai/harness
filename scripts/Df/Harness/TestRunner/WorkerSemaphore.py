@@ -16,6 +16,7 @@ class WorkerSemaphore:
 	# @used-by :func:`agent_tools.worker_semaphore.acquire_worker_slots()`
 	# @used-by :meth:`WorkerSemaphore.slot_budget()`
 	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_runner_process_tree_watchdog_semaphore_and_pytest_modes()`
 	def __init__(self, requested: int, *, max_slots: int | None=None, slots_dir: Path | str | None=None, ttl_s: float=600.0, wait_timeout: float=2.0, poll_interval: float=0.1) -> None:
 		self.__requested = requested
 		self.__max_slots = max_slots
@@ -26,6 +27,7 @@ class WorkerSemaphore:
 	# @used-by :func:`agent_tools.worker_semaphore.acquire_worker_slots()`
 	# @used-by :meth:`WorkerSemaphore.slot_budget()`
 	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_runner_process_tree_watchdog_semaphore_and_pytest_modes()`
 	def acquire(self) -> dict[str, Any]:
 		req = max(1, int(self.__requested))
 		cap = max(1, int(self.__max_slots)) if None is not self.__max_slots else WorkerSemaphore.default_max_slots()
@@ -89,6 +91,7 @@ class WorkerSemaphore:
 	# @used-by :func:`agent_tools.worker_semaphore.release_worker_slots()`
 	# @used-by :meth:`WorkerSemaphore.slot_budget()`
 	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_runner_process_tree_watchdog_semaphore_and_pytest_modes()`
 	@staticmethod
 	def release(lease: dict[str, Any] | None) -> bool:
 		r = False

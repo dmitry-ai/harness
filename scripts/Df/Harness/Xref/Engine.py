@@ -49,6 +49,9 @@ class Engine:
 		lines.extend((f'  * {changed}' for changed in (res.get('changed_files') or ())[:50]))
 		return '\n'.join(lines) + '\n'
 	# @used-by :func:`agent_tools.xref.run_xref_sync()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_xref_cov.DfHarnessS11Wave2bXrefCovTests.test_java_xref_covers_enums_anon_classes_overrides_and_external_tags()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_xref_cov.DfHarnessS11Wave2bXrefCovTests.test_js_xref_covers_classes_arrows_templates_imports_and_sync()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_xref_cov.DfHarnessS11Wave2bXrefCovTests.test_python_xref_covers_all_exports_with_overrides_and_stdlib_tags()`
 	@staticmethod
 	def sync_repo(repo: Path, *, lang: str='all', apply: bool=True, files: list[str] | None=None) -> dict:
 		runners = {'java': JavaSyncer, 'js': JsSyncer, 'python': PythonSyncer}

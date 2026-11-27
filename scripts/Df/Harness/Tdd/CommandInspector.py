@@ -62,6 +62,7 @@ class CommandInspector:
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__update_scope_from_test_cmd()`
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.build_command_event()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_classifier_commands_and_lexers()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_classifier_command_inspector_and_lexers()`
 	def __init__(self, cmd: str, *, scope_root: Path | None=None, unique_fn=None) -> None:
 		self.__cmd = cmd
 		self.__scope_root = scope_root
@@ -71,6 +72,7 @@ class CommandInspector:
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__update_scope_from_test_cmd()`
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.build_command_event()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_classifier_commands_and_lexers()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_classifier_command_inspector_and_lexers()`
 	def classify_test_command(self) -> dict:
 		if not isinstance(self.__cmd, str) or not self.__cmd.strip():
 			r = {'is_full_suite': False, 'is_test_cmd': False, 'rigged_failure': False, 'target_paths': []}
@@ -231,12 +233,14 @@ class CommandInspector:
 	# @used-by :func:`agent_tools.tdd.commands.shell_code_write_targets()`
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__eval_pre_run_command()`
 	# @used-by :meth:`Df.Harness.Tdd.ServiceExempt.ServiceExempt.__is_service_command()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_classifier_command_inspector_and_lexers()`
 	@staticmethod
 	def shell_code_write_targets(cmd: str, *, cwd: Path | None=None) -> list[Path]:
 		return CommandInspector.shell_write_targets(cmd, cwd=cwd, classifications=('production',))
 	# @used-by :func:`agent_tools.tdd.commands.shell_test_delete_targets()`
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__eval_pre_run_command()`
 	# @used-by :meth:`Df.Harness.Tdd.ServiceExempt.ServiceExempt.__is_service_command()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_classifier_command_inspector_and_lexers()`
 	@staticmethod
 	def shell_test_delete_targets(cmd: str, *, cwd: Path | None=None) -> list[Path]:
 		r: list[Path] = []
@@ -253,6 +257,7 @@ class CommandInspector:
 		return r
 	# @used-by :func:`agent_tools.tdd.commands.shell_write_targets()`
 	# @used-by :meth:`CommandInspector.shell_code_write_targets()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_classifier_command_inspector_and_lexers()`
 	@staticmethod
 	def shell_write_targets(cmd: str, *, cwd: Path | None=None, classifications: tuple[str, ...] | None=None) -> list[Path]:
 		r: list[Path] = []

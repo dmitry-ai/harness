@@ -59,11 +59,14 @@ class ExternalWriteGate:
 		return r
 	# @used-by :func:`agent_tools.gates.external_write._upwork_project_root_for_command()`
 	# @used-by :meth:`ExternalWriteGate.__check_df_issue_turn_intent()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_browser_bulk_read_external_write_and_registry_gates()`
 	@staticmethod
 	def upwork_project_root_for_command(cmd: str) -> Path | None:
 		return next((hit for cand in ExternalWriteGate.__cand_paths_from_cmd(cmd) if None is not (hit := ExternalWriteGate.__match_upwork_root(cand))), None)
 	# @used-by :func:`agent_tools.gates.external_write.check()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_pretool_classes_cover_all_guards()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_browser_bulk_read_external_write_and_registry_gates()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_gate_bulk_size_external_issue_and_subproc()`
 	def check(self, name: str, args: dict, payload: dict | None=None) -> str | None:
 		r = None
 		if 'run_command' == name:

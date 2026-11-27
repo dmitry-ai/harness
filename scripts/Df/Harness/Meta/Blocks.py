@@ -89,6 +89,7 @@ class Blocks:
 		return r
 	# @used-by :func:`agent_tools.meta.blocks._build_clarifications_block()`
 	# @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_journal()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_meta_cov.DfHarnessS11Wave2bMetaCovTests.test_blocks_clarifications_builders_problem_codex_and_turn_state()`
 	@staticmethod
 	def build_clarifications(turn: dict[str, Any], state_path: Path | None, tz: Any) -> list[dict[str, Any]] | None:
 		raw = Blocks.__load_turn_clarifications(turn, state_path)
@@ -192,6 +193,7 @@ class Blocks:
 				r = None
 		return r
 	# @used-by :func:`agent_tools.meta.blocks._resolve_hook()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_meta_cov.DfHarnessS11Wave2bMetaCovTests.test_blocks_clarifications_builders_problem_codex_and_turn_state()`
 	@staticmethod
 	def resolve_hook(name: str, module: Any, default: Any) -> Any:
 		facade = sys.modules.get('agent_tools.metadata')

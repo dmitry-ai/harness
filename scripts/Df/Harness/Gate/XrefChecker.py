@@ -99,6 +99,7 @@ class XrefChecker:
 			r = any((XrefChecker.has_xref_marker(fp.read_text(encoding='utf-8', errors='replace')) for _, fp in XrefChecker.__iter_repo_source_files(repo)))
 		return r
 	# @used-by :meth:`Df.Harness.Gate.XrefPreToolGate.XrefPreToolGate.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_rules_auditor_subprocess_and_xref_checker()`
 	@staticmethod
 	def is_pre_tool_governed(repo_root: Path | None, target: Path, new_text: str) -> bool:
 		has_sig = XrefChecker.has_xref_marker(new_text) or '@override' in new_text or '@Override' in new_text
@@ -111,6 +112,7 @@ class XrefChecker:
 		return r
 	# @used-by :meth:`Df.Harness.Gate.XrefStagedGate.XrefStagedGate.verify()`
 	# @used-by :meth:`Df.Harness.Gate.XrefWorktreeGate.XrefWorktreeGate.verify()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_rules_auditor_subprocess_and_xref_checker()`
 	@staticmethod
 	def is_repo_lang_synced(repo: Path, lang: str, changed_rels: set[str]) -> bool:
 		pat = XrefChecker.DEF_HINT_RE[lang]
@@ -133,6 +135,7 @@ class XrefChecker:
 	def lang_for_rel(rel: str) -> str | None:
 		return None if XrefChecker.__is_skipped_rel(rel) else XrefChecker.EXT_TO_LANG.get(df_path_suffix(rel))
 	# @used-by :meth:`Df.Harness.Gate.XrefPreToolGate.XrefPreToolGate.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_rules_auditor_subprocess_and_xref_checker()`
 	@staticmethod
 	def resolve_target(args: dict, payload: dict) -> tuple[Path | None, Path, str] | None:
 		raw_p = str(args.get('Path') or '').strip()
@@ -149,6 +152,7 @@ class XrefChecker:
 		return r
 	# @used-by :meth:`Df.Harness.Gate.XrefStagedGate.XrefStagedGate.verify()`
 	# @used-by :meth:`Df.Harness.Gate.XrefWorktreeGate.XrefWorktreeGate.verify()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_rules_auditor_subprocess_and_xref_checker()`
 	@staticmethod
 	def verify_legacy_changed_files(repo: Path, lang: str, rels: list[str], cur_texts: dict[str, str | None], base_fn) -> list[str]:
 		errs: list[str] = []

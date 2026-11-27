@@ -12,6 +12,8 @@ class IssueCommentChecker:
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentPreToolGate.IssueCommentPreToolGate.check()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentStagedGate.IssueCommentStagedGate.verify()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_thin_pretool_shims_and_checkers()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_issue_comment_checker_and_scanner_cover_py_js_and_xml()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_gate_bulk_size_external_issue_and_subproc()`
 	def __init__(self, path: str | Path, source: str, *, baseline_source: str | None=None) -> None:
 		self.__path = Path(path)
 		self.__source = source or ''
@@ -120,6 +122,8 @@ class IssueCommentChecker:
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentPreToolGate.IssueCommentPreToolGate.check()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentStagedGate.IssueCommentStagedGate.verify()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_thin_pretool_shims_and_checkers()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_issue_comment_checker_and_scanner_cover_py_js_and_xml()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_gate_bulk_size_external_issue_and_subproc()`
 	def check(self) -> list[str]:
 		suffix = df_path_suffix(self.__path)
 		errs: list[str] = []

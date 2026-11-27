@@ -65,6 +65,7 @@ class TimesheetBuilder:
 			r = [row for pos, row in enumerate(rows) if (None is start_step or int(row.get('step_index', pos)) >= start_step) and (None is end_step or int(row.get('step_index', pos)) <= end_step)]
 		return r
 	# @used-by :func:`agent_tools.perf.timesheet.run_perf_timesheet_cli()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_perf_analyzers_and_timesheet_cli()`
 	@staticmethod
 	def run_cli(args) -> dict[str, Any]:
 		src = TimesheetCommon.resolve_trace_source(trace=args.trace, conversation=args.conversation, project=args.project, journal_step=args.journal_step, instance=args.instance, platform=args.platform, summary_db=args.summary_db, turn_start_step=args.turn_start_step)

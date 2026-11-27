@@ -39,10 +39,13 @@ class BulkSourceReadGate:
 	# @used-by :func:`agent_tools.gates.bulk_source_read._recent_segment_rows()`
 	# @used-by :meth:`BulkSourceReadGate.check()`
 	# @used-by :meth:`Df.Harness.Gate.BrowserMcpGate.BrowserMcpGate.turn_has_background_mcp_new_page()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_browser_bulk_read_external_write_and_registry_gates()`
 	@staticmethod
 	def recent_segment_rows(t_path: Path) -> list[dict]:
 		return read_last_user_segment(t_path)[2]
 	# @used-by :func:`agent_tools.gates.bulk_source_read.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_browser_bulk_read_external_write_and_registry_gates()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_gate_bulk_size_external_issue_and_subproc()`
 	def check(self, name: str, args: dict, payload: dict | None=None) -> str | None:
 		r = None
 		target = (args.get('Path') or '').replace('\\', '/').lower() if 'read_file' == name else ''

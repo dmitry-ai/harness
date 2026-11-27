@@ -55,6 +55,7 @@ class Exemption:
 			raise ValueError(f'Staged diff in {name} introduces GitHub Issue URL(s) {sorted(new_diff_urls)} not matching commit message {stripped_msg}')
 		all_new.update(new_diff_urls)
 	# @used-by :func:`agent_tools.tdd.exemption.filter_repo_turn_issue_urls()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_exemption_mechanical_and_ratchet_guard()`
 	@staticmethod
 	def filter_repo_turn_issue_urls(comment_urls: set[str], turn_issues: dict, repo_slug: str | None) -> list[str]:
 		return sorted((u for u in comment_urls if u in turn_issues and Exemption.__is_same_repo_url(u, repo_slug)))
@@ -69,12 +70,14 @@ class Exemption:
 		return fn(path, old_text, new_text, repo_root=repo_root, message=message, project_root=project_root)
 	# @used-by :meth:`Exemption.is_write_event_exempt()`
 	# @used-by :meth:`Exemption.verify_staged_issue_urls()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_exemption_mechanical_and_ratchet_guard()`
 	@staticmethod
 	def is_git_path_exempt(repo_root: Path, rel_posix: str, *, disk_text: str | None=None, use_index: bool=False, message: str | None=None, project_root: Path | None=None, non_exec_fn=None) -> bool:
 		fn = non_exec_fn if None is not non_exec_fn else DiffExecutability.is_git_path_non_executable
 		return fn(repo_root, rel_posix, disk_text=disk_text, use_index=use_index, message=message, project_root=project_root)
 	# @used-by :func:`agent_tools.tdd.exemption.is_write_event_exempt()`
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__init__()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_exemption_mechanical_and_ratchet_guard()`
 	@staticmethod
 	def is_write_event_exempt(raw_path: str | Path, scope_str: str, *, project_root: Path | None=None, git_non_exec_fn=None) -> bool:
 		r = False
@@ -85,6 +88,8 @@ class Exemption:
 				r = Exemption.is_git_path_exempt(scope, rel, project_root=project_root, non_exec_fn=git_non_exec_fn)
 		return r
 	# @used-by :func:`agent_tools.tdd.exemption.verify_staged_issue_urls()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_exemption_mechanical_ratchet_and_substantive()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_exemption_mechanical_and_ratchet_guard()`
 	@staticmethod
 	def verify_staged_issue_urls(gate, relative: list[str], stripped_msg: str | None, *, project_root: Path | None=None) -> set[str]:
 		from agent_tools.issue_lifecycle import origin_repo_slug

@@ -19,11 +19,13 @@ class EventsExtractor:
 	__WRITE_TOOL_NAMES = frozenset({'edit_file', 'multi_replace_file_content', 'replace_file_content', 'write_file', 'write_to_file'})
 	# @used-by :func:`agent_tools.tdd.events.extract_antigravity_tdd_events()`
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__load_pre_tool_tdd_state()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_evaluator_and_events_extractor_with_bg_tasks()`
 	def __init__(self, transcript_path: Path, *, cwd: Path | None=None) -> None:
 		self.__transcript_path = transcript_path
 		self.__cwd = cwd
 	# @used-by :func:`agent_tools.tdd.events.extract_antigravity_tdd_events()`
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__load_pre_tool_tdd_state()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_evaluator_and_events_extractor_with_bg_tasks()`
 	def extract(self) -> list[dict]:
 		rows = EventsExtractor.__load_transcript_rows(self.__transcript_path, cwd=self.__cwd)
 		segment = EventsExtractor.__select_active_segment(rows) if rows else []
@@ -150,6 +152,7 @@ class EventsExtractor:
 			active_bg.update(OutcomeParser.extract_bg_task_ids(out_s))
 	# @used-by :func:`agent_tools.tdd.events._antigravity_segment_is_interrupted()`
 	# @used-by :meth:`EventsExtractor.__select_active_segment()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_evaluator_and_events_extractor_with_bg_tasks()`
 	@staticmethod
 	def antigravity_segment_is_interrupted(seg_rows: list[dict]) -> bool:
 		from agent_tools.platforms.trace_common import is_waiting_status_stub
@@ -201,6 +204,7 @@ class EventsExtractor:
 	# @used-by :func:`agent_tools.tdd.events.is_denied_write_output()`
 	# @used-by :meth:`EventsExtractor.__extract_row_call_events()`
 	# @used-by :meth:`EventsExtractor.record_tool_write_event()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_evaluator_and_events_extractor_with_bg_tasks()`
 	@staticmethod
 	def is_denied_write_output(outputs) -> bool:
 		items = [outputs] if isinstance(outputs, str) else [str(item) for item in (outputs or ()) if item]
@@ -227,6 +231,7 @@ class EventsExtractor:
 	# @used-by :func:`agent_tools.tdd.events._normalize_args_dict()`
 	# @used-by :meth:`EventsExtractor.__extract_row_call_events()`
 	# @used-by :meth:`EventsExtractor.__scan_segment_calls()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_evaluator_and_events_extractor_with_bg_tasks()`
 	@staticmethod
 	def normalize_args_dict(raw_args) -> dict:
 		parsed = raw_args
@@ -237,6 +242,7 @@ class EventsExtractor:
 				parsed = None
 		return {k: EventsExtractor.unwrap_arg_value(v) for k, v in parsed.items()} if isinstance(parsed, dict) else {}
 	# @used-by :func:`agent_tools.tdd.events.record_tdd_tool_write_event()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_enforcement_evaluator_events_and_worktree()`
 	@staticmethod
 	def record_tool_write_event(acc: dict, step: int, raw_path: str | Path, *, cwd: Path | None=None, content: str | None=None, cmd_outputs=None, sub_step: int | None=None, subagent_id: str | None=None) -> dict | None:
 		r = None
@@ -248,6 +254,7 @@ class EventsExtractor:
 		return r
 	# @used-by :func:`agent_tools.tdd.events._unwrap_arg_value()`
 	# @used-by :meth:`EventsExtractor.normalize_args_dict()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_evaluator_and_events_extractor_with_bg_tasks()`
 	@staticmethod
 	def unwrap_arg_value(val):
 		r = val

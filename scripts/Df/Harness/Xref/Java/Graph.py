@@ -11,12 +11,14 @@ class Graph:
 	# @used-by :func:`agent_tools.xref.java_graph.build_java_call_graph()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Syncer.Syncer.check_repo()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Syncer.Syncer.sync()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_xref_java_and_python_tail_branches()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_xref.DfHarnessS11Wave2bXrefTests.test_java_xref_classes_tokenize_index_graph_and_sync()`
 	def __init__(self, repo_index: dict) -> None:
 		self.__repo_index = repo_index
 	# @used-by :func:`agent_tools.xref.java_graph.build_java_call_graph()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Syncer.Syncer.check_repo()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Syncer.Syncer.sync()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_xref_java_and_python_tail_branches()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_xref.DfHarnessS11Wave2bXrefTests.test_java_xref_classes_tokenize_index_graph_and_sync()`
 	def build(self) -> dict[str, set[str]]:
 		used_by: dict[str, set[str]] = {}

@@ -21,13 +21,17 @@ class Enforcement:
 	__HEAD_TEXT_CACHE: dict[tuple[str, str, str], str | None] = {}
 	# @used-by :func:`agent_tools.tdd.enforcement.evaluate_pre_tool_use_tdd()`
 	# @used-by :meth:`Df.Harness.Gate.TddPreToolGate.TddPreToolGate.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_enforcement_evaluator_events_and_worktree()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_enforcement_pretool_and_staged_diff()`
 	def __init__(self, *, event_extractor: Callable | None=None, diff_non_exec_fn: Callable | None=None) -> None:
 		self.__event_extractor = event_extractor
 		self.__diff_non_exec_fn = diff_non_exec_fn
 	# @used-by :func:`agent_tools.tdd.enforcement.evaluate_pre_tool_use_tdd()`
 	# @used-by :meth:`Df.Harness.Gate.TddPreToolGate.TddPreToolGate.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_enforcement_evaluator_events_and_worktree()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_enforcement_pretool_and_staged_diff()`
 	def evaluate_pre_tool_use(self, name: str, args: dict, payload: dict) -> str | None:
 		r = None
 		if not ServiceExempt().is_exempt(name, args, payload):
@@ -270,6 +274,7 @@ class Enforcement:
 		return r
 	# @used-by :func:`agent_tools.tdd.enforcement._active_turn_issue_urls()`
 	# @used-by :meth:`Enforcement.__eval_test_ratchet_and_fitting()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_enforcement_pretool_and_staged_diff()`
 	@staticmethod
 	def active_turn_issue_urls(new_text: str | None, old_text: str | None) -> list[str]:
 		r: list[str] = []
@@ -311,6 +316,7 @@ class Enforcement:
 	# @used-by :meth:`Enforcement.__eval_shell_test_deletes()`
 	# @used-by :meth:`Enforcement.__eval_test_ratchet_and_fitting()`
 	# @used-by :meth:`Enforcement.__staged_entry_texts()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_enforcement_evaluator_events_and_worktree()`
 	@staticmethod
 	def git_head_text(repo_root: Path, rel_posix: str) -> str | None:
 		sha = Enforcement.__git_head_sha(repo_root)
@@ -336,6 +342,8 @@ class Enforcement:
 	def git_index_text(repo_root: Path, rel_posix: str) -> str | None:
 		return Enforcement.__git_show_text(repo_root, f':{rel_posix}')
 	# @used-by :func:`agent_tools.tdd.enforcement.verify_staged_tdd_diff()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_enforcement_evaluator_events_and_worktree()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_enforcement_pretool_and_staged_diff()`
 	@staticmethod
 	def verify_staged_diff(repo_root: Path, staged_paths: list[str], *, message: str | None=None, project_root: Path | None=None, use_index: bool=False, diff_non_exec_fn: Callable | None=None) -> list[str]:
 		repo = Path(repo_root).resolve()

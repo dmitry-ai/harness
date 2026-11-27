@@ -243,6 +243,7 @@ class ExtCommentLexer:
 		return ExtCommentLexer.__lex_loop(source, ExtCommentLexer.__lua_step)
 	# @used-by :func:`agent_tools.tdd.comment_lexers_ext.lex_rust()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_classifier_commands_and_lexers()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_classifier_command_inspector_and_lexers()`
 	# @used-by :mod:`Df.Harness.Tdd.CommentDiff`
 	@staticmethod
 	def lex_rust(source: str) -> tuple[tuple[str, ...], tuple[str, ...]] | None:

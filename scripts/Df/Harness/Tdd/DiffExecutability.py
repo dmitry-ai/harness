@@ -167,6 +167,7 @@ class DiffExecutability:
 	# @used-by :func:`agent_tools.tdd.diff_executability.classify_git_path()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffContract.DiffContract.check_touched_mixed_commit_warning()`
 	# @used-by :meth:`DiffExecutability.is_git_path_non_executable()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_diff_contract_coverage_and_executability()`
 	@staticmethod
 	def classify_git_path(repo_root: Path, rel_posix: str, *, disk_text: str | None=None, use_index: bool=False, message: str | None=None, project_root: Path | None=None) -> str:
 		repo = Path(repo_root).resolve()
@@ -181,6 +182,7 @@ class DiffExecutability:
 	# @used-by :func:`agent_tools.tdd.diff_executability.classify_git_range()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffContract.DiffContract.should_run_snapshot_canary()`
 	# @used-by :meth:`DiffExecutability.resolve_land_test_plan()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_diff_contract_coverage_and_executability()`
 	@staticmethod
 	def classify_git_range(repo_root: Path, base_ref: str, head_ref: str='HEAD', *, message: str | None=None, project_root: Path | None=None) -> dict[str, Any]:
 		repo = Path(repo_root).resolve()
@@ -234,6 +236,7 @@ class DiffExecutability:
 		return r
 	# @used-by :func:`agent_tools.tdd.diff_executability.is_git_path_non_executable()`
 	# @used-by :meth:`Df.Harness.Tdd.Exemption.Exemption.is_git_path_exempt()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_diff_contract_executability_and_coverage_end_to_end()`
 	@staticmethod
 	def is_git_path_non_executable(repo_root: Path, rel_posix: str, *, disk_text: str | None=None, use_index: bool=False, message: str | None=None, project_root: Path | None=None) -> bool:
 		return DiffExecutability.classify_git_path(repo_root, rel_posix, disk_text=disk_text, use_index=use_index, message=message, project_root=project_root) in DiffExecutability.NON_EXECUTABLE_CATEGORIES

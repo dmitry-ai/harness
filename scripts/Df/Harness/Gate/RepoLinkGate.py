@@ -88,6 +88,7 @@ class RepoLinkGate:
 		return r
 	# @used-by :func:`agent_tools.repo_link_gate.chat_repo_link_issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_staged_and_repo_checks()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_repo_links_tags_and_worktree_isolation()`
 	@staticmethod
 	def check_chat(content: str, *, root: Path | None=None) -> list[str]:
 		errors: list[str] = []
@@ -100,6 +101,7 @@ class RepoLinkGate:
 		return dfa_unique_fast(errors)
 	# @used-by :func:`agent_tools.repo_link_gate.file_repo_link_issues()`
 	# @used-by :meth:`RepoLinkGate.verify_staged()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_repo_links_tags_and_worktree_isolation()`
 	@staticmethod
 	def check_file(doc_path: Path, content: str, *, repo_root: Path | None=None) -> list[str]:
 		doc_p = Path(doc_path).resolve()

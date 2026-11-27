@@ -35,6 +35,7 @@ class OutcomeParser:
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.__record_bg_task_completion()`
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.build_command_event()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_outcome_service_substantive_and_worktree_scope()`
 	def __init__(self, outputs: list[str] | tuple[str, ...] | str, *, task_log_paths: list[Path] | None=None, first_fn=None) -> None:
 		self.__outputs = outputs
 		self.__task_log_paths = task_log_paths
@@ -65,6 +66,7 @@ class OutcomeParser:
 	# @used-by :meth:`Df.Harness.Xref.Python.Model.Model.index_file()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._extract_markdown_refs()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_outcome_service_substantive_and_worktree_scope()`
 	# @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_s11_arch_invariants_and_zero_class_facades()`
 	# @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_structure_visitor_and_trigger_classifier_detect_df_cross_imports()`
 	# @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_markdown_parser_and_inline_segments_shared()`
@@ -155,6 +157,7 @@ class OutcomeParser:
 	# @used-by :func:`agent_tools.tdd.outcomes._infer_exit_code_from_log_text()`
 	# @used-by :meth:`OutcomeParser.__infer_from_log_files()`
 	# @used-by :meth:`OutcomeParser.parse()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_outcome_service_substantive_and_worktree_scope()`
 	@staticmethod
 	def infer_exit_code_from_log_text(text: str) -> int | None:
 		r = None
@@ -171,6 +174,7 @@ class OutcomeParser:
 		return r
 	# @used-by :func:`agent_tools.tdd.outcomes._uri_to_local_path()`
 	# @used-by :meth:`OutcomeParser.__extract_bg_meta()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_outcome_service_substantive_and_worktree_scope()`
 	@staticmethod
 	def uri_to_local_path(uri: str) -> Path | None:
 		raw = (uri or '').strip()

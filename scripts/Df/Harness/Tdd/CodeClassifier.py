@@ -118,6 +118,7 @@ class CodeClassifier:
 		return r
 	# @used-by :func:`agent_tools.tdd.classifier.count_repo_test_files()`
 	# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.classify_test_command()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_diff_contract_executability_and_coverage_end_to_end()`
 	@staticmethod
 	def count_repo_test_files(scope_root: Path | None) -> int:
 		r = 0
@@ -133,6 +134,7 @@ class CodeClassifier:
 	# @used-by :func:`agent_tools.tdd.classifier._has_shebang()`
 	# @used-by :meth:`CodeClassifier.is_software_code_file()`
 	# @used-by :meth:`Df.Harness.Tdd.CommentDiff.CommentDiff.detect_language()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_classifier_command_inspector_and_lexers()`
 	@staticmethod
 	def has_shebang(path: Path, content: str | None=None) -> bool:
 		r = False
@@ -191,6 +193,7 @@ class CodeClassifier:
 	# @used-by :meth:`CodeClassifier.resolve_code_scope()`
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.command_matches_scope()`
 	# @used-by :meth:`Df.Harness.Tdd.RatchetGuard.RatchetGuard.match_target()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_classifier_command_inspector_and_lexers()`
 	@staticmethod
 	def norm_posix(path: str | Path) -> str:
 		return df_path_posix(path)
@@ -202,6 +205,7 @@ class CodeClassifier:
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__resolve_event_target_scopes()`
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.build_file_write_event()`
 	# @used-by :meth:`Df.Harness.Tdd.WorktreeScope.WorktreeScope.canonical_scope_path()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_diff_contract_executability_and_coverage_end_to_end()`
 	@staticmethod
 	def resolve_code_scope(path: str | Path) -> Path:
 		raw = normalize_host_path(path)

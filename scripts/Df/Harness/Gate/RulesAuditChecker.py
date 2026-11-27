@@ -118,6 +118,7 @@ class RulesAuditChecker:
 		return r
 	# @used-by :func:`agent_tools.rules_audit_checks.check_html_comments()`
 	# @used-by :meth:`RulesAuditChecker.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_rules_auditor_subprocess_and_xref_checker()`
 	@staticmethod
 	def check_html_comments(entries: list[dict]) -> list[dict]:
 		r: list[dict] = []

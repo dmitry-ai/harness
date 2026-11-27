@@ -50,6 +50,7 @@ class DiffContract:
 		return out
 	# @used-by :func:`agent_tools.tdd.diff_contract.check_staged_mixed_commit_warning()`
 	# @used-by :meth:`Df.Harness.Gate.StagedGates.StagedGates.verify()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_diff_contract_coverage_and_executability()`
 	@staticmethod
 	def check_staged_mixed_commit_warning(repo_root: Path, staged_paths: list[str], *, use_index: bool=True, threshold: int=MIXED_COMMIT_COMMENT_THRESHOLD) -> dict[str, Any] | None:
 		paths = list(staged_paths or ())
@@ -67,6 +68,8 @@ class DiffContract:
 			r = DiffContract.detect_mixed_commit_warning(DiffExecutability.summarize_categories(cats), threshold=threshold)
 		return r
 	# @used-by :func:`agent_tools.tdd.diff_contract.check_touched_mixed_commit_warning()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_diff_contract_coverage_and_executability()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_diff_contract_executability_and_coverage_end_to_end()`
 	@staticmethod
 	def check_touched_mixed_commit_warning(repo_root: Path, rel_paths: list[str], *, project_root: Path | None=None, threshold: int=MIXED_COMMIT_COMMENT_THRESHOLD) -> dict[str, Any] | None:
 		paths = list(rel_paths or ())

@@ -7,6 +7,7 @@ from Df.Harness.Perf.TrackedPopen import TrackedPopen
 import cProfile
 import json
 import os
+import profile
 import pstats
 import sys
 import time
@@ -17,6 +18,8 @@ class SuiteWorker:
 	# @used-by :meth:`SuiteWorker.main()`
 	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_perf_classes_profile_and_build_timesheets()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_perf_profiler_worker_timed_result_and_tracked_popen()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_perf_suite_worker_falls_back_when_cprofile_busy()`
 	def __init__(self, mod_path: Path, top_dir: Path, *, cprofile_top: int=0) -> None:
 		self.__mod_path = Path(mod_path)
 		self.__top_dir = Path(top_dir)
@@ -25,6 +28,8 @@ class SuiteWorker:
 	# @used-by :meth:`SuiteWorker.main()`
 	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_perf_classes_profile_and_build_timesheets()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_perf_profiler_worker_timed_result_and_tracked_popen()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_perf_suite_worker_falls_back_when_cprofile_busy()`
 	def run(self) -> dict[str, Any]:
 		rel = self.__mod_path.relative_to(self.__top_dir).as_posix()
 		stats = TimedResult.blank_stats()
@@ -35,9 +40,8 @@ class SuiteWorker:
 			load_s = round(max(0.0, time.perf_counter() - t_load0), 4)
 			import_stats = TimedResult.diff_stats(TimedResult.blank_stats(), stats)
 			result = TimedResult(stats, rel)
-			prof = cProfile.Profile() if 0 < self.__cprofile_top else None
 			t_run0 = time.perf_counter()
-			suite.run(result) if None is prof else prof.runcall(suite.run, result)
+			prof = SuiteWorker.__run_profiled(suite, result, self.__cprofile_top)
 			run_s = round(max(0.0, time.perf_counter() - t_run0), 4)
 		finally:
 			TrackedPopen.restore(orig_popen, orig_sleep)
@@ -54,11 +58,25 @@ class SuiteWorker:
 		return unittest.TestLoader().discover(str(mod_path.parent), pattern=mod_path.name, top_level_dir=str(top_dir))
 	# @used-by :meth:`SuiteWorker.run()`
 	@staticmethod
-	def __extract_cprofile(prof: cProfile.Profile, top_n: int) -> list[dict[str, Any]]:
+	def __extract_cprofile(prof: Any, top_n: int) -> list[dict[str, Any]]:
 		st = pstats.Stats(prof)
 		rows = [{'file': Path(fname).as_posix() if fname else '', 'line': int(lineno), 'func': str(func), 'ncalls': int(nc), 'tottime': round(float(tt), 5), 'cumtime': round(float(ct), 5)} for (fname, lineno, func), (_cc, nc, tt, ct, _callers) in st.stats.items()]
 		rows.sort(key=lambda item: (-item['cumtime'], -item['tottime']))
 		return rows[:max(1, int(top_n))]
+	# @used-by :meth:`SuiteWorker.run()`
+	@staticmethod
+	def __run_profiled(suite: unittest.TestSuite, result: TimedResult, cprofile_top: int) -> Any:
+		prof: Any = None
+		if 0 >= cprofile_top:
+			suite.run(result)
+		else:
+			try:
+				prof = cProfile.Profile()
+				prof.runcall(suite.run, result)
+			except ValueError:
+				prof = profile.Profile()
+				prof.runcall(suite.run, result)
+		return prof
 	# @used-by :func:`agent_tools.perf.suite_worker.main()`
 	# @used-by :mod:`test_addon_observability`
 	# @used-by :mod:`test_agent_tools`
@@ -103,9 +121,16 @@ class SuiteWorker:
 	# @used-by :mod:`test_df_dotpy_bootstrap`
 	# @used-by :mod:`test_df_harness_dedup_s8`
 	# @used-by :mod:`test_df_harness_lib_s10`
+	# @used-by :mod:`test_df_harness_s11_wave2b_gate_cov`
 	# @used-by :mod:`test_df_harness_s11_wave2b_gate`
+	# @used-by :mod:`test_df_harness_s11_wave2b_meta_cov`
 	# @used-by :mod:`test_df_harness_s11_wave2b_meta`
+	# @used-by :mod:`test_df_harness_s11_wave2b_perf_runner_cov`
+	# @used-by :mod:`test_df_harness_s11_wave2b_tail_cov`
+	# @used-by :mod:`test_df_harness_s11_wave2b_tdd_cov1`
+	# @used-by :mod:`test_df_harness_s11_wave2b_tdd_cov2`
 	# @used-by :mod:`test_df_harness_s11_wave2b_tdd`
+	# @used-by :mod:`test_df_harness_s11_wave2b_xref_cov`
 	# @used-by :mod:`test_df_harness_s11_wave2b_xref`
 	# @used-by :mod:`test_df_harness_s11_wave2b`
 	# @used-by :mod:`test_df_harness_s11_wave2e_arch`

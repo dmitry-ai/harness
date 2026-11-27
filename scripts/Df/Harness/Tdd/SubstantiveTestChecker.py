@@ -267,6 +267,8 @@ class SubstantiveTestChecker:
 	# @used-by :func:`agent_tools.tdd.substantive.source_text_assertion_issues()`
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__eval_pre_test_write()`
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__verify_staged_test_file()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_exemption_mechanical_ratchet_and_substantive()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_outcome_service_substantive_and_worktree_scope()`
 	@staticmethod
 	def source_text_assertion_issues(path: str | Path, added_lines: list[str] | tuple[str, ...], *, full_content: str | None=None, added_line_numbers: set[int] | None=None) -> list[str]:
 		p = Path(str(path))

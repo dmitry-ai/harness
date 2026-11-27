@@ -157,6 +157,7 @@ class MetricsSummarizer:
 		return summarize_token_records(events, bindings, tools=tools, extra=extra)
 	# @used-by :func:`agent_tools.metrics.native_executor_metadata()`
 	# @used-by :meth:`MetricsSummarizer.record_executor_metadata()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_meta_cov.DfHarnessS11Wave2bMetaCovTests.test_metrics_summarizer_covers_adapters_executors_reviews_and_instances()`
 	@staticmethod
 	def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, platform=None, backend=None, instance=None, write=False):
 		from agent_tools.platforms import adapter
@@ -169,6 +170,7 @@ class MetricsSummarizer:
 		result = adapter(platform).native_executor_metadata(root, conversation_id, **kw)
 		return MetricsSummarizer.__save_executor_metadata(root, result) if write else result
 	# @used-by :func:`agent_tools.metrics.native_requests()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_meta_cov.DfHarnessS11Wave2bMetaCovTests.test_metrics_summarizer_covers_adapters_executors_reviews_and_instances()`
 	@staticmethod
 	def native_requests(root, conversation_id, *, backend=None, platform=None, instance=None):
 		from agent_tools.platforms import adapter
@@ -178,6 +180,7 @@ class MetricsSummarizer:
 			kw['instance'] = resolved_instance
 		return adapter(platform).native_requests(root, conversation_id, **kw)
 	# @used-by :func:`agent_tools.metrics.native_review_proof()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_meta_cov.DfHarnessS11Wave2bMetaCovTests.test_metrics_summarizer_covers_adapters_executors_reviews_and_instances()`
 	@staticmethod
 	def native_review_proof(root, parent_id, reviewer_id, *, backend=None, write=True, platform=None, instance=None, wait_timeout=0.0, role='AA'):
 		from agent_tools.platforms import adapter
@@ -191,6 +194,7 @@ class MetricsSummarizer:
 			kw['role'] = role
 		return adapter(platform).native_review_proof(root, parent_id, reviewer_id, **kw)
 	# @used-by :func:`agent_tools.metrics.native_tool_trace()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_meta_cov.DfHarnessS11Wave2bMetaCovTests.test_metrics_summarizer_covers_adapters_executors_reviews_and_instances()`
 	@staticmethod
 	def native_tool_trace(root, request):
 		from agent_tools.platforms import adapter
@@ -200,6 +204,7 @@ class MetricsSummarizer:
 			raise ValueError('Native trace accepts only exact native source selectors')
 		return adapter(surface=request['surface']).native_tool_trace(root, request)
 	# @used-by :func:`agent_tools.metrics.project_metrics()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_meta_cov.DfHarnessS11Wave2bMetaCovTests.test_metrics_summarizer_covers_adapters_executors_reviews_and_instances()`
 	@staticmethod
 	def project_metrics(root) -> dict:
 		from agent_tools.path_registry import project_paths
@@ -214,11 +219,11 @@ class MetricsSummarizer:
 		reviews = MetricsSummarizer.__collect_project_reviews(root, state)
 		executors, executor_issues = MetricsSummarizer.__collect_project_executors(root, pp.executors_json)
 		return {'collector': collector, 'questions': questions, 'reviews': reviews, 'executors': executors, 'executor_issues': executor_issues, 'stages': stage_statuses(root, state), 'semantic_quality_verified': False, 'unrecorded_activity': 'unknown'}
-	# @used-by unused
+	# @used-by :meth:`test_df_harness_s11_wave2b_meta_cov.DfHarnessS11Wave2bMetaCovTests.test_metrics_summarizer_covers_adapters_executors_reviews_and_instances()`
 	@staticmethod
 	def record_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, platform=None, backend=None, instance=None):
 		return MetricsSummarizer.native_executor_metadata(root, conversation_id, role=role, parent_id=parent_id, platform=platform, backend=backend, instance=instance, write=True)
-	# @used-by unused
+	# @used-by :meth:`test_df_harness_s11_wave2b_meta_cov.DfHarnessS11Wave2bMetaCovTests.test_metrics_summarizer_covers_adapters_executors_reviews_and_instances()`
 	@staticmethod
 	def resolve_platform_and_backend(platform, backend, instance, conversation_id=None):
 		return MetricsSummarizer.resolve_target(platform, backend, instance, conversation_id=conversation_id)[:2]
@@ -246,6 +251,7 @@ class MetricsSummarizer:
 				raise ValueError(f'Conversation UUID {conversation_id} exists in multiple instances ({ids}); pass --instance')
 		return (platform, backend, resolved_instance)
 	# @used-by :func:`agent_tools.metrics.summarize_instance()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_meta_cov.DfHarnessS11Wave2bMetaCovTests.test_metrics_summarizer_covers_adapters_executors_reviews_and_instances()`
 	@staticmethod
 	def summarize_instance(conversation_id, *, instance=None, platform=None, bindings=None) -> dict:
 		found = MetricsSummarizer.__resolve_instance_match(conversation_id, instance, platform)
@@ -256,6 +262,7 @@ class MetricsSummarizer:
 		r['instance'] = {'id': found['id'], 'platform': found['platform'], 'enabled': found['enabled'], 'backend_dir': found['backend_dir'], 'trace_file': trace_file, 'system_paths': found['system_paths']}
 		return r
 	# @used-by :func:`agent_tools.metrics.verify_native_proof()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_meta_cov.DfHarnessS11Wave2bMetaCovTests.test_metrics_summarizer_covers_adapters_executors_reviews_and_instances()`
 	@staticmethod
 	def verify_native_proof(root, native, package=None):
 		from agent_tools.platforms import adapter
@@ -263,6 +270,7 @@ class MetricsSummarizer:
 			raise ValueError('Native review proof must declare its actual surface')
 		return adapter(surface=native.get('surface')).verify_native_proof(root, native, package=package)
 	# @used-by :func:`agent_tools.metrics.wire_fields()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_meta_cov.DfHarnessS11Wave2bMetaCovTests.test_metrics_summarizer_covers_adapters_executors_reviews_and_instances()`
 	@staticmethod
 	def wire_fields(data):
 		from agent_tools.platforms.antigravity import wire_fields as decode

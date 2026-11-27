@@ -12,6 +12,8 @@ class RepoTagGate:
 	# @used-by :func:`agent_tools.repo_tag_gate.verify_closing_commit_tag()`
 	# @used-by :meth:`RepoTagGate.finalize_close_check()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_staged_and_repo_checks()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_repo_links_tags_and_worktree_isolation()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_gate_registry_repo_tag_and_rules_auditor()`
 	def __init__(self, repo: Path, commit_sha: str, issue_url: str, *, git_cache=None) -> None:
 		self.__repo = Path(repo).resolve()
 		self.__commit_sha = commit_sha
@@ -108,6 +110,7 @@ class RepoTagGate:
 				r = ''
 		return r
 	# @used-by :func:`agent_tools.repo_tag_gate.finalize_commit_close_check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_repo_links_tags_and_worktree_isolation()`
 	@staticmethod
 	def finalize_close_check(repo: Path, commit_sha: str, issue_url: str, git_cache) -> dict:
 		pushed = git_cache.verify_commit_pushed(repo, commit_sha, issue_url)
@@ -116,6 +119,8 @@ class RepoTagGate:
 	# @used-by :func:`agent_tools.repo_tag_gate.verify_closing_commit_tag()`
 	# @used-by :meth:`RepoTagGate.finalize_close_check()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_staged_and_repo_checks()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_repo_links_tags_and_worktree_isolation()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_gate_registry_repo_tag_and_rules_auditor()`
 	def verify(self) -> str:
 		tag_map = RepoTagGate.__cached_local_tag_map(self.__repo, self.__git_cache)
 		tag = pick_preferred_tag(tag_map.get(self.__commit_sha, ()))

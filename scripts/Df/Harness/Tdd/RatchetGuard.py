@@ -171,6 +171,8 @@ class RatchetGuard:
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__eval_shell_test_deletes()`
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__eval_test_ratchet_and_fitting()`
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__verify_staged_test_file()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_exemption_mechanical_ratchet_and_substantive()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_exemption_mechanical_and_ratchet_guard()`
 	@staticmethod
 	def find_approval(file_path: str | Path, *, repo_root: Path | None=None, project_root: Path | None=None, turn_receipts: list[dict] | None=None, issue_urls: list[str] | tuple[str, ...]=()) -> dict | None:
 		receipts = list(turn_receipts or ())
@@ -184,6 +186,7 @@ class RatchetGuard:
 		return r
 	# @used-by :func:`agent_tools.tdd.ratchet._load_turn_ratchet_receipts()`
 	# @used-by :meth:`RatchetGuard.find_approval()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_exemption_mechanical_and_ratchet_guard()`
 	@staticmethod
 	def load_turn_receipts(project_root: Path | None) -> list[dict]:
 		r: list[dict] = []
@@ -196,6 +199,7 @@ class RatchetGuard:
 	# @used-by :func:`agent_tools.tdd.ratchet._match_ratchet_target()`
 	# @used-by :meth:`RatchetGuard.__find_receipt_approval()`
 	# @used-by :meth:`RatchetGuard.__match_issue_evidence_file()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_exemption_mechanical_and_ratchet_guard()`
 	@staticmethod
 	def match_target(target_spec: str, file_path: str | Path) -> bool:
 		spec = CodeClassifier.norm_posix((target_spec or '').strip().strip('`"\'')).lstrip('./').lower()
@@ -209,6 +213,7 @@ class RatchetGuard:
 		return r
 	# @used-by :func:`agent_tools.tdd.ratchet._parse_ratchet_ok_lines()`
 	# @used-by :meth:`RatchetGuard.__match_issue_evidence_file()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_exemption_mechanical_and_ratchet_guard()`
 	@staticmethod
 	def parse_ratchet_ok_lines(body: str) -> list[tuple[str, str]]:
 		r: list[tuple[str, str]] = []
@@ -238,6 +243,7 @@ class RatchetGuard:
 	# @used-by :meth:`RatchetGuard.__find_receipt_approval()`
 	# @used-by :meth:`RatchetGuard.__match_issue_evidence_file()`
 	# @used-by :meth:`RatchetGuard.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_exemption_mechanical_and_ratchet_guard()`
 	@staticmethod
 	def validate_reason(reason: str) -> tuple[bool, str | None]:
 		cleaned = ' '.join((reason or '').strip().split())

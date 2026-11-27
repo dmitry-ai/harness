@@ -20,6 +20,7 @@ class SuiteProfiler:
 	# @used-by :meth:`SuiteProfiler.run_cli()`
 	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_perf_classes_profile_and_build_timesheets()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_perf_profiler_worker_timed_result_and_tracked_popen()`
 	def __init__(self, tests_dir: Path | str | None=None, *, workers: int | None=None, module_timeout: float=300.0, pattern: str='test_*.py', modules: list[str] | tuple[str, ...] | None=None, enable_cprofile: bool=False, top_n: int=15, cprofile_top: int=25) -> None:
 		self.__tests_dir = tests_dir
 		self.__workers = workers
@@ -38,6 +39,7 @@ class SuiteProfiler:
 	# @used-by :meth:`SuiteProfiler.run_cli()`
 	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_perf_classes_profile_and_build_timesheets()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_perf_profiler_worker_timed_result_and_tracked_popen()`
 	def profile(self) -> dict[str, Any]:
 		base, ordered = SuiteRunner.discover_modules(self.__tests_dir, pattern=self.__pattern, modules=self.__modules)
 		if not ordered:
@@ -116,10 +118,12 @@ class SuiteProfiler:
 		return {'file': mod_path.relative_to(top_dir).as_posix(), 'load_s': 0.0, 'run_s': 0.0, 'tests_run': 0, 'failures': 0, 'errors': 1, 'skipped': 0, 'import_stats': {}, 'tests': [], 'cprofile': [], 'worker_error': msg}
 	# @used-by :func:`agent_tools.perf.suite_profiler._default_workers()`
 	# @used-by :meth:`SuiteProfiler.profile()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_perf_profiler_worker_timed_result_and_tracked_popen()`
 	@staticmethod
 	def default_workers() -> int:
 		return dfh_default_workers(6)
 	# @used-by :func:`agent_tools.perf.suite_profiler.format_profile_text()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_perf_profiler_worker_timed_result_and_tracked_popen()`
 	@staticmethod
 	def format_text(report: dict[str, Any]) -> str:
 		tot = report.get('totals') or {}
@@ -133,6 +137,7 @@ class SuiteProfiler:
 			lines.append(f"TopFile: {item['file']} run_s={item['run_s']} ({item['share_pct']}%) tests={item['tests_run']} popen={item['popen_count']}/{item['popen_s']}s")
 		return '\n'.join(lines) + '\n'
 	# @used-by :func:`agent_tools.perf.suite_profiler.run_perf_profile_cli()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_perf_profiler_worker_timed_result_and_tracked_popen()`
 	@staticmethod
 	def run_cli(args) -> dict[str, Any]:
 		report = SuiteProfiler(args.target, workers=args.workers, module_timeout=args.module_timeout, pattern=args.pattern, modules=args.module, enable_cprofile=bool(args.cprofile), top_n=args.top, cprofile_top=args.cprofile_top).profile()

@@ -13,7 +13,9 @@ from agent_tools.shell_audit import _split_shell_segments, normalize_host_path
 class Evaluator:
 	# @used-by :func:`agent_tools.tdd.evaluator.evaluate_tdd_events()`
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__load_pre_tool_tdd_state()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_enforcement_evaluator_events_and_worktree()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_evaluator_and_events_extractor_with_bg_tasks()`
 	def __init__(self, events: list[dict], *, require_final_full_green: bool=True, project_root: Path | None=None, is_exempt_fn: Callable | None=None) -> None:
 		self.__events = events
 		self.__require_final_full_green = require_final_full_green
@@ -21,7 +23,9 @@ class Evaluator:
 		self.__is_exempt_fn = is_exempt_fn if None is not is_exempt_fn else Exemption.is_write_event_exempt
 	# @used-by :func:`agent_tools.tdd.evaluator.evaluate_tdd_events()`
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__load_pre_tool_tdd_state()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_enforcement_evaluator_events_and_worktree()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_evaluator_and_events_extractor_with_bg_tasks()`
 	def evaluate(self) -> dict:
 		scopes: dict[str, dict] = {}
 		orders: dict[str, dict] = {}
@@ -264,6 +268,7 @@ class Evaluator:
 	# @used-by :meth:`Evaluator.__cwd_matches_scope()`
 	# @used-by :meth:`Evaluator.__scopes_overlap()`
 	# @used-by :meth:`Evaluator.command_matches_scope()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_evaluator_and_events_extractor_with_bg_tasks()`
 	@staticmethod
 	def git_main_repo_root(repo: Path) -> Path:
 		r = repo.resolve()

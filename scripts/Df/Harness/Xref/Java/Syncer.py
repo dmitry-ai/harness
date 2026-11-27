@@ -137,6 +137,7 @@ class Syncer:
 					errs.append(f'XREF: {rel}:{ln} unresolved - @uses target {rval}')
 	# @used-by :func:`agent_tools.xref.java_sync.check_java_file_local()`
 	# @used-by :meth:`Df.Harness.Gate.XrefChecker.XrefChecker.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_xref_cov.DfHarnessS11Wave2bXrefCovTests.test_java_xref_covers_enums_anon_classes_overrides_and_external_tags()`
 	@staticmethod
 	def check_file_local(rel_posix: str, source: str, *, baseline_source: str | None=None, strict_existing: bool=False) -> list[str]:
 		finfo = Model.index_file(rel_posix, source)
@@ -157,6 +158,7 @@ class Syncer:
 	# @used-by :func:`agent_tools.xref.java_sync.check_java_repo()`
 	# @used-by :meth:`Df.Harness.Xref.Engine.Engine.check()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_xref.DfHarnessS11Wave2bXrefTests.test_java_xref_classes_tokenize_index_graph_and_sync()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_xref_cov.DfHarnessS11Wave2bXrefCovTests.test_java_xref_covers_enums_anon_classes_overrides_and_external_tags()`
 	@staticmethod
 	def check_repo(repo_root: Path, *, files: list[str] | None=None, overrides_map: dict[str, str] | None=None) -> dict:
 		repo_index = Model(repo_root, overrides_map=overrides_map).build_repo_index()

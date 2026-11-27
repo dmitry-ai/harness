@@ -11,6 +11,7 @@ class Model:
 	# @used-by :func:`agent_tools.xref.java_model.build_java_repo_index()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Syncer.Syncer.check_repo()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Syncer.Syncer.sync()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_xref_java_and_python_tail_branches()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_xref.DfHarnessS11Wave2bXrefTests.test_java_xref_classes_tokenize_index_graph_and_sync()`
 	def __init__(self, repo_root: Path, *, overrides_map: dict[str, str] | None=None) -> None:
 		self.__repo_root = Path(repo_root).resolve()
@@ -18,6 +19,7 @@ class Model:
 	# @used-by :func:`agent_tools.xref.java_model.build_java_repo_index()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Syncer.Syncer.check_repo()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Syncer.Syncer.sync()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_xref_java_and_python_tail_branches()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_xref.DfHarnessS11Wave2bXrefTests.test_java_xref_classes_tokenize_index_graph_and_sync()`
 	def build_repo_index(self) -> dict:
 		files, symbols, types, methods_by_name = ({}, {}, {}, {})

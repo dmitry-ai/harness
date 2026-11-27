@@ -19,6 +19,8 @@ class AntigravityTimesheetAnalyzer:
 	# @used-by :meth:`Df.Harness.Perf.TimesheetBuilder.TimesheetBuilder.build()`
 	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_perf_classes_profile_and_build_timesheets()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_perf_analyzers_and_timesheet_cli()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_perf_ag_timesheet_and_parallel_runner_timeout()`
 	def __init__(self, rows: list[dict[str, Any]], *, last_user_ts: str | None=None, last_mod_ts: str | None=None, top_gaps_limit: int=10) -> None:
 		self.__rows = rows
 		self.__last_user_ts = last_user_ts
@@ -28,6 +30,8 @@ class AntigravityTimesheetAnalyzer:
 	# @used-by :meth:`Df.Harness.Perf.TimesheetBuilder.TimesheetBuilder.build()`
 	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta.DfHarnessS11Wave2bMetaTests.test_perf_classes_profile_and_build_timesheets()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_perf_analyzers_and_timesheet_cli()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_perf_ag_timesheet_and_parallel_runner_timeout()`
 	def analyze(self) -> dict[str, Any]:
 		st = AntigravityTimesheetAnalyzer.__init_ag_state()
 		done_map = AntigravityTimesheetAnalyzer.__bg_match_records(self.__rows)

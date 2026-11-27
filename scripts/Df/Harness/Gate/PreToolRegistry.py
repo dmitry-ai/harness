@@ -35,6 +35,8 @@ class PreToolRegistry:
 	# @used-by :meth:`PreToolRegistry.discover()`
 	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_gate_classes_enforce_python_and_pretool_checks()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_browser_bulk_read_external_write_and_registry_gates()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_gate_registry_repo_tag_and_rules_auditor()`
 	def __init__(self, pkg_name: str='agent_tools.gates', pkg_dir: Path | None=None) -> None:
 		self.__pkg_name = pkg_name
 		self.__pkg_dir = Path(pkg_dir) if None is not pkg_dir else Path(__file__).resolve().parents[3] / 'agent_tools/gates'
@@ -116,6 +118,7 @@ class PreToolRegistry:
 		return r
 	# @used-by :func:`agent_tools.gates.discover_pre_tool_gates()`
 	# @used-by :meth:`PreToolRegistry.run()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_gate_registry_repo_tag_and_rules_auditor()`
 	@staticmethod
 	def discover(*, tool_name: str | None=None, extra_dirs: list[Path] | tuple[Path, ...] | None=None, pkg_name: str='agent_tools.gates', pkg_dir: Path | None=None) -> list[dict]:
 		reg = PreToolRegistry(pkg_name=pkg_name, pkg_dir=pkg_dir)
@@ -128,6 +131,7 @@ class PreToolRegistry:
 	# @used-by :func:`agent_tools.gates.run_pre_tool_gates()`
 	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_gate_classes_enforce_python_and_pretool_checks()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_analyzers_and_checkers()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_browser_bulk_read_external_write_and_registry_gates()`
 	def run(self, name: str, args: dict, payload: dict, *, extra_dirs: list[Path] | tuple[Path, ...] | None=None) -> dict:
 		r = {'decision': 'allow'}
 		for gate in PreToolRegistry.discover(tool_name=name, extra_dirs=extra_dirs, pkg_name=self.__pkg_name, pkg_dir=self.__pkg_dir):

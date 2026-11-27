@@ -111,6 +111,7 @@ class RepoLinkResolver:
 				break
 		return r
 	# @used-by :func:`agent_tools.repo_link_gate.hydrate_local_repo_urls()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_repo_links_tags_and_worktree_isolation()`
 	@staticmethod
 	def hydrate_local_urls(auditor) -> set[str]:
 		local_urls: set[str] = set()
@@ -126,6 +127,7 @@ class RepoLinkResolver:
 		return local_urls
 	# @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__validate_file_uri()`
 	# @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__validate_relative_cross_repo()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_repo_links_tags_and_worktree_isolation()`
 	@staticmethod
 	def is_gitignored(repo: Path, rel_path: str) -> bool:
 		clean = rel_path.strip('/')
@@ -145,6 +147,7 @@ class RepoLinkResolver:
 		return bool(RepoLinkResolver.__SKIP_STAGED_RE.search(norm)) or '/data/scratch/' in norm
 	# @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.check_chat()`
 	# @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.check_file()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_repo_links_tags_and_worktree_isolation()`
 	@staticmethod
 	def validate_github_url(url: str, root: Path | None) -> list[str]:
 		info = RepoLinkResolver.__parse_github_ref_url(url)

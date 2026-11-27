@@ -99,6 +99,7 @@ class CommentScanners:
 		return r
 	# @used-by :func:`agent_tools.tdd.comment_scanners.scan_cpp_raw()`
 	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.__c_like_prefix_string()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_classifier_command_inspector_and_lexers()`
 	@staticmethod
 	def scan_cpp_raw(src: str, pos: int) -> int:
 		m = CommentScanners.__CPP_RAW_RE.match(src, pos)
@@ -112,6 +113,7 @@ class CommentScanners:
 	# @used-by :func:`agent_tools.tdd.comment_scanners.scan_css_url()`
 	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.__c_like_special_step()`
 	# @used-by :meth:`Df.Harness.Tdd.ExtCommentLexer.ExtCommentLexer.__sass_step()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_classifier_command_inspector_and_lexers()`
 	@staticmethod
 	def scan_css_url(src: str, pos: int) -> int:
 		n = len(src)
@@ -128,6 +130,7 @@ class CommentScanners:
 	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.__php_code_step()`
 	# @used-by :meth:`Df.Harness.Tdd.ExtCommentLexer.ExtCommentLexer.__hcl_step()`
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__hash_here_or_regex()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_classifier_command_inspector_and_lexers()`
 	@staticmethod
 	def scan_heredoc(src: str, pos: int, *, php: bool=False) -> int:
 		pat = CommentScanners.__HEREDOC_START_RE if php else CommentScanners.__SH_HEREDOC_RE
@@ -143,6 +146,7 @@ class CommentScanners:
 	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.__c_like_special_step()`
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__hash_here_or_regex()`
 	# @used-by :meth:`Df.Harness.Xref.Js.Lexer.Lexer.__tokenize_js_atom()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_classifier_command_inspector_and_lexers()`
 	@staticmethod
 	def scan_js_regex(src: str, pos: int) -> int:
 		i, n, in_cls, r = (pos + 1, len(src), False, -1)
@@ -159,6 +163,7 @@ class CommentScanners:
 		return r
 	# @used-by :func:`agent_tools.tdd.comment_scanners.scan_line_block()`
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__hash_block_step()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_classifier_command_inspector_and_lexers()`
 	@staticmethod
 	def scan_line_block(src: str, pos: int, end_prefix: str) -> int:
 		n = len(src)
@@ -199,6 +204,7 @@ class CommentScanners:
 		return end
 	# @used-by :func:`agent_tools.tdd.comment_scanners.scan_ps_herestring()`
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__hash_here_or_regex()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_classifier_command_inspector_and_lexers()`
 	@staticmethod
 	def scan_ps_herestring(src: str, pos: int, quote: str) -> int:
 		nl = src.find('\n', pos + 2)
@@ -254,6 +260,7 @@ class CommentScanners:
 	# @used-by :meth:`Df.Harness.Tdd.ExtCommentLexer.ExtCommentLexer.__fsharp_step()`
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__hash_quote_step()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Lexer.Lexer.__tokenize_java_atom()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_classifier_command_inspector_and_lexers()`
 	@staticmethod
 	def scan_triple_quote(src: str, pos: int, quote: str) -> int:
 		marker = quote * 3

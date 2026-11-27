@@ -30,6 +30,7 @@ class WorktreeScope:
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__is_exempt_cached()`
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__update_scope_from_test_cmd()`
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.command_matches_scope()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_outcome_service_substantive_and_worktree_scope()`
 	@staticmethod
 	def canonical_scope_path(scope_key: str) -> Path:
 		base, wt_id = WorktreeScope.split_key(scope_key)
@@ -81,6 +82,8 @@ class WorktreeScope:
 		return r
 	# @used-by :func:`agent_tools.tdd.worktree_scope.scope_matches_commit()`
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__apply_commit_reset()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_enforcement_evaluator_events_and_worktree()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_outcome_service_substantive_and_worktree_scope()`
 	@staticmethod
 	def scope_matches_commit(scope_key: str, commit_scope: str | None, event: dict | None=None) -> bool:
 		base, sk_wt = WorktreeScope.split_key(scope_key)
@@ -98,6 +101,7 @@ class WorktreeScope:
 	# @used-by :meth:`WorktreeScope.canonical_scope_path()`
 	# @used-by :meth:`WorktreeScope.scope_matches_commit()`
 	# @used-by :meth:`WorktreeScope.worktree_command_matches()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_outcome_service_substantive_and_worktree_scope()`
 	@staticmethod
 	def split_key(scope_key: str) -> tuple[Path, str | None]:
 		if WorktreeScope.__WT_KEY_SEP in scope_key:
@@ -109,6 +113,7 @@ class WorktreeScope:
 		return r
 	# @used-by :func:`agent_tools.tdd.worktree_scope.worktree_command_matches()`
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.command_matches_scope()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_outcome_service_substantive_and_worktree_scope()`
 	@staticmethod
 	def worktree_command_matches(event: dict, scope_key: str, is_full_cmd: bool) -> bool | None:
 		_, sk_wt = WorktreeScope.split_key(scope_key)

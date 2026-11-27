@@ -65,6 +65,7 @@ class WatchdogRunner:
 			rc = 124 if timed_out else -1
 		return (timed_out, 124 if timed_out else int(rc))
 	# @used-by :func:`agent_tools.watchdog_runner.run_watchdog_cli()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_runner_process_tree_watchdog_semaphore_and_pytest_modes()`
 	@staticmethod
 	def run_cli(args) -> dict:
 		res = WatchdogRunner(list(args.cmd or ()), timeout=args.timeout, cwd=args.cwd).run()

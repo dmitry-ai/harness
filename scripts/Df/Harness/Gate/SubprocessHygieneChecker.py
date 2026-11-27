@@ -14,6 +14,8 @@ class SubprocessHygieneChecker:
 	# @used-by :meth:`Df.Harness.Gate.SubprocessHygienePreToolGate.SubprocessHygienePreToolGate.check()`
 	# @used-by :meth:`Df.Harness.Gate.SubprocessHygieneStagedGate.SubprocessHygieneStagedGate.verify()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_thin_pretool_shims_and_checkers()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_rules_auditor_subprocess_and_xref_checker()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_gate_bulk_size_external_issue_and_subproc()`
 	def __init__(self, path: str | Path, source: str, *, baseline_source: str | None=None) -> None:
 		self.__path = path
 		self.__source = source
@@ -108,6 +110,8 @@ class SubprocessHygieneChecker:
 	# @used-by :meth:`Df.Harness.Gate.SubprocessHygienePreToolGate.SubprocessHygienePreToolGate.check()`
 	# @used-by :meth:`Df.Harness.Gate.SubprocessHygieneStagedGate.SubprocessHygieneStagedGate.verify()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_thin_pretool_shims_and_checkers()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_rules_auditor_subprocess_and_xref_checker()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_gate_bulk_size_external_issue_and_subproc()`
 	def check(self) -> list[str]:
 		r: list[str] = []
 		if SubprocessHygieneChecker.is_target(self.__path):

@@ -212,6 +212,8 @@ class MechanicalExemption:
 					r.extend((it for it in MechanicalExemption.__load_recipe_entries(rf) if MechanicalExemption.__recipe_matches_repo(it, repo_posix, repo_slug, msg_norm)))
 		return r
 	# @used-by :func:`agent_tools.tdd.mechanical.is_git_file_mechanical_exempt()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_exemption_mechanical_ratchet_and_substantive()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_exemption_mechanical_and_ratchet_guard()`
 	@staticmethod
 	def is_git_file_exempt(repo_root: Path, rel_posix: str, *, disk_text: str | None=None, use_index: bool=False, message: str | None=None, project_root: Path | None=None) -> bool:
 		repo = Path(repo_root).resolve()
@@ -229,6 +231,7 @@ class MechanicalExemption:
 	# @used-by :func:`agent_tools.tdd.mechanical.is_mechanical_diff_exempt()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffExecutability.DiffExecutability.classify_text_diff()`
 	# @used-by :meth:`MechanicalExemption.__is_last_commit_exempt()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_exemption_mechanical_and_ratchet_guard()`
 	@staticmethod
 	def is_mechanical_diff_exempt(old_text: str | None, new_text: str | None, *, repo_root: Path | None=None, message: str | None=None, project_root: Path | None=None) -> bool:
 		recipes = MechanicalExemption.find_matching_recipes(repo_root, message=message, project_root=project_root)
@@ -238,6 +241,7 @@ class MechanicalExemption:
 	# @used-by :meth:`MechanicalExemption.is_git_file_exempt()`
 	# @used-by :meth:`MechanicalExemption.is_mechanical_diff_exempt()`
 	# @used-by :meth:`MechanicalExemption.matches_recipe()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_exemption_mechanical_ratchet_and_substantive()`
 	@staticmethod
 	def matches_any_recipes(old_text: str | None, new_text: str | None, recipes: list[dict] | tuple[dict, ...]) -> bool:
 		if None is old_text or None is new_text:
@@ -254,6 +258,7 @@ class MechanicalExemption:
 	def matches_recipe(old_text: str | None, new_text: str | None, recipe: dict) -> bool:
 		return MechanicalExemption.matches_any_recipes(old_text, new_text, (recipe,))
 	# @used-by :func:`agent_tools.tdd.mechanical.record_mechanical_exemption()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_exemption_mechanical_and_ratchet_guard()`
 	@staticmethod
 	def record_exemption(project_root: str | Path, *, repo: str | Path | None=None, issue_url: str, pattern: str, replacement: str, reason: str, is_regex: bool=False, ignore_case: bool=False, conversation: str | None=None, turn_key: str | None=None) -> dict:
 		from agent_tools.path_registry import canonicalize_root_dir, project_paths

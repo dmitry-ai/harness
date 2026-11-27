@@ -14,6 +14,7 @@ class SubprocessHygieneStagedGate:
 		self.__staged_paths = list(staged_paths or ())
 		self.__use_index = use_index
 	# @used-by :func:`agent_tools.subprocess_hygiene_gate.run_staged_gate()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_rules_auditor_subprocess_and_xref_checker()`
 	@staticmethod
 	def run_staged_gate(mod_name: str, func_name: str, *args, **kwargs) -> None:
 		mod = importlib.import_module(f'agent_tools.{mod_name}')

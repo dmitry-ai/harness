@@ -155,6 +155,7 @@ class IssueCommentScanner:
 		return (spans, class_methods)
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentChecker.IssueCommentChecker.__check_body_placement()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentChecker.IssueCommentChecker.__check_header_placement()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_issue_comment_checker_and_scanner_cover_py_js_and_xml()`
 	@staticmethod
 	def construct_span(lines: list[str], start_line: int, suffix: str, py_spans: dict[int, tuple[int, int, str]]) -> tuple[int, int, str]:
 		if suffix in ('.py', '.pyi') and start_line in py_spans:
@@ -167,6 +168,7 @@ class IssueCommentScanner:
 			r = (start_line, start_line, 'stmt')
 		return r
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentChecker.IssueCommentChecker.__check_added_issue_line()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_issue_comment_checker_and_scanner_cover_py_js_and_xml()`
 	@staticmethod
 	def next_code_line(start_ln: int, code_lines: set[int], total: int) -> int | None:
 		r = None
@@ -176,6 +178,7 @@ class IssueCommentScanner:
 				break
 		return r
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentPreToolGate.IssueCommentPreToolGate.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_issue_comment_checker_and_scanner_cover_py_js_and_xml()`
 	@staticmethod
 	def resolve_target(args: dict, payload: dict) -> tuple[Path | None, Path, str] | None:
 		raw_p = str(args.get('Path') or '').strip()

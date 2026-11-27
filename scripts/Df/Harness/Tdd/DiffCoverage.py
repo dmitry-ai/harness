@@ -117,6 +117,7 @@ class DiffCoverage:
 				repos.append(repo)
 		return repos
 	# @used-by :func:`agent_tools.tdd.diff_coverage.enrich_tdd_check_report()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_diff_contract_executability_and_coverage_end_to_end()`
 	@staticmethod
 	def enrich_tdd_check_report(root_p: Path, role: str, turn_key: str, turn_obj: dict[str, Any], tdd_chk: dict[str, Any]) -> dict[str, Any]:
 		repos = DiffCoverage.__touched_git_repos(root_p, turn_obj)
@@ -197,6 +198,7 @@ class DiffCoverage:
 	# @used-by :func:`agent_tools.tdd.diff_coverage.select_targeted_test_modules()`
 	# @used-by :meth:`DiffCoverage.verify_repo()`
 	# @used-by :meth:`DiffCoverage.verify_worktree()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_diff_contract_coverage_and_executability()`
 	@staticmethod
 	def select_targeted_test_modules(repo_root: Path, changed_prod_rels: list[str], *, base_ref: str='HEAD', include_working_tree: bool=False) -> list[Path]:
 		tests_dir = repo_root / 'tests'
@@ -217,6 +219,7 @@ class DiffCoverage:
 		return r
 	# @used-by :func:`agent_tools.tdd.diff_coverage.verify_repo_diff_coverage()`
 	# @used-by :meth:`DiffCoverage.enrich_tdd_check_report()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_diff_contract_executability_and_coverage_end_to_end()`
 	@staticmethod
 	def verify_repo(repo_root: Path, *, base_ref: str='HEAD') -> dict[str, Any]:
 		added = DiffCoverage.find_added_production_functions(repo_root, base_ref=base_ref, include_working_tree=True)
@@ -227,6 +230,7 @@ class DiffCoverage:
 			r = DiffCoverage.run_trace(repo_root, added, mods) if mods else {'valid': False, 'checked_functions': sum((len(v) for v in added.values())), 'uncovered': [f"{rel}:{fn['name']} (L{fn['start_line']})" for rel, v in sorted(added.items()) for fn in v], 'targeted_modules': []}
 		return r
 	# @used-by :func:`agent_tools.tdd.diff_coverage.verify_worktree_diff_coverage()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_diff_contract_executability_and_coverage_end_to_end()`
 	@staticmethod
 	def verify_worktree(wt_path: Path, target_branch: str) -> dict[str, Any]:
 		added = DiffCoverage.find_added_production_functions(wt_path, base_ref=target_branch, include_working_tree=False)

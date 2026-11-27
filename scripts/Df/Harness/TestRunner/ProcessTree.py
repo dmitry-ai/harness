@@ -16,6 +16,7 @@ class ProcessTree:
 	# @used-by :meth:`Df.Harness.TestRunner.SuiteRunner.SuiteRunner.__poll_module_proc()`
 	# @used-by :meth:`Df.Harness.TestRunner.SuiteRunner.SuiteRunner.__terminate_active()`
 	# @used-by :meth:`Df.Harness.TestRunner.WatchdogRunner.WatchdogRunner.__poll_until_exit()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_runner_process_tree_watchdog_semaphore_and_pytest_modes()`
 	def __init__(self, proc: subprocess.Popen, *, wait_timeout: float=5.0) -> None:
 		self.__proc = proc
 		self.__wait_timeout = wait_timeout
@@ -41,6 +42,7 @@ class ProcessTree:
 	# @used-by :meth:`ProcessTree.__finish_kill()`
 	# @used-by :meth:`agent_tools.text_browser.CDPSession.close()`
 	# @used-by :meth:`agent_tools.text_browser.ManagedHeadlessShell.close()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_runner_process_tree_watchdog_semaphore_and_pytest_modes()`
 	def kill(self) -> None:
 		if None is self.__proc.poll():
 			if df_is_windows():

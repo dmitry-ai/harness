@@ -21,6 +21,7 @@ class RulesAuditor:
 	# @used-by :meth:`Df.Harness.Gate.RulesManifest.RulesManifest.__build_doctor_rule_meta()`
 	# @used-by :meth:`RulesAuditor.verify_staged()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_staged_and_repo_checks()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_rules_auditor_subprocess_and_xref_checker()`
 	def __init__(self, primary: str | Path, *, workspace: str | Path | None=None, max_file_bytes: int=RulesAuditChecker.MAX_RULE_FILE_BYTES, max_always_on_bytes: int=RulesAuditChecker.MAX_ALWAYS_ON_BYTES, max_always_on_tokens: int=RulesAuditChecker.MAX_ALWAYS_ON_TOKENS, overrides: dict[Path, bytes] | None=None) -> None:
 		self.__primary = Path(primary).resolve()
 		self.__workspace = Path(workspace).resolve() if None is not workspace else None
@@ -133,6 +134,7 @@ class RulesAuditor:
 				break
 		return r
 	# @used-by :func:`agent_tools.rules_audit.build_semantic_audit_brief()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_rules_auditor_subprocess_and_xref_checker()`
 	@staticmethod
 	def build_semantic_brief(primary: str | Path, *, workspace: str | Path | None=None) -> str:
 		prim = Path(primary).resolve()
@@ -143,6 +145,8 @@ class RulesAuditor:
 		return '\n'.join(lines) + '\n'
 	# @used-by :func:`agent_tools.rules_audit.check_shared_rule_edit()`
 	# @used-by :meth:`Df.Harness.Gate.RulesBudgetGate.RulesBudgetGate.check()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_rules_auditor_subprocess_and_xref_checker()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_gate_registry_repo_tag_and_rules_auditor()`
 	@staticmethod
 	def check_shared_rule_edit(name: str, args: dict) -> str | None:
 		r = None
@@ -156,6 +160,7 @@ class RulesAuditor:
 				r = RulesAuditor.__check_shared_rule_content(target, new_text)
 		return r
 	# @used-by :func:`agent_tools.rules_audit.format_rules_audit_text()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_rules_auditor_subprocess_and_xref_checker()`
 	@staticmethod
 	def format_text(report: dict) -> str:
 		if report.get('semantic_brief'):
@@ -169,6 +174,7 @@ class RulesAuditor:
 		return r
 	# @used-by :func:`agent_tools.rules_audit.verify_staged_rules_audit()`
 	# @used-by :meth:`Df.Harness.Gate.StagedGates.StagedGates.verify()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_gate_registry_repo_tag_and_rules_auditor()`
 	@staticmethod
 	def verify_staged(repo_root: Path, staged_paths: list[str], *, use_index: bool=True) -> list[str]:
 		r: list[str] = []
@@ -182,6 +188,7 @@ class RulesAuditor:
 	# @used-by :meth:`Df.Harness.Gate.RulesManifest.RulesManifest.__build_doctor_rule_meta()`
 	# @used-by :meth:`RulesAuditor.verify_staged()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_staged_and_repo_checks()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_rules_auditor_subprocess_and_xref_checker()`
 	def audit(self) -> dict:
 		entries = RulesAuditor.__load_rule_entries(self.__primary, overrides=self.__overrides)
 		ws_files = RulesAuditor.__inspect_workspace_auto_files(self.__primary, self.__workspace)

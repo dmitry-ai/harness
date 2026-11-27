@@ -163,6 +163,7 @@ class TranscriptReader:
 		return info
 	# @used-by :func:`agent_tools.meta.transcripts._extract_turn_steps_from_state()`
 	# @used-by :meth:`Df.Harness.Meta.Builders.Builders.__apply_issue_state_details()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_meta_cov.DfHarnessS11Wave2bMetaCovTests.test_blocks_clarifications_builders_problem_codex_and_turn_state()`
 	@staticmethod
 	def extract_turn_steps_from_state(state: dict[str, Any]) -> list[int]:
 		r: list[int] = []
@@ -178,6 +179,7 @@ class TranscriptReader:
 		return r
 	# @used-by :func:`agent_tools.meta.transcripts._find_turn_state_for_conversation()`
 	# @used-by :meth:`Df.Harness.Meta.Builders.Builders.__find_issue_state_pair()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_meta_cov.DfHarnessS11Wave2bMetaCovTests.test_blocks_clarifications_builders_problem_codex_and_turn_state()`
 	@staticmethod
 	def find_turn_state_for_conversation(turns_dir: Path, conversation_id: str) -> tuple[Path, dict[str, Any]] | None:
 		r: tuple[Path, dict[str, Any]] | None = None

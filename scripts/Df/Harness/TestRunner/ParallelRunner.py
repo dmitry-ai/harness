@@ -18,6 +18,8 @@ class ParallelRunner:
 	__RAN_RE = re.compile(r'(?m)^Ran\s+(\d+)\s+tests?\s+in\s+')
 	# @used-by :func:`agent_tools.parallel_runner.run_parallel_tests()`
 	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_runner_failfast_timeout_and_format_text()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_perf_ag_timesheet_and_parallel_runner_timeout()`
 	def __init__(self, tests_dir: Path | str, *, workers: int | None=None, pattern: str='test_*.py', modules: list[str] | tuple[str, ...] | None=None, failfast: bool=True, buffer_output: bool=True, module_timeout: float=300.0, timings_file: Path | None=None, runner: str='auto', env_extra: dict[str, str] | None=None, slot_budget_fn=None) -> None:
 		self.__tests_dir = tests_dir
 		self.__workers = workers
@@ -32,6 +34,8 @@ class ParallelRunner:
 		self.__slot_budget_fn = slot_budget_fn
 	# @used-by :func:`agent_tools.parallel_runner.run_parallel_tests()`
 	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_runner_failfast_timeout_and_format_text()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_perf_ag_timesheet_and_parallel_runner_timeout()`
 	def run(self) -> dict:
 		root = Path(self.__tests_dir).resolve()
 		mod_list = ParallelRunner.discover_modules(root, pattern=self.__pattern, modules=self.__modules, timings=ParallelRunner.__load_timings(self.__timings_file))
@@ -185,6 +189,7 @@ class ParallelRunner:
 		return {'ok': ok, 'valid': ok, 'exit_code': 0 if ok else 1, 'runner': 'unittest', 'workers': workers, 'total_modules': total_modules, 'passed_modules': passed, 'total_tests': total_tests, 'duration_seconds': round(elapsed, 3), 'failed_module': first_fail['module'] if first_fail else None, 'timed_out': bool(first_fail and first_fail['timed_out']), 'failure_output': (first_fail['output'][-4000:] if first_fail else ''), 'slowest_modules': slowest, 'summary': status_line}
 	# @used-by :func:`agent_tools.parallel_runner.default_worker_count()`
 	# @used-by :meth:`ParallelRunner.run()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_runner_process_tree_watchdog_semaphore_and_pytest_modes()`
 	@staticmethod
 	def default_worker_count(module_count: int) -> int:
 		return max(1, min(max(1, int(module_count)), min(8, os.cpu_count() or 4)))

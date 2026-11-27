@@ -125,6 +125,7 @@ class WorktreeIsolationGate:
 		return r
 	# @used-by :func:`agent_tools.gates.worktree_isolation.check()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_thin_pretool_shims_and_checkers()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_gate_cov.DfHarnessS11Wave2bGateCovTests.test_repo_links_tags_and_worktree_isolation()`
 	def check(self, name: str, args: dict, payload: dict | None=None) -> str | None:
 		r = None
 		if 'run_command' == name:

@@ -149,6 +149,7 @@ class Tags:
 	# @used-by :func:`agent_tools.xref.java_tags.is_valid_java_external()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Syncer.Syncer.__collect_actual_java_used_by()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Syncer.Syncer.__sync_java_def_edit()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_xref_cov.DfHarnessS11Wave2bXrefCovTests.test_java_xref_covers_enums_anon_classes_overrides_and_external_tags()`
 	@staticmethod
 	def is_valid_external(raw_value: str, repo_root: Path) -> bool:
 		token = raw_value.split()[0] if raw_value.strip() else ''

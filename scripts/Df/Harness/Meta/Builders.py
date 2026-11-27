@@ -255,6 +255,7 @@ class Builders:
 		extras = (('Journal', Blocks.build_journal(steps, conv_label)), ('Agent', Blocks.build_agent(platform, instance_id, state['model'], state['effort'])), ('Clarifications', Blocks.build_clarifications(turn, state_p, tz)), ('Trace', trace_block))
 		return Builders.__assemble_optional_blocks({'Time': time_block, 'Project': project_info}, extras)
 	# @used-by :func:`agent_tools.meta.builders.build_problem_metadata()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_meta_cov.DfHarnessS11Wave2bMetaCovTests.test_blocks_clarifications_builders_problem_codex_and_turn_state()`
 	@staticmethod
 	def build_problem(*, issue_url: str | None=None, project_root: str | Path | None=None, source_project_root: str | Path | None=None, allow_no_issue: bool=False, env: dict[str, str] | None=None, now: datetime | str | None=None, tz=None) -> dict[str, Any]:
 		from agent_tools.path_registry import canonicalize_root_dir

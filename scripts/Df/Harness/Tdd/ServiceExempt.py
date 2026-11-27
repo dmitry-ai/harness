@@ -14,6 +14,7 @@ class ServiceExempt:
 	# @used-by :meth:`Df.Harness.Gate.TddPreToolGate.TddPreToolGate.check()`
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.evaluate_pre_tool_use()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_outcome_service_substantive_and_worktree_scope()`
 	def is_exempt(self, name: str, args: dict[str, Any], payload: dict[str, Any] | None=None) -> bool:
 		if name in ('write_file', 'edit_file'):
 			r = ServiceExempt.__is_service_write_path(str(args.get('Path') or ''))

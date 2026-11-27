@@ -112,6 +112,7 @@ class GitRepoGate:
 	# https://github.com/dmitry-ai/harness/issues/31
 	# @used-by :func:`_extract_added_diff_urls()`
 	# @used-by :meth:`Df.Harness.Tdd.Exemption.Exemption.__verify_single_file_issue_urls()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_exemption_mechanical_and_ratchet_guard()`
 	def _extract_added_diff_urls(self, rel_name: str) -> tuple[set[str], set[str]]:
 		added_urls: set[str] = set()
 		head_urls: set[str] = set()

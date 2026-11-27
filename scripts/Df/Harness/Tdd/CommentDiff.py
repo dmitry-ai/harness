@@ -143,6 +143,7 @@ class CommentDiff:
 		return r
 	# @used-by :func:`agent_tools.tdd.comment_diff.detect_comment_language()`
 	# @used-by :meth:`CommentDiff.classify()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_classifier_command_inspector_and_lexers()`
 	@staticmethod
 	def detect_language(path: str | Path, *, content: str | None=None) -> str | None:
 		p = Path(str(path))
@@ -165,6 +166,7 @@ class CommentDiff:
 	# @used-by :meth:`Df.Harness.Tdd.DiffExecutability.DiffExecutability.classify_git_path()`
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__is_last_commit_exempt()`
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.is_git_file_exempt()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_diff_contract_executability_and_coverage_end_to_end()`
 	@staticmethod
 	def git_read_text(repo: Path, args: list[str]) -> str | None:
 		return df_git_read_text(repo, *args) if (repo / '.git').exists() else None
@@ -174,11 +176,13 @@ class CommentDiff:
 	def is_comment_only(path: str | Path, old_text: str | None, new_text: str | None) -> bool:
 		return CommentDiff(path, old_text, new_text).classify() in ('comment_only', 'unchanged', 'whitespace_only')
 	# @used-by :func:`agent_tools.tdd.comment_diff.is_whitespace_only_diff()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_classifier_command_inspector_and_lexers()`
 	@staticmethod
 	def is_whitespace_only(path: str | Path, old_text: str | None, new_text: str | None) -> bool:
 		return 'whitespace_only' == CommentDiff(path, old_text, new_text).classify()
 	# @used-by :func:`agent_tools.tdd.comment_diff.lex_language()`
 	# @used-by :meth:`CommentDiff.classify()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_diff_contract_coverage_and_executability()`
 	@staticmethod
 	def lex_language(lang: str, source: str) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
 		direct = CommentDiff.__DIRECT_LEXERS.get(lang)

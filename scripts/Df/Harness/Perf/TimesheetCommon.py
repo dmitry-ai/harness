@@ -108,6 +108,7 @@ class TimesheetCommon:
 		gaps.sort(key=lambda item: (-item['dur_s'], item['from_step']))
 		return gaps[:max(1, int(limit))]
 	# @used-by :func:`agent_tools.perf.timesheet_common.format_timesheet_text()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_perf_analyzers_and_timesheet_cli()`
 	@staticmethod
 	def format_text(report: dict[str, Any]) -> str:
 		ts = report.get('timestamps') or {}
@@ -192,6 +193,7 @@ class TimesheetCommon:
 		return {'conversation_id': trace.get('Conversation ID'), 'trace_path': tpath, 'start_step': s_step}
 	# @used-by :func:`agent_tools.perf.timesheet_common.resolve_trace_source()`
 	# @used-by :meth:`Df.Harness.Perf.TimesheetBuilder.TimesheetBuilder.run_cli()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_perf_analyzers_and_timesheet_cli()`
 	@staticmethod
 	def resolve_trace_source(*, trace: Path | None=None, conversation: str | None=None, project: Path | None=None, journal_step: int | None=None, instance: str | None=None, platform: str | None=None, summary_db: Path | None=None, turn_start_step: int | None=None) -> dict[str, Any]:
 		cid, tpath, s_step, sdb = (conversation, trace, turn_start_step, summary_db)

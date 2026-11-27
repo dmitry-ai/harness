@@ -20,6 +20,7 @@ class SuiteRunner:
 	__SKIPPED_RE = re.compile(r'\bskipped=(\d+)\b')
 	# @used-by :func:`agent_tools.suite_runner.run_test_suite()`
 	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_runner_failfast_timeout_and_format_text()`
 	def __init__(self, tests_dir: Path | str | None=None, *, workers: int | None=None, module_timeout: float=300.0, failfast: bool=True, pattern: str='test_*.py', modules: list[str] | tuple[str, ...] | None=None, runner: str='auto', slot_budget_fn=None) -> None:
 		self.__tests_dir = tests_dir
 		self.__workers = workers
@@ -31,6 +32,7 @@ class SuiteRunner:
 		self.__slot_budget_fn = slot_budget_fn
 	# @used-by :func:`agent_tools.suite_runner.run_test_suite()`
 	# @used-by :meth:`test_df_harness_s11_wave2b.DfHarnessS11Wave2bTests.test_perf_and_test_runner_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_runner_failfast_timeout_and_format_text()`
 	def run(self) -> dict:
 		base, ordered = SuiteRunner.discover_modules(self.__tests_dir, pattern=self.__pattern, modules=self.__modules)
 		if not ordered:
@@ -174,12 +176,14 @@ class SuiteRunner:
 			ProcessTree(proc).kill()
 	# @used-by :func:`agent_tools.suite_runner._default_workers()`
 	# @used-by :meth:`SuiteRunner.run()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_runner_process_tree_watchdog_semaphore_and_pytest_modes()`
 	@staticmethod
 	def default_workers() -> int:
 		return dfh_default_workers(8)
 	# @used-by :func:`agent_tools.suite_runner.discover_test_modules()`
 	# @used-by :meth:`Df.Harness.Perf.SuiteProfiler.SuiteProfiler.profile()`
 	# @used-by :meth:`SuiteRunner.run()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_runner_process_tree_watchdog_semaphore_and_pytest_modes()`
 	@staticmethod
 	def discover_modules(tests_dir: Path | str | None=None, *, pattern: str='test_*.py', modules: list[str] | tuple[str, ...] | None=None) -> tuple[Path, list[Path]]:
 		base = SuiteRunner.__resolve_tests_dir(tests_dir)
@@ -189,6 +193,7 @@ class SuiteRunner:
 			found = [m for m in found if SuiteRunner.__module_matches_filters(m, base, norm_filters)]
 		return (base, sorted(found, key=lambda p: (-p.stat().st_size, p.relative_to(base).as_posix())))
 	# @used-by :func:`agent_tools.suite_runner.format_text_report()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_perf_runner_cov.DfHarnessS11Wave2bPerfRunnerCovTests.test_runner_failfast_timeout_and_format_text()`
 	@staticmethod
 	def format_text(report: dict) -> str:
 		lines = [line for item in (report.get('results') or ()) for line in SuiteRunner.__format_item_lines(item, report['module_timeout'])]

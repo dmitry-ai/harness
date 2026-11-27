@@ -212,6 +212,7 @@ class Tags:
 	# @used-by :meth:`Df.Harness.Xref.Python.Overrides.Overrides.__resolve_stdlib_base()`
 	# @used-by :meth:`Tags.__resolve_module_attr_in_repo()`
 	# @used-by :meth:`Tags.resolve_sphinx_target()`
+	# @used-by :meth:`test_df_harness_s11_wave2b_xref_cov.DfHarnessS11Wave2bXrefCovTests.test_python_xref_covers_all_exports_with_overrides_and_stdlib_tags()`
 	@staticmethod
 	@lru_cache(maxsize=512)
 	def resolve_stdlib_symbol(dotted: str) -> bool:
