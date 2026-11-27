@@ -40,6 +40,7 @@ def dfh_decode_file_uri(reference: str, *, reject_remote: bool=False) -> str:
 		r = path
 	return r
 # @used-by :func:`agent_tools.markdown_links.display_address()`
+# @used-by :meth:`Df.Harness.Text.Article.LinkStyleAuditor.LinkStyleAuditor.__check_inline_labels()`
 # @used-by :meth:`test_df_harness_s11_wave2c_research.DfHarnessS11Wave2CResearchTests.test_links_markdown_lib_and_network_checker()`
 def dfh_display_address(href: str, *, trim_fn=None) -> str:
 	trimmer = df_trim_text_left if None is trim_fn else trim_fn
@@ -49,6 +50,7 @@ def dfh_display_address(href: str, *, trim_fn=None) -> str:
 		host += ':' + str(value.port)
 	return host + value.path + ('?' + value.query if value.query else '') + ('#' + value.fragment if value.fragment else '')
 # @used-by :func:`agent_tools.markdown_links.inline_links()`
+# @used-by :meth:`Df.Harness.Text.Article.LinkStyleAuditor.LinkStyleAuditor.__check_inline_labels()`
 # @used-by :meth:`test_df_harness_s11_wave2c_research.DfHarnessS11Wave2CResearchTests.test_links_markdown_lib_and_network_checker()`
 def dfh_inline_links(tokens, *, include_images: bool=True):
 	for item in dfh_iter_inline_segments(tokens, include_images=include_images):
@@ -75,6 +77,7 @@ def dfh_iter_inline_segments(tokens, *, include_images: bool=True):
 # @used-by :meth:`Df.Harness.Research.LinkAuditor.LinkAuditor.__collect_authored_targets()`
 # @used-by :meth:`Df.Harness.Research.LinkAuditor.LinkAuditor.references()`
 # @used-by :meth:`Df.Harness.Research.MarkdownHeadingParser.MarkdownHeadingParser.__collect_rows()`
+# @used-by :meth:`Df.Harness.Text.Article.LinkStyleAuditor.LinkStyleAuditor.audit()`
 # @used-by :meth:`test_df_harness_s11_wave2c_research.DfHarnessS11Wave2CResearchTests.test_links_markdown_lib_and_network_checker()`
 def dfh_markdown_it_parser(*, preserve_links: bool=False, allow_file_links: bool=False, html: bool=True):
 	try:

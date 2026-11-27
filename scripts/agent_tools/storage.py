@@ -38,11 +38,11 @@ from Df.Harness.lib.storage import dfh_create_bytes, dfh_data_dir_for, dfh_iter_
 # @used-by :mod:`agent_tools.intake`
 def create_bytes(path: Path, data: bytes):
 	dfh_create_bytes(path, data)
+# @used-by :func:`Df.Harness.lib.text_core.dfh_find_bans()`
 # @used-by :func:`agent_tools.snapshot.snapshot_draft()`
-# @used-by :func:`agent_tools.text_core.find_bans()`
 # @used-by :func:`agent_tools.text_workflow.write_candidate_output()`
 # @used-by :meth:`Df.Harness.Project.Context.ContextGenerator.ContextGenerator.generate()`
-# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._verify_projection_receipt()`
+# @used-by :meth:`Df.Harness.Text.DiagnosticsScanner.DiagnosticsScanner.__verify_projection_receipt()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_check_creates_no_lock_receipt_or_profile_files()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_edited_project_projection_blocks_all_retirements()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_project_retirement_requires_exact_ownership_and_keeps_unrelated_files()`

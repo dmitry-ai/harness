@@ -170,10 +170,10 @@ class ProjectPaths:
 	# @used-by :func:`Df.Harness.lib.config_codex.dfh_configure_codex_project()`
 	# @used-by :func:`Df.Harness.lib.config_codex.dfh_project_rule_paths()`
 	# @used-by :meth:`Df.Harness.Config.NativeBuilder.NativeBuilder.__prepare_codex_outputs()`
+	# @used-by :meth:`Df.Harness.Text.DiagnosticsScanner.DiagnosticsScanner.__scan_ancestry_scope()`
 	# @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.check()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__prepare_agents_dirs()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_context_config()`
-	# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._scan_ancestry_scope()`
 	@property
 	def agents_config_dir(self) -> Path:
 		return Path(self.paths_str['agents_config_dir'])
@@ -182,7 +182,7 @@ class ProjectPaths:
 	# @used-by :func:`Df.Harness.lib.config_codex.dfh_native_config()`
 	# @used-by :meth:`Df.Harness.Config.NativeBuilder.NativeBuilder.__prepare_codex_outputs()`
 	# @used-by :meth:`Df.Harness.Config.ProjectionPublisher.ProjectionPublisher.__finalize_codex_receipt()`
-	# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._scan_ancestry_scope()`
+	# @used-by :meth:`Df.Harness.Text.DiagnosticsScanner.DiagnosticsScanner.__scan_ancestry_scope()`
 	@property
 	def codex_config_toml(self) -> Path:
 		return Path(self.paths_str['codex_config_toml'])
@@ -550,6 +550,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_harness_s11_wave2c_grounding`
 	# @used-by :mod:`test_df_harness_s11_wave2c_issues`
 	# @used-by :mod:`test_df_harness_s11_wave2c_research`
+	# @used-by :mod:`test_df_harness_s11_wave2c_text_docs`
 	# @used-by :mod:`test_df_harness_s11_wave2d_cli_cov`
 	# @used-by :mod:`test_df_harness_s11_wave2d_completion_cov`
 	# @used-by :mod:`test_df_harness_s11_wave2d_completion`

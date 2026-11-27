@@ -16,7 +16,7 @@ from typing import Any
 # @used-by :meth:`Df.Harness.Issue.PendingPeerFinder.PendingPeerFinder.find()`
 # @used-by :meth:`Df.Harness.Issue.ReadCache.ReadCache.__parse_log_index()`
 # @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.classify_test_command()`
-# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._referenced_paths()`
+# @used-by :meth:`Df.Harness.Text.DiagnosticsScanner.DiagnosticsScanner.__referenced_paths()`
 # @used-by :meth:`test_df_core_array.DfCoreArrayTests.test_other_and_part()`
 # @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_clean_null_and_unique_fast_delegation_to_df()`
 def dfa_unique_fast(a: list[Any] | dict[Any, Any]) -> list[Any]:

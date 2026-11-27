@@ -61,10 +61,11 @@ def render_metadata_header(data: dict[str, Any]) -> str:
 # @used-by :func:`Df.Harness.lib.hook_stop_ops._record_emergency_files()`
 # @used-by :func:`Df.Harness.lib.hook_stop_ops.dfh_evaluate_prepared_match()`
 # @used-by :func:`Df.Harness.lib.journal_core.dfh_norm_journal_response_text()`
-# @used-by :func:`agent_tools.text_core.check_response()`
 # @used-by :meth:`Df.Harness.Grounding.DfAnalysisValidator.DfAnalysisValidator.validate()`
 # @used-by :meth:`Df.Harness.Review.ReviewAuthorizer.ReviewAuthorizer.authorize()`
 # @used-by :meth:`Df.Harness.Shadow.ReplayPipeline.ReplayPipeline.__load_candidate()`
+# @used-by :meth:`Df.Harness.Text.ResponseChecker.ResponseChecker.__check_duplicates()`
+# @used-by :meth:`Df.Harness.Text.ResponseChecker.ResponseChecker.check()`
 # @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.__load_latest_reply()`
 # @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.__saved_answers()`
 # @used-by :meth:`test_metadata.MetadataFormattingAndCollectionTests.test_render_prepend_extract_and_strip_tab_indented_json_header()`

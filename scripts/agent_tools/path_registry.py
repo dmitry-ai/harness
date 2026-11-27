@@ -245,6 +245,7 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 # @used-by :meth:`Df.Harness.Tdd.RatchetGuard.RatchetGuard.turn_receipt_dirs()`
 # @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.default_slots_dir()`
+# @used-by :meth:`Df.Harness.Text.DiagnosticsScanner.DiagnosticsScanner.__scan_ancestry_scope()`
 # @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_journal_upgrade()`
 # @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.check()`
 # @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.configure()`
@@ -274,7 +275,6 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 # @used-by :meth:`Df.Harness.Workflow.StateUpdater.StateUpdater.__init__()`
 # @used-by :meth:`Df.Harness.Workflow.StatusSnapshotBuilder.StatusSnapshotBuilder.__init__()`
 # @used-by :meth:`Df.Harness.Workflow.WorkflowResumer.WorkflowResumer.resume()`
-# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._scan_ancestry_scope()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.__init__()`
 # @used-by :meth:`test_blocked_report_hygiene_and_doc5_m2.BlockedReportHygieneAndDoc5M2Tests.test_blocked_report_records_journal_despite_hygiene_failures_and_allows_doc5()`
 # @used-by :meth:`test_blocked_report_hygiene_and_doc5_m2.BlockedReportHygieneAndDoc5M2Tests.test_blocked_report_still_rejects_client_claim_ids_inside_doc5()`
@@ -341,7 +341,7 @@ def store_path(name: str, *, registry: PathRegistry | None=None) -> Path:
 # @used-by :meth:`Df.Harness.Issue.RepoLocator.RepoLocator.search_registry_and_roots()`
 def store_value(name: str, *, registry: PathRegistry | None=None) -> Any:
 	return dfh_store_value(name, registry=registry)
-# @used-by :func:`agent_tools.text_core.default_shell()`
+# @used-by :func:`Df.Harness.lib.text_core.dfh_default_shell()`
 # @used-by :meth:`Df.Harness.Git.CredentialLockCleaner.CredentialLockCleaner.__collect_candidates()`
 # @used-by :meth:`Df.Harness.Upwork.PdfExtractor.PdfExtractor.find_poppler_tool()`
 def tool_list(name: str, *, project_root: str | Path | None=None, registry: PathRegistry | None=None) -> list[str]:

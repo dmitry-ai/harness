@@ -92,6 +92,7 @@ def _validate_ctx_conditions(session, egress) -> None:
 # @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__record_client_text_urls()`
 # @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__record_text_urls()`
 # @used-by :meth:`Df.Harness.Research.LinkAuditor.LinkAuditor.__collect_block_refs()`
+# @used-by :meth:`Df.Harness.Text.MechanicalProjector.MechanicalProjector.__project_links()`
 def dfh_bare_urls(text: str):
 	for match in re.finditer('https?://[^\\s<>`"\\x00-\\x1f]+', text):
 		url = match.group().rstrip('.,;!?')

@@ -153,27 +153,19 @@ class Regex(O):
 	# @used-by :func:`Df.Harness.lib.rule_splitter._partition_rule_sections()`
 	# @used-by :func:`Df.Harness.lib.rule_splitter._used_rule_indices()`
 	# @used-by :func:`Df.Harness.lib.shell.dfh_extract_comment_issue_urls()`
+	# @used-by :func:`Df.Harness.lib.text_core._classify_unclosed_line()`
+	# @used-by :func:`Df.Harness.lib.text_core.dfh_check_markdown_lists()`
+	# @used-by :func:`Df.Harness.lib.text_core.dfh_command_blocks()`
+	# @used-by :func:`Df.Harness.lib.text_core.dfh_detect_language()`
+	# @used-by :func:`Df.Harness.lib.text_core.dfh_normalize_external_refs()`
+	# @used-by :func:`Df.Harness.lib.text_core.dfh_scan()`
+	# @used-by :func:`Df.Harness.lib.text_sections.dfh_iter_article_headings()`
+	# @used-by :func:`Df.Harness.lib.text_sections.dfh_part_at()`
+	# @used-by :func:`Df.Harness.lib.text_sections.dfh_scope_blocks()`
 	# @used-by :func:`Df.Harness.lib.trace_common.dfh_local_uri_to_path()`
 	# @used-by :func:`Df.Harness.lib.uri.dfh_local_uri_to_path()`
 	# @used-by :func:`Df.Qa.lib.validation.check.df_is_email()`
-	# @used-by :func:`agent_tools.article._iter_headings()`
-	# @used-by :func:`agent_tools.article.check_graph()`
-	# @used-by :func:`agent_tools.article.check_group_counts()`
-	# @used-by :func:`agent_tools.article.check_structure()`
-	# @used-by :func:`agent_tools.article.parse_keyed()`
-	# @used-by :func:`agent_tools.article.parse_sections()`
-	# @used-by :func:`agent_tools.article.render()`
-	# @used-by :func:`agent_tools.article.to_source()`
 	# @used-by :func:`agent_tools.cli_output_json._truncated_top_level_failure()`
-	# @used-by :func:`agent_tools.text_core.check_markdown_lists()`
-	# @used-by :func:`agent_tools.text_core.check_prose()`
-	# @used-by :func:`agent_tools.text_core.command_blocks()`
-	# @used-by :func:`agent_tools.text_core.detect_language()`
-	# @used-by :func:`agent_tools.text_core.normalize_external_refs()`
-	# @used-by :func:`agent_tools.text_core.scan()`
-	# @used-by :func:`agent_tools.text_sections.mechanical_projection()`
-	# @used-by :func:`agent_tools.text_sections.part_at()`
-	# @used-by :func:`agent_tools.text_sections.scope_blocks()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.QuantityMatcher.QuantityMatcher.__collect_unit_cands()`
 	# @used-by :meth:`Df.Harness.Arch.SpecValidator.SpecValidator.__parse_field_line()`
 	# @used-by :meth:`Df.Harness.Experiment.CallChainParser.CallChainParser.__tokenize()`
@@ -225,6 +217,24 @@ class Regex(O):
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.__vbs_step()`
 	# @used-by :meth:`Df.Harness.Tdd.ScriptCommentLexer.ScriptCommentLexer.lex_batch()`
 	# @used-by :meth:`Df.Harness.Tdd.ServiceExempt.ServiceExempt.__is_service_command()`
+	# @used-by :meth:`Df.Harness.Text.Article.GraphAuditor.GraphAuditor.__check_conditional_line()`
+	# @used-by :meth:`Df.Harness.Text.Article.GraphAuditor.GraphAuditor.__record_prose_refs()`
+	# @used-by :meth:`Df.Harness.Text.Article.KeyedParser.KeyedParser.parse()`
+	# @used-by :meth:`Df.Harness.Text.Article.NumberedParser.NumberedParser.__attach_anchor()`
+	# @used-by :meth:`Df.Harness.Text.Article.NumberedParser.NumberedParser.parse()`
+	# @used-by :meth:`Df.Harness.Text.Article.Renderer.Renderer.__format_ref()`
+	# @used-by :meth:`Df.Harness.Text.Article.Renderer.Renderer.__parse_metadata()`
+	# @used-by :meth:`Df.Harness.Text.Article.Renderer.Renderer.__render_lines()`
+	# @used-by :meth:`Df.Harness.Text.Article.SourceExporter.SourceExporter.__convert_link()`
+	# @used-by :meth:`Df.Harness.Text.Article.SourceExporter.SourceExporter.export()`
+	# @used-by :meth:`Df.Harness.Text.Article.StructureAuditor.StructureAuditor.__check_anchor_link()`
+	# @used-by :meth:`Df.Harness.Text.Article.StructureAuditor.StructureAuditor.__check_group_counts()`
+	# @used-by :meth:`Df.Harness.Text.Article.StructureAuditor.StructureAuditor.__check_parts_and_addressing()`
+	# @used-by :meth:`Df.Harness.Text.Article.StructureAuditor.StructureAuditor.__collect_anchors()`
+	# @used-by :meth:`Df.Harness.Text.MechanicalProjector.MechanicalProjector.__project_renumber()`
+	# @used-by :meth:`Df.Harness.Text.ProseLinter.ProseLinter.__check_prose_details()`
+	# @used-by :meth:`Df.Harness.Text.ProseLinter.ProseLinter.__match_entry()`
+	# @used-by :meth:`Df.Harness.Text.ProseLinter.ProseLinter.check()`
 	# @used-by :meth:`Df.Harness.Upwork.AttachmentDownloader.AttachmentDownloader.attachment_path()`
 	# @used-by :meth:`Df.Harness.Upwork.DocxExtractor.DocxExtractor.__parse_paragraph()`
 	# @used-by :meth:`Df.Harness.Upwork.DocxExtractor.DocxExtractor.__render_link()`

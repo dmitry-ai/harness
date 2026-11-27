@@ -7,11 +7,9 @@ from Df.Harness.lib.markdown import dfh_decode_file_uri, dfh_display_address, df
 # @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__validate_file_uri()`
 def decode_file_uri(reference: str, *, reject_remote: bool=False) -> str:
 	return dfh_decode_file_uri(reference, reject_remote=reject_remote)
-# @used-by :func:`agent_tools.article.check_link_style()`
 # @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_normalize_and_trim_delegation_to_df()`
 def display_address(href):
 	return dfh_display_address(href, trim_fn=df_trim_text_left)
-# @used-by :func:`agent_tools.article.check_link_style()`
 # @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_markdown_parser_and_inline_segments_shared()`
 def inline_links(tokens, *, include_images: bool=True):
 	return dfh_inline_links(tokens, include_images=include_images)
@@ -22,7 +20,6 @@ def iter_inline_segments(tokens, *, include_images: bool=True):
 # @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_markdown_parser_and_inline_segments_shared()`
 def numeric_text(text):
 	return dfh_numeric_text(text, trim_fn=df_trim_text_left)
-# @used-by :func:`agent_tools.article.check_link_style()`
 # @used-by :meth:`Df.Harness.Gate.RepoLinkGate.RepoLinkGate.__authored_targets()`
 # @used-by :meth:`test_evidence_unification.EvidenceUnificationTests.test_markdown_parser_and_inline_segments_shared()`
 def parser(*, preserve_links: bool=False, allow_file_links: bool=False, html: bool=True):

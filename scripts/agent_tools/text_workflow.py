@@ -324,7 +324,6 @@ class ClientTextWorkspace:
 	# @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_profile_agents()`
 	# @used-by :func:`_index()`
 	# @used-by :func:`agent_tools.git_ignore.merge_managed_git_ignore()`
-	# @used-by :func:`agent_tools.text_core.check_code()`
 	# @used-by :func:`gate_paths()`
 	# @used-by :meth:`ClientTextWorkspace.apply()`
 	# @used-by :meth:`ClientTextWorkspace.begin()`
@@ -337,6 +336,7 @@ class ClientTextWorkspace:
 	# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.__finalize_ag_info()`
 	# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.extract_codex_info()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__replace_existing()`
+	# @used-by :meth:`Df.Harness.Text.CodeBlockLinter.CodeBlockLinter.__check_output()`
 	# @used-by :meth:`Df.Harness.Upwork.LoomVideoExtractor.LoomVideoExtractor.__parse_vtt_block()`
 	# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.__apply()`
 	# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.__write_stage_receipt()`

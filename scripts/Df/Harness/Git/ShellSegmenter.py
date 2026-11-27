@@ -37,17 +37,10 @@ class ShellSegmenter:
 	# @used-by :func:`Df.Harness.lib.snapshot_canary_ops.dfh_inspect_fallback_timeout_spike()`
 	# @used-by :func:`Df.Qa.lib.bt.main.df_bt_has()`
 	# @used-by :func:`Df.Qa.lib.diagnostics.df_webserver()`
-	# @used-by :func:`agent_tools.article.check_graph()`
 	# @used-by :func:`agent_tools.cli_output_json._body_without_header()`
 	# @used-by :func:`agent_tools.evidence.contains_quote()`
-	# @used-by :func:`agent_tools.proposal._check_references()`
-	# @used-by :func:`agent_tools.proposal._parent_name()`
-	# @used-by :func:`agent_tools.proposal.parse_blocks()`
-	# @used-by :func:`agent_tools.proposal.render()`
 	# @used-by :func:`agent_tools.shell_audit._split_shell_segments()`
 	# @used-by :func:`agent_tools.text_claims.primary_numbers()`
-	# @used-by :func:`agent_tools.text_core.check_response()`
-	# @used-by :func:`agent_tools.text_sections.mechanical_projection()`
 	# @used-by :func:`test_issue_preflight_and_batch._make_fake_gh()`
 	# @used-by :meth:`Df.DotPyFinder.__resolve_target()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.InlineCalcVerifier.InlineCalcVerifier.__decimal_matches()`
@@ -124,6 +117,14 @@ class ShellSegmenter:
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.git_main_repo_root()`
 	# @used-by :meth:`Df.Harness.Tdd.OutcomeParser.OutcomeParser.__header_exit_code()`
 	# @used-by :meth:`Df.Harness.Tdd.OutcomeParser.OutcomeParser.extract_bg_task_ids()`
+	# @used-by :meth:`Df.Harness.Text.Article.GraphAuditor.GraphAuditor.__check_conditional_line()`
+	# @used-by :meth:`Df.Harness.Text.MechanicalProjector.MechanicalProjector.__project_prose()`
+	# @used-by :meth:`Df.Harness.Text.Proposal.Linter.Linter.check_references()`
+	# @used-by :meth:`Df.Harness.Text.Proposal.Parser.Parser.__build_block()`
+	# @used-by :meth:`Df.Harness.Text.Proposal.Parser.Parser.parent_name()`
+	# @used-by :meth:`Df.Harness.Text.Proposal.Renderer.Renderer.__assign_numbers()`
+	# @used-by :meth:`Df.Harness.Text.ResponseChecker.ResponseChecker.__check_against()`
+	# @used-by :meth:`Df.Harness.Text.ResponseChecker.ResponseChecker.__similarity()`
 	# @used-by :meth:`Df.Harness.Upwork.JobUrlParser.JobUrlParser.extract_upwork_job_url_id()`
 	# @used-by :meth:`Df.Harness.Upwork.LoomVideoExtractor.LoomVideoExtractor.parse_webvtt_phrases()`
 	# @used-by :meth:`Df.Harness.Upwork.MarkdownTableSanitizer.MarkdownTableSanitizer.__is_heading()`

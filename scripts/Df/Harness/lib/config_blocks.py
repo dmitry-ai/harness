@@ -110,7 +110,7 @@ def dfh_extract_managed_block(value: str, start_marker: str=START, end_marker: s
 	return r
 # @used-by :func:`Df.Harness.lib.native_ag_plan.dfh_skills()`
 # @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_legacy_skill()`
-# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._populate_source_metadata()`
+# @used-by :meth:`Df.Harness.Text.DiagnosticsScanner.DiagnosticsScanner.__populate_source_metadata()`
 def dfh_frontmatter(path: Path) -> dict[str, Any]:
 	text = Path(path).read_text(encoding='utf-8-sig')
 	match = re.match('^---\\r?\\n(.*?)\\r?\\n---\\r?\\n', text, re.S)
@@ -174,9 +174,9 @@ def dfh_is_linked_path(path: str | Path) -> bool:
 	return candidate.is_symlink() or bool(getattr(candidate, 'is_junction', lambda: False)())
 # @used-by :func:`Df.Harness.lib.config_codex.dfh_project_rule_paths()`
 # @used-by :func:`Df.Harness.lib.native_ag_plan._plan_ag_manifests()`
+# @used-by :meth:`Df.Harness.Text.DiagnosticsScanner.DiagnosticsScanner.__scan_discovery_manifests()`
 # @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.__check_kind()`
 # @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.__sync_manifests()`
-# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._scan_discovery_manifests()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 def dfh_load_discovery_manifest(path: str | Path, *, missing_ok: bool=True, entries_error: str='Manifest needs an entries list', check_inherits: bool=False) -> dict:
 	target = Path(path)
@@ -187,7 +187,7 @@ def dfh_load_discovery_manifest(path: str | Path, *, missing_ok: bool=True, entr
 # @used-by :func:`Df.Harness.lib.config_codex.dfh_native_config()`
 # @used-by :func:`Df.Harness.lib.native_codex_plan.dfh_retire_owned_project_projections()`
 # @used-by :meth:`Df.Harness.Config.ProjectionPublisher.ProjectionPublisher.__publish_locked()`
-# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._verify_projection_receipt()`
+# @used-by :meth:`Df.Harness.Text.DiagnosticsScanner.DiagnosticsScanner.__verify_projection_receipt()`
 def dfh_load_project_receipt(target: str | Path, *, by_path: bool=False, error_message: str='Project native ownership receipt must be an object; preserved') -> tuple[Path, bytes | None, dict]:
 	path = Path(target) if by_path else dfh_data_dir_for(target) / 'native-config.json'
 	raw = path.read_bytes() if path.exists() else None
@@ -209,7 +209,7 @@ def dfh_project_discovery_entries(primary: str | Path, kind: str, *, require_dir
 # @used-by :meth:`Df.Harness.Config.ProjectionPublisher.ProjectionPublisher.__plan_outputs()`
 # @used-by :meth:`Df.Harness.Config.ProjectionPublisher.ProjectionPublisher.__plan_retirements()`
 # @used-by :meth:`Df.Harness.Config.ProjectionPublisher.ProjectionPublisher.__write_backups_and_planned()`
-# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._verify_projection_receipt()`
+# @used-by :meth:`Df.Harness.Text.DiagnosticsScanner.DiagnosticsScanner.__verify_projection_receipt()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 def dfh_receipt_sha256(entry: Any) -> str | None:
 	return entry.get('sha256') if isinstance(entry, dict) else entry
@@ -229,7 +229,7 @@ def dfh_replace_managed_block(value: str, block: str, *, start_marker: str=START
 # @used-by :func:`Df.Harness.lib.config_codex._append_rule_source()`
 # @used-by :func:`Df.Harness.lib.native_ag_plan._manifest_build_inherits()`
 # @used-by :func:`Df.Harness.lib.native_ag_plan._manifest_filter_entries()`
-# @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._scan_manifest_entry()`
+# @used-by :meth:`Df.Harness.Text.DiagnosticsScanner.DiagnosticsScanner.__scan_manifest_entry()`
 # @used-by :meth:`test_native_profiles.NativeProfileTests.test_unified_managed_link_and_manifest_helpers()`
 def dfh_resolve_manifest_entry(agents_dir: str | Path, entry: Any) -> tuple[Path | None, bool]:
 	if not isinstance(entry, dict) or not isinstance(entry.get('path'), str):

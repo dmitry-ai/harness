@@ -131,12 +131,12 @@ def dfh_find_step_file(side_dir: Path, step: int) -> Path | None:
 # @used-by :func:`Df.Harness.lib.journal_upgrade._discover_upgrade_units()`
 # @used-by :func:`Df.Harness.lib.journal_upgrade._prune_legacy_side_dirs()`
 # @used-by :func:`Df.Harness.lib.journal_upgrade._summarize_v2_buckets()`
+# @used-by :func:`Df.Harness.lib.text_sections.dfh_detect_kind()`
 # @used-by :func:`_side_needs_bucketing()`
-# @used-by :func:`agent_tools.article.detect_kind()`
-# @used-by :func:`agent_tools.text_core.check_response()`
 # @used-by :func:`dfh_find_step_file()`
 # @used-by :func:`dfh_iter_side_step_files()`
 # @used-by :func:`dfh_parse_step_file_path()`
+# @used-by :meth:`Df.Harness.Text.ResponseChecker.ResponseChecker.__check_duplicates()`
 def dfh_is_bucket_dir_name(name: str) -> bool:
 	return bool(_BUCKET_DIR_RE.fullmatch(str(name or '')))
 # @used-by :func:`Df.Harness.lib.journal_upgrade._collect_one_side_dir()`
@@ -150,7 +150,7 @@ def dfh_is_step_md(path: Path) -> bool:
 # @used-by :func:`Df.Harness.lib.journal_records.dfh_get_existing_step_ids()`
 # @used-by :func:`Df.Harness.lib.journal_upgrade._summarize_v2_buckets()`
 # @used-by :func:`_resolve_dual_pair_names()`
-# @used-by :func:`agent_tools.text_core.check_response()`
+# @used-by :meth:`Df.Harness.Text.ResponseChecker.ResponseChecker.__check_duplicates()`
 # @used-by :meth:`test_readable_links.ReadableProjectTests.test_record_answer_blocks_encoded_authored_links_before_any_journal_mutation()`
 # @used-by :meth:`test_turn_completion.CompletionCase.test_concurrent_native_reconciliation_creates_one_pair()`
 # @used-by :meth:`test_turn_completion.CompletionCase.test_foreground_integrity_check_preserves_a_deleted_completed_journal_file()`
@@ -197,13 +197,13 @@ def dfh_journal_bucket_name(step: int, bucket_size: int=JOURNAL_BUCKET_SIZE) -> 
 # @used-by :func:`Df.Harness.lib.journal_records.dfh_publish_step()`
 # @used-by :func:`Df.Harness.lib.journal_records.dfh_record_step()`
 # @used-by :func:`Df.Harness.lib.journal_records.dfh_step_errors()`
-# @used-by :func:`agent_tools.text_core.check_response()`
 # @used-by :func:`dfh_resolve_migrated_step_file()`
 # @used-by :meth:`Df.Harness.Journal.Publisher.Publisher.__prepare_context()`
 # @used-by :meth:`Df.Harness.Meta.Blocks.Blocks.step_paths()`
 # @used-by :meth:`Df.Harness.Platform.Antigravity.TurnScanner.TurnScanner.__resolve_segment_completion()`
 # @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.__collect_journal_steps()`
 # @used-by :meth:`Df.Harness.Shadow.ReplayPipeline.ReplayPipeline.__find_reply_path()`
+# @used-by :meth:`Df.Harness.Text.ResponseChecker.ResponseChecker.__check_duplicates()`
 # @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 # @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.__load_latest_reply()`
 # @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.__saved_answers()`

@@ -10,7 +10,6 @@ from Df.Harness.Research.Page import Page
 from Df.Harness.lib.markdown import dfh_decode_file_uri
 from Df.Harness.lib.research import dfh_bare_urls, dfh_document_urls, dfh_markdown_link, dfh_readable_reference
 # @used-by :func:`Df.Harness.lib.completion_links.dfh_authored_nonquote_hrefs()`
-# @used-by :func:`agent_tools.text_sections.mechanical_projection()`
 # @used-by :mod:`agent_tools.links`
 def _bare_urls(text: str):
 	return dfh_bare_urls(text)

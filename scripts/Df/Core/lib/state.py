@@ -16,7 +16,7 @@ def df_is_localhost() -> bool:
 # @used-by :func:`Df.Harness.lib.process.dfh_pid_is_alive()`
 # @used-by :func:`Df.Harness.lib.storage._acquire_stream_lock()`
 # @used-by :func:`Df.Harness.lib.storage._release_stream_lock()`
-# @used-by :func:`agent_tools.text_core.default_shell()`
+# @used-by :func:`Df.Harness.lib.text_core.dfh_default_shell()`
 # @used-by :meth:`Df.Harness.Config.AtomicWriter.AtomicWriter.__commit()`
 # @used-by :meth:`Df.Harness.Gate.WorktreeIsolationGate.WorktreeIsolationGate.__resolve_target_path()`
 # @used-by :meth:`Df.Harness.Git.AgentContextDetector.AgentContextDetector.__ancestor_process_names()`

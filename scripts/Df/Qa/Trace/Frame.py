@@ -81,22 +81,27 @@ class Frame(O):
 		return Frame(a)
 	# 2015-04-03 The line number can be absent in synthetic or dynamic call frames.
 	# https://github.com/mage2pro/core/blob/11.6.1/Qa/Trace/Frame.php#L46
-	# @used-by :func:`agent_tools.article.check_graph()`
-	# @used-by :func:`agent_tools.article.check_group_counts()`
-	# @used-by :func:`agent_tools.article.check_structure()`
-	# @used-by :func:`agent_tools.article.lint_text()`
-	# @used-by :func:`agent_tools.article.to_source()`
-	# @used-by :func:`agent_tools.proposal._check_sequence()`
-	# @used-by :func:`agent_tools.proposal.render()`
-	# @used-by :func:`agent_tools.proposal.to_source()`
+	# @used-by :func:`Df.Harness.lib.text_sections._node_content_block()`
+	# @used-by :func:`Df.Harness.lib.text_sections._proposal_preface_blocks()`
+	# @used-by :func:`Df.Harness.lib.text_sections.dfh_assign_tree_numbers()`
+	# @used-by :func:`Df.Harness.lib.text_sections.dfh_close_spans()`
+	# @used-by :func:`Df.Harness.lib.text_sections.dfh_scope_blocks()`
+	# @used-by :func:`Df.Harness.lib.text_sections.dfh_section_at()`
 	# @used-by :func:`agent_tools.text_cli.main()`
-	# @used-by :func:`agent_tools.text_core.check_response()`
-	# @used-by :func:`agent_tools.text_sections.assign_tree_numbers()`
-	# @used-by :func:`agent_tools.text_sections.close_spans()`
-	# @used-by :func:`agent_tools.text_sections.content_blocks()`
-	# @used-by :func:`agent_tools.text_sections.rewrite_keyed_prose()`
-	# @used-by :func:`agent_tools.text_sections.scope_blocks()`
-	# @used-by :func:`agent_tools.text_sections.section_at()`
+	# @used-by :meth:`Df.Harness.Text.Article.GraphAuditor.GraphAuditor.__check_orphans()`
+	# @used-by :meth:`Df.Harness.Text.Article.GraphAuditor.GraphAuditor.__check_part1_and_part2()`
+	# @used-by :meth:`Df.Harness.Text.Article.GraphAuditor.GraphAuditor.__pop_component()`
+	# @used-by :meth:`Df.Harness.Text.Article.GraphAuditor.GraphAuditor.__record_prose_refs()`
+	# @used-by :meth:`Df.Harness.Text.Article.Linter.Linter.lint()`
+	# @used-by :meth:`Df.Harness.Text.Article.SourceExporter.SourceExporter.export()`
+	# @used-by :meth:`Df.Harness.Text.Article.StructureAuditor.StructureAuditor.__check_group_counts()`
+	# @used-by :meth:`Df.Harness.Text.Article.StructureAuditor.StructureAuditor.__check_section_link()`
+	# @used-by :meth:`Df.Harness.Text.Article.StructureAuditor.StructureAuditor.__check_sections()`
+	# @used-by :meth:`Df.Harness.Text.KeyedProseRewriter.KeyedProseRewriter.__convert()`
+	# @used-by :meth:`Df.Harness.Text.Proposal.Linter.Linter.__check_sequence()`
+	# @used-by :meth:`Df.Harness.Text.Proposal.Renderer.Renderer.__assign_numbers()`
+	# @used-by :meth:`Df.Harness.Text.Proposal.SourceExporter.SourceExporter.export()`
+	# @used-by :meth:`Df.Harness.Text.ResponseChecker.ResponseChecker.check()`
 	# @used-by :meth:`Df.Qa.Trace.Formatter.Formatter.__format()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
 	# @used-by :meth:`test_df_article.ReferenceArticleTests.test_reference_article_has_no_errors_and_only_known_warnings()`

@@ -65,50 +65,6 @@ class CleanupTests(TemporaryCase):
 		with closing(sqlite3.connect(path)) as connection:
 			connection.execute(sql, params)
 			connection.commit()
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_adopt_requests()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_capture_dom()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_check_project()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_collect_browser()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_collect_http()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_evidence_query()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_extract()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_extract_file()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_git_read()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_metrics()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_native_executor_metadata()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_native_review_proof()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_prepare_experiment()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_prepare_review()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_question_add()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_question_claim()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_question_finish()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_question_handoff()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_question_search()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_record_answer()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_record_experiment()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_record_review()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_resume()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_review_disposition()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_review_input()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_save_analysis()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_source_ref()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_stage()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_status()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_sync_attachments()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_unadopt_requests()`
-	# @used-by :func:`Df.Harness.lib.cli_domain_ops.dfh_execute_collect()`
-	# @used-by :func:`Df.Harness.lib.cli_input._check_parallel_answer_md_guard()`
-	# @used-by :func:`Df.Harness.lib.cli_input.dfh_consume_scratch_input()`
-	# @used-by :func:`Df.Harness.lib.cli_input.dfh_load_operation_input()`
-	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_problem_metadata()`
-	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_rename_project()`
-	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_shadow_replay()`
-	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_tdd_exempt_mechanical()`
-	# @used-by :func:`Df.Harness.lib.completion_commands._dispatch_completion_table()`
-	# @used-by :func:`Df.Harness.lib.completion_commands._execute_prepare_or_check()`
-	# @used-by :func:`agent_tools.text_cli.main()`
-	# @used-by :func:`test_turn_completion.completed_tail_is_immutable()`
-	# @used-by :func:`test_turn_completion.foreground_sync_preserves_admitted_delivery()`
 	# @used-by :meth:`CleanupTests.make_legacy()`
 	# @used-by :meth:`CleanupTests.test_any_conversation_blocks_both_registrations_including_archived_or_child_cwd()`
 	# @used-by :meth:`CleanupTests.test_changed_native_payload_during_final_check_is_never_unlinked()`
@@ -126,37 +82,6 @@ class CleanupTests(TemporaryCase):
 	# @used-by :meth:`CleanupTests.test_preview_is_read_only_and_apply_cleans_both_platforms_preserving_entire_archive()`
 	# @used-by :meth:`CleanupTests.test_project_cleanup_scanner_reuses_single_pass_history_index_in_dry_run()`
 	# @used-by :meth:`CleanupTests.test_strict_72_hour_boundary_and_recent_projects_are_preserved()`
-	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_check()`
-	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_prepare()`
-	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_record_review()`
-	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_review_input()`
-	# @used-by :meth:`Df.Harness.Perf.TimesheetBuilder.TimesheetBuilder.run_cli()`
-	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_journal_upgrade()`
-	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_register()`
-	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__dispatch_builtin()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.assert_stable()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.check_and_review()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.deliver()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.fixture()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.reconcile_manual_baseline()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.state()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_aged_real_source_and_nested_semantic_approval_preserve_both_platforms()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_explicit_reconciled_baseline_preserves_history_without_granting_publication()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_failed_semantic_admission_is_not_granted_by_a_later_valid_apply()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_historical_successor_lineage_preserves_history_when_later_reviewer_trace_is_unverified()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_later_conflicting_probe_rejects_new_publication_but_preserves_history()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_later_legitimate_applied_revision_does_not_invalidate_old_answer()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_legacy_record_has_visible_proof_gap_and_unchanged_history()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_new_admission_still_rejects_aged_sources_and_cannot_recover_failed_gate()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_proof_evidence_review_document_and_journal_changes_remain_conflicts()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_real_pre_change_legacy_conflict_remains_conflict_permanently()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_real_pre_change_legacy_record_reports_legacy_proof_gap_and_remains_stable()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_reconciliation_receipt_tampering_or_deletion_remains_conflict()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_replaying_an_older_applied_target_is_not_a_later_legitimate_revision()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_selected_review_entry_mutation_or_deletion_remains_conflict()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_unreconciled_target_edit_temporary_conflict_preserves_original_delivery_provenance()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_unrelated_registry_revision_and_target_do_not_invalidate_selected_history()`
-	# @used-by :meth:`test_historical_admission.HistoricalAdmissionTests.test_unrelated_review_entry_does_not_reapprove_or_invalidate_history()`
 	def project(self, number=1, age=73):
 		root = self.daily / f'2026/10/15/{number} - topic'
 		root.mkdir(parents=True)

@@ -85,16 +85,13 @@ class TextWorkspaceCase(TemporaryCase):
 		r = (text_claims.save_registry(self.project, value), value)
 		return r
 	# @used-by :func:`Df.Harness.lib.native_codex_roles.dfh_profile_agents()`
-	# @used-by :func:`agent_tools.article.check_link_style()`
-	# @used-by :func:`agent_tools.article.check_structure()`
+	# @used-by :func:`Df.Harness.lib.text_core.dfh_bold_spans()`
+	# @used-by :func:`Df.Harness.lib.text_core.dfh_excerpt()`
+	# @used-by :func:`Df.Harness.lib.text_core.dfh_prose_spans()`
+	# @used-by :func:`Df.Harness.lib.text_core.dfh_reference_document()`
+	# @used-by :func:`Df.Harness.lib.text_core.dfh_sentences()`
+	# @used-by :func:`Df.Harness.lib.text_sections.dfh_content_blocks()`
 	# @used-by :func:`agent_tools.cli_output_json.extract_top_level_json_objects()`
-	# @used-by :func:`agent_tools.text_core._excerpt()`
-	# @used-by :func:`agent_tools.text_core.bold_spans()`
-	# @used-by :func:`agent_tools.text_core.check_response()`
-	# @used-by :func:`agent_tools.text_core.prose_spans()`
-	# @used-by :func:`agent_tools.text_core.reference_document()`
-	# @used-by :func:`agent_tools.text_core.sentences()`
-	# @used-by :func:`agent_tools.text_sections.content_blocks()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.QuantityMatcher.QuantityMatcher.__check_excerpt()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.QuantityMatcher.QuantityMatcher.__collect_unit_cands()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.QuantityMatcher.QuantityMatcher.__sign_before()`
@@ -116,6 +113,10 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :meth:`Df.Harness.Tdd.MarkupCommentLexer.MarkupCommentLexer.__consume_astro_frontmatter()`
 	# @used-by :meth:`Df.Harness.Tdd.MarkupCommentLexer.MarkupCommentLexer.lex_sfc()`
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__consume_partial_match()`
+	# @used-by :meth:`Df.Harness.Text.Article.LinkStyleAuditor.LinkStyleAuditor.__check_bare_urls()`
+	# @used-by :meth:`Df.Harness.Text.Article.StructureAuditor.StructureAuditor.__check_line_references()`
+	# @used-by :meth:`Df.Harness.Text.Article.StructureAuditor.StructureAuditor.__check_section_link()`
+	# @used-by :meth:`Df.Harness.Text.ResponseChecker.ResponseChecker.__check_removal_sentence()`
 	# @used-by :meth:`Df.Harness.Upwork.PdfLigatureRepairer.PdfLigatureRepairer.__collect_stream_repairs()`
 	# @used-by :meth:`TextClaimRevisionTests.test_changed_primary_bytes_invalidate_an_existing_semantic_check()`
 	# @used-by :meth:`TextMapTests.test_limited_claim_rejects_lazy_conditional_qualification()`
