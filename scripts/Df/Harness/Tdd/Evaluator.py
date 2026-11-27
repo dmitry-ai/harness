@@ -16,6 +16,7 @@ class Evaluator:
 	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_enforcement_evaluator_events_and_worktree()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_evaluator_and_events_extractor_with_bg_tasks()`
+	# @used-by :meth:`test_tdd_worktree_cmd_scope.TddWorktreeCmdScopeTests.test_deleted_worktree_set_location_red_run_remains_verified()`
 	def __init__(self, events: list[dict], *, require_final_full_green: bool=True, project_root: Path | None=None, is_exempt_fn: Callable | None=None) -> None:
 		self.__events = events
 		self.__require_final_full_green = require_final_full_green
@@ -26,6 +27,7 @@ class Evaluator:
 	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_enforcement_evaluator_events_and_worktree()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_evaluator_and_events_extractor_with_bg_tasks()`
+	# @used-by :meth:`test_tdd_worktree_cmd_scope.TddWorktreeCmdScopeTests.test_deleted_worktree_set_location_red_run_remains_verified()`
 	def evaluate(self) -> dict:
 		scopes: dict[str, dict] = {}
 		orders: dict[str, dict] = {}

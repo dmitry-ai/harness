@@ -6,6 +6,8 @@ import re
 # 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
 # @used-by :mod:`agent_tools.tdd.worktree_scope`
 class WorktreeScope:
+	# 2026-11-27 "Extract worktree scope IDs from shell command paths in WorktreeScope": https://github.com/dmitry-ai/harness/issues/397
+	__CMD_TOKEN_RE = re.compile(r'"([^"]+)"|\'([^\']+)\'|([^\s;|&]+)')
 	__GIT_C_WT_RE = re.compile(r'(?:-C|--work-tree)(?:=|\s+)(?:"([^"]+)"|\'([^\']+)\'|(\S+))')
 	__RUNNER_SCRIPT_NAMES = frozenset({'df_github_issue.py', 'harness.py', 'safe_commit.py', 'upwork_project.py'})
 	__WT_KEY_SEP = '::wt:'
@@ -22,6 +24,22 @@ class WorktreeScope:
 					if None is not r:
 						break
 		return r
+	# 2026-11-27 "Extract worktree scope IDs from shell command paths in WorktreeScope": https://github.com/dmitry-ai/harness/issues/397
+	# @used-by :meth:`WorktreeScope.extract_command_worktree_ids()`
+	@staticmethod
+	def __extract_cmd_worktree_ids(cmd: str) -> set[str]:
+		found: set[str] = set()
+		for match in WorktreeScope.__CMD_TOKEN_RE.finditer(cmd):
+			tok = next((g for g in match.groups() if g), '')
+			if '=' in tok and (not tok.startswith('-')):
+				rhs = tok.split('=', 1)[1]
+				if '/' in rhs or '\\' in rhs:
+					tok = rhs
+			if tok and Path(tok).name.lower() not in WorktreeScope.__RUNNER_SCRIPT_NAMES:
+				wt = WorktreeScope.extract_worktree_scope_id(tok)
+				if None is not wt:
+					found.add(wt.lower())
+		return found
 	# @used-by :meth:`WorktreeScope.scope_matches_commit()`
 	@staticmethod
 	def __norm_lower(path: Path) -> str:
@@ -35,8 +53,11 @@ class WorktreeScope:
 	def canonical_scope_path(scope_key: str) -> Path:
 		base, wt_id = WorktreeScope.split_key(scope_key)
 		return CodeClassifier.resolve_code_scope(base / '_wt_scope_probe') if (not base.exists()) and None is not wt_id else base
+	# 2026-11-27 "Extract worktree scope IDs from shell command paths in WorktreeScope": https://github.com/dmitry-ai/harness/issues/397
 	# @used-by :func:`agent_tools.tdd.worktree_scope.extract_command_worktree_ids()`
 	# @used-by :meth:`WorktreeScope.worktree_command_matches()`
+	# @used-by :meth:`test_tdd_worktree_cmd_scope.TddWorktreeCmdScopeTests.test_deleted_worktree_set_location_red_run_remains_verified()`
+	# @used-by :meth:`test_tdd_worktree_cmd_scope.TddWorktreeCmdScopeTests.test_runner_script_worktree_ignored_while_var_assignment_and_cd_extracted()`
 	@staticmethod
 	def extract_command_worktree_ids(event: dict) -> set[str]:
 		found: set[str] = set()
@@ -49,9 +70,11 @@ class WorktreeScope:
 			tp_wt = WorktreeScope.extract_worktree_scope_id(tp)
 			if None is not tp_wt:
 				found.add(tp_wt.lower())
+		found.update(WorktreeScope.__extract_cmd_worktree_ids(str(event.get('cmd') or '')))
 		return found
 	# @used-by :func:`agent_tools.tdd.worktree_scope.extract_worktree_scope_id()`
 	# @used-by :meth:`WorktreeScope.__commit_worktree_id()`
+	# @used-by :meth:`WorktreeScope.__extract_cmd_worktree_ids()`
 	# @used-by :meth:`WorktreeScope.extract_command_worktree_ids()`
 	# @used-by :meth:`WorktreeScope.resolve_key()`
 	# @used-by :meth:`WorktreeScope.split_key()`

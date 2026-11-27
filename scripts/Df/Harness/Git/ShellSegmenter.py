@@ -119,6 +119,7 @@ class ShellSegmenter:
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.git_main_repo_root()`
 	# @used-by :meth:`Df.Harness.Tdd.OutcomeParser.OutcomeParser.__header_exit_code()`
 	# @used-by :meth:`Df.Harness.Tdd.OutcomeParser.OutcomeParser.extract_bg_task_ids()`
+	# @used-by :meth:`Df.Harness.Tdd.WorktreeScope.WorktreeScope.__extract_cmd_worktree_ids()`
 	# @used-by :meth:`Df.Harness.Text.Article.GraphAuditor.GraphAuditor.__check_conditional_line()`
 	# @used-by :meth:`Df.Harness.Text.MechanicalProjector.MechanicalProjector.__project_prose()`
 	# @used-by :meth:`Df.Harness.Text.Proposal.Linter.Linter.check_references()`
