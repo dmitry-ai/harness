@@ -17,10 +17,13 @@ import json
 import re
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class TurnAuditor:
+	# 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
+	__verify_fn = None
 	# @used-by :func:`agent_tools.issue_lifecycle._check_multi_subtask_decomposition()`
 	# @used-by :func:`agent_tools.issue_lifecycle.code_and_issue_lifecycle_status()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_turn_auditor_scope_completeness_and_turn_scope_resolver()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_cov_tail.DfHarnessS11Wave2CCovTailTests.test_issue_build_write_event_parent_linked_urls_and_dense_range()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cross_wave.DfHarnessS11Wave2CCrossWaveTests.test_turn_auditor_preserves_auditor_module_close_verify_patch_hook()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_parity_and_scope_completeness()`
 	def __init__(self, root: Path, turn: dict, turn_state: dict | None=None, response=None, *, workspace: EvidenceWorkspace | None=None, linter: Linter | None=None) -> None:
 		self.root, self.turn, self.turn_state, self.response = (Path(root).resolve(), turn, turn_state, response)
@@ -217,6 +220,11 @@ class TurnAuditor:
 	# @used-by :meth:`TurnAuditor.check_multi_subtask_decomposition()`
 	def __parent_linked_committed_urls(self, slug: str, req_urls: list[str], committed_urls: set[str]) -> list[str]:
 		return [c_url for c_url in req_urls if c_url in committed_urls and (parsed := dfh_parse_issue_url(c_url)) and parsed[0].lower() == slug.lower() and (None is not self.resolve_parent_number(parsed[0], parsed[1]))]
+	# 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
+	# @used-by :meth:`TurnAuditor.__verify_required_repo_issues()`
+	def __verify_close_ready(self, code_repo: Path, slug: str, num: int) -> dict:
+		vfn = type(self).__verify_fn
+		return vfn(code_repo, slug, num, project_root=self.root, git_cache=self.git_cache) if None is not vfn else RepoGate(code_repo, strict=True).verify_issue_ready_for_close(slug, num, project_root=self.root, git_cache=self.git_cache)
 	# @used-by :meth:`TurnAuditor.audit()`
 	def __verify_required_repo_issues(self, code_repo: Path, req_set: set[str]) -> None:
 		for issue_url in sorted(req_set):
@@ -224,7 +232,7 @@ class TurnAuditor:
 			if None is not parsed:
 				slug, num = parsed
 				try:
-					ready = RepoGate(code_repo, strict=True).verify_issue_ready_for_close(slug, num, project_root=self.root, git_cache=self.git_cache)
+					ready = self.__verify_close_ready(code_repo, slug, num)
 				except (ValueError, RuntimeError) as exc:
 					ready = {'verified': False, 'violations': [str(exc)]}
 				for v in ready.get('violations') or []:
@@ -249,6 +257,12 @@ class TurnAuditor:
 		self.__check_turn_issue_evidence(repo_by_url)
 		self.check_multi_subtask_decomposition(committed_by_repo, required_by_repo)
 		return {'verified': not self.violations, 'touched_repos': {str(k): sorted(v) for k, v in self.repo_touched.items()}, 'issues': self.checked_issues, 'similar_projects': sim_status, 'violations': self.violations, 'warnings': self.warnings, **({'deferred_children': getattr(self, 'deferred_children', [])} if getattr(self, 'deferred_children', None) else {})}
+	# 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
+	# @used-by :meth:`test_df_harness_s11_wave2c_cross_wave.DfHarnessS11Wave2CCrossWaveTests.test_turn_auditor_preserves_auditor_module_close_verify_patch_hook()`
+	# @used-by :mod:`agent_tools.issues.auditor`
+	@classmethod
+	def bind_runtime_hooks(cls, *, verify_fn=None) -> None:
+		cls.__verify_fn = verify_fn
 	# @used-by :meth:`TurnAuditor.__getattr__()`
 	# @used-by :meth:`TurnAuditor.audit()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_turn_auditor_scope_completeness_and_turn_scope_resolver()`

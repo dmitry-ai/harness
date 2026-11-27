@@ -130,10 +130,12 @@ class LinkAuditor:
 	def chat_reply_link_issues(cls, content: str, *, root: Path | None=None) -> list[str]:
 		from agent_tools.repo_link_gate import chat_repo_link_issues
 		return cls.readable_link_issues(content, allow_unencoded_file_uri=True) + chat_repo_link_issues(content, root=root)
-	# @used-by :func:`agent_tools.links.readable_link_issues()`
 	# @used-by :meth:`LinkAuditor.chat_reply_link_issues()`
 	# @used-by :meth:`LinkAuditor.validate_content()`
+	# @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_chat_reply_link_issues_allows_unencoded_file_uri_and_rejects_encoded()`
+	# @used-by :meth:`test_df_harness_s11_wave2c_cross_wave.DfHarnessS11Wave2CCrossWaveTests.test_link_audit_accepts_wave2c_call_sites_and_guarded_cdp_class_seam()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_research.DfHarnessS11Wave2CResearchTests.test_links_markdown_lib_and_network_checker()`
+	# @used-by :mod:`agent_tools.links`
 	@classmethod
 	def readable_link_issues(cls, content: str, *, allow_unencoded_file_uri: bool=False) -> list[str]:
 		errors: list[str] = []

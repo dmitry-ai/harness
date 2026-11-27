@@ -134,11 +134,13 @@ def verify_issue_workflow(root: Path, relative: list[str], message: str | None=N
 def verify_push_blob_sizes(root: Path, stdin_lines: list[str] | None=None) -> None:
 	GitRepoGate(root).verify_push_blob_sizes(stdin_lines=stdin_lines, extracted_max=EXTRACTED_MAX_BYTES, github_max=GITHUB_MAX_BLOB_BYTES)
 # @used-by :func:`agent_tools.issues.acceptance_gate.check_close_readiness()`
+# @used-by :meth:`test_df_harness_s11_wave2c_cross_wave.DfHarnessS11Wave2CCrossWaveTests.test_turn_auditor_preserves_auditor_module_close_verify_patch_hook()`
 # @used-by :meth:`test_dirty_diff_issue_scope.DirtyDiffIssueScopeTests.test_verify_issue_ready_for_close_allows_committed_header_issue_during_sibling_edit()`
 # @used-by :meth:`test_git_lifecycle_memoization.GitLifecycleMemoizationTests.test_verify_issue_ready_for_close_memoizes_parent_child_and_catches_defects()`
 # @used-by :meth:`test_github_issue.TestGitHubIssueTool.test_parent_child_issue_linking_bundled_subtasks_and_parent_closure()`
 # @used-by :meth:`test_repo_tag_close_gate.RepoTagCloseGateTests.test_verify_close_rejects_untagged_invalid_and_unpushed_tags_and_accepts_pushed_valid()`
 # @used-by :mod:`agent_tools.github_issue`
+# @used-by :mod:`agent_tools.issues.auditor`
 # @used-by :mod:`agent_tools.issues.service`
 def verify_repo_issue_ready_for_close(code_repo: Path, repo: str, number: int, *, project_root: str | Path | None=None, git_cache=None) -> dict:
 	return GitRepoGate(code_repo, strict=True).verify_issue_ready_for_close(repo, number, project_root=project_root, git_cache=git_cache)

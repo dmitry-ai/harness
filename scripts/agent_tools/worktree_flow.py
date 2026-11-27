@@ -72,6 +72,7 @@ def git_config_file(code_repo: Path) -> Path:
 # @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_origin_repo_slug_and_linked_worktree_detection()`
 def is_linked_worktree(path: Path | str) -> bool:
 	return (Path(path).resolve() / '.git').is_file()
+# @used-by unused
 def prioritized_worktree_candidates(repo_root: str | Path | None=None, cwd: Path | None=None) -> list[Path]:
 	cands: list[Path] = []
 	if None is not repo_root and str(repo_root).strip():

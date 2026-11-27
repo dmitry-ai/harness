@@ -3,19 +3,24 @@ from __future__ import annotations
 from pathlib import Path
 import ast
 CHAT_REPLY_CALL_SITES = frozenset({
+	# 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
+	('Df/Harness/Grounding/ResponseAuditor.py', 'ResponseAuditor.__init__'),
 	('Df/Harness/Workflow/AnswerRecorder.py', 'AnswerRecorder.record'),
 	('Df/Harness/Workflow/FinalizeStageRunner.py', 'FinalizeStageRunner.run'),
 	# 2026-11-27 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 	('Df/Harness/lib/completion_links.py', 'dfh_response_link_issues'),
-	('agent_tools/response_grounding.py', 'ResponseEvidenceAuditor.__init__'),
+	# 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
+	('agent_tools/links.py', 'chat_reply_link_issues'),
 })
-CHAT_REPLY_HELPER_SITE = ('agent_tools/links.py', 'chat_reply_link_issues')
+# 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
+CHAT_REPLY_HELPER_SITE = ('Df/Harness/Research/LinkAuditor.py', 'LinkAuditor.chat_reply_link_issues')
 KB_DOCUMENT_READABLE_CALL_SITES = frozenset({
 	('Df/Harness/Analysis/OwnedPublisher.py', 'OwnedPublisher.__check_links'),
 	('Df/Harness/Project/CardSyncer.py', 'CardSyncer.__validate_inputs'),
 	('Df/Harness/Project/OnceFileWriter.py', 'OnceFileWriter.write'),
+	# 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
+	('Df/Harness/Research/LinkAuditor.py', 'LinkAuditor.validate_content'),
 	('Df/Harness/Workflow/HealthAuditor.py', 'HealthAuditor.__check_deliverable_links'),
-	('agent_tools/links.py', 'validate_content'),
 })
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class LinkAudit:

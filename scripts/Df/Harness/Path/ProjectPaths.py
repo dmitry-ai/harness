@@ -295,6 +295,7 @@ class ProjectPaths:
 	@property
 	def facts_json(self) -> Path:
 		return Path(self.paths_str['facts_json'])
+	# @used-by :meth:`Df.Harness.Grounding.Tier0Index.Tier0Index.__init__()`
 	@property
 	def grounding_cache_json(self) -> Path:
 		return Path(self.paths_str['grounding_cache_json'])

@@ -38,18 +38,10 @@ class GuardedCdp:
 		self.__cdp_override = cdp_call
 		self.call_native = dfh_transport(self.config, cdp_call)
 		self.__owned = {}
-	# @used-by unused
-	def __getattr__(self, name: str):
-		compat = {'_lock': self.__lock, '_broker_create_tab': self.__broker_create_tab, '_broker_remove_tab': self.__broker_remove_tab}
-		if name not in compat:
-			raise AttributeError(name)
-		return compat[name]
 	# @used-by :meth:`GuardedCdp.__create_auth_target()`
 	# @used-by :meth:`GuardedCdp.__create_target_id()`
-	# @used-by :meth:`GuardedCdp.__getattr__()`
 	def __broker_create_tab(self, cdp_sess, anchor_target_id, verified_ctx, url, endpoint):
 		return TabCreator(cdp_sess, self.get, anchor_target_id, verified_ctx, url, endpoint).create()
-	# @used-by :meth:`GuardedCdp.__getattr__()`
 	# @used-by :meth:`GuardedCdp.capture_authenticated_dom()`
 	def __broker_remove_tab(self, cdp_sess, anchor_target_id, ext_tab_id, target_id):
 		return TabRemover(cdp_sess, anchor_target_id, ext_tab_id, target_id).remove()
@@ -111,7 +103,6 @@ class GuardedCdp:
 		cur_list = self.get(endpoint + '/json/list')
 		found = next((t for t in cur_list if isinstance(t, dict) and t.get('id') == target_id and t.get('webSocketDebuggerUrl')), None)
 		return dfh_checked_ws(found['webSocketDebuggerUrl'], endpoint) if found else None
-	# @used-by :meth:`GuardedCdp.__getattr__()`
 	# @used-by :meth:`GuardedCdp.call()`
 	# @used-by :meth:`GuardedCdp.capture_authenticated_dom()`
 	# @used-by :meth:`GuardedCdp.create_target()`
@@ -241,3 +232,7 @@ class GuardedCdp:
 				raise PermissionError('Target was not created by this guard')
 			self.spec['target_id'] = identifier
 			self.spec.pop('target_url', None)
+# 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
+GuardedCdp._broker_create_tab = GuardedCdp._GuardedCdp__broker_create_tab
+GuardedCdp._broker_remove_tab = GuardedCdp._GuardedCdp__broker_remove_tab
+GuardedCdp._lock = GuardedCdp._GuardedCdp__lock

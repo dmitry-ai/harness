@@ -78,7 +78,7 @@ class RepoGate:
 	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__bind_issue_repos()`
 	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__collect_repos_and_issues()`
 	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__collect_touched_repos()`
-	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__verify_required_repo_issues()`
+	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__verify_close_ready()`
 	# @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_shell_audit_inspector_and_single_pass_repo_gate_commit()`
 	# @used-by :meth:`test_code_size_gate.CodeSizeGateTests.test_git_pre_commit_blocks_oversized_python_file()`
 	# @used-by :meth:`test_code_style_gate.CodeStyleGateTests.test_pre_tool_use_gate_and_pre_commit_enforce_code_style()`
@@ -319,7 +319,7 @@ class RepoGate:
 			self.__run_staged_gate('code_size_gate', 'verify_staged_code_size_ratchet', self.root, relative, use_index=use_index)
 	# @used-by :func:`agent_tools.git_gate.verify_repo_issue_ready_for_close()`
 	# @used-by :meth:`Df.Harness.Issue.AcceptanceGate.AcceptanceGate.__verify_repo_close()`
-	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__verify_required_repo_issues()`
+	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__verify_close_ready()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_helper_branches_audit_and_tags()`
 	def verify_issue_ready_for_close(self, repo: str, number: int, *, project_root: str | Path | None=None, _visiting: set[int] | None=None, git_cache=None) -> dict:
 		return IssueCloseVerifier(self).verify(repo, number, project_root=project_root, visiting=_visiting, git_cache=git_cache)

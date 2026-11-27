@@ -17,7 +17,7 @@ class Tier0Index:
 	CACHE_SCHEMA_VERSION = 2
 	_INDICES: dict[str, Tier0Index] = {}
 	# @used-by :meth:`Tier0Index.for_root()`
-	# @uses :meth:`agent_tools.path_registry.ProjectPaths.grounding_cache_json()`
+	# @uses :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.grounding_cache_json()`
 	def __init__(self, root: Path) -> None:
 		from agent_tools.path_registry import project_paths
 		self.pp = project_paths(root, exact_root=True)

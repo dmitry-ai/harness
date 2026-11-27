@@ -44,6 +44,7 @@ def _unquote(token: str) -> str:
 # @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.is_git_commit_command()`
 def classify_git_argv(argv: list[str] | tuple[str, ...]) -> tuple[str | None, bool]:
 	return _INSPECTOR.classify_git_argv(argv)
+# @used-by unused
 def extract_comment_issue_urls(text: str) -> set[str]:
 	return dfh_extract_comment_issue_urls(text)
 # @used-by :func:`Df.Harness.lib.completion_child_trace._process_tool_calls_row()`

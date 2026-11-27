@@ -69,20 +69,8 @@ def markdown_link(label: str | None, target: str | Path) -> str:
 # @used-by :mod:`agent_tools.links`
 def parse_markdown_headings(content: str) -> tuple[list[dict], set[str], set[str], str]:
 	return MarkdownHeadingParser(content).parse()
-# @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.__check_links()`
-# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__validate_inputs()`
-# @used-by :meth:`Df.Harness.Project.OnceFileWriter.OnceFileWriter.write()`
-# @used-by :meth:`Df.Harness.Workflow.HealthAuditor.HealthAuditor.__check_deliverable_links()`
-# @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_chat_reply_link_issues_allows_unencoded_file_uri_and_rejects_encoded()`
-# @used-by :meth:`test_readable_links.ReadableProjectTests.test_analysis_sources_are_readable_while_quotes_keep_their_exact_bytes()`
-# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_docx_hyperlinks_are_readable_without_altering_their_visible_source_text()`
-# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_encoded_authored_links_are_detected_in_all_supported_text_forms()`
-# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_exact_quotes_code_and_source_copies_are_not_rewritten_or_rejected()`
-# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_original_file_uri_becomes_a_readable_local_reference()`
-# @used-by :meth:`test_readable_links.ReadableReferenceTests.test_query_signatures_delimiters_literal_percent_and_invalid_utf8_are_preserved()`
-# @used-by :mod:`agent_tools.links`
-def readable_link_issues(content: str, *, allow_unencoded_file_uri: bool=False) -> list[str]:
-	return LinkAuditor.readable_link_issues(content, allow_unencoded_file_uri=allow_unencoded_file_uri)
+# 2026-11-27 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
+readable_link_issues = LinkAuditor.readable_link_issues
 # @used-by :meth:`Df.Harness.Upwork.PdfExtractor.PdfExtractor.__text_element_raw()`
 # @used-by :meth:`test_readable_links.ReadableReferenceTests.test_original_file_uri_becomes_a_readable_local_reference()`
 # @used-by :meth:`test_readable_links.ReadableReferenceTests.test_query_signatures_delimiters_literal_percent_and_invalid_utf8_are_preserved()`
