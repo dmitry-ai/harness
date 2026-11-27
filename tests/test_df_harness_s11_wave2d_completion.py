@@ -87,5 +87,9 @@ class DfHarnessS11Wave2DCompletionTests(unittest.TestCase):
 					if callable(member) and name.startswith('_') and (not name.startswith(('__', f'_{cls.__name__}__'))):
 						observed_seams.add((cls.__name__, name))
 		self.assertEqual({('AnswerPreparer', '_fail_gate'), ('AnswerPreparer', '_record_journal_entry')}, observed_seams)
+	# @used-by :mod:`unittest`
+	def test_link_audit_tracks_completion_links_call_site(self) -> None:
+		from Df.Harness.Project.LinkAudit import LinkAudit
+		self.assertEqual([], LinkAudit(SCRIPTS).audit())
 if '__main__' == __name__:
 	unittest.main()

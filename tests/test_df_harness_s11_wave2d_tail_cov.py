@@ -172,7 +172,7 @@ class DfHarnessS11Wave2dTailCovTests(unittest.TestCase):
 			sess = ch / f'sessions/2026/11/27/rollout-{_CID}.jsonl'
 			sess.parent.mkdir(parents=True)
 			sess.write_text(json.dumps({'type': 'session_meta', 'payload': {'id': _CID, 'cwd': str(root)}}) + '\n', encoding='utf-8')
-			with patch.dict(os.environ, {'CODEX_HOME': str(ch)}):
+			with patch.dict(os.environ, {'ANTIGRAVITY_ACCOUNT': '', 'ANTIGRAVITY_APP_DATA_DIR': '', 'CODEX_HOME': str(ch)}):
 				self.assertEqual(rctx._resolve_profile_from_codex_home({'C1': str(ch)}), 'C1')
 			self.assertEqual(rctx._resolve_registration_default({'instances': {'C1': {'enabled': True, 'default_registration': True, 'home': str(ch)}}}, 'codex'), 'C1')
 			found = rconv._find_codex_conversation('codex', 'C1', {'enabled': True, 'system_paths': {'home': str(ch), 'sessions_dir': str(ch / 'sessions')}}, _CID)
@@ -180,7 +180,7 @@ class DfHarnessS11Wave2dTailCovTests(unittest.TestCase):
 			m1 = {'id': 'A0', 'system_paths': {'brain_dir': str(ag / 'brain'), 'conversations_dir': str(ag / 'conversations')}}
 			m2 = {'id': 'A1', 'system_paths': {'brain_dir': str(root / 'other/brain'), 'conversations_dir': str(root / 'other/conversations')}}
 			self.assertEqual(rres._disambiguate_ag_matches([m1, m2], ag, _CID)['id'], 'A0')
-			with patch.dict(os.environ, {'CODEX_HOME': ''}):
+			with patch.dict(os.environ, {'ANTIGRAVITY_ACCOUNT': '', 'ANTIGRAVITY_APP_DATA_DIR': '', 'CODEX_HOME': ''}):
 				resolved = rres._resolve_codex_home_by_conv_or_profile({'C1': str(ch)}, 'codex', {}, _CID, lambda: {}, lambda *_a, **_k: [{'id': 'C1', 'backend_dir': str(ch)}])
 			self.assertEqual(resolved, ch.resolve())
 	# @used-by :mod:`unittest`

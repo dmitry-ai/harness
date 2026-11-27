@@ -5,7 +5,8 @@ import ast
 CHAT_REPLY_CALL_SITES = frozenset({
 	('Df/Harness/Workflow/AnswerRecorder.py', 'AnswerRecorder.record'),
 	('Df/Harness/Workflow/FinalizeStageRunner.py', 'FinalizeStageRunner.run'),
-	('agent_tools/completion.py', '_response_link_issues'),
+	# 2026-11-27 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
+	('Df/Harness/lib/completion_links.py', 'dfh_response_link_issues'),
 	('agent_tools/response_grounding.py', 'ResponseEvidenceAuditor.__init__'),
 })
 CHAT_REPLY_HELPER_SITE = ('agent_tools/links.py', 'chat_reply_link_issues')
@@ -20,6 +21,7 @@ KB_DOCUMENT_READABLE_CALL_SITES = frozenset({
 class LinkAudit:
 	# @used-by :func:`agent_tools.contract_invariants.audit_readable_link_call_sites()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_drift_red_flags_and_card_sync_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_completion.DfHarnessS11Wave2DCompletionTests.test_link_audit_tracks_completion_links_call_site()`
 	def __init__(self, scripts_dir: Path, *, require_expected_chat_sites: bool=True) -> None:
 		self.__base = Path(scripts_dir).resolve()
 		self.__require_expected = require_expected_chat_sites
@@ -64,6 +66,7 @@ class LinkAudit:
 		return r
 	# @used-by :func:`agent_tools.contract_invariants.audit_readable_link_call_sites()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_drift_red_flags_and_card_sync_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2d_completion.DfHarnessS11Wave2DCompletionTests.test_link_audit_tracks_completion_links_call_site()`
 	def audit(self) -> list[str]:
 		hits: list[tuple[str, str, str, object, int]] = []
 		for py_file in sorted(self.__base.rglob('*.py')):
