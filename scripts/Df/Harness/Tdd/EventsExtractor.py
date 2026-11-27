@@ -176,6 +176,7 @@ class EventsExtractor:
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
 	# @used-by :meth:`test_tdd_worktree_cmd_scope.TddWorktreeCmdScopeTests.test_deleted_worktree_set_location_red_run_remains_verified()`
 	# @used-by :meth:`test_tdd_worktree_cmd_scope.TddWorktreeCmdScopeTests.test_runner_script_worktree_ignored_while_var_assignment_and_cd_extracted()`
+	# @used-by :meth:`test_tdd_worktree_land_green.TddWorktreeLandGreenTests.test_evaluator_worktree_land_green_and_compound_soundness()`
 	@staticmethod
 	def build_command_event(step: int, cmd: str, outputs: list[str] | tuple[str, ...] | str, *, cwd: Path | None=None, scope_hint: Path | None=None, sub_step: int | None=None, subagent_id: str | None=None) -> dict:
 		eff_cwd = Path(cwd).resolve() if None is not cwd else None
@@ -192,6 +193,7 @@ class EventsExtractor:
 	# @used-by :meth:`EventsExtractor.__append_write_tool_event()`
 	# @used-by :meth:`EventsExtractor.record_tool_write_event()`
 	# @used-by :meth:`test_tdd_worktree_cmd_scope.TddWorktreeCmdScopeTests.test_deleted_worktree_set_location_red_run_remains_verified()`
+	# @used-by :meth:`test_tdd_worktree_land_green.TddWorktreeLandGreenTests.test_evaluator_worktree_land_green_and_compound_soundness()`
 	@staticmethod
 	def build_file_write_event(step: int, raw_path: str | Path, *, cwd: Path | None=None, content: str | None=None, sub_step: int | None=None, subagent_id: str | None=None) -> dict:
 		cand = normalize_host_path(raw_path)

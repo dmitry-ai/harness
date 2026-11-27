@@ -228,6 +228,7 @@ def dfh_collect_subagent_bfs(root_id: str, root_p: Path, seeds, resolve_child, a
 # @used-by :meth:`Df.Harness.Platform.Codex.TurnScanner.TurnScanner.__start_turn()`
 # @used-by :meth:`test_df_harness_s11_wave2d_platform_cov.DfHarnessS11Wave2dPlatformCovTests.test_trace_effects_review_and_clarifications()`
 # @used-by :meth:`test_tdd_worktree_and_subagent_trace.TddWorktreeAndSubagentTraceTests.test_denied_write_tool_call_is_excluded_from_tdd_events()`
+# @used-by :meth:`test_tdd_worktree_land_green.TddWorktreeLandGreenTests.test_antigravity_scanners_forward_untruncated_output_to_tdd_while_capping_tool_records()`
 # @used-by :meth:`test_turn_completion.TraceCommonTests.test_iter_antigravity_subagents_and_kb_persistence_parity()`
 def dfh_init_turn_accumulator(*, extra=None) -> dict:
 	return {'aa_partial_read_violations': [], 'aa_subagent_steps': [], 'af_subagent_steps': [], 'checkpoint_steps': [], 'completion_service_steps': [], 'exec5_violations': [], 'file_reads': [], 'file_writes': [], 'http_fetch_violations': [], 'issue_first_events': [], 'kb_persistence_steps': [], 'subagent_steps': [], 'tdd_events': [], 'tool_records': [], 'tool_steps': [], 'touched_files': [], 'transcript_read_steps': [], **(extra or {})}

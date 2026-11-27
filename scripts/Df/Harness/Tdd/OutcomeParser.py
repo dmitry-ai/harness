@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 from Df.Core.lib.array.first import df_first
+# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
+import json
 import re
 # 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
 # @used-by :mod:`agent_tools.tdd.outcomes`
@@ -29,30 +31,38 @@ class OutcomeParser:
 		r'|\b0\s+tests?\s+passed,\s*0\s+failed\b'
 		r'|[\u2139i]\s+tests\s+0\b)'
 	)
+	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
+	__COL0_BRACE_RE = re.compile(r'(?m)^\{')
 	__FAIL_LOG_RE = re.compile(r'(?m:^FAILED(?:\s*\(|\s+\S)|^FAIL\b)|(?i:\btest result:\s*FAILED\b|\bFAILURES!\b|\bERRORS!\b|\bFailed!\s*-\s*Failed:\s*[1-9]|=+\s+[^=\n]*\b[1-9]\d*\s+(?:failed|errors?)\b[^=\n]*=+)')
 	__NODE_FAIL_LOG_RE = re.compile(r'[\u2139i]\s+fail\s+[1-9]\d*\b')
+	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
+	__TRUNC_LAND_FAIL_RE = re.compile(r'(?i)(?:"valid"\s*:\s*false\b[\s\S]*"(?:landed|stage)"|"(?:landed|stage)"[\s\S]*"valid"\s*:\s*false\b)')
 	# @used-by :func:`agent_tools.tdd.outcomes.parse_command_outcome()`
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.__record_bg_task_completion()`
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.build_command_event()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_outcome_service_substantive_and_worktree_scope()`
+	# @used-by :meth:`test_tdd_worktree_land_green.TddWorktreeLandGreenTests.test_outcome_parser_worktree_land_json_truncation_and_log_fallback()`
 	def __init__(self, outputs: list[str] | tuple[str, ...] | str, *, task_log_paths: list[Path] | None=None, first_fn=None) -> None:
 		self.__outputs = outputs
 		self.__task_log_paths = task_log_paths
 		self.__first_fn = first_fn
+	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
 	# @used-by :func:`agent_tools.tdd.outcomes.parse_command_outcome()`
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.__record_bg_task_completion()`
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.build_command_event()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_outcome_service_substantive_and_worktree_scope()`
+	# @used-by :meth:`test_tdd_worktree_land_green.TddWorktreeLandGreenTests.test_outcome_parser_worktree_land_json_truncation_and_log_fallback()`
 	def parse(self) -> dict:
 		parts = [self.__outputs] if isinstance(self.__outputs, str) else [str(o) for o in (self.__outputs or ()) if o]
 		combined = '\n'.join(parts)
 		bg_task_id, bg_log_path = OutcomeParser.__extract_bg_meta(combined, self.__first_fn)
 		exit_code = OutcomeParser.__header_exit_code(parts)
+		log_cands = OutcomeParser.__collect_log_candidates(bg_log_path, self.__task_log_paths)
 		extra_log_text = ''
 		if None is exit_code:
-			exit_code, extra_log_text = OutcomeParser.__infer_from_log_files(OutcomeParser.__collect_log_candidates(bg_log_path, self.__task_log_paths))
+			exit_code, extra_log_text = OutcomeParser.__infer_from_log_files(log_cands)
 		if None is exit_code:
 			exit_code = OutcomeParser.infer_exit_code_from_log_text(combined)
 		full_text = combined + extra_log_text
@@ -61,7 +71,74 @@ class OutcomeParser:
 		ran_zero = bool(OutcomeParser.ZERO_TESTS_RE.search(full_text)) and (not has_fail_log)
 		is_fail = (None is not exit_code) and (0 != exit_code) and (not is_inv_err) and (not ran_zero)
 		is_pass = (0 == exit_code) and (not ran_zero) and (not is_inv_err)
-		return {'background_log_path': bg_log_path, 'background_task_id': bg_task_id, 'exit_code': exit_code, 'is_failure': is_fail, 'is_invocation_error': is_inv_err, 'is_pass': is_pass, 'ran_zero_tests': ran_zero}
+		wl_green, wl_repo, wl_fail = OutcomeParser.__classify_worktree_land_json(full_text, exit_code, ran_zero, log_cands)
+		return {'background_log_path': bg_log_path, 'background_task_id': bg_task_id, 'exit_code': exit_code, 'has_fail_log': has_fail_log, 'is_failure': is_fail, 'is_invocation_error': is_inv_err, 'is_pass': is_pass, 'ran_zero_tests': ran_zero, 'worktree_land_failed': wl_fail, 'worktree_land_full_green': wl_green, 'worktree_land_main_repo': wl_repo}
+	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
+	# @used-by :meth:`OutcomeParser.parse()`
+	@staticmethod
+	def __classify_worktree_land_json(full_text: str, exit_code: int | None, ran_zero: bool, log_candidates: list[Path]) -> tuple[bool, str | None, bool]:
+		wl_green, wl_repo, wl_fail = (False, None, False)
+		if 0 == exit_code and (not ran_zero):
+			objs = OutcomeParser.__iter_top_level_json_dicts(full_text) if '"test_result"' in full_text else []
+			wl_green, wl_repo = OutcomeParser.__find_land_pass_repo(objs)
+			if (not wl_green) and log_candidates:
+				log_txt = OutcomeParser.__read_worktree_land_logs(log_candidates)
+				if '"test_result"' in log_txt:
+					wl_green, wl_repo = OutcomeParser.__find_land_pass_repo(OutcomeParser.__iter_top_level_json_dicts(log_txt))
+		elif None is not exit_code and 0 != exit_code and any((tok in full_text for tok in ('"test_result"', '"landed"', '"stage"'))):
+			objs = OutcomeParser.__iter_top_level_json_dicts(full_text)
+			wl_fail = any((False is obj.get('valid') and ('landed' in obj or 'stage' in obj) for obj in objs)) or bool(OutcomeParser.__TRUNC_LAND_FAIL_RE.search(full_text))
+		return (wl_green, wl_repo, wl_fail)
+	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
+	# @used-by :meth:`OutcomeParser.__classify_worktree_land_json()`
+	@staticmethod
+	def __find_land_pass_repo(objs: list[dict]) -> tuple[bool, str | None]:
+		r: tuple[bool, str | None] = (False, None)
+		for obj in objs:
+			if OutcomeParser.__is_valid_land_pass_obj(obj):
+				raw_repo = obj.get('main_repo')
+				r = (True, str(raw_repo) if isinstance(raw_repo, str) and raw_repo.strip() else None)
+				break
+		return r
+	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
+	# @used-by :meth:`OutcomeParser.__find_land_pass_repo()`
+	@staticmethod
+	def __is_valid_land_pass_obj(obj: dict) -> bool:
+		runs = obj.get('test_runs')
+		tr = obj.get('test_result')
+		total = tr.get('total_tests') if isinstance(tr, dict) else None
+		return True is obj.get('valid') and int is type(runs) and 0 < runs and isinstance(tr, dict) and True is tr.get('ok') and (None is total or (int is type(total) and 0 < total))
+	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
+	# @used-by :meth:`OutcomeParser.__classify_worktree_land_json()`
+	@staticmethod
+	def __iter_top_level_json_dicts(text: str) -> list[dict]:
+		parts = OutcomeParser.BG_HEADER_SPLIT_RE.split(text or '', maxsplit=1)
+		body = parts[1] if 2 == len(parts) else (text or '')
+		dec, pos, r = (json.JSONDecoder(), 0, [])
+		for m in OutcomeParser.__COL0_BRACE_RE.finditer(body):
+			idx = m.start()
+			if idx < pos:
+				continue
+			try:
+				obj, pos = dec.raw_decode(body, idx)
+			except ValueError:
+				pos = idx + 1
+			else:
+				if isinstance(obj, dict):
+					r.append(obj)
+		return r
+	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
+	# @used-by :meth:`OutcomeParser.__classify_worktree_land_json()`
+	@staticmethod
+	def __read_worktree_land_logs(log_candidates: list[Path]) -> str:
+		chunks: list[str] = []
+		for lp in log_candidates:
+			try:
+				if lp.is_file():
+					chunks.append(lp.read_text(encoding='utf-8', errors='replace')[-65536:])
+			except OSError:
+				continue
+		return '\n'.join(chunks)
 	# @used-by :meth:`OutcomeParser.parse()`
 	@staticmethod
 	def __collect_log_candidates(bg_log_path: str | None, task_log_paths: list[Path] | None) -> list[Path]:

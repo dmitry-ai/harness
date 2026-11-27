@@ -26,7 +26,7 @@ def _scan_git_global_opts(argv: list[str] | tuple[str, ...], *, base_dir: Path |
 	return _INSPECTOR.scan_git_global_opts(argv, base_dir=base_dir)
 # @used-by :meth:`Df.Harness.Gate.FailfastGate.FailfastGate.__normalize_test_cmd()`
 # @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.__collect_write_matches()`
-# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.classify_test_command()`
+# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.__scan_segments()`
 # @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.shell_test_delete_targets()`
 # @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__collect_failfast_warnings()`
 # @used-by :meth:`Df.Harness.Tdd.ServiceExempt.ServiceExempt.__is_service_command()`

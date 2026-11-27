@@ -36,6 +36,7 @@ def _reserve_foreign(backend: Path, proj: Path, cid: str, req_text: str, resp_te
 # @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_idle_prepared_turn_transitions_to_delivered_via_foreign_sync_and_all_open_without_mutating_journal()`
 # @used-by :meth:`test_journal_idle_sync_and_liveness.JournalIdleSyncAndLivenessTests.test_live_running_parallel_reservation_not_orphaned_while_idle_stuck_is_orphaned()`
 # @used-by :meth:`test_service_finalization_exempt_and_sync_all_open.ServiceFinalizationAndSyncAllOpenTests.test_journal_sync_all_open_reconciles_idle_turns_and_honors_adopt_conflict()`
+# @used-by :meth:`test_tdd_worktree_land_green.TddWorktreeLandGreenTests.test_antigravity_scanners_forward_untruncated_output_to_tdd_while_capping_tool_records()`
 # @used-by :meth:`test_turn_begin_status_and_auditors.TurnBeginStatusAndAuditorsTests.test_begin_returns_top_level_ok_true_for_primary_dry_run_and_child_with_foreign_reconciliation()`
 def _seed_ag_conversation(backend: Path, proj: Path, cid: str, req_text: str, resp_text: str | None, *, status: str='CASCADE_RUN_STATUS_IDLE', not_fully_idle: int=0, killed: int=0) -> Path:
 	(backend / 'conversations').mkdir(parents=True, exist_ok=True)

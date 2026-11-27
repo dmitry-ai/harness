@@ -693,6 +693,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_tdd_rules_contract`
 	# @used-by :mod:`test_tdd_worktree_and_subagent_trace`
 	# @used-by :mod:`test_tdd_worktree_cmd_scope`
+	# @used-by :mod:`test_tdd_worktree_land_green`
 	# @used-by :mod:`test_text_browser`
 	# @used-by :mod:`test_text_diagnostics`
 	# @used-by :mod:`test_text_native_binding`

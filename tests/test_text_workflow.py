@@ -113,6 +113,7 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :meth:`Df.Harness.Tdd.MarkupCommentLexer.MarkupCommentLexer.__consume_astro_frontmatter()`
 	# @used-by :meth:`Df.Harness.Tdd.MarkupCommentLexer.MarkupCommentLexer.lex_sfc()`
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__consume_partial_match()`
+	# @used-by :meth:`Df.Harness.Tdd.OutcomeParser.OutcomeParser.__iter_top_level_json_dicts()`
 	# @used-by :meth:`Df.Harness.Text.Article.LinkStyleAuditor.LinkStyleAuditor.__check_bare_urls()`
 	# @used-by :meth:`Df.Harness.Text.Article.StructureAuditor.StructureAuditor.__check_line_references()`
 	# @used-by :meth:`Df.Harness.Text.Article.StructureAuditor.StructureAuditor.__check_section_link()`

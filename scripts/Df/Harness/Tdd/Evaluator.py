@@ -17,6 +17,7 @@ class Evaluator:
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_evaluator_and_events_extractor_with_bg_tasks()`
 	# @used-by :meth:`test_tdd_worktree_cmd_scope.TddWorktreeCmdScopeTests.test_deleted_worktree_set_location_red_run_remains_verified()`
+	# @used-by :meth:`test_tdd_worktree_land_green.TddWorktreeLandGreenTests.test_evaluator_worktree_land_green_and_compound_soundness()`
 	def __init__(self, events: list[dict], *, require_final_full_green: bool=True, project_root: Path | None=None, is_exempt_fn: Callable | None=None) -> None:
 		self.__events = events
 		self.__require_final_full_green = require_final_full_green
@@ -28,6 +29,7 @@ class Evaluator:
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_evaluator_and_events_extractor_with_bg_tasks()`
 	# @used-by :meth:`test_tdd_worktree_cmd_scope.TddWorktreeCmdScopeTests.test_deleted_worktree_set_location_red_run_remains_verified()`
+	# @used-by :meth:`test_tdd_worktree_land_green.TddWorktreeLandGreenTests.test_evaluator_worktree_land_green_and_compound_soundness()`
 	def evaluate(self) -> dict:
 		scopes: dict[str, dict] = {}
 		orders: dict[str, dict] = {}
@@ -218,6 +220,7 @@ class Evaluator:
 		entry = {'classification': cls, 'path': fpath, 'step': step}
 		if entry not in st['exempt_edits']:
 			st['exempt_edits'].append(entry)
+	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
 	# @used-by :meth:`Evaluator.command_matches_scope()`
 	@staticmethod
 	def __resolve_event_target_scopes(targets: list[str], cwd_p: Path | None) -> list[Path]:
@@ -226,33 +229,49 @@ class Evaluator:
 			try:
 				cand = normalize_host_path(tp)
 				full = cand.resolve() if cand.is_absolute() else ((cwd_p / cand).resolve() if cwd_p else cand.resolve())
-				r.append(CodeClassifier.resolve_code_scope(full))
+				probe = full / '_wt_scope_probe' if (not full.exists()) and None is not WorktreeScope.extract_worktree_scope_id(full) else full
+				r.append(CodeClassifier.resolve_code_scope(probe))
 			except OSError:
 				continue
+		return r
+	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
+	# @used-by :meth:`Evaluator.__update_scope_from_test_cmd()`
+	@staticmethod
+	def __scope_is_ordinary_full(sk: str, ev: dict, t_info: dict) -> bool:
+		has_land = bool(t_info.get('has_worktree_land'))
+		has_ord = bool(t_info.get('has_ordinary_test', not t_info.get('worktree_land_only')))
+		r = bool(t_info['ordinary_full_suite']) if 'ordinary_full_suite' in t_info else ((not has_land) and bool(t_info.get('is_full_suite')))
+		if has_ord and (not r):
+			r = bool(CommandInspector(str(ev.get('cmd') or ''), scope_root=WorktreeScope.canonical_scope_path(sk)).classify_test_command().get('ordinary_full_suite'))
 		return r
 	# @used-by :meth:`Evaluator.command_matches_scope()`
 	@staticmethod
 	def __scopes_overlap(resolved_scopes: list[Path], scope_p: Path, scope_key: str, scope_main_key: str, is_full_cmd: bool) -> bool:
 		direct = any((rs.as_posix().lower() == scope_key or rs.is_relative_to(scope_p) or scope_p.is_relative_to(rs) for rs in resolved_scopes))
 		return direct or (is_full_cmd and any((Evaluator.git_main_repo_root(rs).as_posix().lower() == scope_main_key for rs in resolved_scopes)))
+	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
 	# @used-by :meth:`Evaluator.__apply_command_event()`
 	@staticmethod
 	def __update_scope_from_test_cmd(sk: str, st: dict, st_ord: dict, ev: dict, step: int, order: tuple[int, int, int], outcome: dict, t_info: dict) -> None:
-		scope_full = bool(t_info.get('is_full_suite')) or CommandInspector(str(ev.get('cmd') or ''), scope_root=WorktreeScope.canonical_scope_path(sk)).classify_test_command()['is_full_suite']
-		if outcome.get('is_failure') and 'TEST_WRITTEN' == st['state'] and None is not st_ord['written_test'] and order > st_ord['written_test']:
+		has_land = bool(t_info.get('has_worktree_land'))
+		wt_green = has_land and bool(outcome.get('worktree_land_full_green'))
+		red_blocked = bool(t_info.get('worktree_land_only')) or bool(outcome.get('worktree_land_failed')) or (has_land and (not outcome.get('has_fail_log')))
+		if (not red_blocked) and outcome.get('is_failure') and 'TEST_WRITTEN' == st['state'] and None is not st_ord['written_test'] and order > st_ord['written_test']:
 			st['state'] = 'RED_VERIFIED'
 			st['red_step'] = step
 			st['red_cmd'] = ev.get('cmd')
-		elif outcome.get('is_pass') and None is not st_ord['last_code_edit'] and order > st_ord['last_code_edit']:
+		elif (wt_green or ((not t_info.get('worktree_land_only')) and outcome.get('is_pass'))) and None is not st_ord['last_code_edit'] and order > st_ord['last_code_edit']:
 			st['cycle_green_step'] = step
-			if scope_full:
+			if wt_green or Evaluator.__scope_is_ordinary_full(sk, ev, t_info):
 				st['last_full_green_step'] = step
 				st_ord['last_full_green'] = order
+	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
 	# @used-by :func:`agent_tools.tdd.evaluator._command_matches_scope()`
 	# @used-by :meth:`Evaluator.__apply_command_event()`
 	@staticmethod
 	def command_matches_scope(event: dict, scope_str: str, written_test_files: set[str]) -> bool:
 		t_info = event.get('test_info') or {}
+		outcome = event.get('outcome') or {}
 		is_full_cmd = bool(t_info.get('is_full_suite'))
 		if False is WorktreeScope.worktree_command_matches(event, scope_str, is_full_cmd):
 			r = False
@@ -263,7 +282,9 @@ class Evaluator:
 			cmd_norm = CodeClassifier.norm_posix(str(event.get('cmd') or '')).lower()
 			cwd_raw = event.get('cwd')
 			cwd_p = Path(cwd_raw).resolve() if cwd_raw else None
-			resolved_scopes = Evaluator.__resolve_event_target_scopes(t_info.get('target_paths') or [], cwd_p)
+			extra_repo = outcome.get('worktree_land_main_repo') if outcome.get('worktree_land_full_green') else None
+			targets = list(t_info.get('target_paths') or ()) + ([str(extra_repo)] if extra_repo else [])
+			resolved_scopes = Evaluator.__resolve_event_target_scopes(targets, cwd_p)
 			r = Evaluator.__scopes_overlap(resolved_scopes, scope_p, scope_key, scope_main_key, is_full_cmd) or any((Path(tf).name.lower() in cmd_norm or Path(tf).stem.lower() in cmd_norm for tf in written_test_files)) or scope_key in cmd_norm or ((not resolved_scopes) and Evaluator.__cwd_matches_scope(cwd_p, scope_p, scope_key, scope_main_key, is_full_cmd))
 		return r
 	# @used-by :func:`agent_tools.tdd.evaluator._git_main_repo_root()`

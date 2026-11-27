@@ -26,8 +26,12 @@ class CommandInspector:
 	)
 	__GO_TEST_RE = re.compile(r'(?i)\bgo(?:\.exe)?\s+test\b')
 	__HARNESS_RUN_TESTS_RE = re.compile(r'(?i)(?:^|\s)["\']?(?:[^"\']*[/\\])?(?:harness|upwork_project)\.py["\']?\s+run-tests(?:\s|$)')
+	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
+	__HARNESS_WORKTREE_LAND_RE = re.compile(r'(?i)^\s*(?:&\s*)?(?:python(?:3(?:\.\d+)?)?(?:\.exe)?\s+)?["\']?(?:[^"\']*[/\\])?(?:harness|upwork_project)\.py["\']?\s+worktree-land(?:\s|$)')
 	__INLINE_SCRIPT_RE = re.compile(r'(\b(?:python(?:3)?|node)(?:\.exe)?\s+(?:-[A-Za-z]+\s+)*-[ce]\s+)(?:"(?:\\.|[^"\\])*"|\'(?:\'\'|[^\'])*\')', re.I)
 	__MASK_QUOTED_RE = re.compile(r'"[^"]*"|\'[^\']*\'')
+	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
+	__NO_TESTS_FLAG_RE = re.compile(r'(?:^|\s)--no-tests(?:\s|$)')
 	__PATTERN_ARG_RE = re.compile(r'(?:-p|--pattern)(?:\s+|=)(?:"([^"]+)"|\'([^\']+)\'|(\S+))')
 	__POST_CARGO_RUNNER_SPECS = (
 		(r'(?i)\b(?:mvn|mvnw|gradle|gradlew)(?:\.cmd|\.bat)?\b[^\r\n]*\btest\b', r'(?:-Dtest=|--tests\b)', False),
@@ -59,48 +63,67 @@ class CommandInspector:
 	SHELL_WRITE_CMD_PATTERNS = __EMBEDDED_WRITE_PATTERNS + __OUTER_SHELL_WRITE_PATTERNS
 	# @used-by :func:`agent_tools.tdd.commands.classify_test_command()`
 	# @used-by :meth:`Df.Harness.Gate.FailfastGate.FailfastGate.evaluate()`
-	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__update_scope_from_test_cmd()`
+	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__scope_is_ordinary_full()`
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.build_command_event()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_classifier_commands_and_lexers()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_classifier_command_inspector_and_lexers()`
+	# @used-by :meth:`test_tdd_worktree_land_green.TddWorktreeLandGreenTests.test_command_inspector_classifies_worktree_land_variants()`
 	def __init__(self, cmd: str, *, scope_root: Path | None=None, unique_fn=None) -> None:
 		self.__cmd = cmd
 		self.__scope_root = scope_root
 		self.__unique_fn = unique_fn
+	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
 	# @used-by :func:`agent_tools.tdd.commands.classify_test_command()`
 	# @used-by :meth:`Df.Harness.Gate.FailfastGate.FailfastGate.evaluate()`
-	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__update_scope_from_test_cmd()`
+	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__scope_is_ordinary_full()`
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.build_command_event()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_classifier_commands_and_lexers()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_classifier_command_inspector_and_lexers()`
+	# @used-by :meth:`test_tdd_worktree_land_green.TddWorktreeLandGreenTests.test_command_inspector_classifies_worktree_land_variants()`
 	def classify_test_command(self) -> dict:
 		if not isinstance(self.__cmd, str) or not self.__cmd.strip():
-			r = {'is_full_suite': False, 'is_test_cmd': False, 'rigged_failure': False, 'target_paths': []}
+			r = {'has_ordinary_test': False, 'has_worktree_land': False, 'is_full_suite': False, 'is_test_cmd': False, 'ordinary_full_suite': False, 'rigged_failure': False, 'target_paths': [], 'worktree_land_only': False}
 		else:
-			is_test, is_full, targets = (False, False, [])
-			for seg in _split_shell_segments(self.__cmd):
-				s = CommandInspector.unwrap_watchdog_prefix(seg.strip())
-				if s:
-					seg_test, seg_full = CommandInspector.__classify_segment(s)
-					if seg_test:
-						is_test = True
-						is_full = is_full or seg_full
-						targets.extend(CommandInspector.extract_cmd_paths(s))
-			if is_test and (not is_full) and None is not self.__scope_root and 1 >= CodeClassifier.count_repo_test_files(self.__scope_root):
-				is_full = True
+			has_ord, ord_full, has_land, targets = CommandInspector.__scan_segments(self.__cmd)
+			if has_ord and (not ord_full) and None is not self.__scope_root and 1 >= CodeClassifier.count_repo_test_files(self.__scope_root):
+				ord_full = True
 			uniq = self.__unique_fn if None is not self.__unique_fn else dfa_unique_fast
-			r = {'is_full_suite': is_full, 'is_test_cmd': is_test, 'rigged_failure': bool(CommandInspector.RIGGED_FAILURE_RE.search(self.__cmd)), 'target_paths': uniq(targets)}
+			r = {'has_ordinary_test': has_ord, 'has_worktree_land': has_land, 'is_full_suite': ord_full or has_land, 'is_test_cmd': has_ord or has_land, 'ordinary_full_suite': ord_full, 'rigged_failure': bool(CommandInspector.RIGGED_FAILURE_RE.search(self.__cmd)), 'target_paths': uniq(targets), 'worktree_land_only': has_land and (not has_ord)}
 		return r
+	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
+	# @used-by :meth:`CommandInspector.__scan_segments()`
+	@staticmethod
+	def __classify_segment(seg: str) -> tuple[bool, bool, bool]:
+		if CommandInspector.__match_harness_worktree_land(seg):
+			r = (False, False, True)
+		else:
+			r = (False, False, False)
+			for matcher in (CommandInspector.__match_harness_run_tests, CommandInspector.__match_python_unittest, CommandInspector.__match_pre_go_runner, CommandInspector.__match_go_or_cargo, CommandInspector.__match_post_cargo_runner, CommandInspector.__match_direct_test_script):
+				hit = matcher(seg)
+				if None is not hit:
+					r = (True, hit, False)
+					break
+		return r
+	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
+	# @used-by :meth:`CommandInspector.__classify_segment()`
+	@staticmethod
+	def __match_harness_worktree_land(seg: str) -> bool:
+		return bool(CommandInspector.__HARNESS_WORKTREE_LAND_RE.search(seg)) and (not bool(CommandInspector.__NO_TESTS_FLAG_RE.search(CommandInspector.mask_quoted(seg))))
+	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
 	# @used-by :meth:`CommandInspector.classify_test_command()`
 	@staticmethod
-	def __classify_segment(seg: str) -> tuple[bool, bool]:
-		r = (False, False)
-		for matcher in (CommandInspector.__match_harness_run_tests, CommandInspector.__match_python_unittest, CommandInspector.__match_pre_go_runner, CommandInspector.__match_go_or_cargo, CommandInspector.__match_post_cargo_runner, CommandInspector.__match_direct_test_script):
-			hit = matcher(seg)
-			if None is not hit:
-				r = (True, hit)
-				break
-		return r
+	def __scan_segments(cmd: str) -> tuple[bool, bool, bool, list[str]]:
+		has_ord, ord_full, has_land, targets = (False, False, False, [])
+		for seg in _split_shell_segments(cmd):
+			s = CommandInspector.unwrap_watchdog_prefix(seg.strip())
+			if s:
+				s_ord, s_full, s_land = CommandInspector.__classify_segment(s)
+				if s_ord or s_land:
+					has_ord = has_ord or s_ord
+					ord_full = ord_full or s_full
+					has_land = has_land or s_land
+					targets.extend(CommandInspector.extract_cmd_paths(s))
+		return (has_ord, ord_full, has_land, targets)
 	# @used-by :meth:`CommandInspector.shell_write_targets()`
 	@staticmethod
 	def __collect_write_matches(cmd: str) -> list[str]:
@@ -210,7 +233,7 @@ class CommandInspector:
 		r = CommandInspector.__BASH_HEREDOC_RE.sub(r'\1', r)
 		return CommandInspector.__INLINE_SCRIPT_RE.sub(r'\1""', r)
 	# @used-by :func:`agent_tools.tdd.commands._extract_cmd_paths()`
-	# @used-by :meth:`CommandInspector.classify_test_command()`
+	# @used-by :meth:`CommandInspector.__scan_segments()`
 	# @used-by :meth:`CommandInspector.single_test_file_in_args()`
 	@staticmethod
 	def extract_cmd_paths(seg: str) -> list[str]:
@@ -223,6 +246,7 @@ class CommandInspector:
 	# @used-by :func:`agent_tools.tdd.commands._mask_quoted()`
 	# @used-by :meth:`CommandInspector.__match_direct_test_script()`
 	# @used-by :meth:`CommandInspector.__match_go_or_cargo()`
+	# @used-by :meth:`CommandInspector.__match_harness_worktree_land()`
 	# @used-by :meth:`CommandInspector.__match_python_unittest()`
 	# @used-by :meth:`CommandInspector.__match_runner_specs()`
 	# @used-by :meth:`Df.Harness.Gate.FailfastGate.FailfastGate.missing_failfast_flag()`
@@ -284,7 +308,7 @@ class CommandInspector:
 				break
 		return r
 	# @used-by :func:`agent_tools.tdd.commands.unwrap_watchdog_prefix()`
-	# @used-by :meth:`CommandInspector.classify_test_command()`
+	# @used-by :meth:`CommandInspector.__scan_segments()`
 	# @used-by :meth:`Df.Harness.Gate.FailfastGate.FailfastGate.missing_failfast_flag()`
 	@staticmethod
 	def unwrap_watchdog_prefix(seg: str) -> str:

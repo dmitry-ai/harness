@@ -46,7 +46,7 @@ class WorktreeScope:
 		return path.resolve().as_posix().lower()
 	# @used-by :func:`agent_tools.tdd.worktree_scope.canonical_scope_path()`
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__is_exempt_cached()`
-	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__update_scope_from_test_cmd()`
+	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__scope_is_ordinary_full()`
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.command_matches_scope()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_outcome_service_substantive_and_worktree_scope()`
 	@staticmethod
@@ -73,6 +73,7 @@ class WorktreeScope:
 		found.update(WorktreeScope.__extract_cmd_worktree_ids(str(event.get('cmd') or '')))
 		return found
 	# @used-by :func:`agent_tools.tdd.worktree_scope.extract_worktree_scope_id()`
+	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__resolve_event_target_scopes()`
 	# @used-by :meth:`WorktreeScope.__commit_worktree_id()`
 	# @used-by :meth:`WorktreeScope.__extract_cmd_worktree_ids()`
 	# @used-by :meth:`WorktreeScope.extract_command_worktree_ids()`

@@ -16,7 +16,8 @@ def _collect_following_outputs(rows: list, pos: int, step_idx: int, seg: dict) -
 			break
 		if 'GENERIC' == cand.get('type') and cand.get('content'):
 			c_str = str(cand.get('content'))
-			outs.append(c_str[:4000])
+			# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
+			outs.append(c_str)
 			for m_out in re.finditer('file:///+([A-Za-z]:/[^\\s"\\\'<>`]+?/\\.system_generated/steps/\\d+/output\\.txt)', c_str):
 				seg['file_reads'].append((step_idx, m_out.group(1).replace('\\', '/')))
 	return outs
@@ -69,11 +70,13 @@ def _process_response_item_row(root_p: Path, step_idx: int, row: dict, seg: dict
 	elif pay.get('type') in ('function_call', 'custom_tool_call'):
 		_handle_child_call_item(root_p, step_idx, pay, seg, pending_tdd, pending_issue)
 # @used-by :func:`_process_child_row()`
+# @used-by :meth:`test_tdd_worktree_land_green.TddWorktreeLandGreenTests.test_antigravity_scanners_forward_untruncated_output_to_tdd_while_capping_tool_records()`
 def _process_tool_calls_row(root_p: Path, rows: list, pos: int, step_idx: int, calls: list[dict], seg: dict, child_bg: dict) -> None:
 	from agent_tools.shell_audit import extract_issue_actions_from_outputs
 	outs = _collect_following_outputs(rows, pos, step_idx, seg)
 	seg['tool_steps'].append(step_idx)
-	seg['tool_records'].append({'step': step_idx, 'tools': [c.get('name', '') for c in calls], 'outputs': outs})
+	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
+	seg['tool_records'].append({'step': step_idx, 'tools': [c.get('name', '') for c in calls], 'outputs': [o[:4000] for o in outs]})
 	for act_item in extract_issue_actions_from_outputs(outs):
 		seg['issue_actions'].append({**act_item, 'step': step_idx})
 	for c_idx, call in enumerate(calls):

@@ -23,6 +23,7 @@ class TurnScanner:
 	# @used-by :func:`Df.Harness.lib.hook_pre_invocation_ops._diagnose_no_active_turn()`
 	# @used-by :func:`agent_tools.platforms.antigravity.native_answers()`
 	# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_platform_turn_scanner_and_ag_tail()`
+	# @used-by :meth:`test_tdd_worktree_land_green.TddWorktreeLandGreenTests.test_antigravity_scanners_forward_untruncated_output_to_tdd_while_capping_tool_records()`
 	def __init__(self, root, conversation_id: str, *, backend=None, instance=None, _ops: dict[str, Any] | None=None) -> None:
 		self.__ops = _ops or {}
 		self.__root = root
@@ -42,7 +43,8 @@ class TurnScanner:
 				break
 			if 'GENERIC' == cand.get('type') and cand.get('content'):
 				c_str = str(cand.get('content'))
-				r.append(c_str[:4000])
+				# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
+				r.append(c_str)
 				self.__record_step_output_reads(c_str, step_idx, file_reads)
 		return r
 	# @used-by :meth:`TurnScanner.__scan_segment()`
@@ -210,7 +212,8 @@ class TurnScanner:
 	# @used-by :meth:`TurnScanner.__scan_segment_row()`
 	def __record_tool_calls(self, step_idx: int, calls: list[dict], outputs: list[str], seg: dict) -> None:
 		seg['tool_steps'].append(step_idx)
-		seg['tool_records'].append({'step': step_idx, 'tools': [c.get('name', '') for c in calls], 'outputs': outputs})
+		# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
+		seg['tool_records'].append({'step': step_idx, 'tools': [c.get('name', '') for c in calls], 'outputs': [o[:4000] for o in outputs]})
 		for act_item in extract_issue_actions_from_outputs(outputs):
 			seg['issue_actions'].append({**act_item, 'step': step_idx})
 		for c_idx, call in enumerate(calls):
@@ -295,6 +298,7 @@ class TurnScanner:
 	# @used-by :func:`Df.Harness.lib.hook_pre_invocation_ops._diagnose_no_active_turn()`
 	# @used-by :func:`agent_tools.platforms.antigravity.native_answers()`
 	# @used-by :meth:`test_df_harness_s11_wave2d_tail_cov.DfHarnessS11Wave2dTailCovTests.test_platform_turn_scanner_and_ag_tail()`
+	# @used-by :meth:`test_tdd_worktree_land_green.TddWorktreeLandGreenTests.test_antigravity_scanners_forward_untruncated_output_to_tdd_while_capping_tool_records()`
 	def scan(self) -> dict[str, Any]:
 		self.__load_context()
 		grouped = self.__group_segments()

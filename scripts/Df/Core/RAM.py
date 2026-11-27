@@ -182,6 +182,7 @@ class RAM:
 	# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__touched_git_repos()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffExecutability.DiffExecutability.__git_read_bytes()`
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__git_show_text()`
+	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__resolve_event_target_scopes()`
 	# @used-by :meth:`Df.Harness.Tdd.Exemption.Exemption.is_write_event_exempt()`
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__resolve_repo_binding()`
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.find_matching_recipes()`

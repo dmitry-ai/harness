@@ -118,6 +118,7 @@ class ShellSegmenter:
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__resolve_worktree_git_dirs()`
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.git_main_repo_root()`
 	# @used-by :meth:`Df.Harness.Tdd.OutcomeParser.OutcomeParser.__header_exit_code()`
+	# @used-by :meth:`Df.Harness.Tdd.OutcomeParser.OutcomeParser.__iter_top_level_json_dicts()`
 	# @used-by :meth:`Df.Harness.Tdd.OutcomeParser.OutcomeParser.extract_bg_task_ids()`
 	# @used-by :meth:`Df.Harness.Tdd.WorktreeScope.WorktreeScope.__extract_cmd_worktree_ids()`
 	# @used-by :meth:`Df.Harness.Text.Article.GraphAuditor.GraphAuditor.__check_conditional_line()`
