@@ -42,7 +42,6 @@ def antigravity_global_config_dirs():
 # @used-by :mod:`agent_tools.upwork_project`
 def canonical_global_hooks(primary=PRIMARY_AGENTS_DIR, *, config_dir: str | Path | None=None):
 	return GlobalCustomizationManager.canonical_global_hooks(primary, config_dir=config_dir)
-# @used-by :func:`agent_tools.project_rename_verify._check_config_status()`
 # @used-by :func:`run()`
 # @used-by :meth:`test_finalized_project_contract.FinalizedProjectContractTests.test_rename_project_preserves_all_seven_stages_config_journal_handoff_and_review_lineage()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_cleanup_custom_system_paths_stop_gate_and_claude_code_only_extensibility()`
@@ -125,7 +124,8 @@ def harness_hook_runner_source(primary=PRIMARY_AGENTS_DIR, *, store_dir=None) ->
 # @used-by :mod:`agent_tools.harness_cli`
 # @used-by :mod:`agent_tools.upwork_project`
 def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, daily_root=DAILY_PROPOSALS_ROOT, primary_agents_dir=PRIMARY_AGENTS_DIR, extracted_data=None, register_antigravity=None, antigravity_projects_dir=None, antigravity_folders_json=None, site_hypothesis=None, platform=None, register_native=None, all_platforms=None, launcher_root=None, conversation_id=None, topic=None):
-	return ProjectInitializer(url_or_id, domain_or_topic, date_str, daily_root, primary_agents_dir, extracted_data, register_antigravity, antigravity_projects_dir, antigravity_folders_json, site_hypothesis, platform, register_native, all_platforms, launcher_root, conversation_id, topic, default_daily_root=DAILY_PROPOSALS_ROOT, platform_settings_fn=platform_settings, configure_fn=configure_project, resolve_dir_fn=resolve_or_create_project_dir, register_ag_fn=register_antigravity_default).initialize()
+	from . import knowledge
+	return ProjectInitializer(url_or_id, domain_or_topic, date_str, daily_root, primary_agents_dir, extracted_data, register_antigravity, antigravity_projects_dir, antigravity_folders_json, site_hypothesis, platform, register_native, all_platforms, launcher_root, conversation_id, topic, default_daily_root=DAILY_PROPOSALS_ROOT, platform_settings_fn=platform_settings, configure_fn=configure_project, resolve_dir_fn=resolve_or_create_project_dir, register_ag_fn=register_antigravity_default, extra_sources_fn=knowledge.build_project_extra_sources).initialize()
 # @used-by :meth:`test_onboarding.RegistrationTests.test_global_install_preserves_other_customizations_and_is_idempotent()`
 # @used-by :meth:`test_onboarding.RegistrationTests.test_global_install_repairs_profile_without_rules_and_merges_missing_hooks()`
 # @used-by :meth:`test_onboarding.RegistrationTests.test_undeclared_current_antigravity_home_is_reported()`
@@ -196,7 +196,8 @@ def resolve_or_create_project_dir(job_id, domain_or_topic, date_str=None, daily_
 # @used-by :mod:`agent_tools.harness_cli`
 # @used-by :mod:`agent_tools.upwork_project`
 def run(args):
-	return CliRunner(args, doctor_fn=doctor, configure_fn=configure_project, check_cfg_fn=check_configuration, init_fn=initialize_upwork_project, extract_fn=extract_upwork_job, instances_fn=instances_report, register_fn=register_project, platform_settings_fn=platform_settings).run()
+	from . import intake
+	return CliRunner(args, doctor_fn=doctor, configure_fn=configure_project, check_cfg_fn=check_configuration, init_fn=initialize_upwork_project, extract_fn=extract_upwork_job, instances_fn=instances_report, register_fn=register_project, platform_settings_fn=platform_settings, incoming_fn=lambda: intake.INCOMING, commit_capture_fn=intake.commit_capture, drain_incoming_fn=intake.drain_incoming).run()
 # @used-by :mod:`agent_tools.harness_cli`
 # @used-by :mod:`agent_tools.upwork_project`
 def save_registration(root, platform, result):

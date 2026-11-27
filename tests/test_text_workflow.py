@@ -89,7 +89,6 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :func:`agent_tools.cli_output_json.extract_top_level_json_objects()`
 	# @used-by :func:`agent_tools.grounding_domains.extract_fact_tuples()`
 	# @used-by :func:`agent_tools.grounding_domains.ticket_message_issues()`
-	# @used-by :func:`agent_tools.knowledge._replace_section2_in_project_md()`
 	# @used-by :func:`agent_tools.links.parse_markdown_headings()`
 	# @used-by :func:`agent_tools.native_profiles._profile_agents()`
 	# @used-by :func:`agent_tools.research._grep_section_windows()`
@@ -109,6 +108,7 @@ class TextWorkspaceCase(TemporaryCase):
 	# @used-by :meth:`Df.Harness.Gate.CodeSizeAnalyzer.CodeSizeAnalyzer.__code_lines_and_semicolons()`
 	# @used-by :meth:`Df.Harness.Gate.CodeStyleAnalyzer.CodeStyleAnalyzer.__scan_tokens()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__trailing_comment_urls()`
+	# @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.replace_section2()`
 	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.lex_php()`
 	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.lex_python()`
 	# @used-by :meth:`Df.Harness.Tdd.MarkupCommentLexer.MarkupCommentLexer.__consume_astro_frontmatter()`

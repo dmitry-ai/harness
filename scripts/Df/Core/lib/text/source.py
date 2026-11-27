@@ -28,6 +28,7 @@ def df_match_delim(toks: list[tuple[str, str, int]], start: int, open_ch: str, c
 # @used-by :func:`Df.Harness.lib.project.dfh_rewrite_value()`
 # @used-by :func:`agent_tools.project_rename_state._rewrite_text()`
 # @used-by :func:`agent_tools.shadow_replay_clone._rewrite_path_text()`
+# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.rewrite()`
 # @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_text_source_and_strict_validation_helpers()`
 def df_text_rewrite_pairs(text: str, pairs: list[tuple[str, str]] | tuple[tuple[str, str], ...]) -> str:
 	out = text

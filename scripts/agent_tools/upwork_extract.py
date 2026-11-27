@@ -14,7 +14,6 @@ _PAGE_STATE_EXPR = UPWORK_PAGE_STATE_EXPR
 # @used-by :mod:`agent_tools.upwork_extract`
 def _eval_session(mux, session_id, expression, *, await_promise=False, read_only=False, timeout_ms=25000):
 	return JobExtractor.eval_session(mux, session_id, expression, await_promise=await_promise, read_only=read_only, timeout_ms=timeout_ms)
-# @used-by :meth:`agent_tools.knowledge.AttachmentInventory._register_bytes()`
 # @used-by :meth:`test_onboarding.AttachmentTests.test_paths_cannot_escape_or_use_windows_special_names()`
 # @used-by :mod:`agent_tools.upwork_extract`
 # @used-by :mod:`agent_tools.upwork_project`

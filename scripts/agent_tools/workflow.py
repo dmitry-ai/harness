@@ -124,7 +124,6 @@ def kb_paths(root):
 # @used-by :func:`agent_tools.blocked_report._standard_workflow_errors()`
 # @used-by :func:`agent_tools.blocked_report.evaluate_check_workflow_errors()`
 # @used-by :func:`agent_tools.completion._workflow_gate_resolved()`
-# @used-by :func:`agent_tools.project_rename_verify._probe_workflow()`
 # @used-by :func:`agent_tools.shadow_replay._run_finalize_stage()`
 # @used-by :func:`agent_tools.shadow_replay._run_review_stage()`
 # @used-by :func:`test_finalized_project_contract._complete_review_and_finalize()`
@@ -295,7 +294,8 @@ def resume(root, reason, request=None):
 def review_input(root, package):
 	from .review import input_receipt
 	return input_receipt(root, package)
-# @used-by :func:`agent_tools.project_rename_verify._probe_workflow()`
+# @used-by :func:`agent_tools.project_rename_verify.capture_pre_rename_snapshot()`
+# @used-by :func:`agent_tools.project_rename_verify.verify_post_rename()`
 # @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.project_metrics()`
 # @used-by :meth:`test_finalized_project_contract.FinalizedProjectContractTests.test_rename_project_preserves_all_seven_stages_config_journal_handoff_and_review_lineage()`
 # @used-by :meth:`test_finalized_project_contract.FinalizedProjectContractTests.test_render_analysis_promote_domain_preserves_finalized_invariants()`

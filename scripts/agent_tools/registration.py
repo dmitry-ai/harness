@@ -21,7 +21,6 @@ def _expected(project, label=None, day=None):
 # @used-by :mod:`agent_tools.registration`
 def register_project(project, label=None, day=None, *, platform=None):
 	return Registry(project, label, day, settings_fn=settings).register(platform=platform, single=True)
-# @used-by :func:`agent_tools.project_rename._sync_registrations()`
 # @used-by :func:`test_project_rename._assert_renamed_registrations()`
 # @used-by :func:`test_project_rename._seed_dual_antigravity()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_disabled_codex_is_skipped_in_registration_workflow_cleanup_install_and_diagnostics()`

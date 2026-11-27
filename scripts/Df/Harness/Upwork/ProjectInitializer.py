@@ -4,9 +4,14 @@ from agent_tools.platforms.antigravity import register as register_antigravity_d
 from agent_tools.runtime import PRIMARY as PRIMARY_AGENTS_DIR, platform_name, platform_settings, request_day, settings
 from agent_tools.storage import locked, replace_bytes
 from datetime import datetime, timezone
+from Df.Harness.Project.AttachmentInventory import AttachmentInventory
+from Df.Harness.Project.ExtraSourceBuilder import ExtraSourceBuilder
 from Df.Harness.Project.InitLabelResolver import InitLabelResolver
+from Df.Harness.Project.KbPopulator import KbPopulator
 from Df.Harness.Project.LabelStateUpdater import LabelStateUpdater
+from Df.Harness.Project.OnceFileWriter import OnceFileWriter
 from Df.Harness.Project.Registry import Registry
+from Df.Harness.Project.WebsiteCardSyncer import WebsiteCardSyncer
 from Df.Harness.Upwork.JobUrlParser import JobUrlParser
 from Df.Harness.Upwork.KbProjectMdFormatter import KbProjectMdFormatter
 from Df.Harness.Upwork.ProjectConfigurator import ProjectConfigurator
@@ -18,41 +23,39 @@ class ProjectInitializer:
 	# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_init()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_project_management_classes()`
-	def __init__(self, url_or_id: str, domain_or_topic=None, date_str=None, daily_root=None, primary_agents_dir=PRIMARY_AGENTS_DIR, extracted_data=None, register_antigravity=None, antigravity_projects_dir=None, antigravity_folders_json=None, site_hypothesis=None, platform=None, register_native=None, all_platforms=None, launcher_root=None, conversation_id=None, topic=None, *, default_daily_root=None, platform_settings_fn=None, configure_fn=None, resolve_dir_fn=None, register_ag_fn=None) -> None:
+	def __init__(self, url_or_id: str, domain_or_topic=None, date_str=None, daily_root=None, primary_agents_dir=PRIMARY_AGENTS_DIR, extracted_data=None, register_antigravity=None, antigravity_projects_dir=None, antigravity_folders_json=None, site_hypothesis=None, platform=None, register_native=None, all_platforms=None, launcher_root=None, conversation_id=None, topic=None, *, default_daily_root=None, platform_settings_fn=None, configure_fn=None, resolve_dir_fn=None, register_ag_fn=None, extra_sources_fn=None) -> None:
 		self.__url_or_id, self.__domain_or_topic, self.__topic, self.__date_str = (url_or_id, domain_or_topic, topic, date_str)
 		self.__daily_root, self.__primary_agents_dir, self.__extracted_data = (daily_root, primary_agents_dir, extracted_data)
 		self.__register_antigravity, self.__register_native, self.__all_platforms = (register_antigravity, register_native, all_platforms)
 		self.__ag_projects_dir, self.__ag_folders_json, self.__site_hypothesis = (antigravity_projects_dir, antigravity_folders_json, site_hypothesis)
 		self.__platform, self.__launcher_root, self.__conversation_id = (platform, launcher_root, conversation_id)
-		self.__default_daily_root = default_daily_root
+		self.__default_daily_root, self.__extra_sources_fn = (default_daily_root, extra_sources_fn)
 		self.__platform_settings_fn = platform_settings if None is platform_settings_fn else platform_settings_fn
 		self.__configure_fn, self.__resolve_dir_fn = (configure_fn, resolve_dir_fn)
 		self.__register_ag_fn = register_antigravity_default if None is register_ag_fn else register_ag_fn
 	# @used-by :meth:`ProjectInitializer.initialize()`
 	def __init_locked_state(self, root: Path, job_id: str, day, data: dict, label_kind: str, platform: str) -> tuple[dict, Path]:
 		from agent_tools.journal import journal_pair_dirs
-		from agent_tools.knowledge import build_project_extra_sources, create_once, json_bytes, populate_agent_kb, sync_initial_website, sync_source_folder_attachments
 		from agent_tools.path_registry import project_paths
 		state = self.__load_and_prepare_fs(root, job_id)
 		self.__run_configure(root, job_id, platform)
 		pp = project_paths(root, exact_root=True)
 		for folder in (pp.manual_kb_dir, pp.kb_dir, *journal_pair_dirs(pp.journal_dir)):
 			folder.mkdir(parents=True, exist_ok=True)
-		assets = sync_source_folder_attachments(root, data.get('saved_attachments') or [])
-		extra_sources = build_project_extra_sources(root, data, assets)
+		assets = AttachmentInventory(root).sync(data.get('saved_attachments') or [])
+		extra_sources = ExtraSourceBuilder(root, data, assets).build() if None is self.__extra_sources_fn else self.__extra_sources_fn(root, data, assets)
 		if not state['initialized']:
-			create_once(pp.path('overview_md', root / '.md'), f"# {data['title']}\n\n{JobUrlParser.canonical_job_url(job_id)}\n")
-			create_once(pp.manual_kb_dir / 'Project.md', KbProjectMdFormatter({**data, 'extra_sources': extra_sources, **({'site_hypothesis': self.__site_hypothesis} if self.__site_hypothesis else {})}).render())
-		snapshot = populate_agent_kb(root, {**data, 'asset_evidence': [{'file': a['file'], 'sha256': a['sha256']} for a in assets], 'extra_sources': extra_sources})
-		if not state['initialized'] and 'conflict' == sync_initial_website(root, snapshot, self.__site_hypothesis)['status']:
+			OnceFileWriter(pp.path('overview_md', root / '.md'), f"# {data['title']}\n\n{JobUrlParser.canonical_job_url(job_id)}\n").write()
+			OnceFileWriter(pp.manual_kb_dir / 'Project.md', KbProjectMdFormatter({**data, 'extra_sources': extra_sources, **({'site_hypothesis': self.__site_hypothesis} if self.__site_hypothesis else {})}).render()).write()
+		snapshot = KbPopulator(root, {**data, 'asset_evidence': [{'file': a['file'], 'sha256': a['sha256']} for a in assets], 'extra_sources': extra_sources}).populate()
+		if not state['initialized'] and 'conflict' == WebsiteCardSyncer.sync_initial(root, snapshot, self.__site_hypothesis)['status']:
 			raise ValueError('Initial website card conflicts with a manual block; preserve and reconcile it')
 		LabelStateUpdater(state, root, snapshot, day, label_kind).update()
-		replace_bytes(pp.project_json, json_bytes(state))
+		replace_bytes(pp.project_json, OnceFileWriter.json_bytes(state))
 		return (state, snapshot)
 	# @used-by :meth:`ProjectInitializer.__init_locked_state()`
 	@staticmethod
 	def __load_and_prepare_fs(root: Path, job_id: str) -> dict:
-		from agent_tools.knowledge import json_bytes
 		state_file = root / '\ua616/project.json'
 		existing = json.loads(state_file.read_text(encoding='utf-8')) if state_file.exists() else None
 		state = existing if None is not existing else {'job_id': job_id, 'initialized': False, 'created_by': 'upwork-init', 'created_at': datetime.now(timezone.utc).isoformat()}
@@ -66,7 +69,7 @@ class ProjectInitializer:
 			state.setdefault('journal_version', 3)
 		else:
 			state.setdefault('fs_version', 1)
-		replace_bytes(state_file, json_bytes(state))
+		replace_bytes(state_file, OnceFileWriter.json_bytes(state))
 		return state
 	# @used-by :meth:`ProjectInitializer.initialize()`
 	def __maybe_handoff(self, root: Path, job_id: str) -> list[dict]:

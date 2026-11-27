@@ -65,11 +65,11 @@ def _stat_mtime_size(path: Path) -> tuple[int, int]:
 	return df_stat_sig(path) or (0, 0)
 # 2026-11-26 "Add RLock to path_cache and migrate diff_coverage to sys.monitoring": https://github.com/dmitry-ai/harness/issues/352
 # @used-by :func:`agent_tools.path_registry.clear_registry_cache()`
-# @used-by :func:`agent_tools.project_rename._apply_rename_mutations()`
-# @used-by :func:`agent_tools.project_rename._rollback_rename()`
 # @used-by :func:`agent_tools.shadow_replay_clone._restore_shadow_registry()`
 # @used-by :func:`agent_tools.shadow_replay_clone.shadow_isolation_context()`
 # @used-by :func:`git_fixture_cache._clear_harness_caches()`
+# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__apply_mutations()`
+# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__rollback()`
 # @used-by :meth:`test_git_fixture_cache.GitFixtureCacheTests.test_run_harness_inprocess_executes_cli_isolates_env_cwd_and_clears_caches()`
 # @used-by :meth:`test_git_fixture_cache.GitFixtureCacheTests.test_run_harness_inprocess_restores_env_and_cwd_on_system_exit_and_exception()`
 # @used-by :meth:`test_path_cache_and_diff_cov_perf.PathCacheAndDiffCovPerfTests.test_path_cache_rlock_handles_concurrent_eviction_and_clear()`

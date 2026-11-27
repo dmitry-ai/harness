@@ -34,6 +34,8 @@ class AttachmentDownloader:
 		return r
 	# @used-by :func:`agent_tools.upwork_extract.attachment_path()`
 	# @used-by :meth:`AttachmentDownloader.download()`
+	# @used-by :meth:`Df.Harness.Project.AttachmentInventory.AttachmentInventory.__register_bytes()`
+	# @used-by :meth:`Df.Harness.Project.AttachmentInventory.AttachmentInventory.__resolve_source_target()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_extract_classes()`
 	@staticmethod
 	def attachment_path(directory: Path, filename: str) -> Path:

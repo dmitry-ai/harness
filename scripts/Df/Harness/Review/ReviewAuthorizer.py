@@ -11,6 +11,7 @@ from agent_tools.research import inside
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class ReviewAuthorizer:
 	# @used-by :func:`agent_tools.review.authorize()`
+	# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__probe_review_auth()`
 	# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.__apply_answer()`
 	# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.__authorize_and_select()`
 	# @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.run()`
@@ -76,6 +77,7 @@ class ReviewAuthorizer:
 			raise ValueError('Significant risk cannot use self-review')
 		return package
 	# @used-by :func:`agent_tools.review.authorize()`
+	# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__probe_review_auth()`
 	# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.__apply_answer()`
 	# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.__authorize_and_select()`
 	# @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.run()`

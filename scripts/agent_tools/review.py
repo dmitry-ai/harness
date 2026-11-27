@@ -58,7 +58,8 @@ def approval_current(root, state, approval):
 def authenticate_report(root, package, package_path, data, source_payload, *, parent_id, reviewer_id, native_evidence=None, allow_self=True):
 	return ReportAuthenticator(root, package, package_path, data, source_payload, parent_id=parent_id, reviewer_id=reviewer_id, native_evidence=native_evidence, allow_self=allow_self, inside_fn=inside).authenticate()
 # @used-by :func:`agent_tools.blocked_report._authorize_workflow_errors()`
-# @used-by :func:`agent_tools.project_rename_verify._probe_review_auth()`
+# @used-by :func:`agent_tools.project_rename_verify.capture_pre_rename_snapshot()`
+# @used-by :func:`agent_tools.project_rename_verify.verify_post_rename()`
 # @used-by :func:`agent_tools.shadow_replay._run_review_stage()`
 # @used-by :func:`agent_tools.workflow.complete_stage()`
 # @used-by :func:`agent_tools.workflow.record_current_answer()`

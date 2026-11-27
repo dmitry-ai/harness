@@ -75,7 +75,7 @@ class AttachmentAuditor:
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_workflow_question_registry_and_auditors()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_z_workflow_attachment_auditor_branches()`
 	def issues(self) -> list[dict]:
-		from agent_tools.knowledge import AttachmentInventory
+		from Df.Harness.Project.AttachmentInventory import AttachmentInventory
 		r: list[dict] = []
 		snap = self.__load_snapshot()
 		if None is not snap:

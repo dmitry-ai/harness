@@ -60,6 +60,8 @@ class MarkdownTableSanitizer:
 				r.append('- ' + '; '.join(pairs))
 		return r
 	# @used-by :func:`agent_tools.upwork_data.markdown_fence()`
+	# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.__append_fenced_body()`
+	# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.render_projects_md()`
 	# @used-by :meth:`Df.Harness.Upwork.KbProjectMdFormatter.KbProjectMdFormatter.__append_current_project()`
 	# @used-by :meth:`Df.Harness.Upwork.KbProjectMdFormatter.KbProjectMdFormatter.render()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_data_parsers_and_formatters()`

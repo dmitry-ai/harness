@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from Df.Core.lib.json_io import df_json_dict_load
 from Df.Harness.Project.Diagnostics import Diagnostics
+from Df.Harness.Project.Rename.ProjectRenamer import ProjectRenamer
 from agent_tools.path_registry import project_paths
-from agent_tools.project_rename import resolve_promotable_target_domain
 import re
 _REG_SUFFIX_RE = re.compile(r'\s+-\s+U\.P\.\d{4}\.\d{2}\.\d{2}$')
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
@@ -37,7 +37,7 @@ class DriftAuditor:
 		pj = df_json_dict_load(pp.project_json)
 		r: list[dict] = []
 		if None is not pj and isinstance(self.__analysis_value, dict) and (not pj.get('domain_drift_exempt')):
-			expected, basis_id = resolve_promotable_target_domain(self.__analysis_value, min_probability=75)
+			expected, basis_id = ProjectRenamer.resolve_promotable_target_domain(self.__analysis_value, min_probability=75)
 			if None is not expected:
 				folder_label = pp.root.name.split(' - ', 1)[-1].strip()
 				mismatches = [f'folder "{folder_label}"'] if folder_label.casefold() != expected.casefold() else []

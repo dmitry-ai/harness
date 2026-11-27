@@ -2,12 +2,16 @@
 from __future__ import annotations
 from agent_tools.links import markdown_link
 from Df.Harness.Analysis.Validator import SECTIONS, Validator
+from Df.Harness.Project.IssueValidator import IssueValidator
 from Df.Harness.Upwork.ClientMetadataExtractor import ClientMetadataExtractor
 from Df.Harness.Upwork.JobUrlParser import JobUrlParser
 from Df.Harness.Upwork.MarkdownTableSanitizer import MarkdownTableSanitizer
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class KbProjectMdFormatter:
 	# @used-by :func:`agent_tools.upwork_data.format_kb_project_md()`
+	# @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.replace_section2()`
+	# @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.sync()`
+	# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.__write_kb_pages()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_data_parsers_and_formatters()`
 	def __init__(self, data: dict) -> None:
@@ -32,12 +36,15 @@ class KbProjectMdFormatter:
 			h = self.__data['site_hypothesis']
 			analysis = {key: [h] if 'identity' == key else [] for key in SECTIONS}
 			analysis['notes'] = {key: 'Separate analysis stage.' for key in SECTIONS if 'identity' != key}
-			Validator(analysis).validate()
+			IssueValidator(Validator(analysis).issues()).require_valid()
 			for_s = '; '.join((f"{a['argument']} «{a['quote']}» " + markdown_link('Source', a['source']) for a in h['for']))
 			ag_s = '; '.join((f"{a['argument']} «{a['quote']}» " + markdown_link('Source', a['source']) for a in h['against']))
 			r = '  \n'.join([h['essence'], 'For: ' + for_s, 'Against: ' + ag_s, f"Expert plausibility: {h['probability_percent']}%.", h['assessment_basis']])
 		return r
 	# @used-by :func:`agent_tools.upwork_data.format_kb_project_md()`
+	# @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.replace_section2()`
+	# @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.sync()`
+	# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.__write_kb_pages()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_data_parsers_and_formatters()`
 	def render(self) -> str:

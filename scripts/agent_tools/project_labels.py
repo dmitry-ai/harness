@@ -23,11 +23,9 @@ def is_valid_domain_label(value: str) -> bool:
 # @used-by :mod:`agent_tools.project_labels`
 def label_error_exit_code(exc: BaseException) -> int:
 	return 2 if isinstance(exc, LabelValidationError) else 1
-# @used-by :func:`agent_tools.project_rename.resolve_promotable_target_domain()`
 # @used-by :mod:`agent_tools.project_labels`
 def normalize_domain_host(url_or_host: str | None) -> str | None:
 	return DomainNormalizer(url_or_host).normalize()
-# @used-by :func:`agent_tools.project_rename._validate_rename_inputs()`
 # @used-by :meth:`test_project_labels.ProjectLabelValidationTests.test_validate_label_and_helpers_enforce_slug_and_domain_rules()`
 # @used-by :mod:`agent_tools.project_labels`
 def resolve_init_label(*, domain: str | None=None, topic: str | None=None, fallback_title: str | None=None, strict_domain: bool=False) -> tuple[str, str, str | None]:

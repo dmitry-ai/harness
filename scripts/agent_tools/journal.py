@@ -132,12 +132,12 @@ def find_step_file(side_dir: Path, step: int) -> Path | None:
 # 2026-11-20
 # "Wire V2 filesystem layout across Harness runtime subsystems and shared projections":
 # https://github.com/dmitry-ai/harness/issues/101
-# @used-by :func:`agent_tools.context.assemble()`
 # @used-by :func:`resolve_journal_dir()`
 # @used-by :func:`resolve_migrated_step_file()`
 # @used-by :func:`same_journal_identity()`
 # @used-by :func:`state_dir()`
 # @used-by :meth:`Df.Harness.Meta.Builders.Builders.__apply_issue_state_details()`
+# @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.__resolve_journal_dir()`
 def canonicalize_journal_dir_identity(journal_path: str | Path) -> Path:
 	p = Path(journal_path).resolve()
 	if p.is_dir():
@@ -252,7 +252,6 @@ def detect_journal_version(directory: Path) -> int:
 # @used-by :func:`agent_tools.cleanup_lifecycle._journal_pair_activity()`
 # @used-by :func:`agent_tools.completion._group()`
 # @used-by :func:`agent_tools.completion._record()`
-# @used-by :func:`agent_tools.context.assemble()`
 # @used-by :func:`agent_tools.shadow_replay._find_reply_path()`
 # @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`
 # @used-by :func:`agent_tools.text_core.check_response()`
@@ -266,6 +265,7 @@ def detect_journal_version(directory: Path) -> int:
 # @used-by :func:`step_errors()`
 # @used-by :func:`verify_answer()`
 # @used-by :meth:`Df.Harness.Meta.Blocks.Blocks.step_paths()`
+# @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.__collect_journal_steps()`
 # @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 # @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.__load_latest_reply()`
 # @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.__saved_answers()`
@@ -282,7 +282,6 @@ def journal_pair_dirs(directory: Path) -> tuple[Path, Path]:
 # @used-by :func:`_publish()`
 # @used-by :func:`agent_tools.completion._group()`
 # @used-by :func:`agent_tools.completion._record()`
-# @used-by :func:`agent_tools.context.assemble()`
 # @used-by :func:`agent_tools.shadow_replay._find_reply_path()`
 # @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`
 # @used-by :func:`answer_groups()`
@@ -291,6 +290,7 @@ def journal_pair_dirs(directory: Path) -> tuple[Path, Path]:
 # @used-by :func:`step_errors()`
 # @used-by :func:`verify_answer()`
 # @used-by :meth:`Df.Harness.Meta.Blocks.Blocks.step_paths()`
+# @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.__collect_journal_steps()`
 # @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.__load_latest_reply()`
 # @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.__saved_answers()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._finalize_segment()`
@@ -353,8 +353,8 @@ def resolve_migrated_step_file(path: str | Path) -> Path:
 # "Implement versioned 20-entry journal bucketing and journal-only upgrade engine":
 # https://github.com/dmitry-ai/harness/issues/108
 # @used-by :func:`_migrate_journal_state_dir()`
-# @used-by :func:`agent_tools.project_rename_state.migrate_journal_state()`
 # @used-by :func:`state_dir()`
+# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.migrate_journal_state()`
 def _raw_state_dir(eff: Path, *, data_root: Path | None=None) -> Path:
 	identity = str(eff.resolve()).casefold()
 	# 2026-11-24
@@ -419,18 +419,18 @@ def state_dir(directory: Path) -> Path:
 # 2026-10-11
 # "Extract self-contained .agents toolkit, deterministic validation CLI, and rule architecture from wayse.pt":
 # https://github.com/dmitry-ai/harness/issues/2
-# @used-by :func:`agent_tools.context.assemble()`
 # @used-by :func:`agent_tools.journal_integrity.check_project_journal_problems()`
 # @used-by :func:`agent_tools.journal_integrity.classify_reservations()`
 # @used-by :func:`agent_tools.journal_integrity.journal_validation_errors()`
 # @used-by :func:`agent_tools.journal_integrity.prune_terminal_conflict_reservations()`
 # @used-by :func:`agent_tools.journal_integrity.validate_finalize_journal()`
 # @used-by :func:`agent_tools.journal_integrity.validate_step_cli()`
-# @used-by :func:`agent_tools.project_rename_verify._collect_journal_errors()`
 # @used-by :func:`agent_tools.shadow_replay._find_reply_path()`
 # @used-by :func:`record_answer()`
 # @used-by :func:`record_step()`
 # @used-by :func:`reserve_turn_steps()`
+# @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.__collect_journal_steps()`
+# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__collect_journal_errors()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_concurrent_real_processes_same_request_get_distinct_pairs()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_o_journal_20_entry_bucketing_and_partial_range_normalization()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
@@ -727,14 +727,14 @@ def recover_step(directory: Path, step: int, token: str):
 # "Extract AnswerPreparationRunner class from prepare in completion.py, add typed gate_id readiness tracking, deduplicate native trace loading, and unify resolve_journal_dir":
 # https://github.com/dmitry-ai/harness/issues/57
 # @used-by :func:`agent_tools.completion._directory()`
-# @used-by :func:`agent_tools.project_rename_state.migrate_journal_state()`
-# @used-by :func:`agent_tools.project_rename_verify._collect_journal_errors()`
 # @used-by :func:`agent_tools.shadow_replay._find_reply_path()`
 # @used-by :func:`agent_tools.shadow_replay._stage_shadow_copies()`
 # @used-by :func:`agent_tools.shadow_replay_clone.remap_shadow_state()`
 # @used-by :func:`agent_tools.shadow_replay_command._stage_shadow_launcher()`
 # @used-by :func:`agent_tools.shadow_replay_command.stage_command_shadow_copies()`
 # @used-by :meth:`Df.Harness.Meta.Builders.Builders.__apply_issue_state_details()`
+# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__collect_journal_errors()`
+# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.migrate_journal_state()`
 # @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.record()`
 # @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.__load_latest_reply()`
 # @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.__saved_answers()`
@@ -768,11 +768,11 @@ def resolve_journal_dir(root: Path, selected=None) -> Path:
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 # @used-by :func:`agent_tools.cli.main()`
-# @used-by :func:`agent_tools.context.assemble()`
 # @used-by :func:`agent_tools.journal_integrity.validate_finalize_journal()`
 # @used-by :func:`agent_tools.journal_integrity.validate_step_cli()`
-# @used-by :func:`agent_tools.project_rename_verify._collect_journal_errors()`
 # @used-by :func:`validate_step()`
+# @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.__collect_journal_steps()`
+# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__collect_journal_errors()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_concurrent_real_processes_same_request_get_distinct_pairs()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_exact_bytes_and_no_keyword_authorization()`
 # @used-by :meth:`test_agent_tools.JournalTests.test_failed_second_write_recovers_with_token()`
@@ -972,7 +972,7 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 # 2026-10-31
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
-# @used-by :func:`agent_tools.context.assemble()`
+# @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.__collect_journal_steps()`
 # @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.__saved_answers()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_group_crash_reserves_all_numbers_and_preserves_previous_context()`
 # @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_adopt_requests_isolates_foreign_answer_group_mismatch()`

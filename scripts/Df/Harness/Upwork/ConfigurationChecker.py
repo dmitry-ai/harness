@@ -6,6 +6,7 @@ from pathlib import Path
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class ConfigurationChecker:
 	# @used-by :func:`agent_tools.upwork_project.check_configuration()`
+	# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__check_config_status()`
 	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__init__()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_project_management_classes()`
 	def __init__(self, project_root, primary_agents_dir=PRIMARY_AGENTS_DIR, *, settings_fn=None) -> None:
@@ -27,6 +28,7 @@ class ConfigurationChecker:
 				result['valid'] = False
 				result['issues'].append({'file': str(path), 'message': 'Antigravity common/local discovery entry is missing; run configure'})
 	# @used-by :func:`agent_tools.upwork_project.check_configuration()`
+	# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__check_config_status()`
 	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__init__()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_project_management_classes()`
 	def check(self) -> dict:

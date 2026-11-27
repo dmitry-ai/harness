@@ -153,7 +153,11 @@ def _validate_runtime(value):
 # @used-by :func:`resolve_codex_home()`
 # @used-by :func:`resolve_codex_paths()`
 # @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.resolve_ag_paths_safe()`
+# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__init__()`
+# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.resolve_project()`
 # @used-by :meth:`Df.Harness.Project.Registry.Registry.__init__()`
+# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__sync_registrations()`
+# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.update_projects_index()`
 # @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.main()`
 # @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.__init__()`
 # @used-by :meth:`Df.Harness.Upwork.DoctorAuditor.DoctorAuditor.__init__()`
@@ -379,11 +383,11 @@ def platform_enabled(platform, *, config=None):
 # @used-by :func:`agent_tools.platforms.antigravity._proof_paths()`
 # @used-by :func:`agent_tools.platforms.antigravity.native_tool_trace()`
 # @used-by :func:`agent_tools.platforms.antigravity.register()`
-# @used-by :func:`agent_tools.project_rename._antigravity_dirs_map()`
 # @used-by :func:`check_pre_invocation._resolve_ag_paths()`
 # @used-by :func:`check_stop_gate._resolve_stop_paths()`
 # @used-by :func:`instance_entry()`
 # @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.antigravity_project_dirs()`
+# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__antigravity_dirs_map()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
 # @used-by :meth:`test_cleanup_audit.CleanupAuditTests._make_old_project()`
 # @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests._init_and_register()`
@@ -991,8 +995,8 @@ def using(platform=None, profile=None, instance=None):
 		_instance.reset(third)
 # @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
 # @used-by :func:`agent_tools.platforms.codex.register()`
-# @used-by :func:`agent_tools.project_rename._sync_antigravity_native_files()`
 # @used-by :meth:`Df.Harness.Project.RegistrationExpectation.RegistrationExpectation.build()`
+# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__sync_antigravity_native_files()`
 # @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.resolve_or_create()`
 # @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.initialize()`
 # @used-by :mod:`agent_tools.upwork_project`

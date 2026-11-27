@@ -18,6 +18,8 @@ class JobUrlParser:
 			r = [cls.resolve_nuxt_devalue(arr, x, nxt) if isinstance(x, int) else x for x in val]
 		return r
 	# @used-by :func:`agent_tools.upwork_data.canonical_job_url()`
+	# @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.sync()`
+	# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.populate()`
 	# @used-by :meth:`Df.Harness.Upwork.ClientMetadataExtractor.ClientMetadataExtractor.__collect_group()`
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__build_result()`
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__fetch_related_jobs()`
@@ -48,6 +50,7 @@ class JobUrlParser:
 					r = m.group(1)
 		return r
 	# @used-by :func:`agent_tools.upwork_data.normalize_job_id()`
+	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.resolve_project()`
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__fetch_related_jobs()`
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.extract()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.resolve_or_create()`

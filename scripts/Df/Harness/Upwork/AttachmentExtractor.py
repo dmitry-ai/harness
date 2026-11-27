@@ -81,6 +81,7 @@ class AttachmentExtractor:
 					r.append(raw_v)
 		return r
 	# @used-by :func:`agent_tools.upwork_data.classify_attachment()`
+	# @used-by :meth:`Df.Harness.Project.ExtraSourceBuilder.ExtraSourceBuilder.__process_asset()`
 	# @used-by :meth:`Df.Harness.Upwork.VideoDetector.VideoDetector.__scan_attachments()`
 	# @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.__check_attachment()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_data_parsers_and_formatters()`
@@ -106,6 +107,7 @@ class AttachmentExtractor:
 		return r
 	# @used-by :func:`agent_tools.upwork_data.extract_attachment_markdown()`
 	# @used-by :meth:`Df.Harness.Analysis.SavedSourceLoader.SavedSourceLoader.__load_document()`
+	# @used-by :meth:`Df.Harness.Project.ExtraSourceBuilder.ExtraSourceBuilder.__process_asset()`
 	# @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.__check_attachment()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_docx_pdf_xlsx_odt_and_loom_extractors()`
 	@classmethod

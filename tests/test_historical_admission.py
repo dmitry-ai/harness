@@ -40,9 +40,6 @@ class Later(datetime):
 	# @used-by :func:`agent_tools.cleanup_audit._istanbul_stamp()`
 	# @used-by :func:`agent_tools.cleanup_audit.record_cleanup_answer_log()`
 	# @used-by :func:`agent_tools.completion._now()`
-	# @used-by :func:`agent_tools.context.assemble()`
-	# @used-by :func:`agent_tools.knowledge.populate_agent_kb()`
-	# @used-by :func:`agent_tools.project_rename_state._update_project_json()`
 	# @used-by :func:`agent_tools.research.capture_dom()`
 	# @used-by :func:`agent_tools.research.collect()`
 	# @used-by :func:`agent_tools.research.observed_use()`
@@ -59,8 +56,11 @@ class Later(datetime):
 	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__init_run()`
 	# @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_journal()`
 	# @used-by :meth:`Df.Harness.Meta.TimestampFormatter.TimestampFormatter.format_local()`
+	# @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.assemble()`
+	# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.__write_kb_pages()`
 	# @used-by :meth:`Df.Harness.Project.RegistrationAttemptStarter.RegistrationAttemptStarter.__build_entry()`
 	# @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.__build_entry()`
+	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.__update_project_json()`
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 	# @used-by :meth:`Df.Harness.Upwork.JobExtractor.JobExtractor.__build_result()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__load_and_prepare_fs()`

@@ -61,7 +61,7 @@ class ProjectDirResolver:
 		return r
 	# @used-by :meth:`ProjectDirResolver.resolve_or_create()`
 	def __resolve_or_make_new(self, daily: Path, day, job_id: str, label: str, index: dict, index_file: Path) -> Path:
-		from agent_tools.knowledge import json_bytes
+		from Df.Harness.Project.OnceFileWriter import OnceFileWriter
 		parent = daily / f'{day.year:04d}' / f'{day.month:02d}' / f'{day.day:02d}'
 		parent.mkdir(parents=True, exist_ok=True)
 		found, numbers = self.__find_existing(parent, job_id)
@@ -69,7 +69,7 @@ class ProjectDirResolver:
 		if None is found:
 			target.mkdir(exist_ok=False)
 		index[job_id] = target.relative_to(daily).as_posix()
-		replace_bytes(index_file, json_bytes(index))
+		replace_bytes(index_file, OnceFileWriter.json_bytes(index))
 		return target
 	# @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.initialize()`

@@ -6,6 +6,7 @@ import re
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class InitLabelResolver:
 	# @used-by :func:`agent_tools.project_labels.resolve_init_label()`
+	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__validate_inputs()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.initialize()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_diagnostics_and_label_classes()`
 	def __init__(self, *, domain: str | None=None, topic: str | None=None, fallback_title: str | None=None, strict_domain: bool=False) -> None:
@@ -26,6 +27,7 @@ class InitLabelResolver:
 			r = (clean, 'provisional_topic', 'Non-domain value passed via --domain; recorded as provisional_topic. Prefer --topic "<Title>" when no domain is verified.')
 		return r
 	# @used-by :func:`agent_tools.project_labels.resolve_init_label()`
+	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__validate_inputs()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.initialize()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_diagnostics_and_label_classes()`
 	def resolve(self) -> tuple[str, str, str | None]:

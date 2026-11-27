@@ -30,11 +30,11 @@ class CardSyncAuditor:
 	# @used-by :meth:`Df.Harness.Workflow.AnalysisCardAuditor.AnalysisCardAuditor.issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_drift_red_flags_and_card_sync_classes()`
 	def audit(self) -> list[dict]:
-		from agent_tools.knowledge import sync_website_card
+		from Df.Harness.Project.WebsiteCardSyncer import WebsiteCardSyncer
 		drift_fn = (lambda r, v: DriftAuditor(r, v).audit()) if None is self.__drift_fn else self.__drift_fn
 		r: list[dict] = []
 		overview_file = self.__pp.path('overview_md', self.__pp.root / '.md')
-		website = sync_website_card(self.__pp.root, self.__value, check=True)
+		website = WebsiteCardSyncer(self.__pp.root, self.__value, check=True).sync()
 		if website['status'] not in ('published', 'unchanged'):
 			r.append(Diagnostics().problem('project.website', self.__pp.rel_to_root(overview_file), 'Publish the explicit evidenced client/target website selection, or null if unidentified', file=overview_file))
 		r.extend(self.__identity_mismatches())

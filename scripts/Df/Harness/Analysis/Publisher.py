@@ -30,7 +30,7 @@ class Publisher:
 	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__emit_validation_result()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_analysis_merger_and_lifecycle_classes()`
 	def publish(self) -> dict:
-		from agent_tools.knowledge import sync_website_card
+		from Df.Harness.Project.WebsiteCardSyncer import WebsiteCardSyncer
 		value = json.loads(self.__source.read_text(encoding='utf-8-sig'))
 		Validator.require_current_contract(value)
 		proj_root = self.__resolve_project_root()
@@ -38,7 +38,7 @@ class Publisher:
 		IssueValidator(EvidenceAuditor(proj_root, value, skip_structural=True).issues()).require_valid()
 		result = OwnedPublisher(self.__target or self.__source.with_suffix('.md'), Renderer(value).render(), source=self.__source).publish()
 		if 'conflict' != result['status']:
-			result['website_card'] = sync_website_card(proj_root, value)
+			result['website_card'] = WebsiteCardSyncer(proj_root, value).sync()
 			card = RedFlagSyncer(proj_root, value).sync()
 			result['project_card'] = card
 			if 'conflict' == card['status'] or 'conflict' == result['website_card']['status']:

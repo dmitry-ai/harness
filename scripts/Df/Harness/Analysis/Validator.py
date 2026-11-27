@@ -166,6 +166,7 @@ class Validator:
 	# @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.__default_analysis()`
 	# @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.load_analysis()`
 	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_validate_analysis()`
+	# @used-by :meth:`Df.Harness.Upwork.KbProjectMdFormatter.KbProjectMdFormatter.__site_text()`
 	# @used-by :meth:`Df.Harness.Workflow.AnalysisCardAuditor.AnalysisCardAuditor.__init__()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_analysis_merger_and_lifecycle_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_z_project_sync_and_schema_paths()`
@@ -177,9 +178,9 @@ class Validator:
 			for section in SECTIONS:
 				self.__check_section(section, notes, registry)
 			self.__check_references()
-			from agent_tools.knowledge import website_issues
+			from Df.Harness.Project.WebsiteCardSyncer import WebsiteCardSyncer
 			self.__issues.extend(RedFlagValidator(self.__value, self.__claims).issues())
-			self.__issues.extend(website_issues(self.__value))
+			self.__issues.extend(WebsiteCardSyncer.website_issues(self.__value))
 			self.__issues.extend(ClaimGraph(self.__value).structural_issues())
 			r = self.__issues
 		return r

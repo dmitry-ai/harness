@@ -28,22 +28,18 @@ def _join_wrapped_lines(prev: str, nxt: str) -> str:
 # @used-by :mod:`agent_tools.upwork_data`
 def _parse_pdf_streams(pdf_bytes: bytes, *, text_ops_only: bool=False) -> tuple[dict[int, str], list[str], dict[int, str]]:
 	return PdfLigatureRepairer.parse_streams(pdf_bytes, text_ops_only=text_ops_only)
-# @used-by :func:`agent_tools.knowledge.populate_agent_kb()`
-# @used-by :func:`agent_tools.knowledge.sync_project_attachments_and_kb()`
 # @used-by :mod:`agent_tools.upwork_data`
 def canonical_job_url(url_or_id: str) -> str:
 	return JobUrlParser.canonical_job_url(url_or_id)
 # @used-by :mod:`agent_tools.upwork_data`
 def canonical_video_url(url: str) -> str:
 	return VideoDetector.canonical_video_url(url)
-# @used-by :func:`agent_tools.knowledge.build_project_extra_sources()`
 # @used-by :mod:`agent_tools.upwork_data`
 def classify_attachment(filename_or_path, raw_bytes: bytes | None=None) -> str:
 	return AttachmentExtractor.classify(filename_or_path, raw_bytes)
 # @used-by :mod:`agent_tools.upwork_data`
 def collect_unique_public_past_jobs(data: dict) -> list[dict]:
 	return ClientMetadataExtractor.collect_unique_public_past_jobs(data)
-# @used-by :func:`agent_tools.knowledge.build_project_extra_sources()`
 # @used-by :mod:`agent_tools.upwork_data`
 def detect_client_videos(description: str='', document_markdowns: list[str] | tuple[str, ...]=(), saved_attachments: list[dict] | tuple[dict, ...]=()) -> list[dict]:
 	return VideoDetector.detect(description, document_markdowns, saved_attachments)
@@ -51,7 +47,6 @@ def detect_client_videos(description: str='', document_markdowns: list[str] | tu
 # @used-by :mod:`agent_tools.upwork_data`
 def discover_pdf_ligature_repairs(pdf_bytes: bytes) -> dict[str, str]:
 	return PdfLigatureRepairer.discover_repairs(pdf_bytes)
-# @used-by :func:`agent_tools.knowledge.build_project_extra_sources()`
 # @used-by :meth:`test_upwork_data.UpworkDataExtractorTests.test_shared_table_bullet_rows_across_markdown_and_csv()`
 # @used-by :mod:`agent_tools.upwork_data`
 def extract_attachment_markdown(path_or_name, raw_bytes: bytes | None=None) -> str:
@@ -86,9 +81,6 @@ def extract_upwork_job_url_id(url: str, *, allow_query_or_fragment: bool=False) 
 # @used-by :mod:`agent_tools.upwork_data`
 def format_duration_ru(seconds: int | float | None) -> str:
 	return LoomVideoExtractor.format_duration_ru(seconds)
-# @used-by :func:`agent_tools.knowledge._replace_section2_in_project_md()`
-# @used-by :func:`agent_tools.knowledge.populate_agent_kb()`
-# @used-by :func:`agent_tools.knowledge.sync_project_attachments_and_kb()`
 # @used-by :meth:`test_onboarding.EvidenceTests.test_embedded_fences_do_not_end_the_manual_description()`
 # @used-by :mod:`agent_tools.upwork_data`
 def format_kb_project_md(data: dict) -> str:
@@ -97,12 +89,9 @@ def format_kb_project_md(data: dict) -> str:
 # @used-by :mod:`agent_tools.upwork_data`
 def format_table_bullet_rows(rows: list[list[str]], headers: list[str] | None=None) -> list[str]:
 	return MarkdownTableSanitizer.format_table_bullet_rows(rows, headers)
-# @used-by :func:`agent_tools.knowledge._render_evidence_md()`
-# @used-by :func:`agent_tools.knowledge._render_projects_md()`
 # @used-by :mod:`agent_tools.upwork_data`
 def markdown_fence(text: str, marker: str='~') -> str:
 	return MarkdownTableSanitizer.markdown_fence(text, marker)
-# @used-by :func:`agent_tools.intake._project()`
 # @used-by :mod:`agent_tools.upwork_data`
 def normalize_job_id(url_or_id: str) -> str:
 	return JobUrlParser.normalize_job_id(url_or_id)

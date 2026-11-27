@@ -17,8 +17,9 @@ class ManifestPrimaryVerifier:
 		self.__ref = ref
 	# @used-by :meth:`ManifestPrimaryVerifier.verify()`
 	def __check_intake(self, root: Path, evidence: Path, manifest_file: Path, manifest: dict, state: dict, source: Path) -> set[str]:
-		from agent_tools.intake import CAPTURE_NAME, _validate_receipt
 		from agent_tools.research import inside
+		from Df.Harness.Project.Intake.IntakePathGuard import IntakePathGuard
+		from Df.Harness.Project.Intake.ReceiptValidator import ReceiptValidator
 		intake = evidence / 'Intake'
 		if manifest_file.parent != intake or 1 != manifest.get('version') or manifest.get('status') not in {'prepared', 'drained'} or (manifest.get('job_id') != state.get('job_id')):
 			raise ValueError('Primary intake/attachment must belong to the registered snapshot or its intake manifest')
@@ -26,11 +27,11 @@ class ManifestPrimaryVerifier:
 		if not (isinstance(prov, str) and prov.strip()):
 			raise ValueError('Intake primary needs the full capture receipt bound to its registered snapshot')
 		capture = Path(prov)
-		match = CAPTURE_NAME.fullmatch(capture.name)
+		match = IntakePathGuard.CAPTURE_NAME.fullmatch(capture.name)
 		if not capture.is_absolute() or not match or '~' + match[1] != state['job_id'] or manifest_file.name != capture.name + '.json' or True is not manifest.get('original_paths_are_provenance_only'):
 			raise ValueError('Intake capture identity must match its receipt filename and registered project')
 		try:
-			_validate_receipt(manifest, capture, root, state)
+			ReceiptValidator(manifest, capture, root, state).validate()
 		except (OSError, ValueError, KeyError, TypeError, IndexError, AttributeError, StopIteration) as exc:
 			raise ValueError('Intake receipt is not bound to the permanent registered source snapshot: ' + str(exc)) from exc
 		return self.__match_intake_entry(root, manifest, source, inside)

@@ -48,7 +48,6 @@ from .storage import replace_bytes
 # @used-by :mod:`agent_tools.workflow`
 def analysis_issues(value):
 	return Validator(value).issues()
-# @used-by :func:`agent_tools.knowledge.sync_website_card()`
 # @used-by :func:`agent_tools.operations._execute_collect()`
 # @used-by :mod:`agent_tools.analysis`
 def digest(data):
@@ -74,7 +73,6 @@ def iter_arguments(value):
 # @used-by :mod:`agent_tools.analysis`
 def publish_analysis(source, target=None):
 	return Publisher(source, target).publish()
-# @used-by :func:`agent_tools.intake._index()`
 # @used-by :func:`agent_tools.operations._execute_collect()`
 # @used-by :func:`test_atomic_prepare_and_narrowed_reconcile_m7._init_review_ready_project()`
 # @used-by :func:`test_contract_invariants._init_tracked_project()`
@@ -87,6 +85,7 @@ def publish_analysis(source, target=None):
 # @used-by :meth:`test_readable_links.ReadableReferenceTests.test_exact_quotes_code_and_source_copies_are_not_rewritten_or_rejected()`
 # @used-by :meth:`test_readable_links.ReadableReferenceTests.test_publication_guard_keeps_previous_document_and_primary_json_intact()`
 # @used-by :mod:`agent_tools.analysis`
+# @used-by :mod:`agent_tools.knowledge`
 # @used-by :mod:`agent_tools.workflow`
 def publish_owned(target, content, *, source=None, history=True):
 	return OwnedPublisher(target, content, source=source, history=history, replace_fn=replace_bytes).publish()
@@ -105,6 +104,7 @@ def publish_owned(target, content, *, source=None, history=True):
 # @used-by :meth:`test_red_flags.RedFlagTests.test_no_flags_does_not_create_warning_or_change_original_card()`
 # @used-by :meth:`test_red_flags.RedFlagTests.test_suspected_intermediary_is_not_reported_as_confirmed()`
 # @used-by :mod:`agent_tools.analysis`
+# @used-by :mod:`agent_tools.knowledge`
 def render_analysis(value):
 	return Renderer(value).render()
 # @used-by :mod:`agent_tools.analysis`
@@ -135,6 +135,7 @@ def valid_gap(gap):
 # @used-by :meth:`test_onboarding.EvidenceTests.test_malformed_analysis_has_actionable_errors()`
 # @used-by :meth:`test_onboarding.EvidenceTests.test_missing_counterevidence_probability_or_documentation_anchor_is_rejected()`
 # @used-by :mod:`agent_tools.analysis`
+# @used-by :mod:`agent_tools.knowledge`
 def validate_analysis(value):
 	require_valid(analysis_issues(value))
 __all__ = ['SECTIONS', 'TITLES', 'analysis_issues', 'digest', 'iter_arguments', 'publish_analysis', 'publish_owned', 'render_analysis', 'require_current_contract', 'save_analysis', 'source_uri', 'valid_gap', 'validate_analysis']

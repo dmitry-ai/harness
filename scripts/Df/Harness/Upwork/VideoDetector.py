@@ -36,6 +36,7 @@ class VideoDetector:
 		m = re.match('^https?://(?:www\\.)?loom\\.com/(?:share|embed)/([A-Za-z0-9]+)', u, re.I)
 		return f'https://loom.com/share/{m.group(1)}' if m else u
 	# @used-by :func:`agent_tools.upwork_data.detect_client_videos()`
+	# @used-by :meth:`Df.Harness.Project.ExtraSourceBuilder.ExtraSourceBuilder.build()`
 	# @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.__check_videos()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_data_parsers_and_formatters()`
 	@classmethod

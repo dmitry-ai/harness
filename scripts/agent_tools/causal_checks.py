@@ -8,7 +8,7 @@ import re
 # https://github.com/dmitry-ai/harness/issues/26
 # @used-by :func:`agent_tools.completion._prepare_once()`
 # @used-by :func:`agent_tools.completion.check_answer()`
-# @used-by :func:`agent_tools.knowledge.validate_kb_factual_note()`
+# @used-by :meth:`Df.Harness.Project.FactualNoteValidator.FactualNoteValidator.issues()`
 # @used-by :meth:`test_turn_completion.CausalBasisTests.test_observed_ignorance_to_equal_probability_error_is_rejected()`
 # @used-by :meth:`test_turn_completion.CausalBasisTests.test_quotes_code_negation_and_explicit_symmetric_prior_are_allowed()`
 def unsupported_probability_claims(text):

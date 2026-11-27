@@ -8,6 +8,7 @@ import json
 class OwnedPublisher:
 	# @used-by :func:`agent_tools.analysis.publish_owned()`
 	# @used-by :meth:`Df.Harness.Analysis.Publisher.Publisher.publish()`
+	# @used-by :meth:`Df.Harness.Project.Intake.IntakeIndexer.IntakeIndexer.rebuild()`
 	# @used-by :meth:`Df.Harness.Workflow.ProgressPublisher.ProgressPublisher.publish()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_analysis_merger_and_lifecycle_classes()`
 	def __init__(self, target, content, *, source=None, history: bool=True, replace_fn=None) -> None:
@@ -61,6 +62,7 @@ class OwnedPublisher:
 		return {'status': 'unchanged' if previous == self.__payload else 'published', 'target': str(self.__target), 'sha256': sha}
 	# @used-by :func:`agent_tools.analysis.publish_owned()`
 	# @used-by :meth:`Df.Harness.Analysis.Publisher.Publisher.publish()`
+	# @used-by :meth:`Df.Harness.Project.Intake.IntakeIndexer.IntakeIndexer.rebuild()`
 	# @used-by :meth:`Df.Harness.Workflow.ProgressPublisher.ProgressPublisher.publish()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_analysis_merger_and_lifecycle_classes()`
 	def publish(self) -> dict:

@@ -29,6 +29,7 @@ class StageEngine:
 	# @used-by :func:`agent_tools.workflow.status()`
 	# @used-by :func:`agent_tools.workflow.unadopt_requests()`
 	# @used-by :func:`agent_tools.workflow.update()`
+	# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__probe_workflow()`
 	# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_workflow_classes_and_shared_attachment_inventory()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_workflow_question_registry_and_auditors()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_workflow_stage_engine_and_helpers()`
@@ -74,6 +75,7 @@ class StageEngine:
 			self._kb_cache = HashCollector(self.root, HashCollector.kb_paths(self.root)).collect()
 		return self._kb_cache
 	# @used-by :func:`agent_tools.workflow.load()`
+	# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__probe_workflow()`
 	# @used-by :meth:`StageEngine.status()`
 	# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_workflow_classes_and_shared_attachment_inventory()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_workflow_question_registry_and_auditors()`
@@ -109,6 +111,7 @@ class StageEngine:
 	def resume(self, reason: str, request=None) -> dict:
 		return WorkflowResumer(self.root, reason, request=request, engine=self, update_fn=self.__update_fn).resume()
 	# @used-by :func:`agent_tools.workflow.stage_statuses()`
+	# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__probe_workflow()`
 	# @used-by :meth:`StageEngine.publish_progress()`
 	# @used-by :meth:`StageEngine.status()`
 	def stage_statuses(self, state: dict) -> dict[str, str]:

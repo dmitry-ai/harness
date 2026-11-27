@@ -22,13 +22,14 @@ import sys
 class CliRunner:
 	# @used-by :func:`agent_tools.upwork_project.run()`
 	# @used-by :meth:`CliRunner.main()`
-	def __init__(self, args, *, doctor_fn=None, configure_fn=None, check_cfg_fn=None, init_fn=None, extract_fn=None, instances_fn=None, register_fn=None, platform_settings_fn=None) -> None:
+	def __init__(self, args, *, doctor_fn=None, configure_fn=None, check_cfg_fn=None, init_fn=None, extract_fn=None, instances_fn=None, register_fn=None, platform_settings_fn=None, incoming_fn=None, commit_capture_fn=None, drain_incoming_fn=None) -> None:
 		self.__args = args
 		self.__doctor_fn = (lambda: DoctorAuditor().audit()) if None is doctor_fn else doctor_fn
 		self.__configure_fn = (lambda p: ProjectConfigurator(p).configure()) if None is configure_fn else configure_fn
 		self.__check_cfg_fn = (lambda p: ConfigurationChecker(p).check()) if None is check_cfg_fn else check_cfg_fn
 		self.__init_fn, self.__extract_fn, self.__instances_fn, self.__register_fn = (init_fn, extract_fn, instances_fn, register_fn)
 		self.__platform_settings_fn = platform_settings if None is platform_settings_fn else platform_settings_fn
+		self.__incoming_fn, self.__commit_capture_fn, self.__drain_incoming_fn = (incoming_fn, commit_capture_fn, drain_incoming_fn)
 	# @used-by :meth:`CliRunner.main()`
 	@classmethod
 	def __build_parser(cls, cfg: dict, daily_root: Path | None, description) -> argparse.ArgumentParser:
@@ -51,19 +52,21 @@ class CliRunner:
 	# @used-by :meth:`CliRunner.__dispatch_builtin()`
 	def __cmd_init(self) -> dict:
 		from agent_tools.cli_common import read_input_json
-		from agent_tools.intake import INCOMING, commit_capture
+		from agent_tools.path_registry import store_path
+		from Df.Harness.Project.Intake.CaptureCommitter import CaptureCommitter
 		a = self.__args
 		data = self.__load_init_capture(read_input_json, a.from_json)
 		site_h = read_input_json(a.site_hypothesis, encoding='utf-8') if a.site_hypothesis else None
 		kw = {'date_str': a.date, 'daily_root': a.daily_root, 'extracted_data': data, 'site_hypothesis': site_h, 'register_native': False if a.no_register else None, 'launcher_root': a.launcher_root if getattr(a, 'launcher_root', None) else Path.cwd(), 'conversation_id': getattr(a, 'conversation', None), 'topic': getattr(a, 'topic', None)}
 		r = ProjectInitializer(a.url, a.domain, **kw).initialize() if None is self.__init_fn else self.__init_fn(a.url, a.domain, **kw)
+		incoming = store_path('incoming_dir') if None is self.__incoming_fn else self.__incoming_fn()
 		capture = Path(os.path.abspath(a.from_json)).parent
-		if 'source.json' == a.from_json.name and capture.parent == Path(os.path.abspath(INCOMING)):
-			r['intake'] = commit_capture(capture, incoming_root=INCOMING, daily_root=a.daily_root, apply=True)
+		if 'source.json' == a.from_json.name and capture.parent == Path(os.path.abspath(incoming)):
+			r['intake'] = CaptureCommitter(capture, incoming_root=incoming, daily_root=a.daily_root, apply=True).commit() if None is self.__commit_capture_fn else self.__commit_capture_fn(capture, incoming_root=incoming, daily_root=a.daily_root, apply=True)
 		return r
 	# @used-by :meth:`CliRunner.__dispatch_builtin()`
 	def __cmd_inspect(self) -> dict:
-		from agent_tools.knowledge import json_bytes
+		from Df.Harness.Project.OnceFileWriter import OnceFileWriter
 		a = self.__args
 		if a.output.exists():
 			raise FileExistsError('Capture exists; reuse it with init --from-json')
@@ -71,7 +74,7 @@ class CliRunner:
 		port = a.cdp_port or self.__platform_settings_fn().get('browser', {}).get('cdp_port', 9222)
 		kw = {'cdp_port': port, 'tab_id': a.tab_id, 'session_id': getattr(a, 'session_id', None), 'attachments_dir': a.output.parent / 'attachments'}
 		captured = JobExtractor(a.url, **kw).extract() if None is self.__extract_fn else self.__extract_fn(a.url, **kw)
-		create_bytes(a.output, json_bytes(captured))
+		create_bytes(a.output, OnceFileWriter.json_bytes(captured))
 		return {'capture': str(a.output), 'job_id': captured['job_id'], 'coverage': captured['coverage']}
 	# @used-by :meth:`CliRunner.__dispatch_builtin()`
 	def __cmd_journal_upgrade(self) -> dict:
@@ -193,8 +196,10 @@ class CliRunner:
 		return InstancesReporter(**kw).report() if None is self.__instances_fn else self.__instances_fn(**kw)
 	# @used-by :meth:`CliRunner.__dispatch_builtin()`
 	def __run_intake_drain(self) -> dict:
-		from agent_tools.intake import INCOMING, drain_incoming
-		return drain_incoming(self.__args.capture, incoming_root=INCOMING, daily_root=self.__args.daily_root, apply=self.__args.apply)
+		from agent_tools.path_registry import store_path
+		from Df.Harness.Project.Intake.CaptureCommitter import CaptureCommitter
+		incoming = store_path('incoming_dir') if None is self.__incoming_fn else self.__incoming_fn()
+		return CaptureCommitter.drain_incoming(self.__args.capture, incoming_root=incoming, daily_root=self.__args.daily_root, apply=self.__args.apply) if None is self.__drain_incoming_fn else self.__drain_incoming_fn(self.__args.capture, incoming_root=incoming, daily_root=self.__args.daily_root, apply=self.__args.apply)
 	# @used-by :meth:`CliRunner.__dispatch_builtin()`
 	def __run_paths(self) -> dict:
 		from agent_tools.path_registry import paths_report

@@ -37,6 +37,16 @@ import hashlib
 # @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__write_run()`
 # @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__replace_existing()`
 # @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__write_result()`
+# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__match_remaining_entry()`
+# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__retire_entries()`
+# @used-by :meth:`Df.Harness.Project.Intake.IntakePathGuard.IntakePathGuard.retired_path()`
+# @used-by :meth:`Df.Harness.Project.Intake.ReceiptBuilder.ReceiptBuilder.__scan_existing()`
+# @used-by :meth:`Df.Harness.Project.Intake.ReceiptBuilder.ReceiptBuilder.build()`
+# @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.__declared_attachments()`
+# @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.__verify_permanent_assets()`
+# @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.validate()`
+# @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.verify_snapshot()`
+# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__render_selected()`
 # @used-by :meth:`Df.Harness.Review.ApprovalChecker.ApprovalChecker.__verify_package()`
 # @used-by :meth:`Df.Harness.Review.ClaimMerkleHasher.ClaimMerkleHasher.compute_hash()`
 # @used-by :meth:`Df.Harness.Review.Classifier.Classifier.__resolve_claim()`

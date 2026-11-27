@@ -484,9 +484,9 @@ def _project_item_matches_root(item, root: Path) -> tuple[bool, bool]:
 # 2026-10-14
 # "Implement /upwork-init onboarding workflow, CDP job extraction, A.A/A.F delegation, and Folders tree registration":
 # https://github.com/dmitry-ai/harness/issues/3
-# @used-by :func:`agent_tools.project_rename._build_ag_registrar()`
 # @used-by :func:`register()`
 # @used-by :func:`test_project_rename._dual_ag_registrar()`
+# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__build_ag_registrar()`
 # @used-by :meth:`test_cleanup.CleanupTests.project()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_disabled_codex_is_skipped_in_registration_workflow_cleanup_install_and_diagnostics()`
 # @used-by :meth:`test_onboarding.RegistrationTests.test_branch_is_reused_by_parent_and_date_with_other_assignments_preserved()`
@@ -1214,8 +1214,8 @@ def verify_native_proof(root, native, package=None):
 # 2026-11-18
 # "Externalize agent environments and per-instance system paths into runtime.json":
 # https://github.com/dmitry-ai/harness/issues/86
-# @used-by :func:`agent_tools.project_rename._build_ag_registrar()`
 # @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
+# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__build_ag_registrar()`
 # @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init__()`
 # @used-by :meth:`test_cleanup_audit.CleanupAuditTests._make_old_project()`
 # @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests._init_and_register()`

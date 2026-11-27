@@ -58,17 +58,10 @@ class RAM:
 	# @used-by :func:`agent_tools.configuration.load_discovery_manifest()`
 	# @used-by :func:`agent_tools.configuration.load_project_receipt()`
 	# @used-by :func:`agent_tools.configuration.store_content_backup()`
-	# @used-by :func:`agent_tools.context.resolve_letter_file()`
 	# @used-by :func:`agent_tools.doc5_context._workspace_repo_slugs()`
 	# @used-by :func:`agent_tools.git_gate.resolve_git_repo_from_argv()`
 	# @used-by :func:`agent_tools.git_ignore._plan_global_git_ignore()`
 	# @used-by :func:`agent_tools.git_ignore.sync_global_git_ignore()`
-	# @used-by :func:`agent_tools.intake._index()`
-	# @used-by :func:`agent_tools.intake._inventory()`
-	# @used-by :func:`agent_tools.intake._project()`
-	# @used-by :func:`agent_tools.intake._restore()`
-	# @used-by :func:`agent_tools.intake.commit_capture()`
-	# @used-by :func:`agent_tools.intake.drain_incoming()`
 	# @used-by :func:`agent_tools.issue_first_gate._find_git_repo_root()`
 	# @used-by :func:`agent_tools.issues.service_helpers.dirty_issue_first_files()`
 	# @used-by :func:`agent_tools.journal._migrate_journal_state_dir()`
@@ -80,10 +73,6 @@ class RAM:
 	# @used-by :func:`agent_tools.journal.step_errors()`
 	# @used-by :func:`agent_tools.journal.upgrade_journal()`
 	# @used-by :func:`agent_tools.journal.verify_answer()`
-	# @used-by :func:`agent_tools.knowledge.build_project_extra_sources()`
-	# @used-by :func:`agent_tools.knowledge.create_once()`
-	# @used-by :func:`agent_tools.knowledge.populate_agent_kb()`
-	# @used-by :func:`agent_tools.knowledge.sync_website_card()`
 	# @used-by :func:`agent_tools.landing_lease._lease_file_for()`
 	# @used-by :func:`agent_tools.links.validate_file()`
 	# @used-by :func:`agent_tools.native_profiles._antigravity_plan()`
@@ -100,10 +89,6 @@ class RAM:
 	# @used-by :func:`agent_tools.platforms.antigravity._workspace_context()`
 	# @used-by :func:`agent_tools.platforms.request_binding.completion_project_id()`
 	# @used-by :func:`agent_tools.platforms.trace_common.verify_review_proof_core()`
-	# @used-by :func:`agent_tools.project_rename._rollback_rename()`
-	# @used-by :func:`agent_tools.project_rename._update_projects_index()`
-	# @used-by :func:`agent_tools.project_rename._validate_rename_inputs()`
-	# @used-by :func:`agent_tools.project_rename_state.migrate_journal_state()`
 	# @used-by :func:`agent_tools.repo_wait._map_touched_path_to_repo()`
 	# @used-by :func:`agent_tools.repo_wait._normalize_repo_list()`
 	# @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
@@ -150,9 +135,28 @@ class RAM:
 	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__append_executor_receipt()`
 	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.__collect_project_executors()`
 	# @used-by :meth:`Df.Harness.Meta.MetricsSummarizer.MetricsSummarizer.project_metrics()`
+	# @used-by :meth:`Df.Harness.Project.AttachmentInventory.AttachmentInventory.__register_bytes()`
+	# @used-by :meth:`Df.Harness.Project.AttachmentInventory.AttachmentInventory.__resolve_source_target()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__read_state()`
+	# @used-by :meth:`Df.Harness.Project.Context.LetterDiscoverer.LetterDiscoverer.__pick_in_dir()`
+	# @used-by :meth:`Df.Harness.Project.ExtraSourceBuilder.ExtraSourceBuilder.__process_asset()`
+	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__apply_drain()`
+	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__prepare_receipt()`
+	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__retire_entries()`
+	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.__unlink_and_mark_drained()`
+	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.drain_incoming()`
+	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.resolve_project()`
+	# @used-by :meth:`Df.Harness.Project.Intake.CaptureCommitter.CaptureCommitter.restore()`
+	# @used-by :meth:`Df.Harness.Project.Intake.IntakeIndexer.IntakeIndexer.rebuild()`
+	# @used-by :meth:`Df.Harness.Project.Intake.IntakePathGuard.IntakePathGuard.inventory()`
+	# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.populate()`
 	# @used-by :meth:`Df.Harness.Project.RegistrationAttemptStarter.RegistrationAttemptStarter.begin()`
 	# @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.save()`
+	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__rollback()`
+	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__validate_inputs()`
+	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.update_projects_index()`
+	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.migrate_journal_state()`
+	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync()`
 	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.__is_project_marker_dir()`
 	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.__resolve_deleted_worktree_scope()`
 	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.resolve_code_scope()`
@@ -186,7 +190,6 @@ class RAM:
 	# @used-by :meth:`agent_tools.git_gate.WorktreeCommitTransaction.commit()`
 	# @used-by :meth:`agent_tools.git_gate.WorktreeCommitTransaction.remove()`
 	# @used-by :meth:`agent_tools.issues.auditor.TurnIssueLifecycleAuditor._check_repo_commits_and_files()`
-	# @used-by :meth:`agent_tools.knowledge.AttachmentInventory._register_bytes()`
 	# @used-by :meth:`agent_tools.native_profiles._Plan.file()`
 	# @used-by :meth:`agent_tools.path_registry.ProjectPaths.__init__()`
 	# @used-by :meth:`agent_tools.path_registry.ProjectPaths.to_dict()`

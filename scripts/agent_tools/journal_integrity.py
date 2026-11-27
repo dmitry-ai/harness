@@ -188,8 +188,8 @@ def finalize_project_check(pp, issues: list[dict], default_file: Path) -> dict:
 		if not issue.get('file'):
 			issue['file'] = str(default_file)
 	return {'valid': not issues, 'issues': issues, 'semantic_truth_verified': False}
-# @used-by :func:`agent_tools.project_rename_verify._collect_journal_errors()`
 # @used-by :func:`validate_step_cli()`
+# @used-by :meth:`Df.Harness.Project.Rename.PostRenameVerifier.PostRenameVerifier.__collect_journal_errors()`
 def journal_validation_errors(jdir: Path, *, project_root: Path | None=None, strict_sequence: bool=False) -> list[str]:
 	eff = Path(jdir).resolve()
 	r: list[str] = []

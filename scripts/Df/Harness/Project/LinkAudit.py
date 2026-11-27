@@ -12,8 +12,8 @@ CHAT_REPLY_HELPER_SITE = ('agent_tools/links.py', 'chat_reply_link_issues')
 KB_DOCUMENT_READABLE_CALL_SITES = frozenset({
 	('Df/Harness/Analysis/OwnedPublisher.py', 'OwnedPublisher.__check_links'),
 	('Df/Harness/Project/CardSyncer.py', 'CardSyncer.__validate_inputs'),
+	('Df/Harness/Project/OnceFileWriter.py', 'OnceFileWriter.write'),
 	('Df/Harness/Workflow/HealthAuditor.py', 'HealthAuditor.__check_deliverable_links'),
-	('agent_tools/knowledge.py', 'create_once'),
 	('agent_tools/links.py', 'validate_content'),
 })
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380

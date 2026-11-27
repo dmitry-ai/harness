@@ -7,9 +7,6 @@ from Df.Harness.Project.CardSyncer import CardSyncer
 # @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_harness_callers_delegate_to_new_core_and_qa_helpers()`
 def _digest(data):
 	return df_sha256(data)
-# @used-by :func:`agent_tools.intake._index()`
-# @used-by :func:`agent_tools.knowledge.sync_initial_website()`
-# @used-by :func:`agent_tools.knowledge.sync_website_card()`
 # @used-by :meth:`test_readable_links.ReadableProjectTests.test_website_card_uses_readable_iri_and_keeps_original_website_selection()`
 def sync_block(root, target, key, content, position='after-title', *, check=False, source=None, attributes=None):
 	return CardSyncer(root, target, key, content, position, check=check, source=source, attributes=attributes).sync()

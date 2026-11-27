@@ -20,8 +20,6 @@ class PageDecoder:
 	# @used-by :func:`agent_tools.completion.execute()`
 	# @used-by :func:`agent_tools.configuration._native_config()`
 	# @used-by :func:`agent_tools.configuration.load_project_receipt()`
-	# @used-by :func:`agent_tools.intake._receipt()`
-	# @used-by :func:`agent_tools.intake._snapshot()`
 	# @used-by :func:`agent_tools.issues.repo_locator.origin_repo_slug()`
 	# @used-by :func:`agent_tools.issues.service_helpers._parse_dirty_porcelain()`
 	# @used-by :func:`agent_tools.issues.service_helpers.gh_api_call()`
@@ -39,9 +37,6 @@ class PageDecoder:
 	# @used-by :func:`agent_tools.platforms.antigravity.register_antigravity_project()`
 	# @used-by :func:`agent_tools.platforms.trace_common.read_jsonl_objects()`
 	# @used-by :func:`agent_tools.polyglot_land._branch_touched_files()`
-	# @used-by :func:`agent_tools.project_rename._sync_antigravity_native_files()`
-	# @used-by :func:`agent_tools.project_rename._update_projects_index()`
-	# @used-by :func:`agent_tools.project_rename_state._update_project_json()`
 	# @used-by :func:`agent_tools.repo_tags._commit_sha_and_day()`
 	# @used-by :func:`agent_tools.repo_tags._read_tag_refs()`
 	# @used-by :func:`agent_tools.repo_tags._resolve_commit_sha()`
@@ -87,6 +82,11 @@ class PageDecoder:
 	# @used-by :meth:`Df.Harness.Gate.RulesManifest.RulesManifest.inspect_rule()`
 	# @used-by :meth:`Df.Harness.Perf.TimesheetCommon.TimesheetCommon.load_jsonl_rows()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__read_state()`
+	# @used-by :meth:`Df.Harness.Project.Intake.ReceiptBuilder.ReceiptBuilder.build()`
+	# @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.verify_snapshot()`
+	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__sync_antigravity_native_files()`
+	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.update_projects_index()`
+	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.__update_project_json()`
 	# @used-by :meth:`Df.Harness.Review.PackageReader.PackageReader.__validate_current()`
 	# @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__load_and_check()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffContract.DiffContract.__parse_batch_blobs()`

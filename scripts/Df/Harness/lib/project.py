@@ -32,6 +32,8 @@ def dfh_rewrite_json_file(path: Path, pairs: list[tuple[str, str]], *, preserve_
 # @used-by :func:`agent_tools.project_rename_state._rewrite_value()`
 # @used-by :func:`agent_tools.shadow_replay_clone._rewrite_value()`
 # @used-by :func:`dfh_rewrite_json_file()`
+# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.__rewrite_json_file()`
+# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.rewrite_launcher_handoffs()`
 # @used-by :meth:`test_df_harness_lib_s10.DfHarnessLibS10Tests.test_cli_journal_and_project_helpers()`
 def dfh_rewrite_value(value: Any, pairs: list[tuple[str, str]], *, preserve_keys: tuple[str, ...]=()) -> Any:
 	if isinstance(value, str):

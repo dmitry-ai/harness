@@ -10,6 +10,7 @@ class IssueValidator:
 	# @used-by :meth:`Df.Harness.Analysis.Renderer.Renderer.render()`
 	# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.save()`
 	# @used-by :meth:`Df.Harness.Analysis.Validator.Validator.require_current_contract()`
+	# @used-by :meth:`Df.Harness.Upwork.KbProjectMdFormatter.KbProjectMdFormatter.__site_text()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_diagnostics_and_label_classes()`
 	def __init__(self, issues) -> None:
 		self.__issues = issues
@@ -20,6 +21,7 @@ class IssueValidator:
 	# @used-by :meth:`Df.Harness.Analysis.Renderer.Renderer.render()`
 	# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.save()`
 	# @used-by :meth:`Df.Harness.Analysis.Validator.Validator.require_current_contract()`
+	# @used-by :meth:`Df.Harness.Upwork.KbProjectMdFormatter.KbProjectMdFormatter.__site_text()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_diagnostics_and_label_classes()`
 	def require_valid(self) -> None:
 		errors = [x for x in self.__issues if 'error' == x.get('severity', 'error')]

@@ -51,11 +51,11 @@ def readable_reference(value: str | Path) -> str:
 		elif re.match('^/[A-Za-z]:/', path):
 			path = path[1:]
 	return _readable_escapes(path) + query_sep + query + fragment_sep + _readable_escapes(fragment)
-# @used-by :func:`agent_tools.knowledge._render_evidence_md()`
-# @used-by :func:`agent_tools.knowledge._render_projects_md()`
-# @used-by :func:`agent_tools.knowledge.sync_initial_website()`
-# @used-by :func:`agent_tools.knowledge.sync_website_card()`
 # @used-by :meth:`Df.Harness.Analysis.Renderer.Renderer.render()`
+# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.render_evidence_md()`
+# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.render_projects_md()`
+# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__render_selected()`
+# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync_initial()`
 # @used-by :meth:`Df.Harness.Upwork.DocxExtractor.DocxExtractor.__render_link()`
 # @used-by :meth:`Df.Harness.Upwork.KbProjectMdFormatter.KbProjectMdFormatter.__site_text()`
 # @used-by :meth:`Df.Harness.Upwork.PdfExtractor.PdfExtractor.__text_element_raw()`
@@ -100,11 +100,11 @@ def decode_file_uri(reference: str, *, reject_remote: bool=False) -> str:
 # 2026-10-17
 # "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator":
 # https://github.com/dmitry-ai/harness/issues/9
-# @used-by :func:`agent_tools.knowledge.create_once()`
 # @used-by :func:`chat_reply_link_issues()`
 # @used-by :func:`validate_content()`
 # @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.__check_links()`
 # @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__validate_inputs()`
+# @used-by :meth:`Df.Harness.Project.OnceFileWriter.OnceFileWriter.write()`
 # @used-by :meth:`Df.Harness.Workflow.HealthAuditor.HealthAuditor.__check_deliverable_links()`
 # @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_chat_reply_link_issues_allows_unencoded_file_uri_and_rejects_encoded()`
 # @used-by :meth:`test_readable_links.ReadableProjectTests.test_analysis_sources_are_readable_while_quotes_keep_their_exact_bytes()`

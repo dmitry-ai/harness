@@ -133,7 +133,6 @@ class Regex(O):
 	# @used-by :func:`agent_tools.completion._response_link_issues()`
 	# @used-by :func:`agent_tools.configuration._frontmatter()`
 	# @used-by :func:`agent_tools.configuration._root_options()`
-	# @used-by :func:`agent_tools.context._is_excluded()`
 	# @used-by :func:`agent_tools.grounding_domains._collect_json_fact_tuples()`
 	# @used-by :func:`agent_tools.hook_runtime._scan_hook_line()`
 	# @used-by :func:`agent_tools.hook_runtime._scan_workflow_line()`
@@ -157,7 +156,6 @@ class Regex(O):
 	# @used-by :func:`agent_tools.platforms.request_binding._strip_user_request_wrapper()`
 	# @used-by :func:`agent_tools.platforms.trace_common.local_uri_to_path()`
 	# @used-by :func:`agent_tools.problem_tracks.extract_problem_blocks()`
-	# @used-by :func:`agent_tools.project_rename._target_name_and_root()`
 	# @used-by :func:`agent_tools.research._summarize_json_collections()`
 	# @used-by :func:`agent_tools.response_grounding._discourse_topic_key()`
 	# @used-by :func:`agent_tools.scatter_banner._fenced_banner_at_start()`
@@ -196,6 +194,8 @@ class Regex(O):
 	# @used-by :meth:`Df.Harness.Gate.SendMessageGate.SendMessageGate.__is_duplicate_verdict_payload()`
 	# @used-by :meth:`Df.Harness.Meta.HeaderRenderer.HeaderRenderer.extract_leading()`
 	# @used-by :meth:`Df.Harness.Perf.TimesheetCommon.TimesheetCommon.__parse_header_meta()`
+	# @used-by :meth:`Df.Harness.Project.Context.LetterDiscoverer.LetterDiscoverer.is_excluded()`
+	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__validate_inputs()`
 	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.scan_word_or_char()`
 	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.is_test_file()`
 	# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.unwrap_watchdog_prefix()`

@@ -7,6 +7,7 @@ from urllib.request import Request, urlopen
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class LoomVideoExtractor:
 	# @used-by :func:`agent_tools.upwork_data.extract_loom_video()`
+	# @used-by :meth:`Df.Harness.Project.ExtraSourceBuilder.ExtraSourceBuilder.__init__()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_docx_pdf_xlsx_odt_and_loom_extractors()`
 	def __init__(self, url: str, *, timeout: float=15.0, opener=None) -> None:
 		self.__url = url
@@ -62,6 +63,7 @@ class LoomVideoExtractor:
 		transcript = [f"{p['ts']} {p['text']}" for p in phrases] or ['[00:00] (audio track is absent or contains no speech)']
 		return '\n'.join(['# Video:', header, '', '# Key Spoken Commentary Points (Additions to Document Text):', *key_points, '', '# Full Audio Transcript:', *transcript])
 	# @used-by :func:`agent_tools.upwork_data.extract_loom_video()`
+	# @used-by :meth:`Df.Harness.Project.ExtraSourceBuilder.ExtraSourceBuilder.__init__()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_docx_pdf_xlsx_odt_and_loom_extractors()`
 	def extract(self) -> dict:
 		canon = VideoDetector.canonical_video_url(self.__url)

@@ -12,6 +12,7 @@ class Registry:
 	# @used-by :func:`agent_tools.registration.register_project()`
 	# @used-by :func:`agent_tools.registration.register_projects()`
 	# @used-by :func:`agent_tools.upwork_project.register_project()`
+	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__sync_registrations()`
 	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_register()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__maybe_register()`
 	# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.complete()`
@@ -53,6 +54,7 @@ class Registry:
 	# @used-by :func:`agent_tools.registration.register_project()`
 	# @used-by :func:`agent_tools.registration.register_projects()`
 	# @used-by :func:`agent_tools.upwork_project.register_project()`
+	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__sync_registrations()`
 	# @used-by :meth:`Df.Harness.Upwork.CliRunner.CliRunner.__cmd_register()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__maybe_register()`
 	# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.complete()`
