@@ -55,6 +55,7 @@ from agent_tools.upwork_extract import RPC, SafeRedirect, attachment_path, decod
 # @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_invalid_consumption_scope_fails_before_analysis_changes()`
 # @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_stdin_analysis_and_owned_scratch_inputs_leave_no_permanent_candidate()`
 # @used-by :meth:`test_registration_portability.RegistrationTests.setUp()`
+# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_new_v2_upwork_project_creates_dot_md_not_readme()`
 def source(job_id='~021234567890'):
 	return {'job_id': job_id, 'title': 'Client task', 'description': 'CURRENT_DESCRIPTION_NOT_A_SUMMARY\n```text\noriginal code\n```\n', 'buyer': {'location': {'country': 'Portugal'}}, 'candidate_domains': ['reference.example'], 'work_history': [], 'open_jobs': [], 'related_descriptions': {}, 'client_names': [], 'coverage': {'history_records': 0, 'history_complete': False}, 'observed_at': '2026-10-15T00:00:00+03:00'}
 # @used-by :func:`analysis()`
@@ -66,6 +67,7 @@ def source(job_id='~021234567890'):
 # @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_website_requires_valid_url_and_identity_basis()`
 # @used-by :meth:`test_readable_links.ReadableProjectTests.test_website_card_uses_readable_iri_and_keeps_original_website_selection()`
 # @used-by :meth:`test_red_flags.RedFlagTests.setUp()`
+# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.__make_legacy_v2_upwork()`
 def claim(ident, addresses=(), method=False):
 	result = {'id': ident, 'essence': 'Client-specific proposed explanation', 'for': [{'argument': 'The description explicitly states this concern.', 'source': 'https://example.org/source#concern', 'quote': 'The concern'}], 'against': [{'argument': 'The source also gives an alternative.', 'source': 'https://example.org/source#alternative', 'quote': 'Alternative'}], 'assessment_basis': 'Expert estimate based on the stated evidence; not calibrated.', 'addresses': list(addresses)}
 	result['score_percent' if method else 'probability_percent'] = 60
@@ -87,6 +89,7 @@ def claim(ident, addresses=(), method=False):
 # @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_referenced_primary_cannot_be_replaced_with_an_own_kb_quote()`
 # @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_unverified_hypothesis_with_empty_against_caps_probability_at_75()`
 # @used-by :meth:`test_red_flags.RedFlagTests.setUp()`
+# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.__make_legacy_v2_upwork()`
 def analysis():
 	return {'identity': [], 'concerns': [claim('H-CONCERN-1')], 'misconceptions': [], 'causes': [claim('H-CAUSE-1', ['H-CONCERN-1'])], 'methods': [claim('M-1', ['H-CAUSE-1'], method=True)], 'notes': {'identity': 'Not established.', 'misconceptions': 'No misconception established.'}}
 # 2026-10-14
@@ -116,8 +119,9 @@ class InitializationTests(TemporaryCase):
 		state = json.loads((root / 'ꘖ/project.json').read_text(encoding='utf-8'))
 		self.assertEqual(state['fs_version'], 2)
 		self.assertEqual(state['journal_version'], 3)
-		self.assertTrue((root / 'readme.md').is_file())
-		self.assertFalse((root / '.md').exists())
+		# 2026-11-28 "Use .md root card via v2_upwork profile": https://github.com/dmitry-ai/harness/issues/415
+		self.assertTrue((root / '.md').is_file())
+		self.assertFalse((root / 'readme.md').exists())
 		self.assertFalse((root / 'KB').exists())
 		self.assertTrue((root / '\u2c0f/\u227b').is_dir())
 		self.assertTrue((root / '\u2c0f/\u227a').is_dir())
@@ -129,7 +133,7 @@ class InitializationTests(TemporaryCase):
 		self.assertEqual(ctx_cfg['output'], '\u2c0f/\u227b/\u2659/Context/output/Context.md')
 		agent_kb_sec = next((s for s in ctx_cfg['sections'] if 'Agent KB' == s['title']))
 		self.assertEqual(agent_kb_sec['exclude'], ['\ua616/KB/Evidence/**'])
-		for md_file in [root / 'readme.md', root / '\U0001f56e/Project.md', root / '.agents/rules/90-project.md', *(root / '\ua616/KB').glob('*.md')]:
+		for md_file in [root / '.md', root / '\U0001f56e/Project.md', root / '.agents/rules/90-project.md', *(root / '\ua616/KB').glob('*.md')]:
 			self.assertIsNone(check_markdown_content(md_file.read_text(encoding='utf-8'), str(md_file)), str(md_file))
 		for kind in ('rules', 'skills', 'agents'):
 			cfg = json.loads((root / f'.agents/{kind}.json').read_text(encoding='utf-8'))
@@ -147,7 +151,8 @@ class InitializationTests(TemporaryCase):
 		# 2026-11-21
 		# "Initialize new Upwork projects in the V2 filesystem layout":
 		# https://github.com/dmitry-ai/harness/issues/110
-		files = [root / 'readme.md', root / '\U0001f56e/Project.md', *(root / 'ꘖ/KB').glob('*.md')]
+		# 2026-11-28 "Use .md root card via v2_upwork profile": https://github.com/dmitry-ai/harness/issues/415
+		files = [root / '.md', root / '\U0001f56e/Project.md', *(root / 'ꘖ/KB').glob('*.md')]
 		for path in files:
 			path.write_bytes(path.read_bytes() + b'\nCURATED_CONTENT\n')
 		before = {p: p.read_bytes() for p in files}
@@ -292,7 +297,8 @@ class CapturedProjectTests(TemporaryCase):
 				# https://github.com/dmitry-ai/harness/issues/110
 				self.assertEqual((root / '\U0001f56e/Project.md').read_bytes(), (root / 'ꘖ/KB/Project.md').read_bytes())
 				self.assertIn(data['description'], (root / 'ꘖ/KB/Projects.md').read_text(encoding='utf-8'))
-				paths = [root / 'readme.md', root / '\U0001f56e/Project.md', root / '.agents/context.json', *(root / 'ꘖ/KB').glob('*.md')]
+				# 2026-11-28 "Use .md root card via v2_upwork profile": https://github.com/dmitry-ai/harness/issues/415
+				paths = [root / '.md', root / '\U0001f56e/Project.md', root / '.agents/context.json', *(root / 'ꘖ/KB').glob('*.md')]
 				for file in paths:
 					if '.json' != file.suffix:
 						file.write_bytes(file.read_bytes() + b'\nCURATED_IN_REAL_CAPTURE_TEST\n')

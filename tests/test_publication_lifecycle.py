@@ -48,7 +48,8 @@ class PublicationLifecycleTests(ProjectCase):
 		# 2026-11-21
 		# "Initialize new Upwork projects in the V2 filesystem layout":
 		# https://github.com/dmitry-ai/harness/issues/110
-		card = Path(result['project_dir']) / 'readme.md'
+		# 2026-11-28 "Use .md root card via v2_upwork profile": https://github.com/dmitry-ai/harness/issues/415
+		card = Path(result['project_dir']) / '.md'
 		self.assertIn('https://example.org/', card.read_text(encoding='utf-8'))
 		self.assertIn('<\U0001f56e/Project.md#13-website>', card.read_text(encoding='utf-8'))
 		from agent_tools.links import validate_file
@@ -71,7 +72,8 @@ class PublicationLifecycleTests(ProjectCase):
 		# 2026-11-21
 		# "Initialize new Upwork projects in the V2 filesystem layout":
 		# https://github.com/dmitry-ai/harness/issues/110
-		card = self.project / 'readme.md'
+		# 2026-11-28 "Use .md root card via v2_upwork profile": https://github.com/dmitry-ai/harness/issues/415
+		card = self.project / '.md'
 		original = card.read_bytes()
 		old_state = json.loads((self.project / 'ꘖ/project.json').read_text())
 		result = publish_analysis(source)
@@ -143,7 +145,8 @@ class PublicationLifecycleTests(ProjectCase):
 		# 2026-11-21
 		# "Initialize new Upwork projects in the V2 filesystem layout":
 		# https://github.com/dmitry-ai/harness/issues/110
-		card = self.project / 'readme.md'
+		# 2026-11-28 "Use .md root card via v2_upwork profile": https://github.com/dmitry-ai/harness/issues/415
+		card = self.project / '.md'
 		original = card.read_bytes()
 		publish_analysis(path)
 		self.assertEqual(card.read_bytes(), original)

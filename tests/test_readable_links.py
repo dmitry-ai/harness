@@ -153,12 +153,13 @@ class ReadableProjectTests(ProjectCase):
 		value['websites'] = [{'url': url, 'role': 'target', 'basis_id': 'H-SITE-1'}]
 		result = sync_website_card(self.project, value)
 		self.assertEqual(result['status'], 'published')
-		content = (self.project / 'readme.md').read_text(encoding='utf-8')
+		# 2026-11-28 "Use .md root card via v2_upwork profile": https://github.com/dmitry-ai/harness/issues/415
+		content = (self.project / '.md').read_text(encoding='utf-8')
 		self.assertIn('https://example.org/with space/ꘖ?sig=x%2Fy', content)
 		self.assertNotIn('%EA%98%96', content)
 		self.assertEqual(value['websites'][0]['url'], url)
 		with self.assertRaisesRegex(ValueError, 'LINK-5'):
-			sync_block(self.project, self.project / 'readme.md', 'unsafe', '[Source](https://example.org/a%20b)')
+			sync_block(self.project, self.project / '.md', 'unsafe', '[Source](https://example.org/a%20b)')
 	# 2026-11-21
 	# "Initialize new Upwork projects in the V2 filesystem layout":
 	# https://github.com/dmitry-ai/harness/issues/110

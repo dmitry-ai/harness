@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from Df.Core.lib.sha256 import df_sha256
 from Df.Harness.Analysis.RedFlagRenderer import RedFlagRenderer
+from Df.Harness.lib.project import dfh_resolve_overview_md
 from agent_tools.storage import create_bytes, locked, replace_bytes
 import json
 START = b'<!-- upwork-init:red-flags:start -->'
@@ -96,6 +97,7 @@ class RedFlagSyncer:
 			raise OSError('Project card failed read-back verification')
 		metadata = {'block_sha256': df_sha256(block), 'heading': heading.decode('utf-8'), 'separator': sep.decode('utf-8')}
 		replace_bytes(state_file, (json.dumps(metadata, ensure_ascii=False, indent=2) + '\n').encode('utf-8'))
+	# 2026-11-28 "Use .md root card via v2_upwork profile": https://github.com/dmitry-ai/harness/issues/415
 	# @used-by :func:`agent_tools.red_flags.sync_project_red_flags()`
 	# @used-by :meth:`Df.Harness.Analysis.Publisher.Publisher.publish()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_drift_red_flags_and_card_sync_classes()`
@@ -106,7 +108,7 @@ class RedFlagSyncer:
 		from agent_tools.path_registry import project_paths
 		IssueValidator(Validator(self.__value).issues()).require_valid()
 		pp = project_paths(self.__root, exact_root=True)
-		target = pp.path('overview_md', pp.root / '.md')
+		target = dfh_resolve_overview_md(pp)
 		if 'red_flags' not in self.__value:
 			r = {'status': 'unassessed', 'target': str(target)}
 		else:

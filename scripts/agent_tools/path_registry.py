@@ -65,6 +65,7 @@ def canonicalize_root_dir(value: str | Path, *, registry: PathRegistry | None=No
 # @used-by :meth:`test_repo_locator_perf.RepoLocatorPerformanceTests.test_pruned_walk_skips_heavy_dirs_and_respects_ttl_cache_and_reset()`
 # @used-by :meth:`test_runtime_cache_and_evidence_fastpath_m9.RuntimeCacheAndEvidenceFastpathM9Tests.test_evidence_loader_reuses_saved_extracted_html_and_caches_fragment_parse()`
 # @used-by :meth:`test_runtime_cache_and_evidence_fastpath_m9.RuntimeCacheAndEvidenceFastpathM9Tests.test_runtime_settings_cache_invalidates_on_file_or_env_change_and_isolates_mutations()`
+# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_custom_registry_without_v2_upwork_falls_back_to_v2()`
 def clear_registry_cache() -> None:
 	dfh_clear_registry_cache()
 # @used-by :meth:`Df.Harness.Upwork.GlobalCustomizationManager.GlobalCustomizationManager.antigravity_global_config_dirs()`
@@ -112,6 +113,7 @@ def is_tracked_workspace(root: str | Path, *, registry: PathRegistry | None=None
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_template_and_schema_error_paths_reject_cycles_unknowns_symlinks_and_conflicts()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
 # @used-by :meth:`test_path_registry_perf.PathRegistryPerformanceTests.test_refresh_known_overlay_links_uses_ttl_and_resets_on_clear()`
+# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_custom_registry_without_v2_upwork_falls_back_to_v2()`
 def load_registry(registry_path: str | Path | None=None, *, primary: str | Path | None=None, env: dict[str, str] | None=None) -> PathRegistry:
 	return dfh_load_registry(registry_path, primary=primary, env=env, default_registry_file=DEFAULT_REGISTRY_FILE)
 # @used-by unused
@@ -292,6 +294,10 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 # @used-by :meth:`test_path_registry_perf.PathRegistryPerformanceTests.test_project_paths_fast_cache_hits_and_invalidates_on_fs_mutations()`
 # @used-by :meth:`test_path_registry_perf.PathRegistryPerformanceTests.test_project_paths_lru_retains_more_than_256_entries()`
 # @used-by :meth:`test_turn_completion.AnswerPreparationRunnerTests.test_automatic_journal_only_upgrade_and_cli_subcommand()`
+# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_custom_registry_without_v2_upwork_falls_back_to_v2()`
+# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_legacy_v2_readme_fallback_works_across_card_consumers()`
+# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_new_v2_upwork_project_creates_dot_md_not_readme()`
+# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_profile_routing_separates_upwork_and_standalone_v2_repos()`
 def project_paths(path_or_root: str | Path, *, registry: PathRegistry | None=None, env: dict[str, str] | None=None, exact_root: bool=False) -> ProjectPaths:
 	return dfh_project_paths(path_or_root, registry=registry, env=env, exact_root=exact_root, journal_sig_fn=_journal_cache_sig)
 # @used-by :meth:`Df.Harness.Upwork.ConfigurationChecker.ConfigurationChecker.check()`

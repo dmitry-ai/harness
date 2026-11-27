@@ -78,6 +78,7 @@ class RAM:
 	# @used-by :func:`Df.Harness.lib.path_schema.dfh_canonicalize_root_dir()`
 	# @used-by :func:`Df.Harness.lib.path_schema.dfh_infer_default_profile()`
 	# @used-by :func:`Df.Harness.lib.path_schema.dfh_v2_software_deliverable_dir()`
+	# @used-by :func:`Df.Harness.lib.project.dfh_resolve_overview_md()`
 	# @used-by :func:`Df.Harness.lib.request_binding.dfh_completion_project_id()`
 	# @used-by :func:`Df.Harness.lib.research._resolve_relocated_target()`
 	# @used-by :func:`Df.Harness.lib.research.dfh_inside()`
@@ -366,6 +367,7 @@ class RAM:
 	# @used-by :meth:`test_turn_completion.CompletionCase.test_sync_respects_the_custom_journal_of_an_unprepared_turn()`
 	# @used-by :meth:`test_turn_completion.CompletionCase.test_tracked_initial_analysis_still_requires_answer_bound_approval()`
 	# @used-by :meth:`test_turn_completion.CompletionCase.test_waiting_for_writer_lock_does_not_allow_a_stale_ready_result()`
+	# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_new_v2_upwork_project_creates_dot_md_not_readme()`
 	# @used-by :meth:`test_worker_semaphore_and_xdist.WorkerSemaphoreAndXdistTests.test_worker_semaphore_bounds_total_slots_and_reclaims_dead_and_expired()`
 	# @used-by :meth:`test_worktree_cleanup_guard.WorktreeCleanupGuardTests.test_worktree_cleanup_fails_closed_with_lock_holders_on_locked_dir()`
 	# @used-by :meth:`test_worktree_flow.WorktreeFlowTests.test_cli_worktree_begin_status_cleanup()`

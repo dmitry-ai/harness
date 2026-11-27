@@ -18,6 +18,20 @@ def dfh_is_skipped_rel(rel: Path) -> bool:
 	else:
 		r = False
 	return r
+# 2026-11-28 "Use .md root card via v2_upwork profile": https://github.com/dmitry-ai/harness/issues/415
+# Resolve the project root overview card, falling back to legacy readme.md only when .md is absent.
+# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.sync()`
+# @used-by :meth:`Df.Harness.Project.CardSyncAuditor.CardSyncAuditor.audit()`
+# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync()`
+# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync_initial()`
+# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
+# @used-by :meth:`Df.Harness.Workflow.HealthAuditor.HealthAuditor.__check_deliverable_links()`
+# @used-by :meth:`Df.Harness.Workflow.ReceiptVerifier.ReceiptVerifier.__resolve_artifact()`
+# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_legacy_v2_readme_fallback_works_across_card_consumers()`
+def dfh_resolve_overview_md(pp: Any) -> Path:
+	primary = pp.path('overview_md', pp.root / '.md')
+	legacy = pp.root / 'readme.md'
+	return legacy if '.md' == primary.name and (not primary.exists()) and legacy.is_file() else primary
 # Rewrite path strings inside a JSON file in place using case-insensitive replacement pairs.
 # @used-by :func:`Df.Harness.lib.shadow_clone._remap_journal_data()`
 # @used-by :func:`Df.Harness.lib.shadow_clone.dfh_remap_shadow_state()`

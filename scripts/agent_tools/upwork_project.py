@@ -121,6 +121,7 @@ def harness_hook_runner_source(primary=PRIMARY_AGENTS_DIR, *, store_dir=None) ->
 # @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_creation_publishes_supplied_site_and_reinit_keeps_the_card()`
 # @used-by :meth:`test_registration_portability.RegistrationTests.setUp()`
 # @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_registered_empty_launcher_project_tracks_pre_init_failures_and_hands_off_to_daily_project()`
+# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_new_v2_upwork_project_creates_dot_md_not_readme()`
 # @used-by :mod:`agent_tools.harness_cli`
 # @used-by :mod:`agent_tools.upwork_project`
 def initialize_upwork_project(url_or_id, domain_or_topic=None, date_str=None, daily_root=DAILY_PROPOSALS_ROOT, primary_agents_dir=PRIMARY_AGENTS_DIR, extracted_data=None, register_antigravity=None, antigravity_projects_dir=None, antigravity_folders_json=None, site_hypothesis=None, platform=None, register_native=None, all_platforms=None, launcher_root=None, conversation_id=None, topic=None):
@@ -188,6 +189,7 @@ def register_project(project, label=None, day=None, *, platform=None):
 # @used-by :meth:`test_onboarding.InitializationTests.test_resolve_or_create_reuses_unindexed_v2_project_dir()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
+# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_receipt_verifier_and_dir_resolver_support_dot_md_and_readme_bidirectional()`
 # @used-by :mod:`agent_tools.harness_cli`
 # @used-by :mod:`agent_tools.upwork_project`
 def resolve_or_create_project_dir(job_id, domain_or_topic, date_str=None, daily_root=DAILY_PROPOSALS_ROOT):

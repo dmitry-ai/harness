@@ -105,7 +105,8 @@ def _seed_project_artifacts(proj: Path) -> Path:
 	(proj / '\ua616/data/turns/abc123.json').write_text(json.dumps({'key': 'abc123', 'project_root': str(proj), 'journal': str(jdir), 'prepared': {'response_file': str(jdir / '\u227a/1\u201320/1.md')}}, ensure_ascii=False), encoding='utf-8')
 	draft_f = proj / '\ua616/data/scratch/answer-abc123.md'
 	draft_f.parent.mkdir(parents=True, exist_ok=True)
-	readme_posix = (proj / 'readme.md').as_posix()
+	# 2026-11-28 "Use .md root card via v2_upwork profile": https://github.com/dmitry-ai/harness/issues/415
+	readme_posix = (proj / '.md').as_posix()
 	draft_f.write_text(f'Ref [readme](<file:///{readme_posix}>).  \n', encoding='utf-8')
 	return journal.state_dir(jdir)
 # @used-by :meth:`ProjectRenameTests.test_rename_project_updates_folder_indexes_registrations_rules_and_journal()`

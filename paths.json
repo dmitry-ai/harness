@@ -431,6 +431,14 @@
       "auxiliary_repos": {
         "meta": "${PROJECT_META_ROOT}"
       }
+    },
+    "v2_upwork": {
+      "extends": "v2",
+      "fs_version": 2,
+      "journal_version": 3,
+      "paths": {
+        "overview_md": "${PROJECT_ROOT}/.md"
+      }
     }
   },
   "repo_verification": {

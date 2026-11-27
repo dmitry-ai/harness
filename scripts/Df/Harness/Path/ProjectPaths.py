@@ -401,6 +401,7 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.evidence_paths()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
+	# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_profile_routing_separates_upwork_and_standalone_v2_repos()`
 	@property
 	def manual_kb_dir(self) -> Path:
 		return Path(self.paths_str['manual_kb_dir'])
@@ -435,6 +436,7 @@ class ProjectPaths:
 	# @used-by :func:`Df.Harness.lib.path_state._fast_sig()`
 	# @used-by :func:`Df.Harness.lib.path_template.dfh_is_linked()`
 	# @used-by :func:`Df.Harness.lib.path_template.dfh_normalize_path_str()`
+	# @used-by :func:`Df.Harness.lib.project.dfh_resolve_overview_md()`
 	# @used-by :func:`Df.Harness.lib.research.dfh_readable_reference()`
 	# @used-by :func:`Df.Harness.lib.runtime_cache._file_stat_key()`
 	# @used-by :func:`Df.Harness.lib.runtime_validate.dfh_expand_path()`
@@ -444,7 +446,6 @@ class ProjectPaths:
 	# @used-by :func:`check_stop_gate._ensure_scripts_on_path()`
 	# @used-by :func:`conftest.configure_test_environment()`
 	# @used-by :meth:`Df.Harness.Analysis.ObservationHtmlResolver.ObservationHtmlResolver.resolve()`
-	# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.sync()`
 	# @used-by :meth:`Df.Harness.Completion.JournalReconciler.JournalReconciler.__prune_delivered_checkpoint_recovery()`
 	# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__handle_failure()`
 	# @used-by :meth:`Df.Harness.Config.NativeProfile.Applier.Applier.__rollback()`
@@ -456,8 +457,6 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Path.Registry.Registry.__init_core_maps()`
 	# @used-by :meth:`Df.Harness.Perf.SuiteWorker.SuiteWorker.main()`
 	# @used-by :meth:`Df.Harness.Project.Intake.IntakePathGuard.IntakePathGuard.plain()`
-	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync()`
-	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync_initial()`
 	# @used-by :meth:`Df.Harness.Research.LinkAuditor.LinkAuditor.__resolve_local_path_text()`
 	# @used-by :meth:`Df.Harness.Research.ObservationBundleScanner.ObservationBundleScanner.__scan_raw_html()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__find_uncovered()`
@@ -476,6 +475,9 @@ class ProjectPaths:
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_transitive_escapes_literal_dollar_in_env_and_relative_slot_anchoring()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
+	# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_custom_registry_without_v2_upwork_falls_back_to_v2()`
+	# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_legacy_v2_readme_fallback_works_across_card_consumers()`
+	# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_profile_routing_separates_upwork_and_standalone_v2_repos()`
 	# @used-by :mod:`check_markdown_slop`
 	# @used-by :mod:`check_rules_and_server_gate`
 	# @used-by :mod:`df_article`

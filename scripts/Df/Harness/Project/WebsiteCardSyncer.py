@@ -5,6 +5,7 @@ from Df.Core.lib.sha256 import df_sha256
 from Df.Harness.Project.CardSyncer import CardSyncer
 from Df.Harness.Project.Diagnostics import Diagnostics
 from Df.Harness.Project.OnceFileWriter import OnceFileWriter
+from Df.Harness.lib.project import dfh_resolve_overview_md
 import json
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -14,6 +15,7 @@ class WebsiteCardSyncer:
 	# @used-by :meth:`Df.Harness.Analysis.Publisher.Publisher.publish()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncAuditor.CardSyncAuditor.audit()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_website_and_extra_loom_coverage()`
+	# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_legacy_v2_readme_fallback_works_across_card_consumers()`
 	def __init__(self, root, value: dict, *, selections=None, check: bool=False) -> None:
 		self.__root, self.__value, self.__selections, self.__check = (root, value, selections, check)
 	# @used-by :meth:`WebsiteCardSyncer.website_issues()`
@@ -61,18 +63,21 @@ class WebsiteCardSyncer:
 			stored, lines = built
 			r = CardSyncer(pp.root, overview_md, 'websites', '\n'.join(lines) + '\n', position='after-title', check=self.__check, source=analysis_json, attributes=stored).sync()
 		return r
+	# 2026-11-28 "Use .md root card via v2_upwork profile": https://github.com/dmitry-ai/harness/issues/415
 	# @used-by :func:`agent_tools.knowledge.sync_website_card()`
 	# @used-by :meth:`Df.Harness.Analysis.Publisher.Publisher.publish()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncAuditor.CardSyncAuditor.audit()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_website_and_extra_loom_coverage()`
+	# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_legacy_v2_readme_fallback_works_across_card_consumers()`
 	def sync(self) -> dict:
 		from agent_tools.path_registry import project_paths
 		pp = project_paths(self.__root, exact_root=True)
-		overview_md = pp.path('overview_md', pp.root / '.md')
+		overview_md = dfh_resolve_overview_md(pp)
 		state = json.loads(pp.rendered_json.read_bytes()) if pp.rendered_json.exists() else {}
 		cached = state.get(str(overview_md), {}).get('managed_blocks', {}).get('websites', {}).get('data')
 		selected = self.__selections if None is not self.__selections else self.__value.get('websites', cached)
 		return {'status': 'unassessed', 'target': str(overview_md)} if None is selected else self.__sync_selected(pp, overview_md, selected)
+	# 2026-11-28 "Use .md root card via v2_upwork profile": https://github.com/dmitry-ai/harness/issues/415
 	# @used-by :func:`agent_tools.knowledge.sync_initial_website()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.__init_locked_state()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_project_knowledge_classes()`
@@ -80,7 +85,7 @@ class WebsiteCardSyncer:
 	def sync_initial(cls, root, snapshot, hypothesis=None) -> dict:
 		from agent_tools.path_registry import project_paths
 		pp = project_paths(root, exact_root=True)
-		overview_md = pp.path('overview_md', pp.root / '.md')
+		overview_md = dfh_resolve_overview_md(pp)
 		if not hypothesis:
 			source = Path(snapshot).resolve()
 			content = f'## Client and Project Website\n\nURL is not yet established by initial extraction; identification requires analysis.  \n[Source job post](<{source.relative_to(pp.root).as_posix()}#/description>).  \n'

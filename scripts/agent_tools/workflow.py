@@ -89,6 +89,7 @@ def evidence_paths(root):
 	return HashCollector.evidence_paths(root)
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_custom_overlay_end_to_end_context_workflow_text_diagnostics_and_completion_canonicalization()`
+# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_receipt_verifier_and_dir_resolver_support_dot_md_and_readme_bidirectional()`
 # @used-by :mod:`agent_tools.workflow`
 def file_hash(path):
 	return HashCollector.file_hash(path)

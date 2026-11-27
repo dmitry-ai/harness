@@ -118,17 +118,18 @@ def _parse_similar_member(item: Any, gid: str, m_idx: int) -> tuple[str, list[st
 	if not isinstance(proj_tpl, str) or not proj_tpl.strip():
 		raise ValueError(f'similar_projects.{gid}.members[{m_idx}].project must be a non-empty path string')
 	return (proj_tpl, raw_aff)
+# 2026-11-28 "Use .md root card via v2_upwork profile": https://github.com/dmitry-ai/harness/issues/415
 # @used-by :func:`dfh_infer_default_profile()`
 def _project_json_fs_profile(root: Path, agent_name: str, reg: Any, explicit_fs_version: int | None) -> str | None:
 	pjson = root / agent_name / 'project.json'
 	r: str | None = None
 	if pjson.is_file():
 		r = 'upwork'
-		if 1 != explicit_fs_version and 'v2' in reg.project_profiles:
+		if 1 != explicit_fs_version and ('v2_upwork' in reg.project_profiles or 'v2' in reg.project_profiles):
 			try:
 				pdata = json.loads(pjson.read_text(encoding='utf-8-sig'))
 				if isinstance(pdata, dict) and 2 == pdata.get('fs_version'):
-					r = 'v2'
+					r = 'v2_upwork' if 'v2_upwork' in reg.project_profiles else 'v2'
 			except (OSError, ValueError):
 				pass
 	return r
@@ -143,6 +144,16 @@ def _unwrap_v2_nested_node(path: Path, reg: Any, names: dict[str, str]) -> Path:
 				if (cand / names['agent']).is_dir() or (cand / '.agents').is_dir() or dfh_has_v2_markers(cand, reg):
 					r = cand
 					break
+	return r
+# 2026-11-28 "Use .md root card via v2_upwork profile": https://github.com/dmitry-ai/harness/issues/415
+# @used-by :func:`dfh_infer_default_profile()`
+def _v2_default_profile(root: Path, agent: str, reg: Any, has_v2_sw: bool, fallback: str) -> str:
+	if has_v2_sw:
+		r = 'v2_software'
+	elif (root / agent / 'project.json').is_file() and 'v2_upwork' in reg.project_profiles:
+		r = 'v2_upwork'
+	else:
+		r = 'v2' if 'v2' in reg.project_profiles else fallback
 	return r
 # @used-by :func:`dfh_validate_overlay()`
 def _validate_overlay_scalars(fs_ver: Any, j_ver: Any, tracked: Any, profile: Any, overlay_path: Path, reg: Any) -> None:
@@ -234,6 +245,7 @@ def dfh_has_v2_markers(root: Path, reg: Any) -> bool:
 	rv = reg.resolved_variables
 	book, art, art_out, art_in = (rv.get('BOOK_DIR_NAME', '\U0001f56e'), rv.get('ARTIFACTS_DIR_NAME', '\u2c0f'), rv.get('ARTIFACTS_OUT_DIR_NAME', '\u227b'), rv.get('ARTIFACTS_IN_DIR_NAME', '\u227a'))
 	return (root / book).is_dir() or (root / art / art_out).is_dir() or (root / art / art_in).is_dir() or (root / 'Artifacts' / art_out).is_dir() or (root / 'Artifacts' / art_in).is_dir()
+# 2026-11-28 "Use .md root card via v2_upwork profile": https://github.com/dmitry-ai/harness/issues/415
 # @used-by :func:`Df.Harness.lib.path_resolve._build_or_fetch_project_paths()`
 # @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__init_overlay_and_profile()`
 def dfh_infer_default_profile(root: Path, overlay_file: Path | None, reg: Any, *, explicit_fs_version: int | None=None) -> str:
@@ -241,11 +253,11 @@ def dfh_infer_default_profile(root: Path, overlay_file: Path | None, reg: Any, *
 	meta, agent, j_name = (rv.get('META_DIR_NAME', '_'), rv.get('AGENT_DIR_NAME', '\ua616'), rv.get('JOURNAL_DIR_NAME', '\ua66e'))
 	has_v2_sw = (dfh_v2_software_deliverable_dir(root, reg) / '.git').exists() and 'v2_software' in reg.project_profiles
 	if 2 == explicit_fs_version:
-		r = 'v2_software' if has_v2_sw else ('v2' if 'v2' in reg.project_profiles else 'default')
+		r = _v2_default_profile(root, agent, reg, has_v2_sw, 'default')
 	elif (None is not overlay_file and overlay_file.parent.name == agent and overlay_file.parent.parent.name == meta) or ((root / meta).is_dir() and ((root / 'code').is_dir() or (root / meta / j_name).is_dir() or (root / meta / agent).is_dir())):
 		r = 'dual_repo'
 	elif 1 != explicit_fs_version and dfh_has_v2_markers(root, reg) and (has_v2_sw or 'v2' in reg.project_profiles):
-		r = 'v2_software' if has_v2_sw else 'v2'
+		r = _v2_default_profile(root, agent, reg, has_v2_sw, 'v2')
 	else:
 		pjson_prof = _project_json_fs_profile(root, agent, reg, explicit_fs_version)
 		r = pjson_prof if None is not pjson_prof else 'default'

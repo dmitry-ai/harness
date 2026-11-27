@@ -117,6 +117,7 @@ class TemporaryCase(unittest.TestCase):
 	# @used-by :meth:`test_text_core.ArticleIntegrityTests.test_render_diff_never_writes_target_and_force_cannot_publish_invalid_links()`
 	# @used-by :meth:`test_text_core.ReplayTests.test_missing_output_uncovered_selector_and_empty_document_are_not_success()`
 	# @used-by :meth:`test_text_core.SharedMechanicsTests.test_identical_answer_does_not_prove_nonexecution()`
+	# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_custom_registry_without_v2_upwork_falls_back_to_v2()`
 	def put(self, name, text):
 		path = self.root / name
 		path.parent.mkdir(parents=True, exist_ok=True)

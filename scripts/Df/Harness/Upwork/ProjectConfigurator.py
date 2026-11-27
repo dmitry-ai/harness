@@ -85,18 +85,21 @@ class ProjectConfigurator:
 		if 'codex' in (cfg.get('platforms') or {}):
 			configure_codex_project(self.__root, self.__primary, self.__job_url, self.__domain_or_topic)
 		return agents
+	# 2026-11-28 "Use .md root card via v2_upwork profile": https://github.com/dmitry-ai/harness/issues/415
 	# @used-by :func:`agent_tools.upwork_project.default_context_config()`
 	# @used-by :meth:`ProjectConfigurator.__sync_context_config()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_project_management_classes()`
+	# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_legacy_v2_readme_fallback_works_across_card_consumers()`
 	@staticmethod
 	def default_context_config(root: Path | None=None) -> dict:
 		out_rel, overview_rel, manual_kb_glob, agent_kb_glob, ev_excl, journal_rel, proposals_rel, letters_my, letters_client = ('ꙮ/0/Context.md', '.md', 'KB/**/*.md', 'ꘖ/KB/**/*.md', '\ua616/KB/Evidence/**', 'ꙮ', 'result', 'Letters/my', 'Letters/client')
 		if None is not root:
 			from agent_tools.path_registry import project_paths
+			from Df.Harness.lib.project import dfh_resolve_overview_md
 			pp = project_paths(root, exact_root=True)
 			if pp.context_output.is_relative_to(pp.root):
 				out_rel = pp.context_output.relative_to(pp.root).as_posix()
-			overview_rel = pp.rel_to_root(pp.path('overview_md', pp.root / '.md'))
+			overview_rel = pp.rel_to_root(dfh_resolve_overview_md(pp))
 			manual_kb_glob, agent_kb_glob, ev_excl = (f'{pp.rel_to_root(pp.manual_kb_dir)}/**/*.md', f'{pp.rel_to_root(pp.kb_dir)}/**/*.md', f'{pp.rel_to_root(pp.evidence_dir)}/**')
 			journal_rel, proposals_rel = (pp.rel_to_root(pp.journal_dir), pp.rel_to_root(pp.path('proposals_dir', pp.root / 'result')))
 			let_rel = pp.rel_to_root(pp.path('letters_dir', pp.root / 'Letters'))

@@ -5,6 +5,7 @@ from Df.Harness.Project.Diagnostics import Diagnostics
 from Df.Harness.Workflow.AnalysisCardAuditor import AnalysisCardAuditor
 from Df.Harness.Workflow.AttachmentAuditor import AttachmentAuditor
 from Df.Harness.Workflow.KbAuditor import KbAuditor
+from Df.Harness.lib.project import dfh_resolve_overview_md
 _SCRIPT_EXTS = ('.py', '.ps1', '.sh', '.bat', '.cmd')
 _DOC_EXTS = ('.md', '.markdown', '.txt', '.html', '.htm')
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
@@ -17,6 +18,7 @@ class HealthAuditor:
 	# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_workflow_classes_and_shared_attachment_inventory()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests._exercise_stage_completer_and_auditors()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_workflow_question_registry_and_auditors()`
+	# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_legacy_v2_readme_fallback_works_across_card_consumers()`
 	def __init__(self, root, *, analysis_issues_fn=None, evidence_issues_fn=None, drift_fn=None) -> None:
 		from agent_tools.path_registry import project_paths
 		self.pp = project_paths(root, exact_root=True)
@@ -24,11 +26,12 @@ class HealthAuditor:
 		self.__analysis_issues_fn = analysis_issues_fn
 		self.__evidence_issues_fn = evidence_issues_fn
 		self.__drift_fn = drift_fn
+	# 2026-11-28 "Use .md root card via v2_upwork profile": https://github.com/dmitry-ai/harness/issues/415
 	# @used-by :meth:`HealthAuditor.check_project()`
 	def __check_deliverable_links(self, issues: list[dict]) -> None:
 		from agent_tools.links import readable_link_issues
 		d_dirs = list(dict.fromkeys((d.resolve() for d in (self.pp.path('proposals_dir', self.root / 'result'), self.pp.path('letters_dir', self.root / 'Letters'), self.pp.path('articles_dir', self.root / '\u2c0f/\u227b/\u2655/\U0001f582/Articles'), self.root / 'result') if d.is_dir())))
-		overview = self.pp.path('overview_md', self.root / '.md')
+		overview = dfh_resolve_overview_md(self.pp)
 		docs = list({p.resolve(): p for d in d_dirs for p in sorted(d.rglob('*'))}.values())
 		for document in [overview, *docs]:
 			if document.is_file() and 'draft.prev.md' != document.name and ('.md' == document.name or document.suffix.lower() in _DOC_EXTS):
@@ -57,6 +60,7 @@ class HealthAuditor:
 	# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.__init__()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests._exercise_stage_completer_and_auditors()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests.test_workflow_question_registry_and_auditors()`
+	# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_legacy_v2_readme_fallback_works_across_card_consumers()`
 	def check_project(self, *, prevalidated_analysis=None) -> dict:
 		from agent_tools.journal_integrity import finalize_project_check
 		issues = self.kb_issues() + self.attachment_issues()

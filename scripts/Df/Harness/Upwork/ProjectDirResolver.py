@@ -29,6 +29,7 @@ class ProjectDirResolver:
 				found = child
 				break
 		return (found, numbers)
+	# 2026-11-28 "Use .md root card via v2_upwork profile": https://github.com/dmitry-ai/harness/issues/415
 	# @used-by :meth:`ProjectDirResolver.__find_existing()`
 	@staticmethod
 	def __matches_job(child: Path, job_id: str) -> bool:
@@ -40,7 +41,7 @@ class ProjectDirResolver:
 			except Exception:
 				matched_state = False
 		urls = (JobUrlParser.canonical_job_url(job_id), f'https://www.upwork.com/jobs/{job_id}')
-		return matched_state or any((ov.is_file() and any((u in ov.read_text(encoding='utf-8') for u in urls)) for ov in (child / 'readme.md', child / '.md')))
+		return matched_state or any((ov.is_file() and any((u in ov.read_text(encoding='utf-8') for u in urls)) for ov in (child / '.md', child / 'readme.md')))
 	# @used-by :meth:`ProjectDirResolver.resolve_or_create()`
 	@staticmethod
 	def __resolve_indexed(daily: Path, rel_entry: str) -> Path:
