@@ -1702,6 +1702,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_dotpy_bootstrap`
 	# @used-by :mod:`test_df_harness_dedup_s8`
 	# @used-by :mod:`test_df_harness_lib_s10`
+	# @used-by :mod:`test_df_harness_s11_wave2a_facade_exports`
 	# @used-by :mod:`test_df_harness_s11_wave2a_project_ext`
 	# @used-by :mod:`test_df_harness_s11_wave2a_review`
 	# @used-by :mod:`test_df_harness_s11_wave2a_upwork`

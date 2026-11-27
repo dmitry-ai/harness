@@ -92,6 +92,8 @@ def format_table_bullet_rows(rows: list[list[str]], headers: list[str] | None=No
 # @used-by :mod:`agent_tools.upwork_data`
 def markdown_fence(text: str, marker: str='~') -> str:
 	return MarkdownTableSanitizer.markdown_fence(text, marker)
+# @used-by :meth:`test_df_harness_s11_wave2a_facade_exports.DfHarnessS11Wave2aFacadeExportsTests.test_upwork_project_facade_reexports_normalize_job_id()`
+# @used-by :meth:`test_resume_exports.ResumeExportTests.test_native_requests_preserve_exact_bytes_and_current_job_scope()`
 # @used-by :mod:`agent_tools.upwork_data`
 def normalize_job_id(url_or_id: str) -> str:
 	return JobUrlParser.normalize_job_id(url_or_id)

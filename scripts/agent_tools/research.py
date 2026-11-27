@@ -155,7 +155,9 @@ def classify_network_error(exc):
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.begin()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.save_index()`
+# @used-by :meth:`test_df_harness_s11_wave2a_facade_exports.DfHarnessS11Wave2aFacadeExportsTests.test_review_facade_reexports_json_data()`
 # @used-by :meth:`test_falsifier_default_send_message_and_schedule_m8.FalsifierDefaultSendMessageAndScheduleM8Tests._native_record()`
+# @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 # @used-by :meth:`test_review_contract.ReviewContractTests.native_record()`
 # @used-by :meth:`test_review_contract.ReviewContractTests.self_record()`
 # @used-by :meth:`test_review_contract.ReviewContractTests.test_audit_must_explain_falsifiability_and_compare_raw_criteria()`

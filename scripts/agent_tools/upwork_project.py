@@ -14,6 +14,7 @@ from Df.Harness.Upwork.ProjectInitializer import ProjectInitializer
 from pathlib import Path
 from .platforms.antigravity import ANTIGRAVITY_FOLDERS_JSON, ANTIGRAVITY_PROJECTS_DIR, register as register_antigravity_default, register_antigravity_project
 from .runtime import HARNESS_META, PRIMARY as PRIMARY_AGENTS_DIR, all_instances, extract_platform_instances, find_conversation_instance, instance_entry, platform_active, platform_homes, platform_instances, platform_name, platform_settings, request_day, role_settings, settings, using
+from .upwork_data import normalize_job_id
 from .upwork_extract import attachment_path, extract_upwork_job
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 WORKSPACE_ROOT = Path(settings()['workspace_root']).resolve()

@@ -234,9 +234,9 @@ class DfHarnessS11Wave2aUpworkTests(unittest.TestCase):
 				else:
 					r = {'result': {'value': {'nuxt': nuxt_main, 'readyState': 'complete'}}}
 				return r
-		cfg = {'workspace_root': tempfile.gettempdir(), 'text': {'browser': {'primary_session_id': 's1', 'sessions': {'s1': {'surface': 'browser', 'endpoint': 'http://127.0.0.1:9222'}}}}}
 		rep = {'valid': True, 'endpoint': 'http://127.0.0.1:9222', 'profile': {'browser_context_id': 'ctx1', 'anchor_target_id': 'anc1'}}
 		with tempfile.TemporaryDirectory() as tmp, mock.patch('agent_tools.text_browser.preflight', return_value=rep), mock.patch('agent_tools.text_browser.discover_cdp_browser', return_value=({}, [], 'ws://127.0.0.1:9222/b')), mock.patch('agent_tools.text_browser.CDPSession', return_value=_Mux()), mock.patch('agent_tools.text_browser._query_target_infos', return_value=[]), mock.patch('agent_tools.text_browser.GuardedCDP._broker_remove_tab', return_value=None), mock.patch.object(AttachmentDownloader, 'download', return_value={'filename': 'a.txt', 'bytes': 1}):
+			cfg = {'workspace_root': tmp, 'text': {'browser': {'primary_session_id': 's1', 'sessions': {'s1': {'surface': 'browser', 'endpoint': 'http://127.0.0.1:9222'}}}}}
 			out = JobExtractor('~02main', attachments_dir=Path(tmp), config=cfg, cdp_call=lambda *a, **kw: {}).extract()
 		self.assertEqual('~02main', out['job_id'])
 		self.assertIn('~02rel', out['related_descriptions'])

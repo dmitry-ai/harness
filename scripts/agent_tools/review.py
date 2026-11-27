@@ -23,7 +23,7 @@ from Df.Harness.Review.ReviewAuthorizer import ReviewAuthorizer
 from Df.Harness.Review.VerdictPreparer import VerdictPreparer
 from Df.Harness.Review.VerdictRecorder import VerdictRecorder
 from Df.Qa.lib.validation.check_strict import df_is_sne
-from .research import inside
+from .research import inside, json_data
 # @used-by :func:`_approved_digests()`
 # @used-by :func:`approval_current()`
 # @used-by :func:`authorize()`

@@ -16,6 +16,7 @@ import json
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class StageCompleter:
 	# @used-by :meth:`Df.Harness.Workflow.StageEngine.StageEngine.complete_stage()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_facade_exports.DfHarnessS11Wave2aFacadeExportsTests.test_stage_completer_passes_platform_and_targets_to_registry_register()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests._exercise_stage_completer_and_auditors()`
 	def __init__(self, root, stage: str, inputs: list, outputs: list, *, note=None, engine=None, check_project_fn=None, authorize_fn=None, drift_fn=None, update_fn=None) -> None:
 		from agent_tools.path_registry import project_paths
@@ -86,6 +87,7 @@ class StageCompleter:
 			if dependent in state['stages']:
 				state['stages'][dependent].update(status='stale', invalidated_by=self.__stage)
 	# @used-by :meth:`Df.Harness.Workflow.StageEngine.StageEngine.complete_stage()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_facade_exports.DfHarnessS11Wave2aFacadeExportsTests.test_stage_completer_passes_platform_and_targets_to_registry_register()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_workflow.DfHarnessS11Wave2aWorkflowTests._exercise_stage_completer_and_auditors()`
 	def complete(self) -> dict:
 		if self.__stage not in STAGES or not self.__inputs or (not self.__outputs):
@@ -93,7 +95,7 @@ class StageCompleter:
 		if self.__stage in ('identity_init', 'finalize'):
 			reg = RegistrationStatusChecker(self.__root).status() if None is self.__engine else self.__engine.registration_status()
 			if reg['required'] and (not reg['all_registered']):
-				Registry(self.__root, platform=reg['platform'], targets=[reg['platform'], *reg['pending_targets']]).register()
+				Registry(self.__root).register(platform=reg['platform'], targets=[reg['platform'], *reg['pending_targets']])
 				if None is not self.__engine:
 					self.__engine.invalidate_caches()
 		in_hashes = HashCollector(self.__root, self.__inputs).collect()

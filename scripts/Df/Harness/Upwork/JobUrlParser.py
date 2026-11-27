@@ -59,7 +59,6 @@ class JobUrlParser:
 	# @used-by :meth:`Df.Harness.Workflow.WorkflowResumer.WorkflowResumer.__apply()`
 	# @used-by :meth:`JobUrlParser.canonical_job_url()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_upwork.DfHarnessS11Wave2aUpworkTests.test_upwork_data_parsers_and_formatters()`
-	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_native_requests_preserve_exact_bytes_and_current_job_scope()`
 	@staticmethod
 	def normalize_job_id(url_or_id: str) -> str:
 		match = re.search('(~0[12][0-9a-zA-Z]+)', url_or_id.strip())
