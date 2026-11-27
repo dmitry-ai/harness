@@ -16,7 +16,6 @@ def clear_observation_cache() -> None:
 # @used-by :mod:`agent_tools.evidence_loader`
 def is_valid_observation_status(meta: dict) -> bool:
 	return (not meta.get('error')) and ('dom' == meta.get('kind') or 200 <= (meta.get('status') or 0) < 300)
-# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor._analysis_card_issues()`
 # @used-by :mod:`agent_tools.evidence_loader`
 def load_analysis_card_validation(root, path: Path, prevalidated, *, analysis_issues_fn, evidence_issues_fn) -> tuple[dict | None, list, list]:
 	return CardValidationLoader(root, path, prevalidated, analysis_issues_fn=analysis_issues_fn, evidence_issues_fn=evidence_issues_fn).load()

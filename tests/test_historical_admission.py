@@ -55,7 +55,6 @@ class Later(datetime):
 	# @used-by :func:`agent_tools.text_sources._evaluate()`
 	# @used-by :func:`agent_tools.upwork_extract.extract_upwork_job()`
 	# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
-	# @used-by :func:`agent_tools.workflow.now()`
 	# @used-by :func:`test_worktree_isolation_gate._write_turn()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.record_review()`
 	# @used-by :meth:`Df.Harness.Experiment.PlanPreparer.PlanPreparer.prepare_plan()`
@@ -65,6 +64,7 @@ class Later(datetime):
 	# @used-by :meth:`Df.Harness.Project.RegistrationAttemptStarter.RegistrationAttemptStarter.__build_entry()`
 	# @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.__build_entry()`
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
+	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.utc_now()`
 	# @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
 	# @used-by :meth:`agent_tools.text_browser.GuardedCDP.capture_authenticated_dom()`
 	# @used-by :meth:`test_cleanup.CleanupTests.test_legacy_conflicting_job_or_unowned_manifests_never_authorize_deletion()`

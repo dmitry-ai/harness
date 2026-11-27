@@ -21,6 +21,14 @@ class Diagnostics:
 	# @used-by :meth:`Df.Harness.Project.CardSyncAuditor.CardSyncAuditor.__identity_mismatches()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncAuditor.CardSyncAuditor.audit()`
 	# @used-by :meth:`Df.Harness.Project.DriftAuditor.DriftAuditor.audit()`
+	# @used-by :meth:`Df.Harness.Workflow.AnalysisCardAuditor.AnalysisCardAuditor.issues()`
+	# @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.__check_attachment()`
+	# @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.__check_image()`
+	# @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.__check_videos()`
+	# @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.issues()`
+	# @used-by :meth:`Df.Harness.Workflow.HealthAuditor.HealthAuditor.__check_deliverable_links()`
+	# @used-by :meth:`Df.Harness.Workflow.HealthAuditor.HealthAuditor.__check_one_off_scripts()`
+	# @used-by :meth:`Df.Harness.Workflow.KbAuditor.KbAuditor.issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_diagnostics_and_label_classes()`
 	def __init__(self, *, clean_null=None) -> None:
 		self.__clean_null = df_clean_null if None is clean_null else clean_null
@@ -42,6 +50,14 @@ class Diagnostics:
 	# @used-by :meth:`Df.Harness.Project.CardSyncAuditor.CardSyncAuditor.__identity_mismatches()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncAuditor.CardSyncAuditor.audit()`
 	# @used-by :meth:`Df.Harness.Project.DriftAuditor.DriftAuditor.audit()`
+	# @used-by :meth:`Df.Harness.Workflow.AnalysisCardAuditor.AnalysisCardAuditor.issues()`
+	# @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.__check_attachment()`
+	# @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.__check_image()`
+	# @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.__check_videos()`
+	# @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.issues()`
+	# @used-by :meth:`Df.Harness.Workflow.HealthAuditor.HealthAuditor.__check_deliverable_links()`
+	# @used-by :meth:`Df.Harness.Workflow.HealthAuditor.HealthAuditor.__check_one_off_scripts()`
+	# @used-by :meth:`Df.Harness.Workflow.KbAuditor.KbAuditor.issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_diagnostics_and_label_classes()`
 	def problem(self, code, field, message, *, claim_id=None, file=None, hint=None, severity='error') -> dict:
 		if None is hint:

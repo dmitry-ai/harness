@@ -5,6 +5,7 @@ from Df.Qa.lib.validation.check_strict import df_is_sne
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class FalsifierValidator:
 	# @used-by :meth:`Df.Harness.Review.ReportValidator.ReportValidator.validate()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests._exercise_validator_branches()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_review_report_validator_classes()`
 	def __init__(self, package: dict, expected: set[str], pkg_root: Path | None) -> None:
 		self.__package = package
@@ -37,6 +38,7 @@ class FalsifierValidator:
 		if df_is_sne(src_str):
 			self.__check_tier0_source(cid_val, src_str, dc.get('verbatim_quote_from_source'), issues)
 	# @used-by :meth:`Df.Harness.Review.ReportValidator.ReportValidator.validate()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests._exercise_validator_branches()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_review_report_validator_classes()`
 	def check(self, data: dict, issues: list[str]) -> None:
 		disproved = data.get('disproved_claims')

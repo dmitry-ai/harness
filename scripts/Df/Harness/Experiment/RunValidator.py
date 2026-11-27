@@ -13,6 +13,7 @@ class RunValidator:
 	MODE_PATTERNS = MODE_PATTERNS
 	# @used-by :func:`agent_tools.experiments.evaluate_assertions()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_experiment_plan_and_run_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_experiment_extra_branches()`
 	def __init__(self, root, run: dict, contents=None) -> None:
 		self.root = Path(root).resolve() if None is not root else None
 		self.run = run
@@ -24,6 +25,7 @@ class RunValidator:
 	def capabilities(self) -> list[str]:
 		return CapabilityResolver(self.run).capabilities()
 	# @used-by :func:`agent_tools.experiments.evaluate_assertions()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_experiment_extra_branches()`
 	def evaluate_assertions(self) -> dict:
 		return AssertionEvaluator(self.run, self.contents, self.events).evaluate()
 	# @used-by :func:`agent_tools.experiments.load_experiment()`
@@ -32,9 +34,11 @@ class RunValidator:
 	def load(cls, root, reference: str) -> dict:
 		return RunLoader(root, reference).load_run()
 	# @used-by :meth:`RunValidator.run_issues()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_experiment_extra_branches()`
 	def native_texts(self, ids: list) -> list[dict]:
 		return [self.events[nid] for ident in ids if isinstance(ident, str) and (nid := self.artifacts.get(ident, {}).get('native_event_id')) in self.events]
 	# @used-by :func:`agent_tools.experiments.record_experiment()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_experiment_extra_branches()`
 	@classmethod
 	def record(cls, root, specification, *, tool_trace=None) -> dict:
 		return RunRecorder(root, specification, tool_trace=tool_trace).record_run()

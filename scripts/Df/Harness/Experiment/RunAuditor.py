@@ -13,6 +13,7 @@ class RunAuditor:
 	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__audit_run()`
 	# @used-by :meth:`Df.Harness.Experiment.RunValidator.RunValidator.run_issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_experiment_validators_and_evaluators()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_experiment_extra_branches()`
 	def __init__(self, run: dict, artifacts: dict, events: dict, native_texts_fn) -> None:
 		self.__run = run
 		self.__artifacts = artifacts
@@ -68,6 +69,7 @@ class RunAuditor:
 	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__audit_run()`
 	# @used-by :meth:`Df.Harness.Experiment.RunValidator.RunValidator.run_issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_experiment_validators_and_evaluators()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_experiment_extra_branches()`
 	def issues(self) -> list[str]:
 		r = self.__check_header()
 		if not r:

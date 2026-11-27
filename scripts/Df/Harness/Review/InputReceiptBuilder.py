@@ -13,21 +13,23 @@ _OPT_KEYS = ('kind', 'goal', 'diff', 'operation', 'check', 'manifest', 'source_c
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class InputReceiptBuilder:
 	# @used-by :func:`agent_tools.review.input_receipt()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_review_lifecycle_and_validators_extra()`
 	def __init__(self, root, package: str, *, package_reader=None, inside_fn=None) -> None:
 		self.__root = root
 		self.__package = package
 		self.__package_reader = package_reader
 		self.__inside = inside if None is inside_fn else inside_fn
 	# @used-by :func:`agent_tools.review.input_receipt()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_review_lifecycle_and_validators_extra()`
 	def build(self) -> dict:
+		from Df.Harness.Workflow.HashCollector import HashCollector
 		from agent_tools.runtime import platform_name
-		from agent_tools.workflow import file_hash
 		data = PackageReader(self.__root, self.__package, inside_fn=self.__inside).read_package() if None is self.__package_reader else self.__package_reader(self.__root, self.__package)
 		reviewer = os.environ.get('CODEX_THREAD_ID') or os.environ.get('ANTIGRAVITY_CONVERSATION_ID')
 		if not reviewer and 'codex' == platform_name() and os.environ.get('CODEX_HOME'):
 			raise ValueError('Native Codex reviewer thread ID is unavailable')
 		handler = PackageReader.package_handler(data.get('kind'))
-		pkg_sha = file_hash(self.__inside(self.__root, self.__package))
+		pkg_sha = HashCollector.file_hash(self.__inside(self.__root, self.__package))
 		base_contract = handler['contract_factory']() if None is not handler and None is not handler.get('contract_factory') else dict(REPORT_CONTRACT)
 		contract = ContractBinder(base_contract, self.__package, pkg_sha, data.get('review_mode')).bind()
 		return {'upwork_review_input': 1, 'review_schema_version': REVIEW_SCHEMA, 'verified': True, 'project_root': str(Path(self.__root).resolve()), 'job_id': data['job_id'], **{k: data[k] for k in ('project_id', 'project_kind') if k in data}, 'parent_id': data['parent_id'], 'reviewer_id': reviewer, 'package': self.__package, 'package_sha256': pkg_sha, 'kb_inputs': data['kb_inputs'], 'evidence_inputs': data['evidence_inputs'], 'requests': data['requests'], 'response': data['response'], 'claims': data['claims'], 'claim_targets': ClaimTargetBuilder(data.get('claims')).build(), 'risk': data['risk'], 'report_contract': contract, **{k: data[k] for k in _OPT_KEYS if k in data}}

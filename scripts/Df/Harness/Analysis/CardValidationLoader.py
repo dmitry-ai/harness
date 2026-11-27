@@ -5,6 +5,7 @@ import json
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class CardValidationLoader:
 	# @used-by :func:`agent_tools.evidence_loader.load_analysis_card_validation()`
+	# @used-by :meth:`Df.Harness.Workflow.AnalysisCardAuditor.AnalysisCardAuditor.issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_evidence_and_observation_classes()`
 	def __init__(self, root, path: Path, prevalidated, *, analysis_issues_fn, evidence_issues_fn) -> None:
 		self.__root = root
@@ -13,6 +14,7 @@ class CardValidationLoader:
 		self.__analysis_issues_fn = analysis_issues_fn
 		self.__evidence_issues_fn = evidence_issues_fn
 	# @used-by :func:`agent_tools.evidence_loader.load_analysis_card_validation()`
+	# @used-by :meth:`Df.Harness.Workflow.AnalysisCardAuditor.AnalysisCardAuditor.issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_evidence_and_observation_classes()`
 	def load(self) -> tuple[dict | None, list, list]:
 		if None is not self.__prevalidated:

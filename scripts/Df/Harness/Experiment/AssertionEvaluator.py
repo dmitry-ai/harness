@@ -12,6 +12,7 @@ class AssertionEvaluator:
 	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__audit_run()`
 	# @used-by :meth:`Df.Harness.Experiment.RunValidator.RunValidator.evaluate_assertions()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_experiment_validators_and_evaluators()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_experiment_extra_branches()`
 	def __init__(self, run: dict, contents: dict, events: dict) -> None:
 		self.__run = run
 		self.__contents = contents
@@ -94,6 +95,7 @@ class AssertionEvaluator:
 	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__audit_run()`
 	# @used-by :meth:`Df.Harness.Experiment.RunValidator.RunValidator.evaluate_assertions()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_experiment_validators_and_evaluators()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_experiment_extra_branches()`
 	def evaluate(self) -> dict:
 		results = [self.__evaluate_one(a) for a in self.__run['requirement'].get('assertions', [])]
 		statuses = {item['status'] for item in results}

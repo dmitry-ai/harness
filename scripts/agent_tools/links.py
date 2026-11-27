@@ -57,9 +57,9 @@ def readable_reference(value: str | Path) -> str:
 # @used-by :func:`agent_tools.knowledge.sync_website_card()`
 # @used-by :func:`agent_tools.upwork_data.format_kb_project_md()`
 # @used-by :meth:`Df.Harness.Analysis.Renderer.Renderer.render()`
+# @used-by :meth:`Df.Harness.Workflow.ProgressPublisher.ProgressPublisher.publish()`
 # @used-by :meth:`agent_tools.upwork_data.DocxMarkdownExtractor._render_link()`
 # @used-by :meth:`agent_tools.upwork_data.PdfMarkdownExtractor._collect_visual_lines()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.publish_progress()`
 # @used-by :meth:`test_readable_links.ReadableReferenceTests.test_cli_readability_check_catches_original_encoding_and_accepts_readable_destination()`
 # @used-by :meth:`test_readable_links.ReadableReferenceTests.test_original_file_uri_becomes_a_readable_local_reference()`
 # @used-by :meth:`test_readable_links.ReadableReferenceTests.test_query_signatures_delimiters_literal_percent_and_invalid_utf8_are_preserved()`
@@ -79,9 +79,9 @@ def markdown_link(label: str | None, target: str | Path) -> str:
 # https://github.com/dmitry-ai/harness/issues/230
 # 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
 # @used-by :func:`agent_tools.completion._response_link_issues()`
+# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.record()`
+# @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.run()`
 # @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor.__init__()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.record_current_answer()`
 # @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_chat_reply_link_issues_allows_unencoded_file_uri_and_rejects_encoded()`
 # @used-by :meth:`test_repo_link_gate.RepoLinkGateTests.test_rejects_file_uri_to_github_repo_and_allows_non_repo_and_gitignored_files()`
 # @used-by :meth:`test_repo_link_gate.RepoLinkGateTests.test_validates_github_blob_and_tree_tags_paths_lines_and_anchors()`
@@ -105,7 +105,7 @@ def decode_file_uri(reference: str, *, reject_remote: bool=False) -> str:
 # @used-by :func:`validate_content()`
 # @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.__check_links()`
 # @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__validate_inputs()`
-# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.check_project()`
+# @used-by :meth:`Df.Harness.Workflow.HealthAuditor.HealthAuditor.__check_deliverable_links()`
 # @used-by :meth:`test_chat_reply_link_issues_m5.ChatReplyLinkIssuesM5Tests.test_chat_reply_link_issues_allows_unencoded_file_uri_and_rejects_encoded()`
 # @used-by :meth:`test_readable_links.ReadableProjectTests.test_analysis_sources_are_readable_while_quotes_keep_their_exact_bytes()`
 # @used-by :meth:`test_readable_links.ReadableReferenceTests.test_docx_hyperlinks_are_readable_without_altering_their_visible_source_text()`
@@ -366,8 +366,8 @@ def heading_anchors(content: str) -> set[str]:
 # @used-by :func:`agent_tools.cli.main()`
 # @used-by :func:`agent_tools.journal_integrity.validate_step_cli()`
 # @used-by :meth:`Df.Harness.Gate.RulesAuditChecker.RulesAuditChecker.check_links_and_blind_references()`
+# @used-by :meth:`Df.Harness.Workflow.KbAuditor.KbAuditor.issues()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.check_commit()`
-# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.kb_issues()`
 # @used-by :meth:`test_arch_audit_gates.ArchAuditGatesTests.test_stage4_docs_document_arch_audit_gate_and_lint_cleanly()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_native_profiles_generates_arch_auditor_for_antigravity_and_codex()`
 # @used-by :meth:`test_arch_rules_contract.ArchRulesContractTests.test_architecture_rule_is_compact_always_on_and_passes_doctor_and_rules_audit()`

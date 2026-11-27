@@ -154,12 +154,12 @@ def _validate_runtime(value):
 # @used-by :func:`resolve_codex_paths()`
 # @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.resolve_ag_paths_safe()`
 # @used-by :meth:`Df.Harness.Project.Registry.Registry.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.RegistrationStatusChecker.RegistrationStatusChecker.status()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
 # @used-by :meth:`agent_tools.text_browser.CDPSession.__init__()`
 # @used-by :meth:`agent_tools.text_browser.GuardedCDP.__init__()`
 # @used-by :meth:`agent_tools.text_browser.ManagedHeadlessShell.__init__()`
 # @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner.__init__()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.registration_status()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_native_profiles_generates_arch_auditor_for_antigravity_and_codex()`
 # @used-by :meth:`test_cleanup.CleanupTests.setUp()`
 # @used-by :meth:`test_cleanup_audit.CleanupAuditTests.setUp()`
@@ -401,8 +401,8 @@ def platform_homes(platform, *, config=None, include_disabled=False):
 # @used-by :func:`enabled_platforms()`
 # @used-by :func:`platform_name()`
 # @used-by :meth:`Df.Harness.Project.Registry.Registry.__resolve_targets()`
+# @used-by :meth:`Df.Harness.Workflow.RegistrationStatusChecker.RegistrationStatusChecker.status()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.registration_status()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_live_runtime_declares_environments_instances_enabled_states_and_system_paths()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_platform_enabled_false_disables_all_instances_of_environment()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_single_enabled_codex_instance_works_with_shared_catalog_superset()`
@@ -825,8 +825,8 @@ def resolve_codex_paths(backend=None, *, instance=None, conversation_id=None, co
 # @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.__init__()`
 # @used-by :meth:`Df.Harness.Project.Registry.Registry.register()`
 # @used-by :meth:`Df.Harness.Review.InputReceiptBuilder.InputReceiptBuilder.build()`
+# @used-by :meth:`Df.Harness.Workflow.RegistrationStatusChecker.RegistrationStatusChecker.status()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.__init__()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.registration_status()`
 def platform_name(value=None, *, config=None):
 	cfg_all = config or settings()
 	plats = cfg_all['platforms']
@@ -853,9 +853,9 @@ def platform_name(value=None, *, config=None):
 	r = name
 	return r
 # @used-by :func:`agent_tools.configuration.global_codex_instructions()`
-# @used-by :func:`agent_tools.workflow._target_complete()`
 # @used-by :func:`registration_profile_name()`
 # @used-by :func:`resolve_codex_home()`
+# @used-by :meth:`Df.Harness.Workflow.RegistrationStatusChecker.RegistrationStatusChecker.__resolve_profile()`
 # @used-by :meth:`test_registration_portability.RegistrationProfileTests.test_registration_only_fallback_does_not_relax_native_evidence_profile()`
 def profile_name(value=None, *, config=None, include_disabled=True):
 	cfg_all = config or settings()
@@ -881,7 +881,7 @@ def profile_name(value=None, *, config=None, include_disabled=True):
 		r = matches[0]
 	return r
 # @used-by :func:`agent_tools.platforms.codex.register()`
-# @used-by :func:`agent_tools.workflow._target_complete()`
+# @used-by :meth:`Df.Harness.Workflow.RegistrationStatusChecker.RegistrationStatusChecker.__resolve_profile()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_custom_adapter_platform_keys_and_instruction_snapshot()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_platform_enabled_false_disables_all_instances_of_environment()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_single_enabled_codex_instance_works_with_shared_catalog_superset()`

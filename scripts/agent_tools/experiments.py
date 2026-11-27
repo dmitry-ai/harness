@@ -76,13 +76,10 @@ def prepare_experiment(root, requirement, *, amendment_of=None, amendment_reason
 # @used-by :mod:`agent_tools.experiments`
 def record_experiment(root, specification, *, tool_trace=None):
 	return ExperimentRunValidator.record(root, specification, tool_trace=tool_trace)
-# @used-by :meth:`agent_tools.workflow.ResearchQuestionRegistry.add()`
-# @used-by :meth:`agent_tools.workflow.ResearchQuestionRegistry.contract_issues()`
 # @used-by :meth:`test_schema_help_and_analysis_merge_m10.SchemaHelpAndAnalysisMergeM10Tests.test_validators_emit_actionable_hints()`
 # @used-by :mod:`agent_tools.experiments`
 def requirement_issues(requirements):
 	return RequirementValidator(requirements).issues()
-# @used-by :meth:`agent_tools.workflow.ResearchQuestionRegistry.contract_issues()`
 # @used-by :meth:`test_experiments.ExperimentTests.test_positive_http_observation_is_verified_and_hashed()`
 # @used-by :meth:`test_experiments.ExperimentTests.test_unavailable_run_preserves_gap_and_does_not_assert_property()`
 # @used-by :mod:`agent_tools.experiments`

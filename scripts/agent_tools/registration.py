@@ -27,7 +27,6 @@ def register_project(project, label=None, day=None, *, platform=None):
 # @used-by :func:`agent_tools.upwork_project.run()`
 # @used-by :func:`test_project_rename._assert_renamed_registrations()`
 # @used-by :func:`test_project_rename._seed_dual_antigravity()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.complete_stage()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_disabled_codex_is_skipped_in_registration_workflow_cleanup_install_and_diagnostics()`
 # @used-by :meth:`test_registration_portability.RegistrationTests.run_registration()`
 # @used-by :meth:`test_registration_portability.RegistrationTests.test_intent_is_saved_before_native_call_and_interrupted_attempt_remains()`

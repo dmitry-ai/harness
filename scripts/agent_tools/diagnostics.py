@@ -8,10 +8,6 @@ from Df.Harness.Project.IssueValidator import IssueValidator
 from Df.Harness.Project.ValidationError import ValidationError
 # @used-by :func:`agent_tools.journal_integrity.check_project_journal_problems()`
 # @used-by :func:`agent_tools.knowledge.website_issues()`
-# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor._analysis_card_issues()`
-# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.attachment_issues()`
-# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.check_project()`
-# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.kb_issues()`
 # @used-by :meth:`test_df_harness_dedup_s8.DfHarnessDedupS8Tests.test_clean_null_and_unique_fast_delegation_to_df()`
 # @used-by :mod:`agent_tools.diagnostics`
 def problem(code, field, message, *, claim_id=None, file=None, hint=None, severity='error'):

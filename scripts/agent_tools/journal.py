@@ -267,9 +267,9 @@ def detect_journal_version(directory: Path) -> int:
 # @used-by :func:`step_errors()`
 # @used-by :func:`verify_answer()`
 # @used-by :meth:`Df.Harness.Meta.Blocks.Blocks.step_paths()`
+# @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.__load_latest_reply()`
+# @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.__saved_answers()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._finalize_segment()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
 def journal_pair_dirs(directory: Path) -> tuple[Path, Path]:
@@ -291,9 +291,9 @@ def journal_pair_dirs(directory: Path) -> tuple[Path, Path]:
 # @used-by :func:`step_errors()`
 # @used-by :func:`verify_answer()`
 # @used-by :meth:`Df.Harness.Meta.Blocks.Blocks.step_paths()`
+# @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.__load_latest_reply()`
+# @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.__saved_answers()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._finalize_segment()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
 # @used-by :meth:`test_journal_metadata.JournalMetadataIntegrationTests.test_codex_prepare_reprepare_and_unprepared_recovery_prepend_metadata()`
 # @used-by :meth:`test_turn_completion.CompletionCase.saved()`
 def step_file(side_dir: Path, step: int, *, directory: Path | None=None) -> Path:
@@ -324,8 +324,8 @@ def parse_step_file_path(path: str | Path) -> tuple[Path, str, int] | None:
 # @used-by :func:`agent_tools.completion._response_link_issues()`
 # @used-by :func:`agent_tools.links.validate_file()`
 # @used-by :func:`agent_tools.source_grounding.resolve_local_href()`
+# @used-by :meth:`Df.Harness.Workflow.ReceiptVerifier.ReceiptVerifier.__resolve_artifact()`
 # @used-by :meth:`agent_tools.completion.TurnJournalReconciler._resolve_effective_response()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._resolve_receipt_artifact()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
 def resolve_migrated_step_file(path: str | Path) -> Path:
@@ -735,10 +735,10 @@ def recover_step(directory: Path, step: int, token: str):
 # @used-by :func:`agent_tools.shadow_replay_command._stage_shadow_launcher()`
 # @used-by :func:`agent_tools.shadow_replay_command.stage_command_shadow_copies()`
 # @used-by :meth:`Df.Harness.Meta.Builders.Builders.__apply_issue_state_details()`
+# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.record()`
+# @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.__load_latest_reply()`
+# @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.__saved_answers()`
 # @used-by :meth:`agent_tools.platforms.antigravity.AntigravityTurnScanner._load_context()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.record_current_answer()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
@@ -845,7 +845,7 @@ def verify_answer(directory, requests, response, turn, request_ids=None):
 # @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_files()`
 # @used-by :func:`agent_tools.text_workflow.record_answer()`
 # @used-by :func:`test_project_rename._seed_project_artifacts()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.record_current_answer()`
+# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.__resolve_steps()`
 # @used-by :meth:`test_journal_integrity.JournalIntegrityM4Tests.test_record_answer_subtracts_overlapping_request_ids_and_excludes_stale_steps_from_title()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_group_crash_reserves_all_numbers_and_preserves_previous_context()`
@@ -973,7 +973,7 @@ def record_answer(directory, requests, response, turn, request_ids=None, *, adop
 # "Reorganize AI into universal harness repository, translate rules and documentation to English, format per P.md, and enforce issue-driven Git workflow":
 # https://github.com/dmitry-ai/harness/issues/26
 # @used-by :func:`agent_tools.context.assemble()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
+# @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.__saved_answers()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_group_crash_reserves_all_numbers_and_preserves_previous_context()`
 # @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_adopt_requests_isolates_foreign_answer_group_mismatch()`
 def answer_groups(directory, *, request_ids=None):
@@ -1368,10 +1368,10 @@ def upgrade_journal(journal_root: str | Path, *, project_root: str | Path | None
 # @used-by :func:`agent_tools.stop_emergency_capture._record_emergency_locked()`
 # @used-by :func:`agent_tools.upwork_project.configure_project()`
 # @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.record()`
+# @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.adopt()`
+# @used-by :meth:`Df.Harness.Workflow.WorkflowResumer.WorkflowResumer.resume()`
 # @used-by :meth:`agent_tools.completion.TurnJournalReconciler.run()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.record_current_answer()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.resume()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
 def ensure_project_journal_upgraded(root: str | Path, *, selected: str | Path | None=None) -> dict:
 	from .path_registry import project_paths

@@ -3,18 +3,18 @@ from __future__ import annotations
 from pathlib import Path
 import ast
 CHAT_REPLY_CALL_SITES = frozenset({
+	('Df/Harness/Workflow/AnswerRecorder.py', 'AnswerRecorder.record'),
+	('Df/Harness/Workflow/FinalizeStageRunner.py', 'FinalizeStageRunner.run'),
 	('agent_tools/completion.py', '_response_link_issues'),
 	('agent_tools/response_grounding.py', 'ResponseEvidenceAuditor.__init__'),
-	('agent_tools/workflow.py', 'WorkflowStateEngine._finalize_stage'),
-	('agent_tools/workflow.py', 'WorkflowStateEngine.record_current_answer'),
 })
 CHAT_REPLY_HELPER_SITE = ('agent_tools/links.py', 'chat_reply_link_issues')
 KB_DOCUMENT_READABLE_CALL_SITES = frozenset({
 	('Df/Harness/Analysis/OwnedPublisher.py', 'OwnedPublisher.__check_links'),
 	('Df/Harness/Project/CardSyncer.py', 'CardSyncer.__validate_inputs'),
+	('Df/Harness/Workflow/HealthAuditor.py', 'HealthAuditor.__check_deliverable_links'),
 	('agent_tools/knowledge.py', 'create_once'),
 	('agent_tools/links.py', 'validate_content'),
-	('agent_tools/workflow.py', 'ProjectHealthAuditor.check_project'),
 })
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class LinkAudit:

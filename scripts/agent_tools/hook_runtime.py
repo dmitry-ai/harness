@@ -135,8 +135,8 @@ def run_json_hook(handler, *, stdin=None, stdout=None) -> dict:
 		decision = {'decision': 'allow'}
 	out_stream.write(json.dumps(decision, ensure_ascii=False))
 	return decision
-# @used-by :func:`agent_tools.workflow.doc4_sentence_issues()`
 # @used-by :func:`check_markdown_slop.markdown_slop_issues()`
+# @used-by :meth:`Df.Harness.Workflow.KbAuditor.KbAuditor.doc4_sentence_issues()`
 # @used-by :meth:`test_hook_unification.HookUnificationTests.test_doc4_scanner_supports_hook_and_workflow_modes()`
 def scan_doc4_sentence_issues(text: str, *, mode: str='hook') -> list[str]:
 	from .statements import markdown_table_issues

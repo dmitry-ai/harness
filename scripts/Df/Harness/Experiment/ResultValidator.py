@@ -8,6 +8,7 @@ from agent_tools.research import inside
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class ResultValidator:
 	# @used-by :func:`agent_tools.experiments.result_issues()`
+	# @used-by :meth:`Df.Harness.Workflow.QuestionContractAuditor.QuestionContractAuditor.__check_results()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_experiment_validators_and_evaluators()`
 	def __init__(self, root, requirement: dict, result) -> None:
 		self.__root = root
@@ -28,6 +29,7 @@ class ResultValidator:
 		except (OSError, ValueError, TypeError, KeyError) as exc:
 			issues.append('Experimental run is missing, invalid or changed: ' + str(exc))
 	# @used-by :func:`agent_tools.experiments.result_issues()`
+	# @used-by :meth:`Df.Harness.Workflow.QuestionContractAuditor.QuestionContractAuditor.__check_results()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_experiment_validators_and_evaluators()`
 	def issues(self) -> list[str]:
 		if not isinstance(self.__result, dict):

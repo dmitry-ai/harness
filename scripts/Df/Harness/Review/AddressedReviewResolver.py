@@ -6,6 +6,7 @@ from agent_tools.research import inside
 class AddressedReviewResolver:
 	# @used-by :func:`agent_tools.review.resolve_addressed_reviews()`
 	# @used-by :meth:`Df.Harness.Review.VerdictRecorder.VerdictRecorder.record()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests._exercise_validator_branches()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_review_quorum_and_authorizer_classes()`
 	def __init__(self, root, data: dict, package: dict, independent: bool, existing_reviews: list[dict]) -> None:
 		self.__root = root
@@ -21,6 +22,7 @@ class AddressedReviewResolver:
 		return (prior['id'], [inside(self.__root, item).relative_to(self.__root).as_posix() for item in resolution['evidence']])
 	# @used-by :func:`agent_tools.review.resolve_addressed_reviews()`
 	# @used-by :meth:`Df.Harness.Review.VerdictRecorder.VerdictRecorder.record()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests._exercise_validator_branches()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_review_quorum_and_authorizer_classes()`
 	def resolve_addressed(self) -> tuple[list[str], list[str]]:
 		addresses = self.__data.get('addresses_reviews', [])

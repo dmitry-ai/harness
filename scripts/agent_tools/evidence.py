@@ -20,7 +20,7 @@ def contains_quote(text, quote, mode='exact'):
 	return r
 # @used-by :func:`agent_tools.review._analysis()`
 # @used-by :func:`agent_tools.upwork_project.run()`
-# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor._analysis_card_issues()`
+# @used-by :func:`agent_tools.workflow.check_project()`
 # @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_anchored_quote_from_another_section_is_rejected()`
 # @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_content_addressed_primary_evidence_tampering_is_detected()`
 # @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_existing_heading_or_ancestor_anchor_is_required()`
@@ -61,6 +61,7 @@ def contains_quote(text, quote, mode='exact'):
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_public_example_passes_structure_evidence_and_project_checks()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_remote_json_pointer_checks_only_the_target_field()`
 # @used-by :meth:`test_runtime_cache_and_evidence_fastpath_m9.RuntimeCacheAndEvidenceFastpathM9Tests.test_authorize_deduplicates_evidence_issues_across_check_project()`
+# @used-by :mod:`agent_tools.workflow`
 def evidence_issues(root, value, *, skip_structural=False):
 	return EvidenceAuditor(root, value, skip_structural=skip_structural).issues()
 # @used-by :func:`agent_tools.text_claims.evidence_inputs()`

@@ -6,6 +6,7 @@ import json
 import sys
 import tempfile
 import unittest
+from unittest import mock
 WT_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = WT_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
@@ -13,6 +14,7 @@ if str(SCRIPTS) not in sys.path:
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 # @used-by :meth:`DfHarnessS11Wave2aReviewTests.test_experiment_plan_and_run_classes()`
 # @used-by :meth:`DfHarnessS11Wave2aReviewTests.test_experiment_validators_and_evaluators()`
+# @used-by :meth:`DfHarnessS11Wave2aReviewTests.test_z_experiment_extra_branches()`
 def _sample_requirement(req_id: str='EXP-1', method: str='http', prop: str='markup') -> dict:
 	return {
 		'id': req_id,
@@ -266,5 +268,107 @@ class DfHarnessS11Wave2aReviewTests(unittest.TestCase):
 			self.assertEqual('~01rev', data['job_id'])
 			for cls_obj in (DispositionRecorder, InputReceiptBuilder, NativeProofVerifier, PackagePreparer, PackageReader, ReportAuthenticator, ReviewAuthorizer, VerdictPreparer, VerdictRecorder):
 				self.assertTrue(callable(cls_obj))
+	# @used-by :mod:`unittest`
+	def test_z_experiment_extra_branches(self) -> None:
+		from Df.Harness.Experiment.ArtifactIngestor import ArtifactIngestor
+		from Df.Harness.Experiment.AssertionEvaluator import AssertionEvaluator
+		from Df.Harness.Experiment.BrowserStepAuditor import BrowserStepAuditor
+		from Df.Harness.Experiment.PlanStore import PlanStore
+		from Df.Harness.Experiment.PreregistrationAuditor import PreregistrationAuditor
+		from Df.Harness.Experiment.RunAuditor import RunAuditor
+		from Df.Harness.Experiment.RunValidator import RunValidator
+		from Df.Harness.Experiment.TraceInspector import TraceInspector
+		req = _sample_requirement()
+		ev_read = {'id': 'e1', 'name': 'browser_get_state', 'successful': True, 'step': 2, 'output_step': 2, 'arguments': {'browser_id': 'b1', 'tab_id': 't1'}, 'result': {'browser_id': 'b1', 'tab_id': 't1', 'url': 'https://x', 'currency': 'USD', 'language': 'en', 'selected_country': 'US'}}
+		self.assertEqual({'browser_id': 'b1', 'tab_id': 't1'}, TraceInspector.event_browser_identity(ev_read))
+		run_bad = {'schema_version': 1, 'kind': 'experiment', 'status': 'verified', 'requirement': {**req, 'assertions': [{'id': 'A-1', 'artifact_id': 'a1', 'locator': {'type': 'json_pointer', 'value': ''}, 'operator': 'equals', 'expected': 1, 'disconfirming': {'operator': 'equals', 'expected': 2}}]}, 'actual_result': 'ok', 'actual_steps': [], 'conditions': {}, 'artifacts': [{'id': 'a1', 'sha256': 'a' * 64, 'observation_kind': 'http', 'source_observation': 'Evidence/x.json', 'native_event_id': 'e1'}], 'native_trace': {'events': [ev_read]}}
+		rv = RunValidator(None, run_bad, {'a1': b'NaN'})
+		self.assertEqual('unverified', rv.evaluate_assertions()['status'])
+		self.assertEqual([ev_read], rv.native_texts(['a1']))
+		step_run = {**run_bad, 'requirement': {**req, 'method': 'browser_scenario'}, 'actual_steps': [{'action': 'click', 'native_event_id': 'e1', 'before': {'url': 'https://x', 'currency': 'USD', 'language': 'en', 'selected_country': 'US', 'evidence': ['a1']}, 'after': {'url': 'https://x', 'currency': 'USD', 'language': 'en', 'selected_country': 'US', 'evidence': ['a1']}, 'evidence': ['a1']}]}
+		self.assertTrue(BrowserStepAuditor(step_run, rv.artifacts, rv.events, rv.native_texts).issues())
+		self.assertTrue(RunAuditor({**run_bad, 'requirement': {**req, 'method': 'admin'}}, rv.artifacts, rv.events, rv.native_texts).issues())
+		self.assertTrue(RunAuditor({**run_bad, 'requirement': {**req, 'method': 'serp'}}, rv.artifacts, rv.events, rv.native_texts).issues())
+		with tempfile.TemporaryDirectory() as tmp:
+			root = Path(tmp).resolve()
+			plan = PlanStore(root).prepare(req)
+			self.assertEqual('EXP-1', PlanStore(root).load(plan['plan'])['requirement']['id'])
+			rec = RunValidator.record(root, {'plan': plan['plan'], 'plan_sha256': plan['plan_sha256'], 'status': 'unverified', 'actual_result': 'gap', 'limitation': 'none', 'actual_steps': [], 'conditions': {'session': {'mode': 'unknown'}}, 'artifacts': []})
+			self.assertEqual('unverified', rec['status'])
+			self.assertTrue(PreregistrationAuditor(root, {'plan': plan['plan'], 'plan_sha256': plan['plan_sha256'], 'requirement_sha256': plan['requirement_sha256'], 'status': 'verified', 'requirement': req, 'artifacts': []}, events=[{'successful': True, 'arguments': {'cmd': 'harness.py prepare-experiment'}, 'result': '{}'}]).issues())
+			with mock.patch('agent_tools.metrics.native_tool_trace', return_value={'events': [ev_read]}):
+				saved, contents = ArtifactIngestor(root, {}, [{'id': 'al1', 'native_event_id': 'e1'}], {'surface': 'codex'}).ingest()
+				self.assertIn('al1', contents)
+		self.assertEqual('unverified', AssertionEvaluator({**run_bad, 'artifacts': [{'id': 'a1', 'sha256': 'a' * 64, 'observation_kind': 'http', 'source_observation': 'Evidence/x.json'}]}, {'a1': b'NaN'}, {}).evaluate()['status'])
+		self.assertTrue(RunAuditor({**run_bad, 'requirement': {**req, 'method': 'admin', 'property': 'admin_configuration'}}, rv.artifacts, rv.events, rv.native_texts).issues())
+		self.assertTrue(RunAuditor({**run_bad, 'requirement': {**req, 'method': 'serp', 'property': 'serp'}}, rv.artifacts, rv.events, rv.native_texts).issues())
+	# @used-by :mod:`unittest`
+	def test_z_review_lifecycle_and_validators_extra(self) -> None:
+		from Df.Harness.Review.InputReceiptBuilder import InputReceiptBuilder
+		from Df.Harness.Review.PackagePreparer import PackagePreparer
+		from Df.Harness.Review.PackageReader import PackageReader
+		from agent_tools import knowledge, research
+		with tempfile.TemporaryDirectory() as tmp:
+			root = Path(tmp).resolve()
+			(root / '\ua616/KB').mkdir(parents=True, exist_ok=True)
+			(root / '\ua616/data').mkdir(parents=True, exist_ok=True)
+			url = 'https://example.test/page'
+			html_b = b'<!doctype html><html><head><title>S</title></head><body><h1 id="sec-1">H</h1><p>Simple fact.</p></body></html>'
+			obs = research.collect(root, url, fetcher=lambda u, h, t: research.Response(u, 200, 'text/html', html_b))
+			research.extract_observation(root, obs['observation'], 'html')
+			meta = research.load_observation(root, obs['observation'])
+			analysis = {'schema_version': 3, 'facts': [{'id': 'F-1', 'essence': 'Simple fact.', 'assessment_basis': 'Saved HTML.', 'knowledge_type': 'observation', 'verification_status': 'verified', 'scope': {'description': 'Page.', 'sample': [url], 'limitations': ['Static.']}, 'properties': ['content'], 'derived_from': [], 'evidence': [{'id': 'E-1', 'kind': 'observation', 'source': url, 'observation': obs['observation'], 'source_sha256': meta['body_sha256'], 'quote': 'Simple fact.', 'locator': {'type': 'text', 'value': 'Simple fact.'}}], 'missing_checks': [], 'materiality': 'routine', 'novelty': 'new', 'category': 'descriptive', 'impact': {'severity': 'unknown', 'basis': 'None.', 'evidence_claim_ids': []}}], 'identity': [{'id': 'H-ID', 'essence': 'Site is example.test.', 'assessment_basis': 'Saved HTML.', 'knowledge_type': 'hypothesis', 'verification_status': 'unverified', 'scope': {'description': 'Page.', 'sample': [url], 'limitations': ['Static.']}, 'properties': ['content'], 'derived_from': [], 'evidence': [{'id': 'E-2', 'kind': 'observation', 'source': url + '#sec-1', 'observation': obs['observation'], 'source_sha256': meta['body_sha256'], 'quote': 'Simple fact.', 'locator': {'type': 'anchor', 'value': 'sec-1'}}], 'missing_checks': ['DNS.'], 'materiality': 'routine', 'novelty': 'new', 'category': 'descriptive', 'impact': {'severity': 'unknown', 'basis': 'None.', 'evidence_claim_ids': []}, 'probability_percent': 70, 'addresses': [], 'for': [{'argument': 'Matches.', 'evidence_id': 'E-2'}], 'against': [], 'counterevidence': {'status': 'not_found', 'reviewed_sources': [url], 'limitations': 'Static.'}}], 'concerns': [], 'misconceptions': [], 'causes': [], 'methods': [], 'notes': {'concerns': 'None.', 'misconceptions': 'None.', 'causes': 'None.', 'methods': 'None.'}, 'websites': [{'role': 'target', 'url': url, 'basis_id': 'H-ID'}], 'red_flags': []}
+			(root / '\ua616/KB/Analysis.json').write_text(json.dumps(analysis), encoding='utf-8')
+			(root / '.md').write_text('# Project\n', encoding='utf-8')
+			knowledge.sync_website_card(root, analysis)
+			(root / '\ua616/project.json').write_text(json.dumps({'schema_version': 1, 'job_id': '~01rl'}), encoding='utf-8')
+			(root / '\ua616/data/workflow.json').write_text(json.dumps({'schema_version': 1, 'project_root': str(root), 'job_id': '~01rl', 'legacy': False, 'requests': [{'id': 'r1', 'text': 'Audit request.'}], 'questions': {}, 'stages': {'finalize': {'status': 'pending'}}, 'reviews': [], 'events': []}), encoding='utf-8')
+			spec = {'risk': 'routine', 'basis': 'Single fact.', 'request_scope': 'Audit request.', 'task_flags': [], 'claim_ids': ['F-1'], 'claims': [{'claim_id': 'F-1', 'response_excerpt': 'Simple fact.', 'novelty': 'new'}]}
+			pkg = PackagePreparer(root, 'p1', spec, 'Simple fact.  \n').prepare()
+			self.assertEqual(pkg['package'], InputReceiptBuilder(root, pkg['package']).build()['package'])
+			self.assertEqual(pkg['job_id'], PackageReader(root, pkg['package']).read_package()['job_id'])
+			obs_rel = '\ua616/KB/' + obs['observation']
+			self._exercise_review_record_and_auth(root, pkg, obs_rel)
+			self._exercise_validator_branches(root, pkg, obs_rel)
+	# @used-by :meth:`DfHarnessS11Wave2aReviewTests.test_z_review_lifecycle_and_validators_extra()`
+	def _exercise_review_record_and_auth(self, root: Path, pkg: dict, snap_rel: str) -> None:
+		from Df.Harness.Review.DispositionRecorder import DispositionRecorder
+		from Df.Harness.Review.MerkleCacheUpdater import MerkleCacheUpdater
+		from Df.Harness.Review.QuorumEvaluator import QuorumEvaluator
+		from Df.Harness.Review.ReviewAuthorizer import ReviewAuthorizer
+		from Df.Harness.Review.VerdictRecorder import VerdictRecorder
+		from agent_tools import workflow
+		rep = {'schema_version': 2, 'review_kind': 'self_review', 'package': pkg['package'], 'package_sha256': pkg['package_sha256'], 'result': 'approved', 'scope': pkg['scope'], 'summary': 'ok', 'findings': [{'id': 'FIN-1', 'claim_ids': ['F-1'], 'severity': 'minor', 'description': 'Minor note', 'status': 'open'}], 'claim_reviews': [{'claim_id': 'F-1', 'observed': 'Simple fact.', 'inferred': 'None', 'method': 'Intake', 'alternatives': 'None', 'limits': 'Intake', 'falsification': 'Mismatch', 'raw_vs_criteria': 'Match', 'outcome': 'supported', 'test_alignment': {'target_claim': 'Simple fact.', 'tested_claim': 'Simple fact.', 'relationship': 'direct', 'rationale': 'Exact', 'counterexample': 'Other'}}]}
+		rep_file = root / '\ua616/data/rep.json'
+		rep_file.write_text(json.dumps(rep), encoding='utf-8')
+		fake_adapter = mock.MagicMock()
+		with mock.patch('agent_tools.platforms.adapter', return_value=fake_adapter):
+			VerdictRecorder(root, '\ua616/data/rep.json', parent_id='p1', reviewer_id='p1').record()
+			state1 = workflow.load(root)
+			rev_id = state1['reviews'][0]['id']
+			DispositionRecorder(root, rev_id, 'FIN-1', 'resolved', 'Verified', [snap_rel], 'p1').record()
+		state2 = workflow.load(root)
+		auth = ReviewAuthorizer(root, state2, response='Simple fact.  \n').authorize()
+		self.assertEqual(pkg['package'], auth['package'])
+		ev = QuorumEvaluator(root, state2)
+		self.assertTrue(ev.approval_current(auth))
+		self.assertIsInstance(ev.approved_claim_digests(), set)
+		MerkleCacheUpdater(root, pkg).update()
+		post_state = {**state2, 'stages': {'finalize': {'status': 'complete', 'time': '2020-01-01T00:00:00+00:00'}}, 'questions': {'Q-1': {'status': 'complete', 'request_id': 'r1', 'time': '2025-01-01T00:00:00+00:00', 'inputs': {}, 'results': {}, 'requirements': [], 'requirement_results': []}}}
+		with self.assertRaises(ValueError):
+			ReviewAuthorizer(root, post_state, request_ids={'r1'}).authorize()
+	# @used-by :meth:`DfHarnessS11Wave2aReviewTests.test_z_review_lifecycle_and_validators_extra()`
+	def _exercise_validator_branches(self, root: Path, pkg: dict, snap_rel: str) -> None:
+		from Df.Harness.Review.AddressedReviewResolver import AddressedReviewResolver
+		from Df.Harness.Review.ClaimReviewValidator import ClaimReviewValidator
+		from Df.Harness.Review.FalsifierValidator import FalsifierValidator
+		from Df.Harness.Review.FindingValidator import FindingValidator
+		errs: list[str] = []
+		FalsifierValidator(pkg, {'F-1'}, root).check({'result': 'needs_changes', 'disproved_claims': [{'claim_id': 'F-1', 'excerpt_from_answer': 'Simple fact.', 'contradicting_tier0_source': snap_rel, 'verbatim_quote_from_source': 'Absent text here', 'falsification_reason': 'Mismatch'}], 'findings': []}, errs)
+		FindingValidator(pkg, {'F-1'}).check({'result': 'approved', 'findings': [{'id': 'FIN-2', 'claim_ids': ['F-1'], 'severity': 'minor', 'description': 'Note', 'status': 'open'}]}, errs)
+		ClaimReviewValidator(pkg, {'F-1'}, {'F-1': pkg['claims'][0]}, {'F-1': 'Simple fact.'}, 'Simple fact.').check({'result': 'approved', 'claim_reviews': [{'claim_id': 'F-1', 'observed': 'x', 'inferred': 'x', 'method': 'x', 'alternatives': 'x', 'limits': 'x', 'falsification': 'x', 'raw_vs_criteria': 'x', 'outcome': 'qualified', 'response_qualification': 'Simple fact.', 'test_alignment': {'target_claim': 'Simple fact.', 'tested_claim': 'Simple fact.', 'relationship': 'direct', 'rationale': 'x', 'counterexample': 'x'}}]}, errs)
+		self.assertTrue(errs)
+		addr, _ = AddressedReviewResolver(root, {'result': 'approved', 'addresses_reviews': [{'review_id': 'r0', 'basis': 'Addressed', 'evidence': [snap_rel]}]}, pkg, True, [{'id': 'r0', 'subject_sha256': pkg['subject_sha256']}]).resolve_addressed()
+		self.assertEqual(['r0'], addr)
 if '__main__' == __name__:
 	unittest.main()

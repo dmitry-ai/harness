@@ -17,6 +17,8 @@ class RequirementValidator:
 	# @used-by :meth:`Df.Harness.Experiment.PlanPreparer.PlanPreparer.prepare_plan()`
 	# @used-by :meth:`Df.Harness.Experiment.RunAuditor.RunAuditor.__check_header()`
 	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__init_run()`
+	# @used-by :meth:`Df.Harness.Workflow.QuestionAdder.QuestionAdder.add()`
+	# @used-by :meth:`Df.Harness.Workflow.QuestionContractAuditor.QuestionContractAuditor.issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_experiment_validators_and_evaluators()`
 	def __init__(self, requirements) -> None:
 		self.__requirements = requirements
@@ -73,6 +75,8 @@ class RequirementValidator:
 	# @used-by :meth:`Df.Harness.Experiment.PlanPreparer.PlanPreparer.prepare_plan()`
 	# @used-by :meth:`Df.Harness.Experiment.RunAuditor.RunAuditor.__check_header()`
 	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__init_run()`
+	# @used-by :meth:`Df.Harness.Workflow.QuestionAdder.QuestionAdder.add()`
+	# @used-by :meth:`Df.Harness.Workflow.QuestionContractAuditor.QuestionContractAuditor.issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_experiment_validators_and_evaluators()`
 	def issues(self) -> list[str]:
 		if not isinstance(self.__requirements, list) or not self.__requirements:

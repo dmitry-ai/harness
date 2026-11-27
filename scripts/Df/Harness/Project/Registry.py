@@ -11,6 +11,7 @@ from agent_tools.runtime import platform_active, platform_name, settings
 class Registry:
 	# @used-by :func:`agent_tools.registration.register_project()`
 	# @used-by :func:`agent_tools.registration.register_projects()`
+	# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.complete()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_registration_classes()`
 	def __init__(self, project, label=None, day=None, *, settings_fn=None) -> None:
 		self.__project = project
@@ -48,6 +49,7 @@ class Registry:
 		return chosen
 	# @used-by :func:`agent_tools.registration.register_project()`
 	# @used-by :func:`agent_tools.registration.register_projects()`
+	# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.complete()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_registration_classes()`
 	def register(self, *, platform=None, targets=None, registrars=None, single: bool=False) -> dict:
 		active = platform_name(platform)

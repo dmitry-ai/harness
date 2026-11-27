@@ -23,6 +23,7 @@ class TraceInspector:
 	def event_actions(cls, event: dict) -> set[str]:
 		return CallChainParser.event_actions(event)
 	# @used-by :func:`agent_tools.experiments._event_browser_identity()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_experiment_extra_branches()`
 	@classmethod
 	def event_browser_identity(cls, event: dict) -> dict | None:
 		return BrowserIdentityExtractor(event).extract_identity()

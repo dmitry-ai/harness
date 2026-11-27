@@ -10,6 +10,7 @@ import re
 class ArtifactIngestor:
 	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.record_run()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_experiment_validators_and_evaluators()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_experiment_extra_branches()`
 	def __init__(self, root, run: dict, raw_artifacts, trace_request) -> None:
 		self.__root = Path(root).resolve()
 		self.__run = run
@@ -91,6 +92,7 @@ class ArtifactIngestor:
 		return (artifact, raw)
 	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.record_run()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_experiment_validators_and_evaluators()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_experiment_extra_branches()`
 	def ingest(self) -> tuple[list, dict]:
 		saved, contents, native_aliases = self.__ingest_raw()
 		self.__ingest_trace(saved, contents, native_aliases)

@@ -232,6 +232,7 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 # @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.save()`
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 # @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.__try_reserve_once()`
+# @used-by :meth:`Df.Harness.Workflow.StateUpdater.StateUpdater.update()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner._apply_removal()`
 # @used-by :meth:`agent_tools.cleanup.ProjectCleanupScanner.run()`
 # @used-by :meth:`agent_tools.completion.TurnJournalReconciler.run()`
@@ -239,7 +240,6 @@ def iter_embedded_json_objects(value, *, parse_root: bool=True, recursive: bool=
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.apply()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.begin()`
 # @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.verify()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.update()`
 # @used-by :meth:`test_context_and_storage_determinism.ContextAndStorageDeterminismTests.test_locked_concurrent_fresh_files_succeed_without_permission_error()`
 # @used-by :meth:`test_context_and_storage_determinism.ContextAndStorageDeterminismTests.test_locked_create_on_held_zero_byte_lock_waits_without_permission_error()`
 # @used-by :meth:`test_parallel_runner.ParallelRunnerTests.test_storage_locked_concurrent_threads_no_permission_error()`
@@ -365,12 +365,12 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 # @used-by :meth:`Df.Harness.TestRunner.ParallelRunner.ParallelRunner.__save_timings()`
 # @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.__try_reserve_once()`
+# @used-by :meth:`Df.Harness.Workflow.StateUpdater.StateUpdater.update()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._update_single_turn_locked()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.persist_issue_evidence()`
 # @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.persist_repo_transfer_evidence()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.apply()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.save_index()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.update()`
 # @used-by :meth:`test_analysis_workflow.PublicationTests.test_interrupted_state_write_preserves_published_output_for_recovery()`
 # @used-by :meth:`test_cleanup.CleanupTests.test_folders_publication_failure_after_unlink_recovers_without_native_file()`
 # @used-by :meth:`test_storage_fsync_guard.StorageFsyncGuardTests.test_fsync_runs_by_default_and_when_env_is_zero()`

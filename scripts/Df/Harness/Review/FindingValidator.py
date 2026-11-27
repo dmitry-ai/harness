@@ -4,6 +4,7 @@ from Df.Qa.lib.validation.check_strict import df_is_sne
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class FindingValidator:
 	# @used-by :meth:`Df.Harness.Review.ReportValidator.ReportValidator.validate()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests._exercise_validator_branches()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_review_report_validator_classes()`
 	def __init__(self, package: dict, expected: set[str]) -> None:
 		self.__package = package
@@ -34,6 +35,7 @@ class FindingValidator:
 		if finding.get('status') in ('resolved', 'rejected') and (not df_is_sne(finding.get('disposition')) or not finding.get('evidence')):
 			issues.append('Closed finding needs an authored disposition and evidence')
 	# @used-by :meth:`Df.Harness.Review.ReportValidator.ReportValidator.validate()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests._exercise_validator_branches()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_review_report_validator_classes()`
 	def check(self, data: dict, issues: list[str]) -> None:
 		findings = data.get('findings')

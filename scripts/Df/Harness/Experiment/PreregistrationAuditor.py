@@ -14,6 +14,7 @@ class PreregistrationAuditor:
 	# @used-by :meth:`Df.Harness.Experiment.RunLoader.RunLoader.load_run()`
 	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__audit_run()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_experiment_plan_and_run_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_experiment_extra_branches()`
 	def __init__(self, root, run: dict, events=None) -> None:
 		from agent_tools.path_registry import project_paths
 		self.__pp = project_paths(root, exact_root=True)
@@ -81,6 +82,7 @@ class PreregistrationAuditor:
 	# @used-by :meth:`Df.Harness.Experiment.RunLoader.RunLoader.load_run()`
 	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__audit_run()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_experiment_plan_and_run_classes()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_experiment_extra_branches()`
 	def issues(self) -> list[str]:
 		plan, early = self.__load_plan()
 		if None is not early:

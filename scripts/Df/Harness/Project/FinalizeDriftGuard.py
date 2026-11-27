@@ -7,11 +7,13 @@ from agent_tools.path_registry import project_paths
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class FinalizeDriftGuard:
 	# @used-by :func:`agent_tools.project_drift.require_no_domain_drift_for_finalize()`
+	# @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.run()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_drift_red_flags_and_card_sync_classes()`
 	def __init__(self, root: Path | str, *, drift_fn=None) -> None:
 		self.__root = root
 		self.__drift_fn = drift_fn
 	# @used-by :func:`agent_tools.project_drift.require_no_domain_drift_for_finalize()`
+	# @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.run()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_drift_red_flags_and_card_sync_classes()`
 	def require(self) -> None:
 		drift_fn = (lambda r, v: DriftAuditor(r, v).audit()) if None is self.__drift_fn else self.__drift_fn

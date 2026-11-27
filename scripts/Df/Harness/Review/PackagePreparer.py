@@ -18,6 +18,7 @@ _INIT4_RE = '(?im)(?:generated\\s+at\\s+the\\s+`?finalize`?\\s+stage|\\u0444\\u0
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class PackagePreparer:
 	# @used-by :func:`agent_tools.review.prepare()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_review_lifecycle_and_validators_extra()`
 	def __init__(self, root, parent_id: str, spec: dict, response: str, *, analysis_fn=None, approved_fn=None) -> None:
 		self.__root = Path(root).resolve()
 		self.__parent_id = parent_id
@@ -27,11 +28,11 @@ class PackagePreparer:
 		self.__approved_fn = approved_fn
 	# @used-by :meth:`PackagePreparer.prepare()`
 	def __build_data(self, state: dict, requests: list, value: dict, classified: dict, candidate: Path, resp_sha: str, payload: bytes) -> dict:
+		from Df.Harness.Workflow.HashCollector import HashCollector
 		from agent_tools.source_grounding import discover_entity_tier0_sources
-		from agent_tools.workflow import evidence_paths, hashes, kb_paths
-		ev_inputs = hashes(self.__root, evidence_paths(self.__root))
+		ev_inputs = HashCollector(self.__root, HashCollector.evidence_paths(self.__root)).collect()
 		extra = {'auto_tier0_evidence': discover_entity_tier0_sources(self.__root, self.__response), 'merkle_delta': MerkleDeltaCalculator(self.__root, classified['claims'], value, ev_inputs).compute(), 'blind_verification_predicates': BlindPredicateBuilder(classified['claims'], value).build()}
-		data = {'schema_version': REVIEW_SCHEMA, 'project_root': str(self.__root), 'job_id': state['job_id'], 'parent_id': self.__parent_id, **classified, 'requests': requests, 'response': {'file': candidate.relative_to(self.__root).as_posix(), 'sha256': resp_sha, 'bytes': len(payload)}, 'kb_inputs': hashes(self.__root, kb_paths(self.__root)), 'evidence_inputs': ev_inputs, 'scope': list(SCOPES), 'knowledge_source': 'agent KB, primary evidence, current requests and exact response; no Context.md', **extra}
+		data = {'schema_version': REVIEW_SCHEMA, 'project_root': str(self.__root), 'job_id': state['job_id'], 'parent_id': self.__parent_id, **classified, 'requests': requests, 'response': {'file': candidate.relative_to(self.__root).as_posix(), 'sha256': resp_sha, 'bytes': len(payload)}, 'kb_inputs': HashCollector(self.__root, HashCollector.kb_paths(self.__root)).collect(), 'evidence_inputs': ev_inputs, 'scope': list(SCOPES), 'knowledge_source': 'agent KB, primary evidence, current requests and exact response; no Context.md', **extra}
 		data['subject_sha256'] = PackageEnvelopeReader.subject_digest(data)
 		evaluator = QuorumEvaluator(self.__root, state)
 		if (mode := ReviewModeResolver(self.__spec, data, evaluator).resolve()):
@@ -41,13 +42,13 @@ class PackagePreparer:
 		return data
 	# @used-by :meth:`PackagePreparer.prepare()`
 	def __validate_response(self, value: dict) -> None:
+		from Df.Harness.Workflow.KbAuditor import KbAuditor
 		from agent_tools.source_grounding import local_source_grounding_issues, sync_fact_ledger
-		from agent_tools.workflow import doc4_sentence_issues
 		if isinstance(value, dict) and [] == value.get('red_flags') and re.search('(?im)^\\s*#{1,6}\\s+Red Flags\\b', self.__response):
 			raise ValueError('Do not include a Red Flags heading in the response when Analysis.json red_flags is empty (INIT-5)')
 		if re.search(_INIT4_RE, self.__response):
 			raise ValueError('Candidate response must not contain internal service notes or uninitialized finalize placeholders (INIT-4)')
-		doc4_issues = doc4_sentence_issues(self.__response)
+		doc4_issues = KbAuditor.doc4_sentence_issues(self.__response)
 		if doc4_issues:
 			raise ValueError('\n'.join(doc4_issues))
 		sync_fact_ledger(self.__root)
@@ -62,12 +63,13 @@ class PackagePreparer:
 		write_immutable_bytes(candidate, payload, diff_error=_DIFF_ERR)
 		return (candidate, resp_sha, payload)
 	# @used-by :func:`agent_tools.review.prepare()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_review_lifecycle_and_validators_extra()`
 	def prepare(self) -> dict:
+		from Df.Harness.Workflow.StateLoader import StateLoader
 		from agent_tools.path_registry import project_paths
-		from agent_tools.workflow import load
 		if not df_is_sne(self.__parent_id) or not df_is_sne(self.__response):
 			raise ValueError('Observed parent ID and the exact nonempty candidate response are required')
-		state = load(self.__root)
+		state = StateLoader(self.__root).load()
 		requests = [{'id': item['id'], 'text': item['text']} for item in state['requests']]
 		if not requests:
 			raise ValueError('Save/import the exact current requests before preparing review')

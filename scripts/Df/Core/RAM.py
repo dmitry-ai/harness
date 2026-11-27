@@ -170,6 +170,8 @@ class RAM:
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__resolve_repo_binding()`
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.find_matching_recipes()`
 	# @used-by :meth:`Df.Harness.Tdd.WorktreeScope.WorktreeScope.canonical_scope_path()`
+	# @used-by :meth:`Df.Harness.Workflow.RegistrationStatusChecker.RegistrationStatusChecker.status()`
+	# @used-by :meth:`Df.Harness.Workflow.StateLoader.StateLoader.load()`
 	# @used-by :meth:`Df.Harness.Xref.Java.Tags.Tags.is_valid_external()`
 	# @used-by :meth:`Df.Harness.Xref.Js.Tags.Tags.is_valid_external()`
 	# @used-by :meth:`Df.Harness.Xref.Python.Tags.Tags.is_valid_external_target()`
@@ -189,8 +191,6 @@ class RAM:
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.begin()`
 	# @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.index()`
 	# @used-by :meth:`agent_tools.upwork_data.PdfMarkdownExtractor._run_poppler()`
-	# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.load()`
-	# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.registration_status()`
 	# @used-by :meth:`test_agent_tools.ContextTests.test_missing_input_fails_and_dry_run_writes_nothing()`
 	# @used-by :meth:`test_agent_tools.JournalTests.test_empty_payload_has_no_side_effect()`
 	# @used-by :meth:`test_agent_tools.JournalTests.test_exact_bytes_and_no_keyword_authorization()`

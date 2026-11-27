@@ -8,6 +8,7 @@ _FIELDS = ('observed', 'inferred', 'method', 'alternatives', 'limits', 'falsific
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class ClaimReviewValidator:
 	# @used-by :meth:`Df.Harness.Review.ReportValidator.ReportValidator.validate()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests._exercise_validator_branches()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_review_report_validator_classes()`
 	def __init__(self, package: dict, expected: set, package_claims: dict, targets: dict, candidate) -> None:
 		self.__package = package
@@ -69,6 +70,7 @@ class ClaimReviewValidator:
 		elif None is not self.__candidate and excerpt not in self.__candidate:
 			issues.append('Claim qualification must occur verbatim in the exact response')
 	# @used-by :meth:`Df.Harness.Review.ReportValidator.ReportValidator.validate()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests._exercise_validator_branches()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_review_report_validator_classes()`
 	def check(self, data: dict, issues: list[str]) -> None:
 		if not isinstance(data.get('claim_reviews'), list):

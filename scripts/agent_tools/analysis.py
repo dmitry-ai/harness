@@ -11,8 +11,8 @@ from Df.Harness.Analysis.Validator import SECTIONS, Validator
 from .diagnostics import require_valid
 from .storage import replace_bytes
 # @used-by :func:`agent_tools.upwork_project.run()`
+# @used-by :func:`agent_tools.workflow.check_project()`
 # @used-by :func:`validate_analysis()`
-# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor._analysis_card_issues()`
 # @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_many_independent_errors_are_reported_with_fields_and_ids()`
 # @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_no_anchor_exception_uses_an_observed_specific_section()`
 # @used-by :meth:`test_analysis_workflow.AnalysisContractTests.test_no_counterevidence_needs_documented_review_and_real_sources()`
@@ -46,6 +46,7 @@ from .storage import replace_bytes
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_malformed_evidence_fields_return_diagnostics_without_crashing()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_public_example_passes_structure_evidence_and_project_checks()`
 # @used-by :mod:`agent_tools.analysis`
+# @used-by :mod:`agent_tools.workflow`
 def analysis_issues(value):
 	return Validator(value).issues()
 # @used-by :func:`agent_tools.knowledge.sync_website_card()`
@@ -79,7 +80,6 @@ def publish_analysis(source, target=None):
 # @used-by :func:`agent_tools.operations._execute_collect()`
 # @used-by :func:`test_atomic_prepare_and_narrowed_reconcile_m7._init_review_ready_project()`
 # @used-by :func:`test_contract_invariants._init_tracked_project()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.publish_progress()`
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_full_workflow_requires_native_review_and_current_kb_then_exports_complete_context()`
 # @used-by :meth:`test_analysis_workflow.PublicationTests.test_interrupted_state_write_preserves_published_output_for_recovery()`
 # @used-by :meth:`test_analysis_workflow.PublicationTests.test_repeat_render_updates_owned_file_and_archives_previous_bytes()`
@@ -89,6 +89,7 @@ def publish_analysis(source, target=None):
 # @used-by :meth:`test_readable_links.ReadableReferenceTests.test_exact_quotes_code_and_source_copies_are_not_rewritten_or_rejected()`
 # @used-by :meth:`test_readable_links.ReadableReferenceTests.test_publication_guard_keeps_previous_document_and_primary_json_intact()`
 # @used-by :mod:`agent_tools.analysis`
+# @used-by :mod:`agent_tools.workflow`
 def publish_owned(target, content, *, source=None, history=True):
 	return OwnedPublisher(target, content, source=source, history=history, replace_fn=replace_bytes).publish()
 # @used-by :func:`test_atomic_prepare_and_narrowed_reconcile_m7._init_review_ready_project()`
@@ -108,7 +109,6 @@ def publish_owned(target, content, *, source=None, history=True):
 # @used-by :mod:`agent_tools.analysis`
 def render_analysis(value):
 	return Renderer(value).render()
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._apply_complete_stage()`
 # @used-by :mod:`agent_tools.analysis`
 def require_current_contract(value):
 	Validator.require_current_contract(value)

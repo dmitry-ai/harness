@@ -18,6 +18,7 @@ class PackageReader:
 	# @used-by :meth:`Df.Harness.Review.ReviewAuthorizer.ReviewAuthorizer.__validate_entry()`
 	# @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__load_and_check()`
 	# @used-by :meth:`Df.Harness.Review.VerdictRecorder.VerdictRecorder.record()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_review_lifecycle_and_validators_extra()`
 	def __init__(self, root, package: str, *, state=None, require_current: bool=True, analysis_fn=None, approved_fn=None, inside_fn=None) -> None:
 		self.__root = root
 		self.__package = package
@@ -34,8 +35,8 @@ class PackageReader:
 			raise ValueError('Reviewed response claim version changed')
 	# @used-by :meth:`PackageReader.read_package()`
 	def __validate_current(self, root_p: Path, cur_state: dict, data: dict, cand_bytes: bytes) -> None:
-		from agent_tools.workflow import evidence_paths, hashes, kb_paths
-		if data.get('kb_inputs') != hashes(root_p, kb_paths(root_p)) or data.get('evidence_inputs') != hashes(root_p, evidence_paths(root_p)):
+		from Df.Harness.Workflow.HashCollector import HashCollector
+		if data.get('kb_inputs') != HashCollector(root_p, HashCollector.kb_paths(root_p)).collect() or data.get('evidence_inputs') != HashCollector(root_p, HashCollector.evidence_paths(root_p)).collect():
 			raise ValueError('Review package does not match present KB and primary evidence')
 		if data.get('requests') != [{'id': item['id'], 'text': item['text']} for item in cur_state['requests']]:
 			raise ValueError('Review package does not cover the exact current requests')
@@ -63,15 +64,16 @@ class PackageReader:
 	# @used-by :meth:`Df.Harness.Review.ReviewAuthorizer.ReviewAuthorizer.__validate_entry()`
 	# @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__load_and_check()`
 	# @used-by :meth:`Df.Harness.Review.VerdictRecorder.VerdictRecorder.record()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_review_lifecycle_and_validators_extra()`
 	def read_package(self) -> dict:
-		from agent_tools.workflow import load
+		from Df.Harness.Workflow.StateLoader import StateLoader
 		_, peek = read_addressed_json(self.__inside(Path(self.__root).resolve(), self.__package), suffix='-inputs.json', error_msg=_ERR_MSG)
 		handler = self.package_handler(peek.get('kind'))
 		if None is not handler:
 			r = handler['package_reader'](self.__root, self.__package, require_current=self.__require_current)
 		else:
 			root_p, _, data, cand_bytes = PackageEnvelopeReader(self.__root, self.__package, error_msg=_ERR_MSG, inside_fn=self.__inside).read_envelope()
-			cur_state = self.__state or load(root_p)
+			cur_state = self.__state or StateLoader(root_p).load()
 			if data.get('job_id') != cur_state['job_id']:
 				raise ValueError('Review package belongs to another project')
 			if self.__require_current:

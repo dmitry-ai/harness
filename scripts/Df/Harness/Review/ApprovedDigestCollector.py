@@ -62,10 +62,10 @@ class ApprovedDigestCollector:
 	# @used-by :meth:`Df.Harness.Review.QuorumEvaluator.QuorumEvaluator.approved_claim_digests()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_review_quorum_and_authorizer_classes()`
 	def digests(self) -> set:
-		from agent_tools.workflow import evidence_paths, hashes
+		from Df.Harness.Workflow.HashCollector import HashCollector
 		r: set = set()
 		is_finalized = 'complete' == self.__state.get('stages', {}).get('finalize', {}).get('status')
-		cur_ev = hashes(self.__root, evidence_paths(self.__root))
+		cur_ev = HashCollector(self.__root, HashCollector.evidence_paths(self.__root)).collect()
 		index = self.__load_index(is_finalized)
 		for package, matching in self.__collect_groups().values():
 			self.__process_group(package, matching, cur_ev, is_finalized, index, r)

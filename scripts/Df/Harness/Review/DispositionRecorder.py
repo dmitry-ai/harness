@@ -11,6 +11,7 @@ _DIFF_ERR = 'Immutable review artifact differs; preserve the original and create
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class DispositionRecorder:
 	# @used-by :func:`agent_tools.review.disposition()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests._exercise_review_record_and_auth()`
 	def __init__(self, root, review_id: str, finding_id: str, status: str, basis: str, evidence: list, parent_id: str, *, inside_fn=None) -> None:
 		self.__root = Path(root).resolve()
 		self.__review_id = review_id
@@ -29,20 +30,23 @@ class DispositionRecorder:
 		if self.__finding_id not in {f['id'] for f in data['findings']}:
 			raise ValueError('Finding does not exist in the original report')
 	# @used-by :func:`agent_tools.review.disposition()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests._exercise_review_record_and_auth()`
 	def record(self) -> dict:
+		from Df.Harness.Workflow.HashCollector import HashCollector
+		from Df.Harness.Workflow.StateLoader import StateLoader
+		from Df.Harness.Workflow.StateUpdater import StateUpdater
 		from agent_tools.path_registry import project_paths
 		from agent_tools.platforms import adapter
-		from agent_tools.workflow import hashes, load, now, update
 		if self.__status not in ('resolved', 'rejected') or not df_is_sne(self.__basis) or (not self.__evidence):
 			raise ValueError('Disposition needs resolved/rejected status, basis and saved evidence')
 		adapter().require_current_binding(self.__root, self.__parent_id)
-		self.__validate_entry(load(self.__root))
-		payload = {'schema_version': 1, 'review_id': self.__review_id, 'finding_id': self.__finding_id, 'parent_id': self.__parent_id, 'status': self.__status, 'basis': self.__basis, 'evidence': hashes(self.__root, self.__evidence), 'time': now()}
+		self.__validate_entry(StateLoader(self.__root).load())
+		payload = {'schema_version': 1, 'review_id': self.__review_id, 'finding_id': self.__finding_id, 'parent_id': self.__parent_id, 'status': self.__status, 'basis': self.__basis, 'evidence': HashCollector(self.__root, self.__evidence).collect(), 'time': HashCollector.utc_now()}
 		encoded = json_data(payload)
 		target = write_immutable_bytes(project_paths(self.__root, exact_root=True).evidence_dir / 'Reviews/Dispositions' / (df_sha256(encoded) + '.json'), encoded, diff_error=_DIFF_ERR)
 		relative = target.relative_to(self.__root).as_posix()
 		# @used-by :meth:`DispositionRecorder.record()`
 		def change(current: dict) -> None:
 			saved = next((r for r in current['reviews'] if r.get('id') == self.__review_id))
-			saved.setdefault('dispositions', []).append({'file': relative, 'proof': hashes(self.__root, [relative, *payload['evidence']])})
-		return update(self.__root, {'action': 'review_disposition', 'review_id': self.__review_id, 'finding_id': self.__finding_id}, change)
+			saved.setdefault('dispositions', []).append({'file': relative, 'proof': HashCollector(self.__root, [relative, *payload['evidence']]).collect()})
+		return StateUpdater(self.__root, {'action': 'review_disposition', 'review_id': self.__review_id, 'finding_id': self.__finding_id}, change).update()

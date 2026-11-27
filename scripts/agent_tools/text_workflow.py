@@ -338,8 +338,9 @@ class ClientTextWorkspace:
 	# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.__finalize_ag_info()`
 	# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.extract_codex_info()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__replace_existing()`
+	# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.__apply()`
+	# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.__write_stage_receipt()`
 	# @used-by :meth:`agent_tools.shell_audit.ShellCommandInspector._parse_commit_flag_bundle()`
-	# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._apply_complete_stage()`
 	# @used-by :meth:`test_agent_tools.ContextTests.test_sources_and_fences_preserved_in_configured_order()`
 	# @used-by :meth:`test_arch_audit_gates.ArchAuditGatesTests.test_arch_audit_gate_priority_manifest_and_lazy_export()`
 	# @used-by :meth:`test_df_qa.TestDfQa.test_dump_and_dumper()`
@@ -854,8 +855,8 @@ def _roots(paths):
 			if (_folder(root) / 'index.json').is_file():
 				roots.add(root)
 	return sorted(roots)
+# @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.run()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.check_commit()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
 def gate_paths(paths, *, response=None):
 	selected = {Path(path).resolve() for path in paths}
 	r = []

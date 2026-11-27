@@ -8,6 +8,7 @@ _NAME_UNKNOWN_RE = re.compile('#\\s*1\\.1\\s+(?:Name|\\u0418\\u043c\\u044f)\\s*\
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class CardSyncAuditor:
 	# @used-by :func:`agent_tools.project_drift.analysis_card_sync_issues()`
+	# @used-by :meth:`Df.Harness.Workflow.AnalysisCardAuditor.AnalysisCardAuditor.issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_drift_red_flags_and_card_sync_classes()`
 	def __init__(self, pp, value: dict, *, drift_fn=None) -> None:
 		self.__pp = pp
@@ -26,6 +27,7 @@ class CardSyncAuditor:
 					r.append(Diagnostics().problem('kb.identity_mismatch', rel_proj, f'Established client identity in Analysis.json is not synced to {rel_proj} (# 1.1 Name is still unknown)', file=proj_file))
 		return r
 	# @used-by :func:`agent_tools.project_drift.analysis_card_sync_issues()`
+	# @used-by :meth:`Df.Harness.Workflow.AnalysisCardAuditor.AnalysisCardAuditor.issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_drift_red_flags_and_card_sync_classes()`
 	def audit(self) -> list[dict]:
 		from agent_tools.knowledge import sync_website_card

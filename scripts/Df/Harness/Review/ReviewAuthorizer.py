@@ -11,7 +11,12 @@ from agent_tools.research import inside
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class ReviewAuthorizer:
 	# @used-by :func:`agent_tools.review.authorize()`
-	def __init__(self, root, state: dict, *, response=None, package_path=None, request_ids=None, analysis_fn=None, package_reader=None, update_cache_fn=None, inside_fn=None) -> None:
+	# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.__apply_answer()`
+	# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.__authorize_and_select()`
+	# @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.run()`
+	# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.__run_approval_gate()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests._exercise_review_record_and_auth()`
+	def __init__(self, root, state: dict, *, response=None, package_path=None, request_ids=None, analysis_fn=None, package_reader=None, update_cache_fn=None, check_project_fn=None, inside_fn=None) -> None:
 		self.__root = root
 		self.__state = state
 		self.__response = response
@@ -20,6 +25,7 @@ class ReviewAuthorizer:
 		self.__analysis_fn = PackageEnvelopeReader.load_analysis if None is analysis_fn else analysis_fn
 		self.__package_reader = package_reader
 		self.__update_cache_fn = update_cache_fn
+		self.__check_project_fn = check_project_fn
 		self.__inside = inside if None is inside_fn else inside_fn
 	# @used-by :meth:`ReviewAuthorizer.__check_prereqs()`
 	def __check_post_finalize(self, questions_current) -> None:
@@ -35,13 +41,16 @@ class ReviewAuthorizer:
 			raise ValueError('Complete current research questions/gaps before publication')
 	# @used-by :meth:`ReviewAuthorizer.authorize()`
 	def __check_prereqs(self, value: dict) -> None:
-		from agent_tools.workflow import check_project, questions_current
+		from Df.Harness.Workflow.HealthAuditor import HealthAuditor
+		from Df.Harness.Workflow.QuestionRegistry import QuestionRegistry
+		q_fn = lambda r, st: QuestionRegistry(r).current(st)
+		cp_fn = (lambda r, **kw: HealthAuditor(r).check_project(**kw)) if None is self.__check_project_fn else self.__check_project_fn
 		is_finalized = 'complete' == self.__state.get('stages', {}).get('finalize', {}).get('status')
 		if not is_finalized:
-			if not questions_current(self.__root, self.__state) or not check_project(self.__root, prevalidated_analysis=value)['valid']:
+			if not q_fn(self.__root, self.__state) or not cp_fn(self.__root, prevalidated_analysis=value)['valid']:
 				raise ValueError('Complete current research questions/gaps and resolve KB/evidence diagnostics before publication')
 		else:
-			self.__check_post_finalize(questions_current)
+			self.__check_post_finalize(q_fn)
 	# @used-by :meth:`ReviewAuthorizer.authorize()`
 	def __collect_groups(self, evaluator: QuorumEvaluator, response_shas: set[str] | None) -> tuple[dict, list[str]]:
 		groups, diagnostics = ({}, [])
@@ -67,6 +76,11 @@ class ReviewAuthorizer:
 			raise ValueError('Significant risk cannot use self-review')
 		return package
 	# @used-by :func:`agent_tools.review.authorize()`
+	# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.__apply_answer()`
+	# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.__authorize_and_select()`
+	# @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.run()`
+	# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.__run_approval_gate()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests._exercise_review_record_and_auth()`
 	def authorize(self) -> dict:
 		value = self.__analysis_fn(self.__root)
 		self.__check_prereqs(value)

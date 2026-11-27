@@ -14,7 +14,7 @@ def _resolve_target(platform, backend, instance, conversation_id=None):
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_instance_flag_and_codex_auto_lookup_for_handoff_and_audit()`
 def native_executor_metadata(root, conversation_id, *, role='primary', parent_id=None, platform=None, backend=None, instance=None, write=False):
 	return MetricsSummarizer.native_executor_metadata(root, conversation_id, role=role, parent_id=parent_id, platform=platform, backend=backend, instance=instance, write=write)
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
+# @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.adopt()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_antigravity_verify_native_proof_tool_trace_and_custom_system_paths()`
 # @used-by :meth:`test_instances_config.RuntimeInstancesTests.test_instance_flag_and_codex_auto_lookup_for_handoff_and_audit()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_native_requests_preserve_exact_bytes_and_current_job_scope()`

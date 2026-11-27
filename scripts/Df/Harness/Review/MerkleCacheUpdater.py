@@ -14,6 +14,7 @@ import json
 class MerkleCacheUpdater:
 	# @used-by :func:`agent_tools.review.update_verified_claims_cache()`
 	# @used-by :meth:`Df.Harness.Review.ReviewAuthorizer.ReviewAuthorizer.authorize()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests._exercise_review_record_and_auth()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_review_merkle_and_predicates()`
 	def __init__(self, root, package: dict, value: dict | None=None, *, analysis_fn=None) -> None:
 		self.__root = Path(root).resolve()
@@ -43,6 +44,7 @@ class MerkleCacheUpdater:
 		return r
 	# @used-by :func:`agent_tools.review.update_verified_claims_cache()`
 	# @used-by :meth:`Df.Harness.Review.ReviewAuthorizer.ReviewAuthorizer.authorize()`
+	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests._exercise_review_record_and_auth()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_review_merkle_and_predicates()`
 	def update(self) -> dict:
 		from agent_tools.path_registry import project_paths

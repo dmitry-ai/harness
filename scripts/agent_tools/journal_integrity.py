@@ -181,7 +181,7 @@ def collect_handed_off_conversations(turns_dir: Path, target_p: Path, *, read_fn
 			if cid and same_root_fn(dest.get('project_root'), target_p):
 				r.add(cid)
 	return r
-# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.check_project()`
+# @used-by :meth:`Df.Harness.Workflow.HealthAuditor.HealthAuditor.check_project()`
 def finalize_project_check(pp, issues: list[dict], default_file: Path) -> dict:
 	issues.extend(check_project_journal_problems(pp))
 	for issue in issues:
@@ -310,7 +310,7 @@ def turn_matches_handoff(st: dict, st_cid: str, job_str: str | None, prior_cids:
 	else:
 		r = bool(st_cid and st_cid in prior_cids and (not _mentioned_other_job(reqs, job_str)))
 	return r
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
+# @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.__load_latest_reply()`
 def validate_finalize_journal(root: Path, jdir: Path, state: dict) -> set[int]:
 	ids = journal.get_existing_step_ids(jdir)
 	if not ids or any((journal.step_errors(jdir, ident) for ident in ids)):

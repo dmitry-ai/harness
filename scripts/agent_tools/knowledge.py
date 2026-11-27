@@ -16,7 +16,7 @@ from .analysis import SECTIONS, TITLES, validate_analysis, render_analysis, publ
 # https://github.com/dmitry-ai/harness/issues/74
 class AttachmentInventory:
 	# @used-by :func:`sync_source_folder_attachments()`
-	# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.attachment_issues()`
+	# @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.issues()`
 	# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_workflow_classes_and_shared_attachment_inventory()`
 	def __init__(self, project_root: Path | str):
 		# 2026-11-19
@@ -74,7 +74,7 @@ class AttachmentInventory:
 	# @used-by :meth:`AttachmentInventory.sync()`
 	def _source_entries(self) -> list[Path]:
 		return [f for f in sorted(self.source_dir.iterdir()) if f.is_file()] if self.source_dir.is_dir() else []
-	# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.attachment_issues()`
+	# @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.issues()`
 	# @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_workflow_classes_and_shared_attachment_inventory()`
 	def scan(self, asset_evidence: list[dict] | None=None) -> dict:
 		attachments: list[dict] = []
@@ -162,6 +162,7 @@ def website_issues(value):
 # @used-by :meth:`Df.Harness.Project.CardSyncAuditor.CardSyncAuditor.audit()`
 # @used-by :meth:`test_analysis_workflow.ProjectCase.review_package()`
 # @used-by :meth:`test_analysis_workflow.ProjectCase.valid_review_analysis()`
+# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_review_lifecycle_and_validators_extra()`
 # @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_explicit_website_is_published_and_reused_without_overwriting_card_or_metadata()`
 # @used-by :meth:`test_readable_links.ReadableProjectTests.test_website_card_uses_readable_iri_and_keeps_original_website_selection()`
 def sync_website_card(root, value, *, selections=None, check=False):

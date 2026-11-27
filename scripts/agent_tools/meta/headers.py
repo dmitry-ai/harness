@@ -65,8 +65,8 @@ def render_metadata_header(data: dict[str, Any]) -> str:
 # @used-by :func:`agent_tools.text_core.check_response()`
 # @used-by :func:`check_stop_gate._evaluate_prepared_match()`
 # @used-by :meth:`Df.Harness.Review.ReviewAuthorizer.ReviewAuthorizer.authorize()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._finalize_stage()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
+# @used-by :meth:`Df.Harness.Workflow.FinalizeStageRunner.FinalizeStageRunner.__load_latest_reply()`
+# @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.__saved_answers()`
 # @used-by :meth:`test_metadata.MetadataFormattingAndCollectionTests.test_render_prepend_extract_and_strip_tab_indented_json_header()`
 # @used-by :meth:`test_metadata_decomposition.MetadataDecompositionTests.test_headers_submodule_roundtrips_and_ignores_non_harness_json()`
 # @used-by :mod:`agent_tools.meta`

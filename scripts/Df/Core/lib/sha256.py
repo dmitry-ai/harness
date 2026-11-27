@@ -50,6 +50,10 @@ import hashlib
 # @used-by :meth:`Df.Harness.Review.ReviewAuthorizer.ReviewAuthorizer.authorize()`
 # @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__load_and_check()`
 # @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__write_artifacts()`
+# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.__resolve_steps()`
+# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.record()`
+# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.file_hash()`
+# @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.__saved_answers()`
 # @used-by :meth:`test_df_core_qa_s10.DfCoreQaS10Tests.test_sha256_json_io_and_time_helpers()`
 def df_sha256(data: bytes) -> str:
 	return hashlib.sha256(data).hexdigest()

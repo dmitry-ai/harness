@@ -1138,10 +1138,10 @@ def canonicalize_root_dir(value: str | Path, *, registry: PathRegistry | None=No
 # @used-by :func:`agent_tools.research.inside()`
 # @used-by :meth:`Df.Harness.Experiment.PreregistrationAuditor.PreregistrationAuditor.__is_plan_commit()`
 # @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.read_envelope()`
+# @used-by :meth:`Df.Harness.Workflow.StateLoader.StateLoader.load()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.operation_meta()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.read_check()`
 # @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.reconciled_integrity()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.load()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_df_servers_relocation_and_nested_server_artifact_root()`
 # @used-by :meth:`test_project_rename.ProjectRenameTests.test_rename_preserves_launcher_handoff_reg_hash_and_review_lineage()`
@@ -1636,9 +1636,10 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__find_uncovered()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffCoverageHook.DiffCoverageHook.prepare_env()`
 	# @used-by :meth:`Df.Harness.Tdd.OutcomeParser.OutcomeParser.uri_to_local_path()`
+	# @used-by :meth:`Df.Harness.Workflow.ProgressPublisher.ProgressPublisher.__question_lines()`
+	# @used-by :meth:`Df.Harness.Workflow.ProgressPublisher.ProgressPublisher.publish()`
 	# @used-by :meth:`PathRegistry.__init__()`
 	# @used-by :meth:`agent_tools.completion.TurnJournalReconciler._prune_delivered_checkpoint_recovery()`
-	# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.publish_progress()`
 	# @used-by :meth:`test_df_dotpy_bootstrap.DfDotPyBootstrapTests.test_df_bootstrap_loads_dotpy_packages_and_sibling_modules()`
 	# @used-by :meth:`test_hook_trace_cache_and_watchdog.HookTraceCacheAndWatchdogTests.test_in_process_cache_shares_single_disk_read_across_pre_tool_gates()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_live_five_projects_integration_across_harness_subsystems_and_cli()`
@@ -1697,6 +1698,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_df_harness_dedup_s8`
 	# @used-by :mod:`test_df_harness_lib_s10`
 	# @used-by :mod:`test_df_harness_s11_wave2a_review`
+	# @used-by :mod:`test_df_harness_s11_wave2a_workflow`
 	# @used-by :mod:`test_df_harness_s11_wave2a`
 	# @used-by :mod:`test_df_harness_s11_wave2b_gate_cov`
 	# @used-by :mod:`test_df_harness_s11_wave2b_gate`
@@ -1954,7 +1956,6 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.text_sources._evaluate()`
 	# @used-by :func:`agent_tools.upwork_project.default_context_config()`
 	# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
-	# @used-by :func:`agent_tools.workflow.kb_paths()`
 	# @used-by :meth:`Df.Harness.Analysis.LocalSourceResolver.LocalSourceResolver.resolve()`
 	# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.__load_base()`
 	# @used-by :meth:`Df.Harness.Analysis.Publisher.Publisher.__resolve_project_root()`
@@ -1967,6 +1968,8 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Project.FinalizeDriftGuard.FinalizeDriftGuard.require()`
 	# @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.__default_analysis()`
 	# @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.load_analysis()`
+	# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.__check_red_flags()`
+	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.kb_paths()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
@@ -1978,7 +1981,7 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.knowledge.sync_project_attachments_and_kb()`
 	# @used-by :func:`agent_tools.upwork_project.default_context_config()`
 	# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
-	# @used-by :func:`agent_tools.workflow.evidence_paths()`
+	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.evidence_paths()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_v1_journal_only_upgrade_preserves_v1_project_layout_and_historical_receipts()`
@@ -1987,8 +1990,8 @@ class ProjectPaths:
 	def manual_kb_dir(self) -> Path:
 		return Path(self.paths_str['manual_kb_dir'])
 	# @used-by :func:`agent_tools.knowledge.build_project_extra_sources()`
-	# @used-by :func:`agent_tools.workflow.evidence_paths()`
 	# @used-by :meth:`Df.Harness.Analysis.LocalSourceResolver.LocalSourceResolver.resolve()`
+	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.evidence_paths()`
 	@property
 	def source_dir(self) -> Path:
 		return Path(self.paths_str['source_dir'])
@@ -2008,8 +2011,7 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.research.extract_file()`
 	# @used-by :func:`agent_tools.text_browser.save_cdp_identity()`
 	# @used-by :func:`agent_tools.upwork_project.default_context_config()`
-	# @used-by :func:`agent_tools.workflow.evidence_paths()`
-	# @used-by :func:`agent_tools.workflow.kb_paths()`
+	# @used-by :func:`test_df_harness_s11_wave2a_workflow._seed_project()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__load_state()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.verify()`
 	# @used-by :meth:`Df.Harness.Experiment.RunLoader.RunLoader.__load_raw()`
@@ -2019,6 +2021,8 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.__write_candidate()`
 	# @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.prepare()`
 	# @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__write_artifacts()`
+	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.evidence_paths()`
+	# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.kb_paths()`
 	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace._target_for_project_root()`
 	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.evidence_issue_files()`
 	# @used-by :meth:`agent_tools.issues.workspace.IssueEvidenceWorkspace.issue_target_for_path()`
@@ -2137,11 +2141,13 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.text_sources._evaluate()`
 	# @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 	# @used-by :func:`is_tracked_workspace()`
+	# @used-by :func:`test_df_harness_s11_wave2a_workflow._seed_project()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.__load_state()`
 	# @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__match_upwork_root()`
 	# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.__lookup_name_from_project_json()`
 	# @used-by :meth:`Df.Harness.Project.DriftAuditor.DriftAuditor.audit()`
 	# @used-by :meth:`Df.Harness.Project.RegistrationExpectation.RegistrationExpectation.build()`
+	# @used-by :meth:`Df.Harness.Workflow.WorkflowResumer.WorkflowResumer.__apply()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._check_kb_membership()`
 	# @used-by :meth:`agent_tools.response_grounding.ResponseEvidenceAuditor._collect_client_urls()`
 	@property
@@ -2157,6 +2163,7 @@ class ProjectPaths:
 	# @used-by :func:`agent_tools.blocked_report.evaluate_check_workflow_errors()`
 	# @used-by :func:`agent_tools.completion._workflow_gate_resolved()`
 	# @used-by :func:`agent_tools.project_rename_verify._probe_workflow()`
+	# @used-by :meth:`Df.Harness.Workflow.StateLoader.StateLoader.state_path()`
 	@property
 	def workflow_json(self) -> Path:
 		return Path(self.paths_str['workflow_json'])
@@ -2373,8 +2380,6 @@ class ProjectPaths:
 # @used-by :func:`agent_tools.upwork_project.default_context_config()`
 # @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`agent_tools.upwork_project.run()`
-# @used-by :func:`agent_tools.workflow.evidence_paths()`
-# @used-by :func:`agent_tools.workflow.kb_paths()`
 # @used-by :func:`agent_tools.worktree_flow._resolve_deleted_worktree_file()`
 # @used-by :func:`agent_tools.worktree_flow._run_land_checks()`
 # @used-by :func:`agent_tools.worktree_flow.worktree_land()`
@@ -2384,6 +2389,7 @@ class ProjectPaths:
 # @used-by :func:`is_tracked_workspace()`
 # @used-by :func:`paths_report()`
 # @used-by :func:`test_arch_review_cli._init_text_workspace()`
+# @used-by :func:`test_df_harness_s11_wave2a_workflow._seed_project()`
 # @used-by :func:`tool_value()`
 # @used-by :meth:`Df.Harness.Analysis.Claim.ManifestPrimaryVerifier.ManifestPrimaryVerifier.verify()`
 # @used-by :meth:`Df.Harness.Analysis.LocalSourceResolver.LocalSourceResolver.resolve()`
@@ -2431,6 +2437,30 @@ class ProjectPaths:
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
 # @used-by :meth:`Df.Harness.Tdd.RatchetGuard.RatchetGuard.turn_receipt_dirs()`
 # @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.default_slots_dir()`
+# @used-by :meth:`Df.Harness.Workflow.AnalysisCardAuditor.AnalysisCardAuditor.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.AnswerRecorder.AnswerRecorder.record()`
+# @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.evidence_paths()`
+# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.kb_paths()`
+# @used-by :meth:`Df.Harness.Workflow.HealthAuditor.HealthAuditor.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.KbAuditor.KbAuditor.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.ProgressPublisher.ProgressPublisher.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.QuestionAdder.QuestionAdder.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.QuestionClaimer.QuestionClaimer.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.QuestionFinisher.QuestionFinisher.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.QuestionHandoff.QuestionHandoff.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.QuestionRegistry.QuestionRegistry.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.QuestionSearchRecorder.QuestionSearchRecorder.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.ReceiptVerifier.ReceiptVerifier.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.RegistrationStatusChecker.RegistrationStatusChecker.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.RequestAdopter.RequestAdopter.adopt()`
+# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.StageEngine.StageEngine.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.StateLoader.StateLoader.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.StateLoader.StateLoader.state_path()`
+# @used-by :meth:`Df.Harness.Workflow.StateUpdater.StateUpdater.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.StatusSnapshotBuilder.StatusSnapshotBuilder.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.WorkflowResumer.WorkflowResumer.resume()`
 # @used-by :meth:`agent_tools.completion.AnswerPreparationRunner.__init__()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate._tdd_project_root()`
 # @used-by :meth:`agent_tools.git_gate.GitRepoGate.is_issue_tracked()`
@@ -2446,12 +2476,6 @@ class ProjectPaths:
 # @used-by :meth:`agent_tools.source_grounding.Tier0SourceIndex.__init__()`
 # @used-by :meth:`agent_tools.text_diagnostics.SourceDiagnosticsScanner._scan_ancestry_scope()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.__init__()`
-# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.__init__()`
-# @used-by :meth:`agent_tools.workflow.ResearchQuestionRegistry.__init__()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.__init__()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.adopt_requests()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.record_current_answer()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.resume()`
 # @used-by :meth:`test_blocked_report_hygiene_and_doc5_m2.BlockedReportHygieneAndDoc5M2Tests.test_blocked_report_records_journal_despite_hygiene_failures_and_allows_doc5()`
 # @used-by :meth:`test_blocked_report_hygiene_and_doc5_m2.BlockedReportHygieneAndDoc5M2Tests.test_blocked_report_still_rejects_client_claim_ids_inside_doc5()`
 # @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_drift_red_flags_and_card_sync_classes()`

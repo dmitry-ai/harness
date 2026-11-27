@@ -149,12 +149,12 @@ def classify_network_error(exc):
 # @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.subject_digest()`
 # @used-by :meth:`Df.Harness.Review.PackagePreparer.PackagePreparer.prepare()`
 # @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__write_artifacts()`
+# @used-by :meth:`Df.Harness.Workflow.StateUpdater.StateUpdater.update()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._check_replay()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.apply()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.begin()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.check()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace.save_index()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.update()`
 # @used-by :meth:`test_falsifier_default_send_message_and_schedule_m8.FalsifierDefaultSendMessageAndScheduleM8Tests._native_record()`
 # @used-by :meth:`test_review_contract.ReviewContractTests.native_record()`
 # @used-by :meth:`test_review_contract.ReviewContractTests.self_record()`
@@ -208,7 +208,6 @@ def _fingerprint(value):
 # @used-by :func:`agent_tools.text_sources._evaluate()`
 # @used-by :func:`agent_tools.text_sources.read_source_check()`
 # @used-by :func:`agent_tools.text_sources.source_integrity()`
-# @used-by :func:`agent_tools.workflow.hashes()`
 # @used-by :func:`extract_file()`
 # @used-by :func:`extract_observation()`
 # @used-by :func:`load_observation()`
@@ -240,6 +239,14 @@ def _fingerprint(value):
 # @used-by :meth:`Df.Harness.Review.ReviewAuthorizer.ReviewAuthorizer.__init__()`
 # @used-by :meth:`Df.Harness.Review.SignificantFindingScanner.SignificantFindingScanner.has_significant()`
 # @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__init__()`
+# @used-by :meth:`Df.Harness.Workflow.HashCollector.HashCollector.collect()`
+# @used-by :meth:`Df.Harness.Workflow.KbAuditor.KbAuditor.issues()`
+# @used-by :meth:`Df.Harness.Workflow.ProgressPublisher.ProgressPublisher.__question_lines()`
+# @used-by :meth:`Df.Harness.Workflow.QuestionAdder.QuestionAdder.__validate_outputs()`
+# @used-by :meth:`Df.Harness.Workflow.QuestionFinisher.QuestionFinisher.__apply()`
+# @used-by :meth:`Df.Harness.Workflow.ReceiptVerifier.ReceiptVerifier.__resolve_artifact()`
+# @used-by :meth:`Df.Harness.Workflow.StatusSnapshotBuilder.StatusSnapshotBuilder.__proposals()`
+# @used-by :meth:`Df.Harness.Workflow.WorkflowResumer.WorkflowResumer.__apply()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._check_replay()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._gate_target()`
 # @used-by :meth:`agent_tools.text_workflow.ClientTextWorkspace._validate_begin_spec()`
@@ -252,13 +259,6 @@ def _fingerprint(value):
 # @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.reconciled_integrity()`
 # @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.verify()`
 # @used-by :meth:`agent_tools.text_workflow.TextIntegrityVerifier.verify_applied_successor()`
-# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.kb_issues()`
-# @used-by :meth:`agent_tools.workflow.ResearchQuestionRegistry._apply_finish()`
-# @used-by :meth:`agent_tools.workflow.ResearchQuestionRegistry.add()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._apply_resume()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._resolve_receipt_artifact()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.publish_progress()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine.status()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 def inside(root, relative):
 	root = Path(root).resolve()
@@ -462,6 +462,7 @@ def observed_use(root, result):
 # @used-by :meth:`test_analysis_workflow.ResearchTests.test_concurrent_and_repeated_fetches_reuse_one_saved_response()`
 # @used-by :meth:`test_analysis_workflow.ResearchTests.test_conditions_scope_and_explicit_refresh_make_separate_measurements()`
 # @used-by :meth:`test_analysis_workflow.ResearchTests.test_real_get_and_cross_origin_redirect_strip_authentication()`
+# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_review_lifecycle_and_validators_extra()`
 # @used-by :meth:`test_evidence_contract.EvidenceContractTests.signed_price_analysis()`
 # @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_currency_cannot_be_borrowed_from_another_quantity()`
 # @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_e1_and_e2_sitemap_alone_and_unobserved_sample_urls_are_rejected()`
@@ -573,6 +574,7 @@ def collect(root, url, *, headers=None, scope='public', max_age=86400, refresh_r
 # @used-by :meth:`Df.Harness.Analysis.ObservationResolver.ObservationResolver.resolve()`
 # @used-by :meth:`Df.Harness.Experiment.ArtifactIngestor.ArtifactIngestor.collector_artifact()`
 # @used-by :meth:`test_analysis_workflow.ResearchTests.test_changed_cached_body_is_not_silently_used()`
+# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_review_lifecycle_and_validators_extra()`
 # @used-by :meth:`test_source_admission.SourceAdmissionTests.test_m4_collect_browser_public_and_authenticated_cdp_identity_provenance()`
 def load_observation(root, reference):
 	# 2026-11-19
@@ -1162,6 +1164,7 @@ def compact_extraction_for_disk(data):
 # @used-by :func:`test_runtime_cache_and_evidence_fastpath_m9._build_html_obs_project()`
 # @used-by :meth:`test_analysis_workflow.NativeReviewTests.test_void_elements_compact_extracted_disk_json_and_max_bytes_guard()`
 # @used-by :meth:`test_analysis_workflow.ResearchTests.test_concurrent_and_repeated_fetches_reuse_one_saved_response()`
+# @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_review_lifecycle_and_validators_extra()`
 # @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_e5_and_e6_html_sitemap_and_site_summary_diagnostics()`
 def extract_observation(root, reference, profile='html'):
 	# 2026-11-19

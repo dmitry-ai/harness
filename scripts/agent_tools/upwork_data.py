@@ -508,7 +508,7 @@ def _parse_pdf_streams(pdf_bytes: bytes, *, text_ops_only: bool=False) -> tuple[
 # @used-by :func:`agent_tools.upwork_project.initialize_upwork_project()`
 # @used-by :func:`agent_tools.upwork_project.resolve_or_create_project_dir()`
 # @used-by :func:`canonical_job_url()`
-# @used-by :meth:`agent_tools.workflow.WorkflowStateEngine._apply_resume()`
+# @used-by :meth:`Df.Harness.Workflow.WorkflowResumer.WorkflowResumer.__apply()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_native_requests_preserve_exact_bytes_and_current_job_scope()`
 def normalize_job_id(url_or_id: str) -> str:
 	match = re.search('(~0[12][0-9a-zA-Z]+)', url_or_id.strip())
@@ -754,7 +754,7 @@ def format_table_bullet_rows(rows: list[list[str]], headers: list[str] | None=No
 # https://github.com/dmitry-ai/harness/issues/7
 # @used-by :func:`agent_tools.knowledge.build_project_extra_sources()`
 # @used-by :func:`detect_client_videos()`
-# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.attachment_issues()`
+# @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.__check_attachment()`
 def classify_attachment(filename_or_path, raw_bytes: bytes | None=None) -> str:
 	suffix = Path(str(filename_or_path)).suffix.lower()
 	r = 'binary'
@@ -878,7 +878,7 @@ def extract_docx_markdown(raw_bytes: bytes) -> str:
 # https://github.com/dmitry-ai/harness/issues/7
 # @used-by :func:`agent_tools.knowledge.build_project_extra_sources()`
 # @used-by :meth:`Df.Harness.Analysis.SavedSourceLoader.SavedSourceLoader.__load_document()`
-# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.attachment_issues()`
+# @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.__check_attachment()`
 # @used-by :meth:`test_upwork_data.UpworkDataExtractorTests.test_shared_table_bullet_rows_across_markdown_and_csv()`
 def extract_attachment_markdown(path_or_name, raw_bytes: bytes | None=None) -> str:
 	path = Path(str(path_or_name))
@@ -927,7 +927,7 @@ def canonical_video_url(url: str) -> str:
 # "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging":
 # https://github.com/dmitry-ai/harness/issues/7
 # @used-by :func:`agent_tools.knowledge.build_project_extra_sources()`
-# @used-by :meth:`agent_tools.workflow.ProjectHealthAuditor.attachment_issues()`
+# @used-by :meth:`Df.Harness.Workflow.AttachmentAuditor.AttachmentAuditor.__check_videos()`
 def detect_client_videos(description: str='', document_markdowns: list[str] | tuple[str, ...]=(), saved_attachments: list[dict] | tuple[dict, ...]=()) -> list[dict]:
 	r: list[dict] = []
 	seen_keys: set[str] = set()

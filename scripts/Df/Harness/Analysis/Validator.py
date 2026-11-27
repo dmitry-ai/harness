@@ -16,6 +16,7 @@ class Validator:
 	# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.save()`
 	# @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.__default_analysis()`
 	# @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.load_analysis()`
+	# @used-by :meth:`Df.Harness.Workflow.AnalysisCardAuditor.AnalysisCardAuditor.__init__()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_analysis_merger_and_lifecycle_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_z_project_sync_and_schema_paths()`
 	def __init__(self, value) -> None:
@@ -162,6 +163,7 @@ class Validator:
 	# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.save()`
 	# @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.__default_analysis()`
 	# @used-by :meth:`Df.Harness.Review.PackageEnvelopeReader.PackageEnvelopeReader.load_analysis()`
+	# @used-by :meth:`Df.Harness.Workflow.AnalysisCardAuditor.AnalysisCardAuditor.__init__()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_analysis_merger_and_lifecycle_classes()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_z_project_sync_and_schema_paths()`
 	def issues(self) -> list[dict]:
@@ -193,6 +195,7 @@ class Validator:
 	# @used-by :func:`agent_tools.analysis.require_current_contract()`
 	# @used-by :meth:`Df.Harness.Analysis.Publisher.Publisher.publish()`
 	# @used-by :meth:`Df.Harness.Analysis.Saver.Saver.save()`
+	# @used-by :meth:`Df.Harness.Workflow.StageCompleter.StageCompleter.__check_prereqs()`
 	@staticmethod
 	def require_current_contract(value) -> None:
 		IssueValidator([] if isinstance(value, dict) and 3 == value.get('schema_version') else [Diagnostics().problem('analysis.current_contract', '/schema_version', 'New saved/published analyses require schema_version 3 and explicit provenance; preserve legacy files and reconcile a candidate')]).require_valid()
