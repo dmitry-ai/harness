@@ -111,6 +111,7 @@ class ShellSegmenter:
 	# @used-by :meth:`Df.Harness.Research.HtmlData.HtmlData.handle_endtag()`
 	# @used-by :meth:`Df.Harness.Research.ObservationBundleScanner.ObservationBundleScanner.__scan_raw_json_title()`
 	# @used-by :meth:`Df.Harness.Research.ObservationBundleScanner.ObservationBundleScanner.__scan_raw_response()`
+	# @used-by :meth:`Df.Harness.Research.UserUrlPolicy.UserUrlPolicy.apex_host()`
 	# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.__match_go_or_cargo()`
 	# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.__match_python_unittest()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffExecutability.DiffExecutability.__git_diff_entries()`

@@ -360,8 +360,10 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Experiment.RunLoader.RunLoader.__load_raw()`
 	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__write_run()`
 	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__check_kb_membership()`
+	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__collect_client_site_hosts()`
 	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__collect_client_urls()`
 	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__collect_kb_urls()`
+	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__needs_evidence_scan()`
 	# @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.sync()`
 	# @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.assemble()`
 	# @used-by :meth:`Df.Harness.Project.Context.LetterDiscoverer.LetterDiscoverer.default_config()`
@@ -459,6 +461,8 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Project.Intake.IntakePathGuard.IntakePathGuard.plain()`
 	# @used-by :meth:`Df.Harness.Research.LinkAuditor.LinkAuditor.__resolve_local_path_text()`
 	# @used-by :meth:`Df.Harness.Research.ObservationBundleScanner.ObservationBundleScanner.__scan_raw_html()`
+	# @used-by :meth:`Df.Harness.Research.UserUrlPolicy.UserUrlPolicy.classify_observation()`
+	# @used-by :meth:`Df.Harness.Research.UserUrlPolicy.UserUrlPolicy.format_card_url()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffCoverage.DiffCoverage.__find_uncovered()`
 	# @used-by :meth:`Df.Harness.Tdd.DiffCoverageHook.DiffCoverageHook.prepare_env()`
 	# @used-by :meth:`Df.Harness.Tdd.OutcomeParser.OutcomeParser.uri_to_local_path()`
@@ -705,6 +709,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_upwork_data`
 	# @used-by :mod:`test_upwork_init_e2e`
 	# @used-by :mod:`test_upwork_v2_root_card`
+	# @used-by :mod:`test_user_url_policy`
 	# @used-by :mod:`test_verification_observability`
 	# @used-by :mod:`test_watchdog_and_timeout_gate`
 	# @used-by :mod:`test_worker_semaphore_and_xdist`
@@ -735,7 +740,9 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Completion.BudgetEvaluator.BudgetEvaluator.run()`
 	# @used-by :meth:`Df.Harness.Gate.ExternalWriteGate.ExternalWriteGate.__match_upwork_root()`
 	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__check_kb_membership()`
+	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__collect_client_site_hosts()`
 	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__collect_client_urls()`
+	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__needs_evidence_scan()`
 	# @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.__lookup_name_from_project_json()`
 	# @used-by :meth:`Df.Harness.Platform.Antigravity.ProjectRegistrar.ProjectRegistrar.__resolve_day()`
 	# @used-by :meth:`Df.Harness.Project.AttachmentKbSyncer.AttachmentKbSyncer.sync()`

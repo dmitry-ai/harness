@@ -151,6 +151,8 @@ class EvidenceQuerier:
 	# @used-by :func:`Df.Harness.lib.cli_domain_ops._op_question_search()`
 	# @used-by :func:`Df.Harness.lib.markdown.dfh_display_address()`
 	# @used-by :func:`agent_tools.research.evidence_query()`
+	# @used-by :meth:`Df.Harness.Research.UserUrlPolicy.UserUrlPolicy.classify_observation()`
+	# @used-by :meth:`Df.Harness.Research.UserUrlPolicy.UserUrlPolicy.format_card_url()`
 	# @used-by :meth:`Df.Harness.Upwork.JobUrlParser.JobUrlParser.extract_upwork_job_url_id()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_research.DfHarnessS11Wave2CResearchTests.test_evidence_querier_and_grepper()`
 	def query(self) -> dict:

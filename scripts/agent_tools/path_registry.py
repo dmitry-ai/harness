@@ -170,8 +170,8 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 # @used-by :meth:`Df.Harness.Git.WorktreeRebaseVerifier.WorktreeRebaseVerifier.__run_land_checks()`
 # @used-by :meth:`Df.Harness.Grounding.Doc5RequirementChecker.Doc5RequirementChecker.__workspace_repo_slugs()`
 # @used-by :meth:`Df.Harness.Grounding.EvidenceBundleIngestor.EvidenceBundleIngestor.__evidence_dirs()`
-# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__check_kb_membership()`
 # @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__collect_client_urls()`
+# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.validate()`
 # @used-by :meth:`Df.Harness.Grounding.Tier0Index.Tier0Index.__init__()`
 # @used-by :meth:`Df.Harness.Issue.AcceptanceGate.AcceptanceGate.__load_receipt()`
 # @used-by :meth:`Df.Harness.Issue.CommentGrounder.CommentGrounder.__resolve_root()`

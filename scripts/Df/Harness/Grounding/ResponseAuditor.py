@@ -6,6 +6,8 @@ from Df.Harness.Grounding.CliCommandAuditor import CliCommandAuditor
 from Df.Harness.Grounding.EvidenceBundleIngestor import EvidenceBundleIngestor
 from Df.Harness.Grounding.LocalSourceAuditor import LocalSourceAuditor
 from Df.Harness.Research.LinkAuditor import LinkAuditor
+# 2026-11-28 "Enforce non-www user URL policy with KB alias grounding": https://github.com/dmitry-ai/harness/issues/416
+from Df.Harness.Research.UserUrlPolicy import UserUrlPolicy
 from Df.Harness.lib.grounding import dfh_extract_blockquote_quotes, dfh_is_normative_harness_doc, dfh_markdown_parser, dfh_norm_quote_text, dfh_quote_segments_present
 from Df.Harness.lib.grounding_md import dfh_external_anchor_issues
 from Df.Harness.lib.markdown import dfh_iter_inline_segments
@@ -20,6 +22,9 @@ class ResponseAuditor:
 	# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_evidence_bundle_ingestor_and_response_auditor()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_cov_tail.DfHarnessS11Wave2CCovTailTests.test_grounding_ingestor_kb_membership_and_locale_fallback()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_response_auditor_ingestor_and_tier0_index()`
+	# @used-by :meth:`test_user_url_policy.UserUrlPolicyTests.test_broken_apex_keeps_www_and_blocks_false_alias()`
+	# @used-by :meth:`test_user_url_policy.UserUrlPolicyTests.test_response_auditor_aliases_www_subpages_and_blocks_authored_www()`
+	# @used-by :meth:`test_user_url_policy.UserUrlPolicyTests.test_uncaptured_client_intake_www_url_has_no_deadlock()`
 	def __init__(self, root: Path, response: str, requests: list[dict], *, touched_files=None, turn=None, native=None) -> None:
 		self.root, self.response, self.requests, self.touched_files, self.turn, self.native = (Path(root).resolve(), response, requests, touched_files, turn, native)
 		self.errors = list(LinkAuditor.chat_reply_link_issues(response, root=self.root))
@@ -35,13 +40,18 @@ class ResponseAuditor:
 		self.observed_anchors: dict[str, set[str]] = {}
 		self.observed_texts: dict[str, list[str]] = {}
 		self.invalid_observations: dict[str, str] = {}
+		# 2026-11-28 "Enforce non-www user URL policy with KB alias grounding": https://github.com/dmitry-ai/harness/issues/416
+		self.user_facing_urls: list[str] = []
+		self.working_apex_hosts: set[str] = set()
+		self.failed_apex_hosts: set[str] = set()
 	# @used-by unused
 	def __getattr__(self, name: str):
 		if '_extract_markdown_refs' == name:
 			return self.extract_markdown_refs
 		raise AttributeError(f'{type(self).__name__!r} object has no attribute {name!r}')
+	# 2026-11-28 "Enforce non-www user URL policy with KB alias grounding": https://github.com/dmitry-ai/harness/issues/416
 	# @used-by :meth:`ResponseAuditor.validate()`
-	def __check_external_refs(self) -> None:
+	def __check_external_refs(self, pp) -> None:
 		self.__check_link_titles()
 		self.__check_link_observations()
 		for href, q_raw in self.attributed_quotes:
@@ -51,10 +61,11 @@ class ResponseAuditor:
 				if not dfh_quote_segments_present(q_raw, obs_blob, 15):
 					preview = ' '.join(q_raw.split())[:80]
 					self.errors.append(f'VERIFY-1 / LINK-1: Verbatim quote \u00ab{preview}\u00bb attributed to {href} is absent from the saved observation in \ua616/KB/Evidence')
+		policy = UserUrlPolicy(working_apex_hosts=self.working_apex_hosts, failed_apex_hosts=self.failed_apex_hosts, client_site_hosts=self.__collect_client_site_hosts(pp))
+		self.errors.extend(policy.check_urls(self.user_facing_urls))
+	# 2026-11-28 "Enforce non-www user URL policy with KB alias grounding": https://github.com/dmitry-ai/harness/issues/416
 	# @used-by :meth:`ResponseAuditor.validate()`
-	def __check_kb_membership(self) -> None:
-		from agent_tools.path_registry import project_paths
-		pp = project_paths(self.root, exact_root=True)
+	def __check_kb_membership(self, pp) -> None:
 		if pp.project_json.is_file() and pp.kb_dir.is_dir():
 			kb_urls, kb_topics = self.__collect_kb_urls(pp)
 			for u in dict.fromkeys(self.authored_urls):
@@ -108,6 +119,11 @@ class ResponseAuditor:
 							self.errors.append(msg)
 			except OSError:
 				pass
+	# 2026-11-28 "Enforce non-www user URL policy with KB alias grounding": https://github.com/dmitry-ai/harness/issues/416
+	# @used-by :meth:`ResponseAuditor.__check_external_refs()`
+	@staticmethod
+	def __collect_client_site_hosts(pp) -> frozenset[str]:
+		return UserUrlPolicy.collect_client_site_hosts(pp.kb_dir / 'Analysis.json', pp.project_json)
 	# @used-by :meth:`ResponseAuditor.validate()`
 	def __collect_client_urls(self) -> None:
 		from agent_tools.path_registry import project_paths
@@ -123,10 +139,12 @@ class ResponseAuditor:
 				except OSError:
 					pass
 		self.__expand_upwork_job_urls(job_ids)
+	# 2026-11-28 "Enforce non-www user URL policy with KB alias grounding": https://github.com/dmitry-ai/harness/issues/416
 	# @used-by :meth:`ResponseAuditor.__check_kb_membership()`
 	def __collect_kb_urls(self, pp) -> tuple[set[str], set[tuple[str, str]]]:
 		kb_urls = set(self.client_urls) | self.local_repo_urls
 		kb_topics: set[tuple[str, str]] = set()
+		failed = self.failed_apex_hosts - self.working_apex_hosts
 		kb_files = list(pp.kb_dir.rglob('*.md')) + (list(pp.manual_kb_dir.rglob('*.md')) if pp.manual_kb_dir.is_dir() else [])
 		analysis_file = pp.kb_dir / 'Analysis.json'
 		if analysis_file.is_file():
@@ -137,12 +155,16 @@ class ResponseAuditor:
 			except OSError:
 				continue
 			for u in dfh_bare_urls(txt):
-				nu = EvidenceBundleIngestor.norm_url(u)
-				kb_urls.add(nu)
-				tk = EvidenceBundleIngestor.discourse_topic_key(nu)
-				if tk:
-					kb_topics.add(tk)
+				self.__record_kb_url(u, failed, kb_urls, kb_topics)
 		return (kb_urls, kb_topics)
+	# 2026-11-28 "Enforce non-www user URL policy with KB alias grounding": https://github.com/dmitry-ai/harness/issues/416
+	# @used-by :meth:`ResponseAuditor.validate()`
+	def __expand_client_url_aliases(self) -> None:
+		failed = self.failed_apex_hosts - self.working_apex_hosts
+		for u in list(self.client_urls):
+			alias = UserUrlPolicy.non_www_alias(u)
+			if alias and UserUrlPolicy.apex_host(u) not in failed:
+				self.client_urls.add(alias)
 	# @used-by :meth:`ResponseAuditor.__collect_client_urls()`
 	def __expand_upwork_job_urls(self, job_ids: set[str]) -> None:
 		for jid in job_ids:
@@ -159,27 +181,34 @@ class ResponseAuditor:
 			if target_href:
 				for gq in dfh_extract_blockquote_quotes(block.content, min_guillemet_len=20, allow_backtick_quotes=True, min_orig_len=20):
 					self.attributed_quotes.append((target_href, gq))
+	# 2026-11-28 "Enforce non-www user URL policy with KB alias grounding": https://github.com/dmitry-ai/harness/issues/416
 	# @used-by :meth:`ResponseAuditor.extract_markdown_refs()`
 	def __extract_inline_block_refs(self, block) -> str | None:
 		ext_in_block: list[str] = []
 		has_local_link = False
+		in_g, in_d = (False, False)
 		for seg in dfh_iter_inline_segments(block.children, include_images=False):
 			if 'link' != seg[0]:
-				self.__record_text_urls(seg, ext_in_block)
+				in_g, in_d = self.__record_text_urls(seg, ext_in_block, in_g, in_d)
 			elif seg[1].startswith(('http://', 'https://')):
 				self.authored_links.append((' '.join(seg[2].split()), seg[1]))
 				self.authored_urls.append(seg[1])
 				ext_in_block.append(seg[1])
+				if (not in_g) and (not in_d):
+					self.user_facing_urls.append(seg[1])
 			elif seg[1]:
 				has_local_link = True
 		r = None if has_local_link or (not ext_in_block) else ext_in_block[-1]
 		if None is not r and 1 == len(ext_in_block) and block.content:
 			self.__record_single_ext_quotes(ext_in_block[0], block.content)
 		return r
+	# 2026-11-28 "Enforce non-www user URL policy with KB alias grounding": https://github.com/dmitry-ai/harness/issues/416
 	# @used-by :meth:`ResponseAuditor.validate()`
-	def __needs_evidence_scan(self) -> bool:
+	def __needs_evidence_scan(self, pp) -> bool:
 		link_hit = any((self.is_descriptive_title_label(label, href) or ((urlsplit(href).hostname or '').lower() not in ('localhost', '127.0.0.1', '::1') and EvidenceBundleIngestor.norm_url(href) not in self.client_urls) for label, href in self.authored_links))
-		return link_hit or any((EvidenceBundleIngestor.norm_url(href) not in self.client_urls for href, _ in self.attributed_quotes))
+		www_hit = any((UserUrlPolicy.is_www_host(u) for u in self.user_facing_urls))
+		kb_hit = pp.project_json.is_file() and pp.kb_dir.is_dir() and bool(self.authored_urls)
+		return link_hit or www_hit or kb_hit or any((EvidenceBundleIngestor.norm_url(href) not in self.client_urls for href, _ in self.attributed_quotes))
 	# @used-by :meth:`ResponseAuditor.__collect_client_urls()`
 	@staticmethod
 	def __read_project_job_id(pjson: Path, job_ids: set[str]) -> None:
@@ -197,19 +226,42 @@ class ResponseAuditor:
 			jid = extract_upwork_job_url_id(u, allow_query_or_fragment=True)
 			if jid:
 				job_ids.add(jid)
+	# 2026-11-28 "Enforce non-www user URL policy with KB alias grounding": https://github.com/dmitry-ai/harness/issues/416
+	# @used-by :meth:`ResponseAuditor.__collect_kb_urls()`
+	@staticmethod
+	def __record_kb_url(u: str, failed: set[str], kb_urls: set[str], kb_topics: set[tuple[str, str]]) -> None:
+		nu = EvidenceBundleIngestor.norm_url(u)
+		kb_urls.add(nu)
+		tk = EvidenceBundleIngestor.discourse_topic_key(nu)
+		if tk:
+			kb_topics.add(tk)
+		alias = UserUrlPolicy.non_www_alias(nu)
+		if alias and UserUrlPolicy.apex_host(nu) not in failed:
+			kb_urls.add(alias)
+			atk = EvidenceBundleIngestor.discourse_topic_key(alias)
+			if atk:
+				kb_topics.add(atk)
 	# @used-by :meth:`ResponseAuditor.__extract_inline_block_refs()`
 	def __record_single_ext_quotes(self, ext_url: str, content: str) -> None:
 		for gq in re.findall('\u00ab([^\u00bb]{25,})\u00bb', content):
 			self.attributed_quotes.append((ext_url, gq))
 		for bq in re.findall('`"([^"\\n]{25,})"`', content):
 			self.attributed_quotes.append((ext_url, bq))
+	# 2026-11-28 "Enforce non-www user URL policy with KB alias grounding": https://github.com/dmitry-ai/harness/issues/416
 	# @used-by :meth:`ResponseAuditor.__extract_inline_block_refs()`
-	def __record_text_urls(self, seg, ext_in_block: list[str]) -> None:
+	def __record_text_urls(self, seg, ext_in_block: list[str], in_g: bool, in_d: bool) -> tuple[bool, bool]:
 		if 'text' == seg[1].type:
-			for u in dfh_bare_urls(seg[2]):
+			for raw_u in dfh_bare_urls(seg[2]):
+				u = raw_u.rstrip('\u00bb')
 				if u.startswith(('http://', 'https://')):
 					self.authored_urls.append(u)
 					ext_in_block.append(u)
+			clean, in_g, in_d = UserUrlPolicy.strip_inline_quotes(seg[2], in_g, in_d)
+			for raw_u in dfh_bare_urls(clean):
+				u = raw_u.rstrip('\u00bb')
+				if u.startswith(('http://', 'https://')):
+					self.user_facing_urls.append(u)
+		return (in_g, in_d)
 	# @used-by :meth:`ResponseAuditor.__getattr__()`
 	# @used-by :meth:`ResponseAuditor.validate()`
 	def extract_markdown_refs(self) -> None:
@@ -256,19 +308,26 @@ class ResponseAuditor:
 			c_set = set(c_tokens)
 			r = 0.6 <= len(c_set & set(o_tokens)) / max(1, len(c_set))
 		return r
+	# 2026-11-28 "Enforce non-www user URL policy with KB alias grounding": https://github.com/dmitry-ai/harness/issues/416
 	# @used-by :func:`agent_tools.response_grounding.response_source_and_kb_issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_evidence_bundle_ingestor_and_response_auditor()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_cov_tail.DfHarnessS11Wave2CCovTailTests.test_grounding_ingestor_kb_membership_and_locale_fallback()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_response_auditor_ingestor_and_tier0_index()`
+	# @used-by :meth:`test_user_url_policy.UserUrlPolicyTests.test_broken_apex_keeps_www_and_blocks_false_alias()`
+	# @used-by :meth:`test_user_url_policy.UserUrlPolicyTests.test_response_auditor_aliases_www_subpages_and_blocks_authored_www()`
+	# @used-by :meth:`test_user_url_policy.UserUrlPolicyTests.test_uncaptured_client_intake_www_url_has_no_deadlock()`
 	def validate(self) -> list[str]:
 		self.extract_markdown_refs()
 		if self.authored_urls:
+			from agent_tools.path_registry import project_paths
+			pp = project_paths(self.root, exact_root=True)
 			self.__collect_client_urls()
-			if self.__needs_evidence_scan():
+			if self.__needs_evidence_scan(pp):
 				EvidenceBundleIngestor(self).ingest()
+			self.__expand_client_url_aliases()
 			self.local_repo_urls = hydrate_local_repo_urls(self)
-			self.__check_kb_membership()
-			self.__check_external_refs()
+			self.__check_kb_membership(pp)
+			self.__check_external_refs(pp)
 		self.__check_local_grounding()
 		self.errors.extend(CliCommandAuditor.response_turn_gate_issues(self.root, self.response, requests=self.requests, turn=self.turn, native=self.native))
 		return self.errors
