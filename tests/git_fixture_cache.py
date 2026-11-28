@@ -73,6 +73,7 @@ def clone_template_bare_repo(dest: Path, *, initial_branch: str='main') -> Path:
 # @used-by :func:`test_runtime_snapshot._seed_harness_git_repo()`
 # @used-by :func:`test_tdd_completion._build_template_project()`
 # @used-by :func:`test_tdd_git_gate._init_repo()`
+# @used-by :meth:`problem_report_fixtures.ProblemReportFixtureBuilder.__seed_git_repo()`
 # @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_issue_tracked_code_repo_requires_github_issue_url_in_code_and_commit_message()`
 # @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_read_git_and_git_shim_and_unflagged_detector()`
 # @used-by :meth:`test_agents_loader.AgentsLoaderTests.test_shell_audit_inspector_and_single_pass_repo_gate_commit()`
@@ -100,6 +101,7 @@ def clone_template_git_repo(dest: Path, *, initial_branch: str='main', remote_ur
 # @used-by :func:`test_upwork_init_e2e._run_cli()`
 # @used-by :meth:`test_git_fixture_cache.GitFixtureCacheTests.test_run_harness_inprocess_executes_cli_isolates_env_cwd_and_clears_caches()`
 # @used-by :meth:`test_git_fixture_cache.GitFixtureCacheTests.test_run_harness_inprocess_restores_env_and_cwd_on_system_exit_and_exception()`
+# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_standalone_four_track_accepts_nested_and_rejects_flat_h1_and_allows_user_requested_open_issue()`
 def run_harness_inprocess(args: list[str] | tuple[str, ...], *, cwd: Path | None=None, env: dict[str, str] | None=None) -> subprocess.CompletedProcess:
 	from agent_tools import upwork_project
 	arg_list = [str(a) for a in args]

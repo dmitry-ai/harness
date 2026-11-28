@@ -9,8 +9,6 @@ import re
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 _BLOCKER_HINT_RE = re.compile(r'(?i)(?:block(?:er|ed|ing)?|error|fail(?:ed|ure)?|pause[d]?|interrupt(?:ed)?|unavailab\w*|timeout|expired|mismatch|\u0431\u043b\u043e\u043a\u0435\u0440\w*|\u0437\u0430\u0431\u043b\u043e\u043a\u0438\u0440\w*|\u043e\u0448\u0438\u0431\u043a\w*|\u0441\u0431\u043e[\u0439\u0435\u0432\u044f]\w*|\u043f\u0440\u0435\u0440\u0432\u0430\u043d\w*|\u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\w*)')
 _CLIENT_HM_CLAIM_RE = re.compile(r'\b(?:H|M)-(?:SITE|IDENTITY|CONCERN|MISC|CAUSE|METHOD|CLIENT|RF)-[A-Za-z0-9-]*\b', re.I)
-_DOC5_HEADER_RE = re.compile(r'(?m)^#\s+0\b')
-_DOC5_SECTIONS_RE = re.compile(r'(?m)^#\s+([1-4])\b')
 _FENCED_RE = re.compile(r'```[\s\S]*?```')
 _HM_CLAIM_RE = re.compile(r'\b(?:H|M)-(?:[A-Za-z0-9]+-)*\d+\b')
 _STAGE_HEADING_RE = re.compile(r'(?im)^#{1,3}\s+(?:\d+\.\s+)?(?:client identification|client concerns|possible misconceptions|causes of the problem|solution methods|\u0438\u0434\u0435\u043d\u0442\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f\s+\u043a\u043b\u0438\u0435\u043d\u0442\u0430|\u0447\u0442\u043e\s+\u0432\u043e\u043b\u043d\u0443\u0435\u0442|\u0432\u043e\u0437\u043c\u043e\u0436\u043d\u044b\u0435\s+\u0437\u0430\u0431\u043b\u0443\u0436\u0434\u0435\u043d\u0438\u044f|\u043f\u0440\u0438\u0447\u0438\u043d\u044b\s+\u043f\u0440\u043e\u0431\u043b\u0435\u043c\w*|\u043c\u0435\u0442\u043e\u0434\u044b\s+\u0440\u0435\u0448\u0435\u043d\u0438\u044f)\b')
@@ -71,13 +69,25 @@ def _has_substantive_hm(kb_scan: dict, turn_obj: dict, value_obj: dict, response
 	else:
 		r = bool(has_hm or has_kb_mut or touches_deliv)
 	return r
+# 2026-11-28 "Implement hierarchical mixed-turn DOC-5 parser and problem-issue specification": https://github.com/dmitry-ai/harness/issues/428
 # @used-by :func:`dfh_blocked_report_issues()`
 # @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_blocked_report_and_workflow_sync_ops()`
 def _is_doc5_blocker_analysis(response: str) -> bool:
+	from Df.Harness.Grounding.HeadingTreeParser import HeadingTreeParser
+	from Df.Harness.Grounding.MixedTurnProblemSchema import MixedTurnProblemSchema
+	from Df.Harness.Grounding.StandaloneProblemSchema import StandaloneProblemSchema
 	txt = response or ''
-	has_meta = bool(_DOC5_HEADER_RE.search(txt)) and ('"Issue"' in txt or '"Source Project"' in txt)
-	has_sections = 4 <= len(set(_DOC5_SECTIONS_RE.findall(txt)))
-	return has_meta and has_sections
+	has_key = '"Issue"' in txt or '"Source Project"' in txt
+	if not has_key:
+		r = False
+	else:
+		roots = HeadingTreeParser(txt).parse()
+		if MixedTurnProblemSchema.has_mixed_sections(roots):
+			r = True
+		else:
+			blocks = StandaloneProblemSchema(roots).extract()['blocks']
+			r = any((0 in b['sections'] and {1, 2, 3, 4} <= set(b['sections']) for b in blocks))
+	return r
 # @used-by :func:`_authorize_workflow_errors()`
 # @used-by :func:`dfh_audit_runner_workflow_scope()`
 def _needs_upwork_adoption(pp: Any, wf_cov: set, requests_list: list, is_fin: bool, substantive_hm: bool) -> bool:

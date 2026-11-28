@@ -19,6 +19,7 @@ _BANNER = (
 	+ '*' * 63 + '\n'
 	+ '```'
 )
+# 2026-11-28 "Implement hierarchical mixed-turn DOC-5 parser and problem-issue specification": https://github.com/dmitry-ai/harness/issues/428
 # @used-by :func:`_four_track_en()`
 # @used-by :meth:`DfAnalysisCompanionTracksTests.test_four_blocks_missing_or_merged_companion_track_rejected()`
 # @used-by :meth:`DfAnalysisCompanionTracksTests.test_single_problem_block_rejected_when_companion_tracks_missing()`
@@ -27,7 +28,7 @@ def _block_en(header: str, tag: str, issue_url: str | None, desc: str, src_link:
 	m1_text = m1_body if m1_body else '- Essence: Enforce a deterministic invariant inside the owning module.  \n'
 	return (
 		f'# {header}\n\n'
-		f'# 0. Problem Metadata ({tag})\n\n'
+		f'## 0. Problem Metadata ({tag})\n\n'
 		'```json\n'
 		'{\n'
 		'\t"Time": "2026-11-25 23:00:00 UTC+3",\n'
@@ -35,33 +36,34 @@ def _block_en(header: str, tag: str, issue_url: str | None, desc: str, src_link:
 		'\t"Project": {"Name": "Harness", "Path": "C:/work/research/provision/code/AI/harness"}\n'
 		'}\n'
 		'```\n\n'
-		f'# 1. Problem Description ({tag})\n\n'
+		f'## 1. Problem Description ({tag})\n\n'
 		f'{desc}  \n\n'
-		f'# 2. Root Cause Analysis ({tag})\n\n'
-		f'## H-{tag}-1. Primary mechanism\n'
+		f'## 2. Root Cause Analysis ({tag})\n\n'
+		f'### H-{tag}-1. Primary mechanism\n'
 		f'- Essence: Direct defect confirmed in [source](<{src_link}>).  \n'
 		'- Arguments for: Reproduced verbatim in observed logs.  \n'
 		'- Arguments against: Secondary timing noise remains minor.  \n'
 		'- Plausibility: 90% based on direct reproduction.  \n\n'
-		f'## H-{tag}-2. Alternative environmental factor\n'
+		f'### H-{tag}-2. Alternative environmental factor\n'
 		f'- Essence: External host interference noted in [source](<{src_link}>).  \n'
 		'- Arguments for: Host timeout is visible externally.  \n'
 		'- Arguments against: Direct local run reproduces without host noise.  \n'
 		'- Plausibility: 15% based on controlled repro.  \n\n'
-		f'# 3. Source Project Attribution ({tag})\n\n'
+		f'## 3. Source Project Attribution ({tag})\n\n'
 		'The architectural owner is Harness (`dmitry-ai/harness`).  \n\n'
-		f'# 4. Permanent Systemic Solutions ({tag})\n\n'
-		f'## M-{tag}-1. Systemic guardrail\n'
+		f'## 4. Permanent Systemic Solutions ({tag})\n\n'
+		f'### M-{tag}-1. Systemic guardrail\n'
 		f'{m1_text}'
 		'- Arguments for: Eliminates the defect permanently at its source.  \n'
 		'- Arguments against: Requires dedicated regression tests.  \n'
 		'- Score: 95% for systemic elimination.  \n\n'
-		f'## M-{tag}-2. Manual workaround\n'
+		f'### M-{tag}-2. Manual workaround\n'
 		'- Essence: Document a checklist reminder for operators.  \n'
 		'- Arguments for: Zero code changes required.  \n'
 		'- Arguments against: Fails silently under pressure.  \n'
 		'- Score: 20% for systemic elimination.  \n'
 	)
+# 2026-11-28 "Implement hierarchical mixed-turn DOC-5 parser and problem-issue specification": https://github.com/dmitry-ai/harness/issues/428
 # @used-by :func:`_four_track_ru()`
 # @used-by :meth:`DfAnalysisCompanionTracksTests.test_bundled_companion_topics_inside_single_block_still_rejected()`
 def _block_ru(header: str, tag: str, issue_url: str | None, desc: str, src_link: str, m1_body: str='') -> str:
@@ -69,7 +71,7 @@ def _block_ru(header: str, tag: str, issue_url: str | None, desc: str, src_link:
 	m1_text = m1_body if m1_body else '- Суть: Закрыть дефект системной проверкой в базовом модуле.  \n'
 	return (
 		f'# {header}\n\n'
-		f'# 0. Метаданные проблемы ({tag})\n\n'
+		f'## 0. Метаданные проблемы ({tag})\n\n'
 		'```json\n'
 		'{\n'
 		'\t"Time": "2026-11-25 23:00:00 UTC+3",\n'
@@ -77,28 +79,28 @@ def _block_ru(header: str, tag: str, issue_url: str | None, desc: str, src_link:
 		'\t"Project": {"Name": "Harness", "Path": "C:/work/research/provision/code/AI/harness"}\n'
 		'}\n'
 		'```\n\n'
-		f'# 1. Описание проблемы ({tag})\n\n'
+		f'## 1. Описание проблемы ({tag})\n\n'
 		f'{desc}  \n\n'
-		f'# 2. Анализ первопричин ({tag})\n\n'
-		f'## H-{tag}-1. Основная причина\n'
+		f'## 2. Анализ первопричин ({tag})\n\n'
+		f'### H-{tag}-1. Основная причина\n'
 		f'- Суть: Прямое подтверждение в [артефакте](<{src_link}>).  \n'
 		'- Доводы за: Воспроизведено дословно по логам и коду.  \n'
 		'- Доводы против: Вторичные факторы среды дают малый вклад.  \n'
 		'- Оценка правдоподобия: 92% по прямому воспроизведению.  \n\n'
-		f'## H-{tag}-2. Альтернативная версия\n'
-		f'- Суть: Внешнее вмешательство хоста по [артефакту](<{src_link}>).  \n'
+		f'### H-{tag}-2. Альтернативная версия\n'
+		f'- Суть: Внешнее вмешательство по [артефакту](<{src_link}>).  \n'
 		'- Доводы за: Внешний симптом совпадает с ошибкой хоста.  \n'
 		'- Доводы против: Изолированный локальный прогон повторяет сбой.  \n'
 		'- Оценка правдоподобия: 10% по контрольному прогону.  \n\n'
-		f'# 3. Атрибуция исходного проекта ({tag})\n\n'
+		f'## 3. Атрибуция исходного проекта ({tag})\n\n'
 		'Архитектурный владелец — базовый проект Harness (`dmitry-ai/harness`).  \n\n'
-		f'# 4. Постоянные системные решения ({tag})\n\n'
-		f'## M-{tag}-1. Системное исправление\n'
+		f'## 4. Постоянные системные решения ({tag})\n\n'
+		f'### M-{tag}-1. Системное исправление\n'
 		f'{m1_text}'
 		'- Доводы за: Устраняет первопричину навсегда без костылей.  \n'
 		'- Доводы против: Требует отдельных регрессионных тестов.  \n'
 		'- Оценка эксперта: 95% по критерию системной надёжности.  \n\n'
-		f'## M-{tag}-2. Ручной обход\n'
+		f'### M-{tag}-2. Ручной обход\n'
 		'- Суть: Полагаться на ручную проверку перед завершением хода.  \n'
 		'- Доводы за: Не требует правок кода.  \n'
 		'- Доводы против: Не защищает от повторения ошибки.  \n'
@@ -124,6 +126,14 @@ def _four_track_ru(src_link: str, *, m1_primary: str='') -> str:
 		_block_ru('Разбор задачи §4: обход Журнала ꙮ и контур отчётности', '4', 'https://github.com/dmitry-ai/harness/issues/248', 'После «Stop hook blocked termination» отчёт ушёл в UI в обход Журнала `ꙮ` (`FILE-3`).', src_link),
 	]
 	return '\n---\n\n'.join(parts)
+# 2026-11-28 "Implement hierarchical mixed-turn DOC-5 parser and problem-issue specification": https://github.com/dmitry-ai/harness/issues/428
+# @used-by :meth:`DfAnalysisCompanionTracksTests.test_four_separate_problem_analyses_validated_independently_ru_and_en()`
+def _seed_track_issues(proj: Path, nums: tuple[int, ...]) -> None:
+	ev_dir = proj / '\ua616/KB/Evidence/GitHub/dmitry-ai__harness'
+	ev_dir.mkdir(parents=True, exist_ok=True)
+	for num in nums:
+		url = f'https://github.com/dmitry-ai/harness/issues/{num}'
+		(ev_dir / f'issue-{num}.json').write_text(json.dumps({'url': url, 'html_url': url, 'repo': 'dmitry-ai/harness', 'kind': 'issue', 'number': num, 'state': 'open', 'title': f'Track issue {num}', 'body': 'Observed details'}), encoding='utf-8')
 # 2026-11-25
 # "Require separate companion /df-analysis tracks for every complex problem analysis":
 # https://github.com/dmitry-ai/harness/issues/249
@@ -144,7 +154,7 @@ class DfAnalysisCompanionTracksTests(unittest.TestCase):
 		src = 'https://example.com/log#line1'
 		missing_test = '\n---\n\n'.join([
 			_block_en('Analysis 1: Primary defect', '1', 'https://github.com/dmitry-ai/harness/issues/245', 'Primary error: `exit status 1`.', src),
-			_block_en('Analysis 1B: Secondary symptom', '1b', 'https://github.com/dmitry-ai/harness/issues/245', 'Secondary error: `timeout reached`.', src),
+			_block_en('Analysis 1B: Secondary symptom', '1b', 'https://github.com/dmitry-ai/harness/issues/249', 'Secondary error: `timeout reached`.', src),
 			_block_en('Analysis 2: Culprit attribution', '2', 'https://github.com/dmitry-ai/harness/issues/246', 'Who introduced the regression: commit `7ee1e54`.', src),
 			_block_en('Analysis 4: Journal integrity', '4', 'https://github.com/dmitry-ai/harness/issues/248', 'Unjournaled reply bypassed Journal `ꙮ` under `FILE-3`.', src),
 		])
@@ -162,6 +172,7 @@ class DfAnalysisCompanionTracksTests(unittest.TestCase):
 	def test_four_separate_problem_analyses_validated_independently_ru_and_en(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			proj = Path(tmp).resolve()
+			_seed_track_issues(proj, (245, 246, 247, 248))
 			ev = proj / 'trace.log'
 			ev.write_text('JSON hook failed: exit status 1\n', encoding='utf-8')
 			src = f'file:///{ev.as_posix()}'
@@ -170,9 +181,9 @@ class DfAnalysisCompanionTracksTests(unittest.TestCase):
 			self.assertEqual([], df_analysis.validate_df_analysis(ru_doc, mode='auto'))
 			self.assertEqual([], df_analysis.validate_df_analysis(en_doc, mode='auto'))
 			self.assertTrue(completion.check_answer(proj, ru_doc)['valid'])
-			broken_block2 = ru_doc.replace('# 3. Атрибуция исходного проекта (2)\n\nАрхитектурный владелец — базовый проект Harness (`dmitry-ai/harness`).  \n\n', '')
+			broken_block2 = ru_doc.replace('## 3. Атрибуция исходного проекта (2)\n\nАрхитектурный владелец — базовый проект Harness (`dmitry-ai/harness`).  \n\n', '')
 			errs_b2 = df_analysis.validate_df_analysis(broken_block2, mode='auto')
-			self.assertTrue(any('# 3' in e for e in errs_b2), errs_b2)
+			self.assertTrue(any('# 3' in e or '## 3' in e for e in errs_b2), errs_b2)
 			broken_block1_issue = en_doc.replace('\t"Issue": "https://github.com/dmitry-ai/harness/issues/245",\n', '')
 			errs_b1 = df_analysis.validate_df_analysis(broken_block1_issue, mode='auto')
 			self.assertTrue(any('"Issue"' in e for e in errs_b1), errs_b1)

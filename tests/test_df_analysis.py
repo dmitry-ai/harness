@@ -18,7 +18,10 @@ import check_markdown_slop
 # "Require separate companion /df-analysis tracks for every complex problem analysis":
 # https://github.com/dmitry-ai/harness/issues/249
 # 2026-11-26 "Ban file:/// links for GitHub repositories and ground tagged GitHub URLs": https://github.com/dmitry-ai/harness/issues/264
-_VALID_PROBLEM_RU = """# 0. Мета-данные проблемы
+# 2026-11-28 "Implement hierarchical mixed-turn DOC-5 parser and problem-issue specification": https://github.com/dmitry-ai/harness/issues/428
+_VALID_PROBLEM_RU = """# Разбор задачи §1: пропуск таблиц Markdown
+
+## 0. Мета-данные проблемы
 
 ```json
 {
@@ -31,40 +34,40 @@ _VALID_PROBLEM_RU = """# 0. Мета-данные проблемы
 }
 ```
 
-# 1. Описание проблемы
+## 1. Описание проблемы
 
 При проверке ответа валидатор пропустил таблицу Markdown, хотя в логе вывода было зафиксировано: «exit code 0, issues: []».  
 
-# 2. Причины проблемы
+## 2. Причины проблемы
 
-## H-1. Пропуск строк с `|` в `scan_doc4_sentence_issues`
+### H-1. Пропуск строк с `|` в `scan_doc4_sentence_issues`
 
 - Суть: обработчик [hook_runtime.py](https://example.com/harness/hook_runtime.py#L22) исключает строки, начинающиеся с `|`.  
 - Доводы за: дословное условие `not stripped.startswith(('#', '|', '---', '===', '>'))` пропускает заголовки и разделители таблиц.  
 - Доводы против: отдельные пайпы в обычной прозе не являются таблицами и требуют проверки строки-разделителя.  
 - Оценка правдоподобности: 90%.  
 
-## H-2. Отсутствие проверки таблиц в `answer-prepare`
+### H-2. Отсутствие проверки таблиц в `answer-prepare`
 
 - Суть: исполнитель [completion.py](https://example.com/harness/completion.py#L321) не вызывает проверку таблиц `DOC-4`.  
 - Доводы за: `AnswerPreparationRunner.run()` вызывает только `response_source_and_kb_issues`, а не `markdown_slop_issues`.  
 - Доводы против: при правке `hook_runtime.py` `PreToolUse` уже ловит запись `.md`, но прямой вызов `answer-prepare` всё равно остаётся уязвим.  
 - Оценка правдоподобности: 85%.  
 
-# 3. Источник проблемы
+## 3. Источник проблемы
 
 Источником проблемы является базовый проект более высокого уровня — Harness (`dmitry-ai/harness`), а не клиентский workspace, где проявился сбой.  
 
-# 4. Устранение проблемы
+## 4. Устранение проблемы
 
-## M-1. Единый детектор GFM-таблиц в `df_analysis.py` и подключение ко всем шлюзам
+### M-1. Единый детектор GFM-таблиц в `df_analysis.py` и подключение ко всем шлюзам
 
 - Суть: реализовать проверку пары «строка заголовка + разделитель `| --- |`» вне code fences и подключить её к `hook_runtime.py`, `issues/linter.py` и `response_grounding.py`.  
 - Доводы за: единая точка правды без дублирования и нулевые ложные срабатывания на одиночных `|` в прозе.  
 - Доводы против: требует обновления нескольких точек интеграции и отдельных тестов.  
 - Оценка: 95%.  
 
-## M-2. Проверка только в `PreToolUse`-хуке `check_markdown_slop.py`
+### M-2. Проверка только в `PreToolUse`-хуке `check_markdown_slop.py`
 
 - Суть: добавить регулярное выражение для таблиц только внутри `check_markdown_slop.py`.  
 - Доводы за: минимальный объём правок в одном файле.  
@@ -75,12 +78,12 @@ _VALID_PROBLEM_RU = """# 0. Мета-данные проблемы
 
 # Разбор задачи §2: кто конкретно внёс дефект пропуска таблиц
 
-# 0. Мета-данные проблемы (§2)
+## 0. Мета-данные проблемы (§2)
 
 ```json
 {
 	"Time": "2026-11-24 01:31:00 UTC+3",
-	"Issue": "https://github.com/dmitry-ai/harness/issues/181",
+	"Issue": "https://github.com/dmitry-ai/harness/issues/182",
 	"Project": {
 		"Name": "Harness",
 		"Path": "C:/work/research/provision/code/AI/harness"
@@ -88,40 +91,40 @@ _VALID_PROBLEM_RU = """# 0. Мета-данные проблемы
 }
 ```
 
-# 1. Описание проблемы (§2)
+## 1. Описание проблемы (§2)
 
 Виновником пропуска таблиц стала правка в `hook_runtime.py`, добавившая пропуск строк с `|` («not stripped.startswith(('#', '|', '---', '===', '>'))») без проверки разделителя GFM.  
 
-# 2. Причины проблемы (§2)
+## 2. Причины проблемы (§2)
 
-## H-2-1. Упрощённый фильтр строк в коммите первичного автора
+### H-2-1. Упрощённый фильтр строк в коммите первичного автора
 
 - Суть: автор коммита в [hook_runtime.py](https://example.com/harness/hook_runtime.py#L22) исключил строки с `|` целиком.  
 - Доводы за: строка присутствует напрямую в исходном файле.  
 - Доводы против: могла преследоваться цель избежать ложных срабатываний на prose-пайпах.  
 - Оценка правдоподобности: 90%.  
 
-## H-2-2. Отсутствие ревью-гейта на инварианты `DOC-4`
+### H-2-2. Отсутствие ревью-гейта на инварианты `DOC-4`
 
 - Суть: при приёмке в [completion.py](https://example.com/harness/completion.py#L321) не требовалась проверка таблиц.  
 - Доводы за: валидатор вызывался не на всех шлюзах.  
 - Доводы против: вторичный фактор относительно самой правки.  
 - Оценка правдоподобности: 60%.  
 
-# 3. Источник проблемы (§2)
+## 3. Источник проблемы (§2)
 
 Архитектурным источником является базовый проект Harness (`dmitry-ai/harness`).  
 
-# 4. Устранение проблемы (§2)
+## 4. Устранение проблемы (§2)
 
-## M-2-1. Единый гейт проверки `DOC-4` при приземлении
+### M-2-1. Единый гейт проверки `DOC-4` при приземлении
 
 - Суть: проверять инварианты `DOC-4` на уровне общего валидатора и pre-commit.  
 - Доводы за: блокирует регрессию любого автора до слияния в `main`.  
 - Доводы против: добавляет миллисекунды на проверку Markdown.  
 - Оценка: 95%.  
 
-## M-2-2. Ручной аудит коммитов
+### M-2-2. Ручной аудит коммитов
 
 - Суть: проверять правки `hook_runtime.py` вручную.  
 - Доводы за: не требует кода.  
@@ -132,12 +135,12 @@ _VALID_PROBLEM_RU = """# 0. Мета-данные проблемы
 
 # Разбор задачи §3: почему тесты не помешали виновнику §2
 
-# 0. Мета-данные проблемы (§3)
+## 0. Мета-данные проблемы (§3)
 
 ```json
 {
 	"Time": "2026-11-24 01:32:00 UTC+3",
-	"Issue": "https://github.com/dmitry-ai/harness/issues/181",
+	"Issue": "https://github.com/dmitry-ai/harness/issues/183",
 	"Project": {
 		"Name": "Harness",
 		"Path": "C:/work/research/provision/code/AI/harness"
@@ -145,40 +148,40 @@ _VALID_PROBLEM_RU = """# 0. Мета-данные проблемы
 }
 ```
 
-# 1. Описание проблемы (§3)
+## 1. Описание проблемы (§3)
 
 Тестовый набор прошёл со статусом «OK» и не поймал пропуск GFM-таблиц в `hook_runtime.py` и `answer-prepare`.  
 
-# 2. Причины проблемы (§3)
+## 2. Причины проблемы (§3)
 
-## H-3-1. Отсутствие негативной фикстуры с GFM-таблицей
+### H-3-1. Отсутствие негативной фикстуры с GFM-таблицей
 
 - Суть: в тестах [hook_runtime.py](https://example.com/harness/hook_runtime.py#L22) отсутствовал кейс с парой заголовка и разделителя `| --- |`.  
 - Доводы за: тесты проверяли только разрывы предложений, но не таблицы.  
 - Доводы против: часть проверок покрывала лишь `check_markdown_slop.py`.  
 - Оценка правдоподобности: 92%.  
 
-## H-3-2. Несвязанность тестов `PreToolUse` и `answer-prepare`
+### H-3-2. Несвязанность тестов `PreToolUse` и `answer-prepare`
 
 - Суть: шлюз [completion.py](https://example.com/harness/completion.py#L321) тестировался отдельно от `hook_runtime.py`.  
 - Доводы за: интеграционного теста на все три шлюза не существовало.  
 - Доводы против: это следствие отсутствия общего детектора.  
 - Оценка правдоподобности: 75%.  
 
-# 3. Источник проблемы (§3)
+## 3. Источник проблемы (§3)
 
 Владельцем тестового контура является Harness (`dmitry-ai/harness`).  
 
-# 4. Устранение проблемы (§3)
+## 4. Устранение проблемы (§3)
 
-## M-3-1. Сквозной регрессионный тест таблиц на всех шлюзах
+### M-3-1. Сквозной регрессионный тест таблиц на всех шлюзах
 
 - Суть: добавить `test_df_analysis.py`, проверяющий блокировку таблиц в `hook_runtime`, `linter` и `answer-prepare`.  
 - Доводы за: детерминированно ловит любую регрессию и защищён `Test Ratchet`.  
 - Доводы против: требует поддержки фикстур.  
 - Оценка: 95%.  
 
-## M-3-2. Проверка только unit-тестом парсера
+### M-3-2. Проверка только unit-тестом парсера
 
 - Суть: тестировать только функцию поиска строк таблицы без интеграции со шлюзами.  
 - Доводы за: проще написать.  
@@ -189,7 +192,7 @@ _VALID_PROBLEM_RU = """# 0. Мета-данные проблемы
 
 # Разбор задачи §4: аудит Журнала `ꙮ` и контура отчётности
 
-# 0. Мета-данные проблемы (§4)
+## 0. Мета-данные проблемы (§4)
 
 ```json
 {
@@ -202,40 +205,40 @@ _VALID_PROBLEM_RU = """# 0. Мета-данные проблемы
 }
 ```
 
-# 1. Описание проблемы (§4)
+## 1. Описание проблемы (§4)
 
 Проведён аудит контура Журнала `ꙮ` (`FILE-3`): обхода `answer-prepare` не зафиксировано («exit code 0, issues: []»), однако ответ с запрещённой таблицей мог быть записан в `ꙮ` без блокировки.  
 
-# 2. Причины проблемы (§4)
+## 2. Причины проблемы (§4)
 
-## H-4-1. Пропуск проверки таблиц внутри `answer-prepare`
+### H-4-1. Пропуск проверки таблиц внутри `answer-prepare`
 
 - Суть: при записи в `ꙮ` шлюз [completion.py](https://example.com/harness/completion.py#L321) не отклонял таблицы.  
 - Доводы за: `ResponseEvidenceAuditor` не вызывал `analysis_gate_issues`.  
 - Доводы против: сам механизм записи пары в `ꙮ` и `Stop Gate` сработал штатно.  
 - Оценка правдоподобности: 90%.  
 
-## H-4-2. Отсутствие пост-проверки `Stop Gate` по `DOC-4`
+### H-4-2. Отсутствие пост-проверки `Stop Gate` по `DOC-4`
 
 - Суть: `Stop Gate` опирается на `prepared` из [completion.py](https://example.com/harness/completion.py#L321) без повторного анализа контента.  
 - Доводы за: `Stop Gate` доверяет чеку `answer-prepare`.  
 - Доводы против: дублирование проверки в `Stop Gate` избыточно при исправлении `answer-prepare`.  
 - Оценка правдоподобности: 35%.  
 
-# 3. Источник проблемы (§4)
+## 3. Источник проблемы (§4)
 
 Владельцем контура Журнала `ꙮ` является Harness (`dmitry-ai/harness`).  
 
-# 4. Устранение проблемы (§4)
+## 4. Устранение проблемы (§4)
 
-## M-4-1. Подключить `analysis_gate_issues` прямо в `ResponseEvidenceAuditor`
+### M-4-1. Подключить `analysis_gate_issues` прямо в `ResponseEvidenceAuditor`
 
 - Суть: запускать валидацию таблиц и `/df-analysis` до записи в `ꙮ` на каждом вызове `answer-check` и `answer-prepare`.  
 - Доводы за: не пропускает невалидные отчёты ни в чат, ни в `ꙮ`.  
 - Доводы против: требует поддержания актуальных фикстур в тестах.  
 - Оценка: 96%.  
 
-## M-4-2. Предупреждение без блокировки записи в `ꙮ`
+### M-4-2. Предупреждение без блокировки записи в `ꙮ`
 
 - Суть: писать предупреждение в лог без отклонения `answer-prepare`.  
 - Доводы за: не блокирует публикацию.  
@@ -272,6 +275,14 @@ _VALID_GENERAL_EN = """# Analysis
 - Arguments against: masks the root cause without removing contention.  
 - Score: 20%.  
 """
+# 2026-11-28 "Implement hierarchical mixed-turn DOC-5 parser and problem-issue specification": https://github.com/dmitry-ai/harness/issues/428
+# @used-by :meth:`DfAnalysisGatesTests.test_analysis_check_cli_validates_problem_and_rejects_broken_input()`
+def _seed_open_issues(root: Path, nums: tuple[int, ...]) -> None:
+	ev_dir = root / '\ua616/KB/Evidence/GitHub/dmitry-ai__harness'
+	ev_dir.mkdir(parents=True, exist_ok=True)
+	for num in nums:
+		url = f'https://github.com/dmitry-ai/harness/issues/{num}'
+		(ev_dir / f'issue-{num}.json').write_text(json.dumps({'url': url, 'html_url': url, 'repo': 'dmitry-ai/harness', 'kind': 'issue', 'number': num, 'state': 'open', 'title': f'Open issue {num}', 'body': 'Observed details'}), encoding='utf-8')
 # 2026-11-24
 # "Enforce Markdown table ban and /df-analysis structural validation across response gates":
 # https://github.com/dmitry-ai/harness/issues/181
@@ -280,15 +291,16 @@ class DfAnalysisGatesTests(unittest.TestCase):
 	def test_analysis_check_cli_validates_problem_and_rejects_broken_input(self) -> None:
 		with tempfile.TemporaryDirectory() as tmp:
 			root = Path(tmp).resolve()
+			_seed_open_issues(root, (181, 182, 183))
 			good_file = root / 'good.md'
 			bad_file = root / 'bad.md'
 			good_file.write_text(_VALID_PROBLEM_RU, encoding='utf-8')
 			bad_file.write_text('# 0. Мета-данные проблемы\n\n```json\n{"Time": "2026-11-24 01:00:00 UTC+3"}\n```\n\n# 1. Описание проблемы\nБез цитат.\n', encoding='utf-8')
 			cli = str(SCRIPT_DIR / 'harness.py')
-			ok_p = subprocess.run([sys.executable, cli, 'analysis-check', str(root), '--response-file', str(good_file), '--mode', 'problem'], capture_output=True, text=True, encoding='utf-8', check=False)
+			ok_p = subprocess.run([sys.executable, cli, 'analysis-check', str(root), '--response-file', str(good_file), '--mode', 'problem'], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', check=False, timeout=30)
 			self.assertEqual(0, ok_p.returncode, ok_p.stderr or ok_p.stdout)
 			self.assertTrue(json.loads(ok_p.stdout)['valid'])
-			bad_p = subprocess.run([sys.executable, cli, 'analysis-check', str(root), '--response-file', str(bad_file), '--mode', 'problem'], capture_output=True, text=True, encoding='utf-8', check=False)
+			bad_p = subprocess.run([sys.executable, cli, 'analysis-check', str(root), '--response-file', str(bad_file), '--mode', 'problem'], stdin=subprocess.DEVNULL, capture_output=True, text=True, encoding='utf-8', check=False, timeout=30)
 			self.assertEqual(2, bad_p.returncode)
 			self.assertFalse(json.loads(bad_p.stdout)['valid'])
 	# @used-by :mod:`unittest`
@@ -347,13 +359,16 @@ class DfAnalysisGatesTests(unittest.TestCase):
 		no_issue_key = _VALID_PROBLEM_RU.replace('\t"Issue": "https://github.com/dmitry-ai/harness/issues/181",\n', '')
 		errs_no_issue = df_analysis.validate_df_analysis(no_issue_key, mode='auto')
 		self.assertTrue(any('"Issue"' in e for e in errs_no_issue), errs_no_issue)
-		null_issue = _VALID_PROBLEM_RU.replace('"https://github.com/dmitry-ai/harness/issues/181"', 'null')
+		dup_issue = _VALID_PROBLEM_RU.replace('issues/182', 'issues/181')
+		errs_dup = df_analysis.validate_df_analysis(dup_issue, mode='auto')
+		self.assertTrue(any('DUPLICATE_PROBLEM_ISSUE' in e for e in errs_dup), errs_dup)
+		null_issue = _VALID_PROBLEM_RU.replace('"https://github.com/dmitry-ai/harness/issues/181"', 'null').replace('"https://github.com/dmitry-ai/harness/issues/182"', 'null').replace('"https://github.com/dmitry-ai/harness/issues/183"', 'null')
 		self.assertEqual([], df_analysis.validate_df_analysis(null_issue, mode='auto'))
 		no_verbatim = _VALID_PROBLEM_RU.replace('«exit code 0, issues: []»', 'все прошло тихо')
 		errs_no_quote = df_analysis.validate_df_analysis(no_verbatim, mode='auto')
 		self.assertTrue(any('verbatim' in e.lower() for e in errs_no_quote), errs_no_quote)
-		missing_s3 = _VALID_PROBLEM_RU.replace('# 3. Источник проблемы\n\nИсточником проблемы является базовый проект более высокого уровня — Harness (`dmitry-ai/harness`), а не клиентский workspace, где проявился сбой.  \n\n', '')
+		missing_s3 = _VALID_PROBLEM_RU.replace('## 3. Источник проблемы\n\nИсточником проблемы является базовый проект более высокого уровня — Harness (`dmitry-ai/harness`), а не клиентский workspace, где проявился сбой.  \n\n', '')
 		errs_s3 = df_analysis.validate_df_analysis(missing_s3, mode='auto')
-		self.assertTrue(any('# 3' in e for e in errs_s3), errs_s3)
+		self.assertTrue(any('# 3' in e or '## 3' in e for e in errs_s3), errs_s3)
 if '__main__' == __name__:
 	unittest.main()

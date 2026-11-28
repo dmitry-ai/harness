@@ -42,7 +42,6 @@ def dfh_external_anchor_issues(label: str, href: str, norm_url: str, observed_an
 		errs.append(f'VERIFY-1 / LINK-2: Documentation link [{label}]({href}) omits a section #anchor despite {len(anchors)} available anchor(s) in the saved observation (cite an exact #anchor or record anchor_exception)')
 	return errs
 # @used-by :func:`agent_tools.statements._extract_top_sections()`
-# @used-by :meth:`Df.Harness.Grounding.ScatterBannerAuditor.ScatterBannerAuditor.audit()`
 def dfh_extract_top_sections(text: str) -> dict[int, tuple[str, str]]:
 	sections: dict[int, tuple[str, list[str]]] = {}
 	cur: int | None = None
@@ -89,8 +88,7 @@ def dfh_markdown_table_issues(text: str) -> list[str]:
 # @used-by :func:`dfh_parse_explicit_items()`
 # @used-by :func:`dfh_parse_section_items()`
 # @used-by :meth:`Df.Harness.Grounding.DfAnalysisValidator.DfAnalysisValidator.__requests_invoke_df_analysis()`
-# @used-by :meth:`Df.Harness.Grounding.DfAnalysisValidator.DfAnalysisValidator.validate()`
-# @used-by :meth:`Df.Harness.Grounding.ScatterBannerAuditor.ScatterBannerAuditor.__parse_standalone()`
+# @used-by :meth:`Df.Harness.Grounding.HeadingTreeParser.HeadingTreeParser.parse()`
 def dfh_mask_fenced_lines(text: str) -> list[tuple[int, str, bool]]:
 	out: list[tuple[int, str, bool]] = []
 	in_fence, marker, in_fm = (False, '', False)

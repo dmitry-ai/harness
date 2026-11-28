@@ -45,61 +45,100 @@ For every candidate solution method (`M-*`), always specify all four elements pe
 ## 2. Complex Problem Analysis
 
 <!-- 2026-11-25 "Require separate companion /df-analysis tracks for every complex problem analysis": https://github.com/dmitry-ai/harness/issues/249 -->  
-Apply this four-track structure autonomously, without reminders, whenever you encounter or investigate any failure, defect, hook denial, unexpected tool error, regression, stalled turn, or architectural problem.  
+<!-- 2026-11-28 "Implement hierarchical mixed-turn DOC-5 parser and problem-issue specification": https://github.com/dmitry-ai/harness/issues/428 -->  
+Apply this hierarchical protocol autonomously, without reminders, whenever you encounter or investigate any failure, defect, hook denial, unexpected tool error, regression, stalled turn, or architectural problem.  
+Flat level-1 heading flattening (placing `# 0`, `# 1`, `# 2`, `# 3`, `# 4` at level 1 as flat siblings alongside task headings or track separators) is strictly prohibited.  
 
-### 2.1 Mandatory Four Separate Analyses
+### 2.1 Mixed Task-Plus-Defect Turns (`# 𝙸. Что сделано` / `# 𝙸𝙸. Новые проблемы`)
 
-Every Complex Problem Analysis must always consist of **four separate, independent five-section (`# 0`..`# 4`) `/df-analysis` breakdowns** — never merge or collapse the three companion analyses into subsections or bullet points inside the primary problem analysis:  
+When an agent discovers one or more new problems while executing a user task, isolate the problem report into a structurally separate top-level section with strictly monotonic heading nesting (only two level-1 `#` headings are permitted in the entire response):  
+
+```markdown
+# 𝙸. Что сделано
+## 1. <Completed work item 1>
+...
+## 2. <Completed work item 2>
+...
+
+# 𝙸𝙸. Новые проблемы
+## 1. <Problem 1 title>
+### 1.1. Метаданные
+### 1.2. Описание
+### 1.3. Причины
+### 1.4. Виновник
+### 1.5. Способы устранения
+### 1.6. Рекомендуемый план устранения
+## 2. <Problem 2 title>
+...
+```
+
+Localized English headings (`# I. Completed Work` / `# II. New Problems` -> `## N. <Problem>` -> `### N.1. Metadata`, `### N.2. Description`, `### N.3. Causes`, `### N.4. Culprit`, `### N.5. Solutions`, `### N.6. Recommended Remediation Plan`) and ASCII `I`/`II` or Roman `Ⅰ`/`Ⅱ` prefixes are accepted equivalently.  
+Inside each `## N. <Problem>` block:  
+1. `### N.1. Метаданные` (`Metadata`): tab-indented fenced `json` generated via `harness.py problem-metadata` referencing a brand-new, unique, `open`, unparented parent GitHub issue created in the current turn (`null` is prohibited in GitHub-tracked workspaces for newly discovered problems).  
+1. `### N.2. Описание` (`Description`): concrete failure symptoms with verbatim diagnostic messages, exit codes, tracebacks, or hook rejections.  
+1. `### N.3. Причины` (`Causes`): at least two competing root-cause hypotheses (`#### H-N-1`, `#### H-N-2`, …) per §1.1 plus explicit source-project attribution (identifying the true architectural owner, often `dmitry-ai/harness`).  
+1. `### N.4. Виновник` (`Culprit`): accountable provenance (who/what introduced or triggered the defect), why existing tests/gates missed it, and Unified Journal `ꙮ` (`FILE-3`) reporting integrity status.  
+1. `### N.5. Способы устранения` (`Solutions`): at least two competing systemic solution methods (`#### M-N-1`, `#### M-N-2`, …) per §1.2 (including `ARCH-1` patterns and mandatory `FILE-6` warning banner when applicable).  
+1. `### N.6. Рекомендуемый план устранения` (`Recommended Plan`): concrete next-step remediation plan linked to the open parent issue.  
+
+### 2.2 Mandatory Four Separate Analyses for Standalone Complex Incidents
+
+For standalone complex problem analyses (without a separate `# 𝙸. Что сделано` implementation section), emit **four separate, independent hierarchical analyses** — never merge or collapse the three companion analyses into subsections or bullet points inside the primary problem analysis:  
 
 1. **Analysis 1 — Primary Problem (`§1`):** Investigate the primary failure, defect, hook denial, unexpected tool error, regression, or architectural problem itself (symptoms and verbatim diagnostics, competing technical root causes, owning source project, and permanent systemic solutions).  
-1. **Analysis 2 — Culprit and Provenance Attribution (`§2`):** Perform a separate `# 0`..`# 4` analysis establishing who or what specifically introduced, broke, or triggered the primary problem — down to concrete accountable provenance: exact agent (system, profile/instance, model, effort, `conversation_id`, `turn_key`, Journal step, primary vs. subagent) and/or human or external actor; exact commit SHA, GitHub Issue, runtime snapshot promotion, or configuration change; exact chronology; any warnings, hook errors, or prior failures ignored or concealed by the culprit; and the governance/promotion guardrails that failed to stop or surface the breakage.  
-1. **Analysis 3 — Test and Verification Escape (`§3`):** Perform a separate `# 0`..`# 4` analysis establishing why existing automated tests, linters, hooks, CI, and verification gates failed to catch and block the culprit or defect before it occurred or shipped — quoting verbatim test run results/counts and diagnosing fixture blind spots, missing subprocess/latency/concurrency/end-to-end/contract invariants, narrow test scope, or bypassed/absent verification checks.  
-1. **Analysis 4 — Journal, Reporting, and Observability Integrity (`§4`):** Perform a separate `# 0`..`# 4` analysis auditing the Unified Journal (`ꙮ`, [FILE-3](../../rules/01-file-boundaries.md#file-3)) and failure-reporting/observability circuit around the problem — verifying whether any affected agent or process wrote output directly to the platform UI (Antigravity/Codex) bypassing `ꙮ`, failed to record reports or errors in `ꙮ`, left orphaned entries in `turn-reservations.json` or open turns in `ꘖ/data/turns/`, failed-open in `Stop Gate` without capturing the report in `ꙮ`, missed cross-conversation reconciliation, or swallowed/concealed diagnostics.  
-   Whenever a Journal bypass, missing Journal record, silent error, or reporting breakdown occurred, file its own parent GitHub Issue and diagnose full root causes and permanent systemic fixes; even when the audit verifies that no active `FILE-3` Journal bypass occurred in this specific incident, still emit this separate `# 0`..`# 4` analysis quoting verbatim the verified Journal/reservation/reporting audit evidence in `# 1`, evaluating residual visibility/bypass hypotheses in `# 2`, attributing the owning observability/journaling project in `# 3`, and evaluating systemic hardening methods in `# 4` (using `--no-issue` / `"Issue": null` only when zero defect exists in this track).  
+1. **Analysis 2 — Culprit and Provenance Attribution (`§2`):** Perform a separate hierarchical analysis establishing who or what specifically introduced, broke, or triggered the primary problem — down to concrete accountable provenance: exact agent (system, profile/instance, model, effort, `conversation_id`, `turn_key`, Journal step, primary vs. subagent) and/or human or external actor; exact commit SHA, GitHub Issue, runtime snapshot promotion, or configuration change; exact chronology; any warnings, hook errors, or prior failures ignored or concealed by the culprit; and the governance/promotion guardrails that failed to stop or surface the breakage.  
+1. **Analysis 3 — Test and Verification Escape (`§3`):** Perform a separate hierarchical analysis establishing why existing automated tests, linters, hooks, CI, and verification gates failed to catch and block the culprit or defect before it occurred or shipped — quoting verbatim test run results/counts and diagnosing fixture blind spots, missing subprocess/latency/concurrency/end-to-end/contract invariants, narrow test scope, or bypassed/absent verification checks.  
+1. **Analysis 4 — Journal, Reporting, and Observability Integrity (`§4`):** Perform a separate hierarchical analysis auditing the Unified Journal (`ꙮ`, [FILE-3](../../rules/01-file-boundaries.md#file-3)) and failure-reporting/observability circuit around the problem — verifying whether any affected agent or process wrote output directly to the platform UI (Antigravity/Codex) bypassing `ꙮ`, failed to record reports or errors in `ꙮ`, left orphaned entries in `turn-reservations.json` or open turns in `ꘖ/data/turns/`, failed-open in `Stop Gate` without capturing the report in `ꙮ`, missed cross-conversation reconciliation, or swallowed/concealed diagnostics.  
+   Whenever a Journal bypass, missing Journal record, silent error, or reporting breakdown occurred, file its own parent GitHub Issue and diagnose full root causes and permanent systemic fixes; even when the audit verifies that no active `FILE-3` Journal bypass occurred in this specific incident, still emit this separate hierarchical analysis quoting verbatim the verified Journal/reservation/reporting audit evidence in `## 1`, evaluating residual visibility/bypass hypotheses in `## 2`, attributing the owning observability/journaling project in `## 3`, and evaluating systemic hardening methods in `## 4` (using `--no-issue` / `"Issue": null` only when zero defect exists in this track).  
 
-Give each of the four analyses its own non-numeric level-1 separator heading (for example, `# Analysis 1: ...`, `# Analysis 2: ...`, `# Analysis 3: ...`, `# Analysis 4: ...`, or localized equivalents `# Разбор задачи §1: ...`..`# Разбор задачи §4: ...`), followed immediately by its complete `# 0`..`# 4` sections, and namespace hypothesis/method IDs per track (`H-1-1`/`M-1-1`, `H-2-1`/`M-2-1`, `H-3-1`/`M-3-1`, `H-4-1`/`M-4-1`).  
-In GitHub-backed repositories, file a separate parent GitHub Issue via [df-github-issue](../df-github-issue/SKILL.md) per distinct defect track rather than bundling separate problems into one issue ([EXEC-5](../../rules/08-execution-and-tools.md#exec-5)).  
+Give each of the four standalone analyses its own level-1 heading (`# Analysis 1: ...`..`# Analysis 4: ...` or `# Разбор проблемы §1: ...`..`# Разбор проблемы §4: ...`), nest its five subsections at level 2 (`## 0`..`## 4`) and its hypotheses/methods at level 3 (`### H-*-*` / `### M-*-*`), and namespace IDs per track (`H-1-1`/`M-1-1`..`H-4-1`/`M-4-1`).  
+In GitHub-backed repositories, file a separate open parent GitHub Issue via [df-github-issue](../df-github-issue/SKILL.md) per distinct defect rather than reusing one issue across multiple blocks ([EXEC-5](../../rules/08-execution-and-tools.md#exec-5)).  
 
-### 2.2 Required Five Sections Inside Each Analysis (`# 0`..`# 4`)
+### 2.3 Required Five Nested Sections Inside Each Standalone Analysis (`## 0`..`## 4`)
 
-#### # 0. Problem Metadata
+#### `## 0.` Problem Metadata
 
 Include a tab-indented fenced `json` block matching Harness Journal and GitHub issue metadata (`Time`, `Issue`, `Project`, `Journal`, `Agent`, `Trace`, plus optional `Source Project` when the symptom workspace differs from the owning project).  
-The `"Issue"` key is mandatory: in GitHub-backed repositories, file the parent problem GitHub issue for that analysis track first via [df-github-issue](../df-github-issue/SKILL.md) per [EXEC-5](../../rules/08-execution-and-tools.md#exec-5) and record its exact URL; pass `--no-issue` (`"Issue": null`) only for non-GitHub workspaces or a clean companion audit where zero defect was established.  
+The `"Issue"` key is mandatory and strictly validated by `ProblemIssueSpecification` in both `problem-metadata` and all response gates:  
+1. Every distinct problem or defect track must carry its own pairwise-unique GitHub Issue URL (reusing the same URL across multiple blocks is rejected with `DUPLICATE_PROBLEM_ISSUE`).  
+1. Every non-null `"Issue"` must exist in local saved API read-back Evidence (`issue-<N>.json`), have `state == "open"`, and be an unparented parent issue (`parent_number is None`); fabricated, closed, or child subtask issues are rejected (`UNVERIFIED_PROBLEM_ISSUE`, `CLOSED_PROBLEM_ISSUE`, `CHILD_PROBLEM_ISSUE`).  
+1. Every non-null `"Issue"` must satisfy ownership provenance (`FOREIGN_PROBLEM_ISSUE`): newly discovered problems in `# 𝙸𝙸. Новые проблемы` must be newly created (`create`) in the active turn (never copying or fetching foreign-conversation or historical issues), and standalone analyses may reference a pre-existing open parent issue only when the user explicitly cited it in the request.  
+1. Pass `--no-issue` (`"Issue": null`) only for non-GitHub workspaces or a verified-clean companion audit track where zero defect was established.  
 Generate this block deterministically with:  
 
 ```text
 python <scripts>/harness.py problem-metadata <project> --issue https://github.com/<owner>/<repo>/issues/<N> [--source-project <owning-project>] --format markdown
 ```
 
-#### # 1. Problem Description
+#### `## 1.` Problem Description
 
 Describe the concrete failure symptoms, provenance evidence, test-escape evidence, or Journal/observability audit scope for this specific track.  
 Quote every diagnostic message, exit code, stderr/stdout line, traceback, test summary, transcript line, reservation entry, or hook rejection verbatim using blockquotes, code fences, or `«...»` quotes; never paraphrase diagnostic text away.  
 
-#### # 2. Root Cause Analysis
+#### `## 2.` Root Cause Analysis
 
-Answer what caused the problem reported in `# 1` of this analysis track.  
-Apply the §1.1 Hypothesis Template strictly: evaluate at least two competing root-cause hypotheses (`H-*-1`, `H-*-2`, …), each with essence plus primary link, arguments for, arguments against, and plausibility score in `%`.  
+Answer what caused the problem reported in `## 1` of this analysis track.  
+Apply the §1.1 Hypothesis Template strictly: evaluate at least two competing root-cause hypotheses (`### H-*-1`, `### H-*-2`, …), each with essence plus primary link, arguments for, arguments against, and plausibility score in `%`.  
 
-#### # 3. Source Project Attribution
+#### `## 3.` Source Project Attribution
 
 Explicitly establish which of our projects is the true architectural source of this track's problem.  
 Never assume that the workspace where the failure surfaced owns the defect: bugs frequently originate in a higher-level shared project, very often Harness (`dmitry-ai/harness`) or a shared addon/library repository.  
 Verify ownership boundaries against `paths.json`, repository roots, and actual source paths; when ownership itself is uncertain, evaluate candidate source projects as competing hypotheses per §1.1.  
 
-#### # 4. Permanent Systemic Solutions
+#### `## 4.` Permanent Systemic Solutions
 
-Answer how to eliminate this track's `# 1` problem permanently inside the `# 3` source project without one-off patches or brittle special-case workarounds.  
-Apply the §1.2 Solution Method Template strictly: evaluate at least two candidate solution methods (`M-*-1`, `M-*-2`, …), each with essence, arguments for, arguments against, and analyst score in `%`.  
+Answer how to eliminate this track's `## 1` problem permanently inside the `## 3` source project without one-off patches or brittle special-case workarounds.  
+Apply the §1.2 Solution Method Template strictly: evaluate at least two candidate solution methods (`### M-*-1`, `### M-*-2`, …), each with essence, arguments for, arguments against, and analyst score in `%`.  
 
 ## 3. Deterministic Validation
 
 <!-- 2026-11-25 "Require separate companion /df-analysis tracks for every complex problem analysis": https://github.com/dmitry-ai/harness/issues/249 -->  
-Validate candidate analytical or four-track problem-analysis responses before `answer-prepare` using:  
+<!-- 2026-11-28 "Implement hierarchical mixed-turn DOC-5 parser and problem-issue specification": https://github.com/dmitry-ai/harness/issues/428 -->  
+Validate candidate analytical, mixed-turn, or four-track problem-analysis responses before `answer-prepare` using:  
 
 ```text
 python <scripts>/harness.py analysis-check <project> --response-file <candidate.md> [--mode auto|general|problem]
 ```
 
-`answer-check` and `answer-prepare` run the same Markdown table, documentation `#anchor`, `FILE-6` banner, and `/df-analysis` structural gates automatically, validating every `# 0`..`# 4` analysis block independently and enforcing all three separate companion tracks alongside the primary problem.  
+`analysis-check`, `answer-check`, `answer-prepare`, and `StopChecksGate` (`problem_report_check`) enforce the Markdown table ban, documentation `#anchor`, `FILE-6` banner, hierarchical heading nesting (forbidding flat `# 0`..`# 4` heading spam), and `ProblemIssueSpecification` (uniqueness, Evidence presence, `state == "open"`, `parent_number is None`, and anti-foreign-issue provenance) across every problem block independently.  

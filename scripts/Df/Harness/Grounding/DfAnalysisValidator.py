@@ -1,8 +1,12 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from Df.Harness.Grounding.Doc5ContextDetector import Doc5ContextDetector
+from Df.Harness.Grounding.HeadingTreeParser import HeadingTreeParser
+from Df.Harness.Grounding.MixedTurnProblemSchema import MixedTurnProblemSchema
+from Df.Harness.Grounding.ProblemIssueSpecification import ProblemIssueSpecification
 from Df.Harness.Grounding.ProblemTrackAuditor import ProblemTrackAuditor
 from Df.Harness.Grounding.ScatterBannerAuditor import ScatterBannerAuditor
+from Df.Harness.Grounding.StandaloneProblemSchema import StandaloneProblemSchema
 from Df.Harness.lib.grounding_md import dfh_markdown_table_issues, dfh_mask_fenced_lines, dfh_parse_explicit_items, dfh_parse_section_items
 import json
 import re
@@ -10,13 +14,12 @@ import re
 _AGAINST_RE = re.compile(r'(?i)(?:\u0434\u043e\u0432\u043e\u0434\u044b\s+\u043f\u0440\u043e\u0442\u0438\u0432|\u0430\u0440\u0433\u0443\u043c\u0435\u043d\u0442\u044b\s+\u043f\u0440\u043e\u0442\u0438\u0432|(?:^|[\s(*_-])\u043f\u0440\u043e\u0442\u0438\u0432\s*[:\u2014\u2013-]|arguments?\s+against|counterevidence|cons\s*[:\u2014\u2013-])')
 _CMD_RE = re.compile(r'(?i)(?:^|[\s(\[])(?:/df-analysis|\$df-analysis|\[df-analysis\]\(slashCommand;df-analysis\))(?=$|[\s.,;:!?)\]])')
 _FOR_RE = re.compile(r'(?i)(?:\u0434\u043e\u0432\u043e\u0434\u044b\s+\u0437\u0430|\u0430\u0440\u0433\u0443\u043c\u0435\u043d\u0442\u044b\s+\u0437\u0430|(?:^|[\s(*_-])\u0437\u0430\s*[:\u2014\u2013-]|arguments?\s+for|evidence\s+for|pros\s*[:\u2014\u2013-])')
-_GH_ISSUE_URL_RE = re.compile(r'^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/issues/\d+$')
 _JSON_FENCE_RE = re.compile(r'```json[ \t]*\r?\n([\s\S]*?)\r?\n```')
 _LINK_RE = re.compile(r'\[[^\]]+\]\([^)]+\)|https?://\S+|file://\S+')
 _PCT_RE = re.compile(r'\b\d+(?:[.,]\d+)?\s*%')
 _PROB_HEAD_RE = re.compile(r'(?i)(?:\u043f\u0440\u043e\u0431\u043b\u0435\u043c|problem|defect|\u0441\u0431\u043e|\u043e\u0448\u0438\u0431\u043a|bug|failure|\u043c\u0435\u0442\u0430-?\u0434\u0430\u043d\u043d|metadata)')
-_TOP_HEAD_RE = re.compile(r'^#\s+(\d+)\.?(?:\s+(.*))?$')
 _VERBATIM_RE = re.compile(r'```|^\s*>\s*\S|\u00ab[^\u00bb]{4,}\u00bb|"[^"\n]{4,}"|`[^`\n]{3,}`', re.M)
+# 2026-11-28 "Implement hierarchical mixed-turn DOC-5 parser and problem-issue specification": https://github.com/dmitry-ai/harness/issues/428
 class DfAnalysisValidator:
 	# @used-by :func:`agent_tools.statements.validate_df_analysis()`
 	# @used-by :meth:`Df.Harness.Grounding.CliCommandAuditor.CliCommandAuditor.response_turn_gate_issues()`
@@ -27,6 +30,11 @@ class DfAnalysisValidator:
 		self.__requests = requests
 		self.__mode = mode
 		self.__turn_context = turn_context
+	# @used-by :meth:`DfAnalysisValidator.__check_mixed_blocks()`
+	# @used-by :meth:`DfAnalysisValidator.__check_problem_blocks()`
+	def __check_issue_entries(self, issue_entries: list[dict], schema_mode: str) -> list[str]:
+		tc = self.__turn_context if isinstance(self.__turn_context, dict) else {}
+		return ProblemIssueSpecification(issue_entries, root=tc.get('root'), turn=tc.get('turn'), turn_state=tc.get('turn_state'), requests=self.__requests, schema_mode=schema_mode).validate()
 	# @used-by :meth:`DfAnalysisValidator.__check_item_group()`
 	@staticmethod
 	def __check_item_fields(label: str, body: str, *, require_link: bool, kind: str) -> list[str]:
@@ -52,45 +60,80 @@ class DfAnalysisValidator:
 		for label, body in items:
 			errs.extend(cls.__check_item_fields(label, body, require_link=require_link, kind=kind))
 		return errs
-	# @used-by :meth:`DfAnalysisValidator.validate()`
-	@classmethod
-	def __check_problem_blocks(cls, blocks: list[dict]) -> list[str]:
+	# @used-by :meth:`DfAnalysisValidator.__dispatch_mode()`
+	def __check_mixed_blocks(self, blocks: list[dict]) -> list[str]:
 		errs: list[str] = []
+		issue_entries: list[dict] = []
+		for idx, blk in enumerate(blocks, 1):
+			prefix = f'[Problem #{idx}] '
+			sec_errs, meta_obj = self.__check_problem_sections(blk['sections'], is_mixed=True)
+			errs.extend((f'{prefix}{err}' for err in sec_errs))
+			if isinstance(meta_obj, dict) and 'Issue' in meta_obj:
+				issue_entries.append({'issue': meta_obj['Issue'], 'prefix': prefix})
+		errs.extend(self.__check_issue_entries(issue_entries, 'mixed_problem'))
+		return errs
+	# @used-by :meth:`DfAnalysisValidator.__dispatch_mode()`
+	def __check_problem_blocks(self, blocks: list[dict]) -> list[str]:
+		errs: list[str] = []
+		issue_entries: list[dict] = []
 		multi = 1 < len(blocks)
 		for idx, blk in enumerate(blocks, 1):
 			prefix = f'[Analysis #{idx}] ' if multi else ''
-			errs.extend((f'{prefix}{err}' for err in cls.__check_problem_sections(blk['sections'])))
+			sec_errs, meta_obj = self.__check_problem_sections(blk['sections'], is_mixed=False)
+			errs.extend((f'{prefix}{err}' for err in sec_errs))
+			if isinstance(meta_obj, dict) and 'Issue' in meta_obj:
+				issue_entries.append({'issue': meta_obj['Issue'], 'prefix': prefix})
 		errs.extend(ProblemTrackAuditor(blocks).audit())
+		errs.extend(self.__check_issue_entries(issue_entries, 'problem'))
 		return errs
 	# @used-by :meth:`DfAnalysisValidator.__check_problem_sections()`
 	@classmethod
-	def __check_problem_metadata(cls, body: str) -> list[str]:
+	def __check_problem_metadata(cls, body: str) -> tuple[list[str], dict | None]:
 		m = _JSON_FENCE_RE.search(body or '')
 		if None is m:
-			r = ['DOC-5 / df-analysis: Section # 0 (Problem Metadata) must contain a fenced ```json metadata block']
+			r: tuple[list[str], dict | None] = (['DOC-5 / df-analysis: Metadata section must contain a fenced ```json metadata block'], None)
 		else:
 			try:
 				obj = json.loads(m.group(1))
 			except ValueError as exc:
-				r = [f'DOC-5 / df-analysis: Section # 0 JSON metadata block is invalid: {exc}']
+				r = ([f'DOC-5 / df-analysis: JSON metadata block is invalid: {exc}'], None)
 			else:
-				r = cls.__validate_metadata_obj(obj)
+				r = (cls.__validate_metadata_obj(obj), obj if isinstance(obj, dict) else None)
 		return r
+	# @used-by :meth:`DfAnalysisValidator.__check_mixed_blocks()`
 	# @used-by :meth:`DfAnalysisValidator.__check_problem_blocks()`
 	@classmethod
-	def __check_problem_sections(cls, sections: dict[int, tuple[str, str]]) -> list[str]:
-		errs = [f'DOC-5 / df-analysis: Problem analysis is missing required top-level section # {num}' for num in range(5) if num not in sections]
+	def __check_problem_sections(cls, sections: dict[int, tuple[str, str]], *, is_mixed: bool=False) -> tuple[list[str], dict | None]:
+		errs = [] if is_mixed else [f'DOC-5 / df-analysis: Problem analysis is missing required section ## {num}' for num in range(5) if num not in sections]
+		meta_obj: dict | None = None
 		if 0 in sections:
-			errs.extend(cls.__check_problem_metadata(sections[0][1]))
+			m_errs, meta_obj = cls.__check_problem_metadata(sections[0][1])
+			errs.extend(m_errs)
 		if 1 in sections and (15 > len(sections[1][1].strip()) or (not _VERBATIM_RE.search(sections[1][1].strip()))):
-			errs.append('DOC-5 / df-analysis: Section # 1 (Problem Description) must include verbatim diagnostic messages or quoted output')
+			errs.append('DOC-5 / df-analysis: Problem Description section must include verbatim diagnostic messages or quoted output')
 		if 2 in sections:
-			errs.extend(cls.__check_item_group(dfh_parse_section_items(sections[2][1]), require_link=True, kind='hypothesis', context='Section # 2 (Root Cause Analysis)'))
-		if 3 in sections and 10 > len(sections[3][1].strip()):
-			errs.append('DOC-5 / df-analysis: Section # 3 (Source Project Attribution) must identify the owning source project')
+			errs.extend(cls.__check_item_group(dfh_parse_section_items(sections[2][1]), require_link=True, kind='hypothesis', context='Root Cause Analysis'))
+		if (not is_mixed) and 3 in sections and 10 > len(sections[3][1].strip()):
+			errs.append('DOC-5 / df-analysis: Section ## 3 (Source Project Attribution) must identify the owning source project')
 		if 4 in sections:
-			errs.extend(cls.__check_item_group(dfh_parse_section_items(sections[4][1]), require_link=False, kind='solution method', context='Section # 4 (Systemic Solutions)'))
-		return errs
+			errs.extend(cls.__check_item_group(dfh_parse_section_items(sections[4][1]), require_link=False, kind='solution method', context='Systemic Solutions'))
+		return (errs, meta_obj)
+	# @used-by :meth:`DfAnalysisValidator.validate()`
+	def __dispatch_mode(self, eff_mode: str, body: str, roots: list, st_res: dict) -> tuple[list[str], list[dict], list[str]]:
+		blocks, method_bodies = (st_res['blocks'], [])
+		if 'mixed_problem' == eff_mode:
+			mx_res = MixedTurnProblemSchema(roots).extract()
+			blocks, method_bodies = (mx_res['blocks'], mx_res['method_bodies'])
+			errs = [*mx_res['errors'], *self.__check_mixed_blocks(blocks)]
+		elif 'problem' == eff_mode:
+			method_bodies = st_res['method_bodies']
+			errs = [*st_res['errors'], *self.__check_problem_blocks(blocks)]
+		elif 'general' == eff_mode:
+			errs = self.__validate_general(body, self.__requests_invoke_df_analysis(self.__requests) or 'general' == self.__mode)
+		else:
+			errs = []
+		return (errs, blocks, method_bodies)
+	# @used-by :meth:`DfAnalysisValidator.__dispatch_mode()`
 	# @used-by :meth:`DfAnalysisValidator.validate()`
 	@staticmethod
 	def __requests_invoke_df_analysis(requests: list | tuple) -> bool:
@@ -102,7 +145,7 @@ class DfAnalysisValidator:
 				r = True
 				break
 		return r
-	# @used-by :meth:`DfAnalysisValidator.validate()`
+	# @used-by :meth:`DfAnalysisValidator.__dispatch_mode()`
 	@classmethod
 	def __validate_general(cls, text: str, explicit_cmd: bool) -> list[str]:
 		hyps, mets = dfh_parse_explicit_items(text)
@@ -119,15 +162,13 @@ class DfAnalysisValidator:
 	def __validate_metadata_obj(obj: object) -> list[str]:
 		errs: list[str] = []
 		if not isinstance(obj, dict):
-			errs.append('DOC-5 / df-analysis: Section # 0 JSON metadata must be a JSON object')
+			errs.append('DOC-5 / df-analysis: JSON metadata must be a JSON object')
 		else:
 			if 'Issue' not in obj:
-				errs.append('DOC-5 / df-analysis: Section # 0 metadata is missing mandatory "Issue" key')
-			elif None is not obj['Issue'] and (not (isinstance(obj['Issue'], str) and _GH_ISSUE_URL_RE.fullmatch(obj['Issue'].strip().rstrip('/')))):
-				errs.append('DOC-5 / df-analysis: Section # 0 "Issue" must be a valid GitHub issue URL or null (non-GitHub workspace)')
+				errs.append('DOC-5 / df-analysis: Metadata is missing mandatory "Issue" key')
 			for req_key in ('Time', 'Project'):
 				if req_key not in obj:
-					errs.append(f'DOC-5 / df-analysis: Section # 0 metadata is missing required "{req_key}" key')
+					errs.append(f'DOC-5 / df-analysis: Metadata is missing required "{req_key}" key')
 		return errs
 	# @used-by :func:`agent_tools.statements.analysis_gate_issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_df_analysis_validator_general_and_section_lists()`
@@ -140,13 +181,9 @@ class DfAnalysisValidator:
 	def validate(self) -> list[str]:
 		from agent_tools.metadata import strip_leading_metadata_header
 		body = strip_leading_metadata_header(self.__response or '')
-		blocks = ProblemTrackAuditor.extract_blocks(body, dfh_mask_fenced_lines, _TOP_HEAD_RE)
-		eff_mode = Doc5ContextDetector(body, blocks, self.__requests, self.__mode, turn_context=self.__turn_context, prob_head_re=_PROB_HEAD_RE, req_cmd_fn=self.__requests_invoke_df_analysis, explicit_fn=dfh_parse_explicit_items).detect()
-		if 'problem' == eff_mode:
-			r = self.__check_problem_blocks(blocks)
-		elif 'general' == eff_mode:
-			r = self.__validate_general(body, self.__requests_invoke_df_analysis(self.__requests) or 'general' == self.__mode)
-		else:
-			r = []
-		r.extend(ScatterBannerAuditor(body, blocks=blocks, mode=eff_mode).audit())
+		roots = HeadingTreeParser(body).parse()
+		st_res = StandaloneProblemSchema(roots).extract()
+		eff_mode = Doc5ContextDetector(body, st_res['blocks'], self.__requests, self.__mode, turn_context=self.__turn_context, prob_head_re=_PROB_HEAD_RE, req_cmd_fn=self.__requests_invoke_df_analysis, explicit_fn=dfh_parse_explicit_items, roots=roots).detect()
+		r, blocks, method_bodies = self.__dispatch_mode(eff_mode, body, roots, st_res)
+		r.extend(ScatterBannerAuditor(body, blocks=blocks, mode=eff_mode, method_bodies=method_bodies).audit())
 		return r

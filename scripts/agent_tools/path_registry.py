@@ -170,6 +170,8 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 # @used-by :meth:`Df.Harness.Git.WorktreeRebaseVerifier.WorktreeRebaseVerifier.__run_land_checks()`
 # @used-by :meth:`Df.Harness.Grounding.Doc5RequirementChecker.Doc5RequirementChecker.__workspace_repo_slugs()`
 # @used-by :meth:`Df.Harness.Grounding.EvidenceBundleIngestor.EvidenceBundleIngestor.__evidence_dirs()`
+# @used-by :meth:`Df.Harness.Grounding.ProblemIssueSpecification.ProblemIssueSpecification.__evidence_roots()`
+# @used-by :meth:`Df.Harness.Grounding.ProblemIssueSpecification.ProblemIssueSpecification.workspace_repo_slugs()`
 # @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.__collect_client_urls()`
 # @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.validate()`
 # @used-by :meth:`Df.Harness.Grounding.Tier0Index.Tier0Index.__init__()`
@@ -330,6 +332,7 @@ def resolve_project_root(target: str | Path, *, registry: PathRegistry | None=No
 # @used-by :meth:`test_project_rename.ProjectRenameTests.test_rename_preserves_launcher_handoff_reg_hash_and_review_lineage()`
 def same_project_root(first: str | Path | None, second: str | Path | None, *, registry: PathRegistry | None=None) -> bool:
 	return dfh_same_project_root(first, second, registry=registry)
+# @used-by :meth:`Df.Harness.Grounding.ProblemIssueSpecification.ProblemIssueSpecification.__evidence_roots()`
 # @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.__target_for_project_root()`
 # @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.evidence_issue_files()`
 # @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.issue_target_for_path()`

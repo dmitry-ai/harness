@@ -166,6 +166,7 @@ class Linter:
 				out.append({'code': err['code'], 'message': err['message']})
 	# @used-by :func:`agent_tools.github_issue.extract_parent_issue_number()`
 	# @used-by :meth:`Df.Harness.Git.IssueWorkflowVerifier.IssueWorkflowVerifier.__extract_parent()`
+	# @used-by :meth:`Df.Harness.Grounding.ProblemIssueSpecification.ProblemIssueSpecification.__extract_parent_num()`
 	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.__build_issue_record()`
 	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.__parse_parent()`
 	# @used-by :meth:`Df.Harness.Issue.IssueFetcher.IssueFetcher.fetch()`

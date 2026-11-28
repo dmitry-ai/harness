@@ -3,16 +3,19 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 from Df.Harness.Grounding.Doc5RequirementChecker import Doc5RequirementChecker
+from Df.Harness.Grounding.HeadingTreeParser import HeadingTreeParser
+from Df.Harness.Grounding.MixedTurnProblemSchema import MixedTurnProblemSchema
+from Df.Harness.Grounding.StandaloneProblemSchema import StandaloneProblemSchema
 from Df.Harness.lib.path_resolve import dfh_project_paths
 from agent_tools.platforms import adapter
 import json
 import os
-import re
 import subprocess
 import sys
 import tempfile
 _NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 # 2026-11-27 "Reorganize Harness scripts into single-class Mage2Pro modules": https://github.com/dmitry-ai/harness/issues/338
+# 2026-11-28 "Implement hierarchical mixed-turn DOC-5 parser and problem-issue specification": https://github.com/dmitry-ai/harness/issues/428
 # @used-by :mod:`agent_tools.doc5_replay_audit`
 class Doc5ReplayAuditor:
 	ANSWER_GATE_PATHS = frozenset({
@@ -24,11 +27,16 @@ class Doc5ReplayAuditor:
 		'scripts/Df/Harness/Grounding/Doc5ReplayAuditor.py',
 		'scripts/Df/Harness/Grounding/Doc5RequirementChecker.py',
 		'scripts/Df/Harness/Grounding/EvidenceBundleIngestor.py',
+		'scripts/Df/Harness/Grounding/HeadingNode.py',
+		'scripts/Df/Harness/Grounding/HeadingTreeParser.py',
 		'scripts/Df/Harness/Grounding/LocalSourceAuditor.py',
+		'scripts/Df/Harness/Grounding/MixedTurnProblemSchema.py',
 		'scripts/Df/Harness/Grounding/ProbabilityClaimChecker.py',
+		'scripts/Df/Harness/Grounding/ProblemIssueSpecification.py',
 		'scripts/Df/Harness/Grounding/ProblemTrackAuditor.py',
 		'scripts/Df/Harness/Grounding/ResponseAuditor.py',
 		'scripts/Df/Harness/Grounding/ScatterBannerAuditor.py',
+		'scripts/Df/Harness/Grounding/StandaloneProblemSchema.py',
 		'scripts/Df/Harness/Hook/VerificationObserver.py',
 		'scripts/Df/Harness/lib/grounding_md.py',
 		'scripts/Df/Harness/lib/hook_verif_ops.py',
@@ -42,7 +50,6 @@ class Doc5ReplayAuditor:
 		'scripts/agent_tools/statements.py',
 		'scripts/agent_tools/verification_observability.py',
 	})
-	__PROBLEM_HEADING_RE = re.compile(r'(?m)^#\s*0\.')
 	# @used-by :func:`agent_tools.doc5_replay_audit.verify_worktree_answer_gate_corpus()`
 	# @used-by :meth:`test_df_harness_s11_final_338.DfHarnessS11Final338Tests.test_doc5_replay_auditor_saved_turns_and_worktree_verify()`
 	def __init__(self, wt_path: Path, target_branch: str, *, subprocess_runner=None) -> None:
@@ -81,7 +88,8 @@ class Doc5ReplayAuditor:
 			p = Path(rf)
 			if p.is_file():
 				try:
-					r = bool(Doc5ReplayAuditor.__PROBLEM_HEADING_RE.search(p.read_text(encoding='utf-8', errors='replace')))
+					roots = HeadingTreeParser(p.read_text(encoding='utf-8', errors='replace')).parse()
+					r = MixedTurnProblemSchema.has_mixed_sections(roots) or StandaloneProblemSchema.has_any_problem_block(roots)
 				except OSError:
 					r = False
 		return r

@@ -182,14 +182,19 @@ class Regex(O):
 	# @used-by :meth:`Df.Harness.Git.GitSegmentExtractor.GitSegmentExtractor.extract()`
 	# @used-by :meth:`Df.Harness.Git.HostPathNormalizer.HostPathNormalizer.normalize()`
 	# @used-by :meth:`Df.Harness.Grounding.BlockLineAuditor.BlockLineAuditor.__check_technical_spans()`
-	# @used-by :meth:`Df.Harness.Grounding.CliCommandAuditor.CliCommandAuditor.__extract_recommended()`
+	# @used-by :meth:`Df.Harness.Grounding.CliCommandAuditor.CliCommandAuditor.__desc_line_set()`
 	# @used-by :meth:`Df.Harness.Grounding.CliOutputJsonParser.CliOutputJsonParser.__truncated_top_level_failure()`
 	# @used-by :meth:`Df.Harness.Grounding.DomainFactExtractor.DomainFactExtractor.__collect_dict_fact_tuples()`
 	# @used-by :meth:`Df.Harness.Grounding.EvidenceBundleIngestor.EvidenceBundleIngestor.discourse_topic_key()`
+	# @used-by :meth:`Df.Harness.Grounding.HeadingTreeParser.HeadingTreeParser.parse()`
 	# @used-by :meth:`Df.Harness.Grounding.LocaleVerifier.LocaleVerifier.__extract_inline_chunks()`
-	# @used-by :meth:`Df.Harness.Grounding.ProblemTrackAuditor.ProblemTrackAuditor.extract_blocks()`
+	# @used-by :meth:`Df.Harness.Grounding.MixedTurnProblemSchema.MixedTurnProblemSchema.__check_top_h1()`
+	# @used-by :meth:`Df.Harness.Grounding.MixedTurnProblemSchema.MixedTurnProblemSchema.__classify_slot()`
+	# @used-by :meth:`Df.Harness.Grounding.MixedTurnProblemSchema.MixedTurnProblemSchema.has_mixed_sections()`
 	# @used-by :meth:`Df.Harness.Grounding.ScatterBannerAuditor.ScatterBannerAuditor.__fenced_banner_at_start()`
 	# @used-by :meth:`Df.Harness.Grounding.ScatterBannerAuditor.ScatterBannerAuditor.__parse_standalone()`
+	# @used-by :meth:`Df.Harness.Grounding.StandaloneProblemSchema.StandaloneProblemSchema.__extract_nested_block()`
+	# @used-by :meth:`Df.Harness.Grounding.StandaloneProblemSchema.StandaloneProblemSchema.__process_h1()`
 	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.__check_body_blocks()`
 	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.__collect_m_subtask_groups()`
 	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.validate_repo()`

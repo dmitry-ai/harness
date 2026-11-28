@@ -135,6 +135,7 @@ class RAM:
 	# @used-by :meth:`Df.Harness.Git.WorktreeTransaction.WorktreeTransaction.__stage_into_worktree()`
 	# @used-by :meth:`Df.Harness.Git.WorktreeTransaction.WorktreeTransaction.remove()`
 	# @used-by :meth:`Df.Harness.Grounding.Doc5RequirementChecker.Doc5RequirementChecker.__workspace_repo_slugs()`
+	# @used-by :meth:`Df.Harness.Grounding.ProblemIssueSpecification.ProblemIssueSpecification.workspace_repo_slugs()`
 	# @used-by :meth:`Df.Harness.Issue.DirtyIssueFirstScanner.DirtyIssueFirstScanner.scan()`
 	# @used-by :meth:`Df.Harness.Issue.IssueFirstPreToolEvaluator.IssueFirstPreToolEvaluator.__find_git_repo_root()`
 	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__check_repo_commits_and_files()`

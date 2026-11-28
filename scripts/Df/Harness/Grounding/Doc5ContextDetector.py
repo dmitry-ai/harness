@@ -1,13 +1,16 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from Df.Harness.Grounding.Doc5RequirementChecker import Doc5RequirementChecker
+from Df.Harness.Grounding.HeadingNode import HeadingNode
+from Df.Harness.Grounding.MixedTurnProblemSchema import MixedTurnProblemSchema
 import sys
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
+# 2026-11-28 "Implement hierarchical mixed-turn DOC-5 parser and problem-issue specification": https://github.com/dmitry-ai/harness/issues/428
 class Doc5ContextDetector:
 	# @used-by :func:`agent_tools.doc5_context.detect_df_analysis_mode()`
 	# @used-by :meth:`Df.Harness.Grounding.DfAnalysisValidator.DfAnalysisValidator.validate()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_cli_command_and_doc5_requirement_auditors()`
-	def __init__(self, text: str, blocks: list[dict], requests: list | tuple, mode: str, *, turn_context: dict | None, prob_head_re, req_cmd_fn, explicit_fn) -> None:
+	def __init__(self, text: str, blocks: list[dict], requests: list | tuple, mode: str, *, turn_context: dict | None, prob_head_re, req_cmd_fn, explicit_fn, roots: list[HeadingNode] | None=None) -> None:
 		self.__text = text
 		self.__blocks = blocks
 		self.__requests = requests
@@ -16,7 +19,20 @@ class Doc5ContextDetector:
 		self.__prob_head_re = prob_head_re
 		self.__req_cmd_fn = req_cmd_fn
 		self.__explicit_fn = explicit_fn
+		self.__roots = roots
 	# @used-by :meth:`Doc5ContextDetector.detect()`
+	def __detect_auto(self) -> str:
+		has_s0_meta = any((0 in b['sections'] and bool(self.__prob_head_re.search(b['sections'][0][0])) for b in self.__blocks))
+		has_s1_prob = any((1 in b['sections'] and bool(self.__prob_head_re.search(b['sections'][1][0])) and bool({2, 3, 4} & set(b['sections'])) for b in self.__blocks))
+		if has_s0_meta or has_s1_prob or self.__requires_doc5():
+			r = 'problem'
+		elif self.__req_cmd_fn(self.__requests):
+			r = 'problem' if any((0 in b['sections'] for b in self.__blocks)) else 'general'
+		else:
+			hyps, mets = self.__explicit_fn(self.__text)
+			r = 'general' if hyps or mets else 'none'
+		return r
+	# @used-by :meth:`Doc5ContextDetector.__detect_auto()`
 	def __requires_doc5(self) -> bool:
 		mod = sys.modules.get('agent_tools.doc5_context')
 		fn = getattr(mod, 'turn_requires_doc5_problem_analysis', None) if None is not mod else None
@@ -29,16 +45,13 @@ class Doc5ContextDetector:
 	# @used-by :meth:`Df.Harness.Grounding.DfAnalysisValidator.DfAnalysisValidator.validate()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_cli_command_and_doc5_requirement_auditors()`
 	def detect(self) -> str:
-		if self.__mode in ('general', 'problem'):
-			r = self.__mode
+		has_mixed = None is not self.__roots and MixedTurnProblemSchema.has_mixed_sections(self.__roots)
+		if 'general' == self.__mode:
+			r = 'general'
+		elif 'problem' == self.__mode:
+			r = 'mixed_problem' if has_mixed else 'problem'
+		elif has_mixed:
+			r = 'mixed_problem'
 		else:
-			has_s0_meta = any((0 in b['sections'] and bool(self.__prob_head_re.search(b['sections'][0][0])) for b in self.__blocks))
-			has_s1_prob = any((1 in b['sections'] and bool(self.__prob_head_re.search(b['sections'][1][0])) and bool({2, 3, 4} & set(b['sections'])) for b in self.__blocks))
-			if has_s0_meta or has_s1_prob or self.__requires_doc5():
-				r = 'problem'
-			elif self.__req_cmd_fn(self.__requests):
-				r = 'problem' if any((0 in b['sections'] for b in self.__blocks)) else 'general'
-			else:
-				hyps, mets = self.__explicit_fn(self.__text)
-				r = 'general' if hyps or mets else 'none'
+			r = self.__detect_auto()
 		return r

@@ -1,11 +1,13 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
+from Df.Harness.Grounding.HeadingTreeParser import HeadingTreeParser
+from Df.Harness.Grounding.StandaloneProblemSchema import StandaloneProblemSchema
 from Df.Harness.lib.grounding import SCATTER_BANNER_LINES
-from Df.Harness.lib.grounding_md import dfh_extract_top_sections, dfh_mask_fenced_lines, dfh_parse_explicit_items, dfh_parse_section_items
+from Df.Harness.lib.grounding_md import dfh_parse_explicit_items, dfh_parse_section_items
 import re
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
+# 2026-11-28 "Implement hierarchical mixed-turn DOC-5 parser and problem-issue specification": https://github.com/dmitry-ai/harness/issues/428
 _EXT_PATH_RE = re.compile(r'(?i)(?:(?:%(?:LOCALAPPDATA|APPDATA|TEMP|TMP|PROGRAMDATA|USERPROFILE)%|\$\{?(?:LOCALAPPDATA|APPDATA|TEMP|TMP|PROGRAMDATA|USERPROFILE|USER_HOME|OS_USER_HOME|XDG_CACHE_HOME|XDG_DATA_HOME)\}?|\$env:(?:LOCALAPPDATA|APPDATA|TEMP|TMP|PROGRAMDATA|USERPROFILE))[/\\][A-Za-z0-9_.<>/\\-]+|(?:\b(?:\u0432|\u0432\u043e|in|into|to|inside|under)\s+`?)(?:%(?:LOCALAPPDATA|APPDATA|TEMP|TMP|PROGRAMDATA)%|\$\{?(?:LOCALAPPDATA|APPDATA|TEMP|TMP|PROGRAMDATA|XDG_CACHE_HOME|XDG_DATA_HOME)\}?|\$env:(?:LOCALAPPDATA|APPDATA|TEMP|TMP|PROGRAMDATA)\b|/(?:tmp|var/tmp)\b)|\bAppData[/\\](?:Local|Roaming|LocalLow)[/\\][A-Za-z0-9_.<>/\\-]+|[A-Za-z]:[/\\](?:Temp|tmp|ProgramData)[/\\][A-Za-z0-9_.<>/\\-]+|(?<![A-Za-z0-9_./-])/(?:tmp|var/tmp|var/cache)/[A-Za-z0-9_.<>/\\-]+|(?:\$HOME|~)[/\\][A-Za-z0-9_.<>/\\-]+|(?:\b(?:\u0432|\u0432\u043e|in|into|to|at|add|create|move|store|save|put|mkdir|or|\u0438\u043b\u0438)\s+`?)\.\.[/\\][A-Za-z0-9_.<>-]+)')
-_HEAD_RE = re.compile(r'^(#{1,6})\s+(.+?)\s*$')
 _MD_LINK_RE = re.compile(r'\[([^\]]+)\]\((?:<[^>]+>|[^)\s]+)\)')
 _NATIVE_CONFIG_ALLOW_RE = re.compile(r'(?i)(?:(?:\$HOME|\$\{?(?:USER_HOME|OS_USER_HOME|USERPROFILE)\}?|%USERPROFILE%|~)[/\\](?:\.gitconfig|\.git-credentials(?:\.lock)?|\.config[/\\]git[/\\]ignore|\.gemini[/\\]config\b|\.codex[/\\](?:config\.toml|AGENTS\.md)\b|\.ssh[/\\]config\b)|AppData[/\\]Roaming[/\\](?:Antigravity|Code|Cursor|Windsurf)(?:-[A-Za-z0-9]+)?[/\\][A-Za-z0-9_.<>/\\-]*|(?:%APPDATA%|\$\{?APPDATA\}?)[/\\]Antigravity(?:[/\\][A-Za-z0-9_.<>/\\-]*)?)')
 _NEG_PREFIX_RE = re.compile(r'(?i)(?:\u043d\u0435\s+(?:\u0432\u044b\u043d\u043e\u0441\u0438\u0442\u044c|\u043f\u0435\u0440\u0435\u043d\u043e\u0441\u0438\u0442\u044c|\u0445\u0440\u0430\u043d\u0438\u0442\u044c|\u0441\u043e\u0437\u0434\u0430\u0432\u0430\u0442\u044c|\u0442\u0440\u0435\u0431\u0443\u0435\u0442|\u043a\u043b\u0430\u0441\u0442\u044c|\u043f\u0438\u0441\u0430\u0442\u044c)|\u0431\u0435\u0437\s+(?:\u043f\u0435\u0440\u0435\u043d\u043e\u0441\u0430|\u0432\u044b\u043d\u043e\u0441\u0430|\u0441\u043e\u0437\u0434\u0430\u043d\u0438\u044f)|\u043e\u0441\u0442\u0430\u0432\u0438\u0442\u044c\s+\u0432\u043d\u0443\u0442\u0440\u0438|\u0432\u043c\u0435\u0441\u0442\u043e\s+(?:\u0432\u044b\u043d\u043e\u0441\u0430|\u043f\u0435\u0440\u0435\u043d\u043e\u0441\u0430)|do\s+not\s+(?:move|store|place|create)|don.?t\s+(?:move|store|place|create)|without\s+(?:moving|storing|creating)|keep\s+inside|avoid\s+(?:moving|storing|placing))\s*[^\n.]{0,60}$')
@@ -17,23 +19,22 @@ class ScatterBannerAuditor:
 	# @used-by :func:`agent_tools.scatter_banner.validate_scatter_banners()`
 	# @used-by :meth:`Df.Harness.Grounding.DfAnalysisValidator.DfAnalysisValidator.validate()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_df_analysis_problem_tracks_scatter_banner_and_statements()`
-	def __init__(self, body: str, *, sections: dict[int, tuple[str, str]] | None=None, blocks: list[dict] | None=None, mode: str='auto') -> None:
+	def __init__(self, body: str, *, sections: dict[int, tuple[str, str]] | None=None, blocks: list[dict] | None=None, mode: str='auto', method_bodies: list[str] | None=None) -> None:
 		self.__body = body
 		self.__sections = sections
 		self.__blocks = blocks
 		self.__mode = mode
+		self.__method_bodies = method_bodies
 	# @used-by :meth:`ScatterBannerAuditor.has_leading_banner()`
 	@staticmethod
 	def __bare_banner_at_start(lines: list[str]) -> bool:
 		return 3 <= len(lines) and [ln.rstrip() for ln in lines[:3]] == list(SCATTER_BANNER_LINES)
 	# @used-by :meth:`ScatterBannerAuditor.audit()`
-	def __collect_candidates(self, sections: dict[int, tuple[str, str]]) -> list[tuple[str, str]]:
+	def __collect_candidates(self, method_bodies: list[str]) -> list[tuple[str, str]]:
 		raw_items: list[tuple[str, str]] = []
-		if 'problem' == self.__mode:
-			sec_list = [b['sections'] for b in self.__blocks] if None is not self.__blocks else [sections]
-			for sec in sec_list:
-				if 4 in sec:
-					raw_items.extend(dfh_parse_section_items(sec[4][1]))
+		if self.__mode in ('problem', 'mixed_problem'):
+			for mb in method_bodies:
+				raw_items.extend(dfh_parse_section_items(mb))
 		_, explicit_mets = dfh_parse_explicit_items(self.__body)
 		raw_items.extend(explicit_mets)
 		raw_items.extend(self.__parse_standalone(self.__body))
@@ -65,34 +66,30 @@ class ScatterBannerAuditor:
 	# @used-by :meth:`ScatterBannerAuditor.__collect_candidates()`
 	@staticmethod
 	def __parse_standalone(text: str) -> list[tuple[str, str]]:
-		items: list[tuple[str, list[str]]] = []
-		cur_lvl: int | None = None
-		for _, raw, fenced in dfh_mask_fenced_lines(text):
-			m = _HEAD_RE.match(raw.strip()) if not fenced else None
-			if None is not m:
-				lvl, title = (len(m.group(1)), m.group(2).strip())
-				if _REC_HEAD_RE.match(title):
-					items.append((title, [raw]))
-					cur_lvl = lvl
-				elif None is not cur_lvl and lvl <= cur_lvl:
-					cur_lvl = None
-				elif None is not cur_lvl:
-					items[-1][1].append(raw)
-			elif None is not cur_lvl:
-				items[-1][1].append(raw)
-		return [(k, '\n'.join(v)) for k, v in items]
+		nodes = HeadingTreeParser.iter_all(HeadingTreeParser(text).parse())
+		return [(n.title, f'{n.raw_line}\n{n.full_body}' if n.full_body else n.raw_line) for n in nodes if _REC_HEAD_RE.match(n.title)]
 	# @used-by :meth:`ScatterBannerAuditor.proposes_external_scattering()`
 	@staticmethod
 	def __proposal_slice(body: str) -> str:
 		m = _PROPOSAL_STOP_RE.search(body)
 		raw = body[:m.start()] if None is not m else body
 		return _NATIVE_CONFIG_ALLOW_RE.sub(' ', _MD_LINK_RE.sub(r'\1', raw))
+	# @used-by :meth:`ScatterBannerAuditor.audit()`
+	def __resolve_method_bodies(self) -> list[str]:
+		if None is not self.__method_bodies:
+			r = list(self.__method_bodies)
+		elif None is not self.__blocks:
+			r = [b['sections'][4][1] for b in self.__blocks if 4 in b['sections']]
+		elif None is not self.__sections:
+			r = [self.__sections[4][1]] if 4 in self.__sections else []
+		else:
+			r = StandaloneProblemSchema(HeadingTreeParser(self.__body).parse()).extract()['method_bodies']
+		return r
 	# @used-by :func:`agent_tools.scatter_banner.validate_scatter_banners()`
 	# @used-by :meth:`Df.Harness.Grounding.DfAnalysisValidator.DfAnalysisValidator.validate()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_df_analysis_problem_tracks_scatter_banner_and_statements()`
 	def audit(self) -> list[str]:
-		secs = self.__sections if None is not self.__sections else ({} if None is not self.__blocks else dfh_extract_top_sections(self.__body))
-		return [f'FILE-6 / DOC-3: Recommendation "{lbl}" proposes creating, moving, or storing project or tool files outside the project root without starting immediately with the mandatory uppercase FILE-6 warning banner.' for lbl, item in self.__collect_candidates(secs) if self.proposes_external_scattering(item) and (not self.has_leading_banner(item))]
+		return [f'FILE-6 / DOC-3: Recommendation "{lbl}" proposes creating, moving, or storing project or tool files outside the project root without starting immediately with the mandatory uppercase FILE-6 warning banner.' for lbl, item in self.__collect_candidates(self.__resolve_method_bodies()) if self.proposes_external_scattering(item) and (not self.has_leading_banner(item))]
 	# @used-by :func:`agent_tools.scatter_banner.has_leading_scatter_banner()`
 	# @used-by :meth:`ScatterBannerAuditor.audit()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_df_analysis_problem_tracks_scatter_banner_and_statements()`

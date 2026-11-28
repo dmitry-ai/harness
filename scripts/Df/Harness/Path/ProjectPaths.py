@@ -254,6 +254,7 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Experiment.RunLoader.RunLoader.__load_raw()`
 	# @used-by :meth:`Df.Harness.Experiment.RunRecorder.RunRecorder.__write_run()`
 	# @used-by :meth:`Df.Harness.Grounding.EvidenceBundleIngestor.EvidenceBundleIngestor.__evidence_dirs()`
+	# @used-by :meth:`Df.Harness.Grounding.ProblemIssueSpecification.ProblemIssueSpecification.__evidence_roots()`
 	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.__target_for_project_root()`
 	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.evidence_issue_files()`
 	# @used-by :meth:`Df.Harness.Issue.EvidenceWorkspace.EvidenceWorkspace.issue_target_for_path()`
@@ -651,6 +652,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_perf_timesheet`
 	# @used-by :mod:`test_polyglot_land`
 	# @used-by :mod:`test_problem_metadata`
+	# @used-by :mod:`test_problem_report_governance`
 	# @used-by :mod:`test_project_domain_drift`
 	# @used-by :mod:`test_project_labels`
 	# @used-by :mod:`test_project_rename_verification`

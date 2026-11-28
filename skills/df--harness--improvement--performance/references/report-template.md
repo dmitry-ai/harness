@@ -14,7 +14,8 @@ Every performance audit produced under [SKILL.md](../SKILL.md) conforms strictly
 ## 2. Five-Section Report Structure (`DOC-5`)
 
 <!-- 2026-11-25 "Require separate companion /df-analysis tracks for every complex problem analysis": https://github.com/dmitry-ai/harness/issues/249 -->  
-Use this exact top-level `# 0`..`# 4` structure for the primary performance problem analysis (optionally preceded by a brief executive summary pointing to verified telemetry totals), followed by the three mandatory separate `# 0`..`# 4` companion analyses required by [df-analysis](../../df-analysis/SKILL.md#21-mandatory-four-separate-analyses) (`§2` Culprit and Provenance Attribution, `§3` Test and Verification Escape, and `§4` Journal, Reporting, and Observability Integrity):  
+<!-- 2026-11-28 "Implement hierarchical mixed-turn DOC-5 parser and problem-issue specification": https://github.com/dmitry-ai/harness/issues/428 -->  
+Use this exact hierarchical structure (`## 0`..`## 4` nested under each `#` track heading, forbidding flat level-1 `# 0`..`# 4` headings) for the primary performance problem analysis (optionally preceded by a brief executive summary pointing to verified telemetry totals), followed by the three mandatory separate companion analyses required by [df-analysis](../../df-analysis/SKILL.md#22-mandatory-four-separate-analyses-for-standalone-complex-incidents) (`§2` Culprit and Provenance Attribution, `§3` Test and Verification Escape, and `§4` Journal, Reporting, and Observability Integrity):  
 
 ### `# 0` Problem Metadata
 

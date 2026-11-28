@@ -8,12 +8,13 @@ from Df.Harness.lib.cli_input import dfh_load_operation_input
 from Df.Harness.lib.path_resolve import dfh_var_value
 from Df.Harness.lib.runtime_snapshot_ops import dfh_check_runtime_snapshot
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
+# 2026-11-28 "Implement hierarchical mixed-turn DOC-5 parser and problem-issue specification": https://github.com/dmitry-ai/harness/issues/428
 # @used-by :func:`Df.Harness.lib.cli_registry_defs._register_analysis_builtins()`
 # @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_registry_handlers_formatters_and_docs()`
 def dfh_exec_analysis_check(args: Any) -> dict:
 	from agent_tools.statements import markdown_table_issues, validate_df_analysis
 	text = dfh_load_operation_input(args, args.response_file).decode('utf-8')
-	issues = [*markdown_table_issues(text), *validate_df_analysis(text, mode=args.mode)]
+	issues = [*markdown_table_issues(text), *validate_df_analysis(text, mode=args.mode, turn_context={'root': getattr(args, 'project', None)})]
 	return {'valid': not issues, 'mode': args.mode, 'issue_count': len(issues), 'issues': issues}
 # @used-by :func:`Df.Harness.lib.cli_registry_defs._register_analysis_builtins()`
 # @used-by :meth:`test_df_harness_s11_wave2d_cli_cov.DfHarnessS11Wave2dCliCovTests.test_cli_registry_handlers_formatters_and_docs()`
