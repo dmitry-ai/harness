@@ -621,6 +621,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_issue_first_completion`
 	# @used-by :mod:`test_issue_first_gate`
 	# @used-by :mod:`test_issue_first_github_cli`
+	# @used-by :mod:`test_issue_first_post_close_replay`
 	# @used-by :mod:`test_issue_first_pre_tool_use`
 	# @used-by :mod:`test_issue_first_rules_contract`
 	# @used-by :mod:`test_issue_preflight_and_batch`

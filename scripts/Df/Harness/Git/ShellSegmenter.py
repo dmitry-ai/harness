@@ -5,7 +5,7 @@ _SEPARATORS = frozenset({';', '\r', '\n', '&&', '||', '|'})
 _TOKEN_RE = re.compile(r'("(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|&&|\|\||[;\|\r\n]|[^"\'\s;\|\&]+|\s+)')
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class ShellSegmenter:
-	# @used-by :func:`Df.Harness.lib.issue.dfh_is_df_issue_command_text()`
+	# @used-by :func:`Df.Harness.lib.issue._expand_ps_loop_segments()`
 	# @used-by :func:`agent_tools.shell_audit._split_shell_segments()`
 	# @used-by :meth:`Df.Harness.Git.CdpBypassAudit.CdpBypassAudit.detect()`
 	# @used-by :meth:`Df.Harness.Git.GitSegmentExtractor.GitSegmentExtractor.extract()`
@@ -27,8 +27,8 @@ class ShellSegmenter:
 	# @used-by :func:`Df.Harness.lib.hook_runtime_ops.dfh_scan_doc4_sentence_issues()`
 	# @used-by :func:`Df.Harness.lib.hook_subagent_ops._process_row_message()`
 	# @used-by :func:`Df.Harness.lib.hook_verif_ops.dfh_is_shadow_replay_cmd()`
+	# @used-by :func:`Df.Harness.lib.issue._expand_ps_loop_segments()`
 	# @used-by :func:`Df.Harness.lib.issue.dfh_build_create_payload()`
-	# @used-by :func:`Df.Harness.lib.issue.dfh_is_df_issue_command_text()`
 	# @used-by :func:`Df.Harness.lib.issue.dfh_is_excluded_meta_rel()`
 	# @used-by :func:`Df.Harness.lib.path_template.dfh_glob_parent_stat()`
 	# @used-by :func:`Df.Harness.lib.path_template.dfh_normalize_path_str()`

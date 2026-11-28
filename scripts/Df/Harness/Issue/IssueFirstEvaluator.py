@@ -15,6 +15,9 @@ class IssueFirstEvaluator:
 	# @used-by :meth:`Df.Harness.Issue.IssueFirstPreToolEvaluator.IssueFirstPreToolEvaluator.evaluate()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_issue_first_pretool_evaluator_bg_scanner_and_var_match()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_issue_first_evaluator_inheritor_and_pretool()`
+	# @used-by :meth:`test_issue_first_post_close_replay.IssueFirstPostCloseReplayTests.test_child_create_against_already_closed_parent_still_fails()`
+	# @used-by :meth:`test_issue_first_post_close_replay.IssueFirstPostCloseReplayTests.test_parent_closed_later_in_same_turn_does_not_fail_earlier_child_create()`
+	# @used-by :meth:`test_issue_first_post_close_replay.IssueFirstPostCloseReplayTests.test_retroactive_edit_parent_does_not_backfill_earlier_standalone_create()`
 	def __init__(self, events: list[dict] | tuple[dict, ...] | None, *, requests: list | tuple | None=None, project_root: Path | None=None) -> None:
 		self.__events = events or ()
 		self.__requests = requests
@@ -24,24 +27,41 @@ class IssueFirstEvaluator:
 		self.__seeded_children: dict[str, dict[int, int]] = {}
 		self.__repos: dict[str, dict] = {}
 		self.__violations: list[str] = []
+		# 2026-11-28 "Evaluate Issue-First parent state chronologically and recognize PowerShell foreach": https://github.com/dmitry-ai/harness/issues/437
+		self.__last_close_idx: dict[tuple[str, int], int] = {}
+		self.__last_parent_edit_idx: dict[tuple[str, int], int] = {}
+	# 2026-11-28 "Evaluate Issue-First parent state chronologically and recognize PowerShell foreach": https://github.com/dmitry-ai/harness/issues/437
 	# @used-by :meth:`IssueFirstEvaluator.__handle_create_action()`
 	# @used-by :meth:`IssueFirstEvaluator.__handle_open_action()`
-	def __activate_child_parent(self, st: dict, num: int, parent_num: int, step: int, sub_step: int | None, cand_repos: list[Path], *, report_closed: bool) -> None:
+	def __activate_child_parent(self, st: dict, num: int, parent_num: int, step: int, sub_step: int | None, cand_repos: list[Path], *, report_closed: bool, ev_idx: int) -> None:
 		st['child_to_parent'][num] = parent_num
 		if parent_num not in st['active_parents']:
 			pinfo = self.__load_evidence_info(st['repo_slug'], parent_num, cand_repos)
-			if None is not pinfo and 'open' == pinfo.get('state') and parent_num not in st['closed_parents']:
+			pstate = self.__effective_issue_state(st['repo_slug'], parent_num, pinfo, ev_idx, closed_set=st['closed_parents'])
+			if 'open' == pstate:
 				st['active_parents'][parent_num] = (step, sub_step)
 				if parent_num not in st['established_parents']:
 					st['established_parents'].append(parent_num)
-			elif report_closed and None is not pinfo and 'closed' == pinfo.get('state'):
+			elif report_closed and 'closed' == pstate:
 				slug = st['repo_slug']
 				self.__violations.append(f'EXEC-5 ISSUE-FIRST-GATE: Child issue https://github.com/{slug}/issues/{num} links to closed parent issue #{parent_num}; open a new parent problem issue before working on new changes.')
+	# 2026-11-28 "Evaluate Issue-First parent state chronologically and recognize PowerShell foreach": https://github.com/dmitry-ai/harness/issues/437
 	# @used-by :meth:`IssueFirstEvaluator.evaluate()`
 	def __collect_known_repos(self) -> None:
-		for ev in self.__events:
+		for idx, ev in enumerate(self.__events):
 			if isinstance(ev, dict):
-				self.__register_known_repo(ev)
+				self.__register_known_repo(ev, idx)
+	# 2026-11-28 "Evaluate Issue-First parent state chronologically and recognize PowerShell foreach": https://github.com/dmitry-ai/harness/issues/437
+	# @used-by :meth:`IssueFirstEvaluator.__activate_child_parent()`
+	# @used-by :meth:`IssueFirstEvaluator.__resolve_action_state()`
+	# @used-by :meth:`IssueFirstEvaluator.__seed_single_ref()`
+	def __effective_issue_state(self, slug: str, number: int, info: dict | None, ev_idx: int, *, closed_set: set[int] | None=None) -> str | None:
+		if None is not closed_set and number in closed_set:
+			r: str | None = 'closed'
+		else:
+			raw = str(info.get('state') or '').lower() if None is not info else ''
+			r = 'open' if 'closed' == raw and self.__last_close_idx.get((slug.lower(), int(number)), -1) > ev_idx else (raw or None)
+		return r
 	# @used-by :meth:`IssueFirstEvaluator.__handle_code_write()`
 	# @used-by :meth:`IssueFirstEvaluator.__handle_issue_action()`
 	def __ensure_repo(self, slug: str, repo_root: str | None=None) -> dict:
@@ -112,8 +132,9 @@ class IssueFirstEvaluator:
 			if not any((self.__is_established_before(est, step, sub_step) for est in st['active_parents'].values())):
 				st['unauthorized_write_steps'].append(step)
 				self.__violations.append(self.__format_write_violation(cls_name, rel_path, st['repo_slug'], step))
+	# 2026-11-28 "Evaluate Issue-First parent state chronologically and recognize PowerShell foreach": https://github.com/dmitry-ai/harness/issues/437
 	# @used-by :meth:`IssueFirstEvaluator.__handle_issue_action()`
-	def __handle_create_action(self, st: dict, num: int, parent_num: int | None, step: int, sub_step: int | None, cand_repos: list[Path]) -> None:
+	def __handle_create_action(self, st: dict, num: int, parent_num: int | None, step: int, sub_step: int | None, cand_repos: list[Path], ev_idx: int) -> None:
 		if None is parent_num:
 			if st['unauthorized_write_steps'] and (not st['active_parents']):
 				first_bad = st['unauthorized_write_steps'][0]
@@ -123,25 +144,27 @@ class IssueFirstEvaluator:
 			if num not in st['established_parents']:
 				st['established_parents'].append(num)
 		else:
-			self.__activate_child_parent(st, num, parent_num, step, sub_step, cand_repos, report_closed=True)
+			self.__activate_child_parent(st, num, parent_num, step, sub_step, cand_repos, report_closed=True, ev_idx=ev_idx)
+	# 2026-11-28 "Evaluate Issue-First parent state chronologically and recognize PowerShell foreach": https://github.com/dmitry-ai/harness/issues/437
 	# @used-by :meth:`IssueFirstEvaluator.evaluate()`
-	def __handle_issue_action(self, ev: dict, step: int, sub_step: int | None) -> None:
+	def __handle_issue_action(self, ev: dict, step: int, sub_step: int | None, ev_idx: int) -> None:
 		slug, num, action = (str(ev.get('repo') or '').strip(), ev.get('number'), str(ev.get('action') or '').strip().lower())
 		if slug and isinstance(num, int) and (not isinstance(num, bool)) and action:
 			st = self.__ensure_repo(slug)
 			st['issue_action_count'] += 1
 			cand_repos = self.__known_repos.get(slug.lower(), (slug, []))[1]
 			ev_info = self.__load_evidence_info(st['repo_slug'], num, cand_repos)
-			parent_num = self.__resolve_action_parent(ev, st, num, ev_info)
-			raw_state = self.__resolve_action_state(ev, action, ev_info)
+			parent_num = self.__resolve_action_parent(ev, st, num, ev_info, action, ev_idx)
+			raw_state = self.__resolve_action_state(ev, st, num, action, ev_info, ev_idx)
 			if 'create' == action:
-				self.__handle_create_action(st, num, parent_num, step, sub_step, cand_repos)
+				self.__handle_create_action(st, num, parent_num, step, sub_step, cand_repos, ev_idx)
 			elif action in ('fetch', 'edit', 'comment'):
-				self.__handle_open_action(st, num, parent_num, raw_state, step, sub_step, cand_repos)
+				self.__handle_open_action(st, num, parent_num, raw_state, step, sub_step, cand_repos, ev_idx)
 			elif 'close' == action:
 				self.__handle_close_action(st, num, parent_num)
+	# 2026-11-28 "Evaluate Issue-First parent state chronologically and recognize PowerShell foreach": https://github.com/dmitry-ai/harness/issues/437
 	# @used-by :meth:`IssueFirstEvaluator.__handle_issue_action()`
-	def __handle_open_action(self, st: dict, num: int, parent_num: int | None, raw_state: str, step: int, sub_step: int | None, cand_repos: list[Path]) -> None:
+	def __handle_open_action(self, st: dict, num: int, parent_num: int | None, raw_state: str, step: int, sub_step: int | None, cand_repos: list[Path], ev_idx: int) -> None:
 		if 'open' == raw_state:
 			if None is parent_num:
 				if num not in st['active_parents']:
@@ -149,7 +172,16 @@ class IssueFirstEvaluator:
 				if num not in st['established_parents']:
 					st['established_parents'].append(num)
 			else:
-				self.__activate_child_parent(st, num, parent_num, step, sub_step, cand_repos, report_closed=False)
+				self.__activate_child_parent(st, num, parent_num, step, sub_step, cand_repos, report_closed=False, ev_idx=ev_idx)
+	# 2026-11-28 "Evaluate Issue-First parent state chronologically and recognize PowerShell foreach": https://github.com/dmitry-ai/harness/issues/437
+	# @used-by :meth:`IssueFirstEvaluator.__register_known_repo()`
+	def __index_future_issue_action(self, slug_key: str, ev: dict, idx: int) -> None:
+		num, action = (ev.get('number'), str(ev.get('action') or '').strip().lower())
+		if isinstance(num, int) and (not isinstance(num, bool)):
+			if 'close' == action:
+				self.__last_close_idx[(slug_key, int(num))] = idx
+			elif 'edit' == action and isinstance(ev.get('parent_number'), int) and (not isinstance(ev.get('parent_number'), bool)):
+				self.__last_parent_edit_idx[(slug_key, int(num))] = idx
 	# @used-by :meth:`IssueFirstEvaluator.__handle_code_write()`
 	@staticmethod
 	def __is_established_before(est: tuple[int, int | None], step: int, sub_step: int | None) -> bool:
@@ -182,8 +214,9 @@ class IssueFirstEvaluator:
 				pnum = cls.__extract_evidence_parent(data, iss_obj, slug, number)
 				r = {'number': int(number), 'state': state or None, 'parent_number': pnum, 'path': str(ev_path)}
 		return r
+	# 2026-11-28 "Evaluate Issue-First parent state chronologically and recognize PowerShell foreach": https://github.com/dmitry-ai/harness/issues/437
 	# @used-by :meth:`IssueFirstEvaluator.__collect_known_repos()`
-	def __register_known_repo(self, ev: dict) -> None:
+	def __register_known_repo(self, ev: dict, idx: int) -> None:
 		kind = ev.get('kind')
 		if 'code_write' == kind:
 			slug = str(ev.get('repo_slug') or '').strip()
@@ -198,26 +231,29 @@ class IssueFirstEvaluator:
 			slug = str(ev.get('repo') or '').strip()
 			if slug:
 				self.__known_repos.setdefault(slug.lower(), (slug, []))
+				self.__index_future_issue_action(slug.lower(), ev, idx)
+	# 2026-11-28 "Evaluate Issue-First parent state chronologically and recognize PowerShell foreach": https://github.com/dmitry-ai/harness/issues/437
 	# @used-by :meth:`IssueFirstEvaluator.__handle_issue_action()`
-	@staticmethod
-	def __resolve_action_parent(ev: dict, st: dict, num: int, ev_info: dict | None) -> int | None:
+	def __resolve_action_parent(self, ev: dict, st: dict, num: int, ev_info: dict | None, action: str, ev_idx: int) -> int | None:
 		raw_p = ev.get('parent_number')
 		if isinstance(raw_p, int) and (not isinstance(raw_p, bool)) and int(raw_p) != num:
 			r: int | None = int(raw_p)
+		elif 'create' == action and self.__last_parent_edit_idx.get((st['repo_slug'].lower(), int(num)), -1) > ev_idx:
+			r = None
 		else:
 			r = ev_info.get('parent_number') if None is not ev_info else st['child_to_parent'].get(num)
 		return r
+	# 2026-11-28 "Evaluate Issue-First parent state chronologically and recognize PowerShell foreach": https://github.com/dmitry-ai/harness/issues/437
 	# @used-by :meth:`IssueFirstEvaluator.__handle_issue_action()`
-	@staticmethod
-	def __resolve_action_state(ev: dict, action: str, ev_info: dict | None) -> str:
+	def __resolve_action_state(self, ev: dict, st: dict, num: int, action: str, ev_info: dict | None, ev_idx: int) -> str:
 		raw_state = str(ev.get('state') or '').strip().lower()
 		if not raw_state:
 			if 'create' == action:
 				raw_state = 'open'
 			elif 'close' == action:
 				raw_state = 'closed'
-			elif None is not ev_info and ev_info.get('state'):
-				raw_state = str(ev_info['state']).lower()
+			else:
+				raw_state = self.__effective_issue_state(st['repo_slug'], num, ev_info, ev_idx, closed_set=st['closed_parents']) or ''
 		return raw_state
 	# @used-by :meth:`IssueFirstEvaluator.evaluate()`
 	def __seed_from_requests(self) -> None:
@@ -228,16 +264,17 @@ class IssueFirstEvaluator:
 					canon_slug, cand_repos = self.__known_repos[slug_key]
 					for num in sorted(nums):
 						self.__seed_single_ref(slug_key, canon_slug, cand_repos, num)
+	# 2026-11-28 "Evaluate Issue-First parent state chronologically and recognize PowerShell foreach": https://github.com/dmitry-ai/harness/issues/437
 	# @used-by :meth:`IssueFirstEvaluator.__seed_from_requests()`
 	def __seed_single_ref(self, slug_key: str, canon_slug: str, cand_repos: list[Path], num: int) -> None:
 		info = self.__load_evidence_info(canon_slug, num, cand_repos)
-		if None is not info and 'open' == info.get('state'):
-			pnum = info.get('parent_number')
+		if 'open' == self.__effective_issue_state(canon_slug, num, info, -1):
+			pnum = info.get('parent_number') if None is not info else None
 			if None is pnum:
 				self.__seeded_parents.setdefault(slug_key, {})[num] = (-1, None)
 			else:
 				pinfo = self.__load_evidence_info(canon_slug, pnum, cand_repos)
-				if None is not pinfo and 'open' == pinfo.get('state'):
+				if 'open' == self.__effective_issue_state(canon_slug, pnum, pinfo, -1):
 					self.__seeded_parents.setdefault(slug_key, {})[pnum] = (-1, None)
 					self.__seeded_children.setdefault(slug_key, {})[num] = pnum
 	# @used-by :meth:`IssueFirstEvaluator.evaluate()`
@@ -248,10 +285,13 @@ class IssueFirstEvaluator:
 	# @used-by :meth:`Df.Harness.Issue.IssueFirstPreToolEvaluator.IssueFirstPreToolEvaluator.evaluate()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_issue_first_pretool_evaluator_bg_scanner_and_var_match()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_issue_first_evaluator_inheritor_and_pretool()`
+	# @used-by :meth:`test_issue_first_post_close_replay.IssueFirstPostCloseReplayTests.test_child_create_against_already_closed_parent_still_fails()`
+	# @used-by :meth:`test_issue_first_post_close_replay.IssueFirstPostCloseReplayTests.test_parent_closed_later_in_same_turn_does_not_fail_earlier_child_create()`
+	# @used-by :meth:`test_issue_first_post_close_replay.IssueFirstPostCloseReplayTests.test_retroactive_edit_parent_does_not_backfill_earlier_standalone_create()`
 	def evaluate(self) -> dict:
 		self.__collect_known_repos()
 		self.__seed_from_requests()
-		for ev in self.__events:
+		for idx, ev in enumerate(self.__events):
 			if not isinstance(ev, dict):
 				continue
 			kind = ev.get('kind')
@@ -261,5 +301,5 @@ class IssueFirstEvaluator:
 			if 'code_write' == kind:
 				self.__handle_code_write(ev, step, sub_step)
 			elif 'issue_action' == kind:
-				self.__handle_issue_action(ev, step, sub_step)
+				self.__handle_issue_action(ev, step, sub_step, idx)
 		return {'verified': not self.__violations, 'repos': self.__serialize_repos(), 'violations': self.__violations}

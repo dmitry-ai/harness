@@ -16,6 +16,8 @@ _DF_ISSUE_CMD_RE = re.compile(r'^\s*(?:&\s*)?(?:["\']?[^\s"\']*python(?:3(?:\.\d
 _DF_ISSUE_VAR_RE = re.compile(r'(\$[A-Za-z_][A-Za-z0-9_]*)\s*=\s*["\'][^"\']*df_github_issue\.py["\']', re.I)
 _EXCLUDED_META_PARTS = frozenset((p.casefold() for p in ('.git', '__pycache__', 'node_modules', '\ua616', '\ua66e', '\U0001f56e')))
 _EXCLUDED_META_PREFIXES = tuple((p.casefold() for p in ('.git/', '__pycache__/', 'node_modules/', '\ua616/', '\ua66e/', '_/', '\U0001f56e/', '\u2c0f/\u227a/', 'artifacts/\u227a/')))
+# 2026-11-28 "Evaluate Issue-First parent state chronologically and recognize PowerShell foreach": https://github.com/dmitry-ai/harness/issues/437
+_PS_LOOP_BLOCK_RE = re.compile(r'(?i)\b(?:foreach|foreach-object)\b[^{]*\{([^{}]+)\}|\|\s*%\s*\{([^{}]+)\}')
 _PY_INLINE_C_RE = re.compile(r'(?i)\bpython(?:3(?:\.\d+)?)?(?:\.exe)?\s+(?:-[A-Za-z]+\s+)*-c\b')
 _SINGLE_ACTIONS = frozenset({'close', 'comment', 'create', 'edit', 'fetch'})
 _TEMP_PATH_RE = re.compile(r'(?i)(?:[/\\]temp[/\\]|[/\\]tmp[/\\])')
@@ -36,6 +38,14 @@ def _decode_gh_stdout(raw_out: str, paginate: bool) -> Any:
 			merged.extend(obj) if isinstance(obj, list) else merged.append(obj)
 		r = merged
 	return r
+# 2026-11-28 "Evaluate Issue-First parent state chronologically and recognize PowerShell foreach": https://github.com/dmitry-ai/harness/issues/437
+# @used-by :func:`dfh_is_df_issue_command_text()`
+def _expand_ps_loop_segments(cmd: str) -> list[str]:
+	segs = [seg.strip() for seg in ShellSegmenter(cmd).split() if seg.strip()]
+	for m in _PS_LOOP_BLOCK_RE.finditer(cmd):
+		body = m.group(1) or m.group(2) or ''
+		segs.extend((sub.strip() for sub in ShellSegmenter(body).split() if sub.strip()))
+	return segs
 # @used-by :func:`dfh_extract_actions_from_decoded_obj()`
 def _extract_single_action(obj: dict[str, Any]) -> dict[str, Any] | None:
 	act, repo = (obj.get('action'), obj.get('repo'))
@@ -123,17 +133,19 @@ def dfh_gh_api_call(endpoint: str, *, method: str='GET', payload: dict[str, Any]
 		err_msg = proc.stderr.decode('utf-8', errors='replace').strip() or proc.stdout.decode('utf-8', errors='replace').strip()
 		raise RuntimeError(f'gh api {method} {endpoint} failed (exit {proc.returncode}): {err_msg}')
 	return _decode_gh_stdout(proc.stdout.decode('utf-8'), paginate)
+# 2026-11-28 "Evaluate Issue-First parent state chronologically and recognize PowerShell foreach": https://github.com/dmitry-ai/harness/issues/437
 # @used-by :func:`agent_tools.issue_first_bg.is_df_issue_command_text()`
 # @used-by :func:`agent_tools.issue_first_gate.is_df_github_issue_command()`
 # @used-by :meth:`Df.Harness.Issue.BgTaskRecorder.BgTaskRecorder.__record_seg_issues()`
 # @used-by :meth:`Df.Harness.Issue.IssueFirstPreToolEvaluator.IssueFirstPreToolEvaluator.build_issue_action_events()`
 # @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_issue_first_pretool_evaluator_bg_scanner_and_var_match()`
 # @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_bg_scanner_recorder_and_issue_lib_helpers()`
+# @used-by :meth:`test_issue_first_post_close_replay.IssueFirstPostCloseReplayTests.test_df_issue_cmd_recognizes_powershell_foreach_and_rejects_echo()`
 def dfh_is_df_issue_command_text(cmd: str, direct_re=None) -> bool:
 	pat = direct_re if None is not direct_re else _DF_ISSUE_CMD_RE
 	r = False
 	if isinstance(cmd, str) and 'df_github_issue.py' in cmd.lower():
-		segs = [seg.strip() for seg in ShellSegmenter(cmd).split() if seg.strip()]
+		segs = _expand_ps_loop_segments(cmd)
 		r = any((pat.match(s) and (not _PY_INLINE_C_RE.search(s)) for s in segs)) or _var_issue_matches(cmd, segs)
 	return r
 # @used-by :func:`agent_tools.issue_first_gate._is_excluded_meta_rel()`
