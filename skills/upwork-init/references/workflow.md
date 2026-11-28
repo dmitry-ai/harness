@@ -186,7 +186,8 @@ Format all authored links across intermediate and final texts per [LINK-5](../..
 `validate_links.py --readable <files>` inspects authored source links rather than percent-encoded `href` attributes produced by a HTML renderer.  
 This check also covers authored links in plain text and HTML; verbatim quotes, code blocks, and imported source copies retain their original bytes.  
 <!-- 2026-11-21 "Initialize new Upwork projects in the V2 filesystem layout": https://github.com/dmitry-ai/harness/issues/110 -->  
-`check-project` validates the agent KB, `readme.md` (legacy root `.md`), and text deliverables under `Ⰿ/≻/♕/🖂/{Letters,Articles}` (legacy `result/`); `record-answer`, `answer-prepare`, and `finalize` validate the new final response before writing or completing the stage.  
+<!-- 2026-11-28 "Update /upwork-init rules and docs for .md and non-www URLs": https://github.com/dmitry-ai/harness/issues/418 -->  
+`check-project` validates the agent KB, `.md` (with fallback to historical V2 `readme.md`), and text deliverables under `Ⰿ/≻/♕/🖂/{Letters,Articles}` (legacy `result/`); `record-answer`, `answer-prepare`, and `finalize` validate the new final response before writing or completing the stage.  
 Shared publication helpers reject new percent-encoded authored links before modifying an existing file; historical entries and raw JSON captures are not reformatted.  
 
 <!-- 2026-10-15 "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks": https://github.com/dmitry-ai/harness/issues/5 -->  
@@ -218,20 +219,22 @@ Replace the example claim IDs with actual IDs from `identity`; when intermediati
 Each active flag is rendered independently; when both flags are present simultaneously, a separate bold warning highlights the high likelihood of declining the project.  
 <!-- 2026-10-17 "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks": https://github.com/dmitry-ai/harness/issues/5 -->  
 <!-- 2026-11-21 "Initialize new Upwork projects in the V2 filesystem layout": https://github.com/dmitry-ai/harness/issues/110 -->  
-`render-analysis` and `validate-analysis --render` output the block ahead of the five stages and, for the canonical `ꘖ/KB/Analysis.json`, also synchronize it at the end of `readme.md` (legacy root `.md`) inside a dedicated level-1 section.  
-Links in the root project card point to `identity` claims in `Analysis.json`, whereas links in the chat report point to the corresponding report headings.  
-The renderer preserves all card bytes outside the managed block and archives prior block versions in `ꘖ/data/red-flags-history`.  
-At the end of `readme.md` (legacy root `.md`), the level-1 heading `# Red Flags — N` appears first, followed inside that section by `<!-- upwork-init:red-flags:start -->`, the flag items, and `<!-- upwork-init:red-flags:end -->`.  
-A legacy unmodified block at the top of the card is automatically migrated to the end; re-running the renderer does not create duplicates or empty sections.  
-Manual edits inside the managed block or its heading—or corrupted markers—raise a conflict and preserve the file for explicit reconciliation.  
-An early warning block may be added manually once backed by verified data; if a conflict arises later, reconcile it with the rendered block rather than overwriting the entire card.  
-An explicit verified `red_flags: []` removes a prior managed block while preserving the historical grounds in the KB.  
+<!-- 2026-11-28 "Update /upwork-init rules and docs for .md and non-www URLs": https://github.com/dmitry-ai/harness/issues/418 -->  
+`render-analysis` and `validate-analysis --render` output the block ahead of the five stages in English `ꘖ/KB/Analysis.md` and, for the canonical `ꘖ/KB/Analysis.json`, also synchronize a markerless level-1 `# Red Flags` section at the end of `.md` (with fallback to historical V2 `readme.md`).  
+Links in the root project card point to `identity` claims in `Analysis.json`, whereas links in `Analysis.md` and the chat report point to the corresponding report headings.  
+The renderer preserves all card bytes outside the managed section and archives prior versions in `ꘖ/data/red-flags-history`.  
+At the end of `.md`, the level-1 heading `# Red Flags` (without `— N` suffix or HTML comments) contains level-2 subsections (`## Посредник` and `## Сайт не установлен`), each with its Russian status, project-specific summary, and basis link.  
+A legacy unmodified HTML-comment block (`<!-- upwork-init:red-flags:start -->`...`<!-- upwork-init:red-flags:end -->`) is automatically migrated to the markerless `# Red Flags` format; re-running the renderer does not create duplicates or empty sections.  
+Manual edits inside the managed section or its heading—or corrupted legacy markers—raise a conflict and preserve the file for explicit reconciliation.  
+An early warning section may be added manually once backed by verified data; if a conflict arises later, reconcile it with the rendered section rather than overwriting the entire card.  
+An explicit verified `red_flags: []` removes a prior managed section while preserving the historical grounds in the KB.  
 Before publishing the final response, reproduce the exact same set and statuses of active Red Flags at the very beginning of the response with chat-adapted links; never rewrite prior journal responses.  
 
 <!-- 2026-10-17 "Enforce complete client attachment ingestion, verbatim media transcription, and intake-drain staging": https://github.com/dmitry-ai/harness/issues/7 -->  
 In `websites`, explicitly list each client or target project URL (or `null`), its role (`client|target`), and its `basis_id` from `identity`.  
 <!-- 2026-11-21 "Initialize new Upwork projects in the V2 filesystem layout": https://github.com/dmitry-ai/harness/issues/110 -->  
-`readme.md` (legacy root `.md`) displays these addresses, their score, and the link to the proof; the folder name is never used as confirmation.  
+<!-- 2026-11-28 "Update /upwork-init rules and docs for .md and non-www URLs": https://github.com/dmitry-ai/harness/issues/418 -->  
+`.md` displays each distinct non-null website as a bare URL line directly after `https://upwork.com/jobs/<job_id>` without HTML comments, omitting `www.` unless `ꘖ/KB/Evidence` proves the non-`www.` root fails (omitting website lines when all entries are `null`, while `ꘖ/KB` may keep exact `www.` URLs); the folder name is never used as confirmation.  
 `Progress.md` is updated in place without accumulating historical copies, whereas primary evidence, analysis versions, and review packages are archived.  
 
 ## Independent Review

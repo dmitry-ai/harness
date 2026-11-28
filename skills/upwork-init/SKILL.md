@@ -11,10 +11,12 @@ description: "Creates a project workspace and performs the five-stage initial an
 Deliverable: complete initial project card, current self-consistent agent KB, five INIT-3 stages, resolved A.A review findings, and exact journal.  
 <!-- 2026-10-17 "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks": https://github.com/dmitry-ai/harness/issues/5 -->  
 <!-- 2026-11-21 "Initialize new Upwork projects in the V2 filesystem layout": https://github.com/dmitry-ai/harness/issues/110 -->  
-Material Red Flags appear at the very top of the report before detailed analysis and are duplicated at the end of `readme.md` (legacy root `.md`) inside a dedicated level-1 section (`# Red Flags`) per INIT-5.  
+<!-- 2026-11-28 "Update /upwork-init rules and docs for .md and non-www URLs": https://github.com/dmitry-ai/harness/issues/418 -->  
+Material Red Flags appear at the very top of the report before detailed analysis and are duplicated at the end of `.md` (with fallback to historical V2 `readme.md`) inside a markerless level-1 section (`# Red Flags` with `## Посредник` / `## Сайт не установлен` subsections) per INIT-5.  
 Internal agents work with `ꘖ/KB`, its overview/topical modules, and primary evidence.  
 <!-- 2026-10-17 "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator": https://github.com/dmitry-ai/harness/issues/9 -->  
-All agents format intermediate and final documents, including proposals, articles, and client letters, with human-readable links without URL encoding per [LINK-5](../../rules/02-link-standards.md#link-5).  
+<!-- 2026-11-28 "Update /upwork-init rules and docs for .md and non-www URLs": https://github.com/dmitry-ai/harness/issues/418 -->  
+All agents format intermediate and final documents, including proposals, articles, and client letters, with human-readable links without URL encoding per [LINK-5](../../rules/02-link-standards.md#link-5), omitting `www.` in `.md` and user-facing replies whenever the non-`www.` host works (while `ꘖ/KB` may retain `www.` when technically exact).  
 <!-- 2026-11-20 "Remove automatic Context.md generation from project initialization and finalize stage": https://github.com/dmitry-ai/harness/issues/104 -->  
 `Context.md` is built only when explicitly requested by the user for manual submission to an external agent, primarily Gemini DeepThink via `https://gemini.google.com`.  
 
@@ -66,7 +68,8 @@ After `init`, staging materials are imported into `Evidence` with hashes and an 
 `intake-drain --apply` completes prior imports.  
 When adding attachments or video/image transcripts later, run `sync-attachments <project>`.  
 Subsequent research never overwrites manual `🕮/Project.md` (legacy `KB/Project.md`).  
-When instructed by the user, maintain the managed website and Red Flags blocks in `readme.md` (legacy root `.md`) while preserving all other authored text and manual `🕮/` (legacy `KB/`) per KB-1.  
+<!-- 2026-11-28 "Update /upwork-init rules and docs for .md and non-www URLs": https://github.com/dmitry-ai/harness/issues/418 -->  
+The root card `.md` uses the compact markerless header `# <Job Title>` followed immediately by `https://upwork.com/jobs/<job_id>` and, when established, the bare client/target website URL without `www.` (keeping `www.` only if `ꘖ/KB/Evidence` proves the non-`www.` root fails); when instructed by the user, maintain the website lines and `# Red Flags` section in `.md` (with fallback to historical V2 `readme.md`) while preserving all other authored text and manual `🕮/` (legacy `KB/`) per KB-1.  
 In `Analysis.json`, populate `websites`: a non-empty list of `{url: HTTP(S) or null, role: client|target, basis_id: identity ID}`.  
 Distinguish an intermediary agency's website from the target website; the folder name is never evidence.  
 <!-- 2026-10-16 "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation": https://github.com/dmitry-ai/harness/issues/6 -->  
@@ -139,13 +142,14 @@ Check the job post, saved history/attachments, and targeted search per EXEC-1; i
 Never substitute the website of an agency, platform vendor, past/unrelated client, or unverified candidate for the target website.  
 <!-- 2026-10-17 "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks": https://github.com/dmitry-ai/harness/issues/5 -->  
 <!-- 2026-11-21 "Initialize new Upwork projects in the V2 filesystem layout": https://github.com/dmitry-ai/harness/issues/110 -->  
-As soon as a Red Flag is substantiated, report it in the current update and write the managed block at the end of `readme.md` (legacy root `.md`) inside the level-1 `# Red Flags` section without waiting for later stages to finish.  
+<!-- 2026-11-28 "Update /upwork-init rules and docs for .md and non-www URLs": https://github.com/dmitry-ai/harness/issues/418 -->  
+As soon as a Red Flag is substantiated, report it in the current update and write the markerless `# Red Flags` section (`## Посредник` / `## Сайт не установлен`) at the end of `.md` (with fallback to historical V2 `readme.md`) without waiting for later stages to finish.  
 <!-- 2026-10-19 "Prevent reviewer prompt poisoning, enforce read-only reviewer isolation, verify numerical claims, and require multi-template SEO/DNS checks": https://github.com/dmitry-ai/harness/issues/12 -->  
-At the very beginning of the final report/response (immediately after the title, if any), before client identification, technical details, completed actions, or recommendations, place a prominent `Red Flags` heading and a separate bold bullet for each active flag with its brief basis, status, and link; when `red_flags` is empty (`[]`), omit the `Red Flags` heading and block from both the response and `readme.md` (legacy root `.md`).  
+At the very beginning of the final report/response (immediately after the title, if any), before client identification, technical details, completed actions, or recommendations, place a prominent `Red Flags` heading and a separate bold bullet for each active flag with its brief basis, status, and link; when `red_flags` is empty (`[]`), omit the `Red Flags` heading and block from both the response and `.md`.  
 When both flags are active, add the bold warning: `"Both Red Flags simultaneously: high likelihood of declining the project"`, noting explicitly if intermediation is hypothetical.  
 This block informs the user's decision; it is not an automatic project cancellation or permission to abort the requested analysis unilaterally.  
 In `Analysis.json`, populate `red_flags` explicitly (using an empty list `[]` only after evaluating both risks); follow the [Red Flags contract](references/workflow.md#red-flags) for statuses and `identity` claim links.  
-`render-analysis` duplicates the block at the end of `readme.md` (legacy root `.md`): first the level-1 heading `# Red Flags`, then the opening marker, content, and closing marker inside that section; if adding the block manually early on, use the exact same markers and keep it synchronized with current evidence.  
+`render-analysis` duplicates active flags at the end of `.md` (with fallback to historical V2 `readme.md`) as a markerless level-1 heading `# Red Flags` containing level-2 subsections (`## Посредник`, `## Сайт не установлен`) without HTML comments or `— N` count suffixes; legacy unmodified HTML-comment blocks migrate automatically.  
 Update both placements whenever new data arrives; remove a cleared flag from active warnings while preserving the historical basis in the KB.  
 Before starting an investigation, define the question, its impact on conclusions, and the completion criterion.  
 Assign a single owner per question; justify any repeat independent extraction by pointing to a specific disputed claim.  
@@ -188,7 +192,8 @@ Omit internal procedural sections about artifact generation (`finalize`, `Contex
 <!-- 2026-10-17 "Prohibit URL percent-encoding in authored Markdown links (LINK-5) and add --readable link validator": https://github.com/dmitry-ai/harness/issues/9 -->  
 Validate authored Markdown/text files with `validate_links.py --readable <files>`; use human-readable `<...>` paths and never alter exact source captures or journals.  
 <!-- 2026-10-17 "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks": https://github.com/dmitry-ai/harness/issues/5 -->  
-When Red Flags are present, verify their prominent placement at the very top of the final response and at the end of `readme.md` (legacy root `.md`) inside the level-1 section; mentioning them only inside KB modules is insufficient.  
+<!-- 2026-11-28 "Update /upwork-init rules and docs for .md and non-www URLs": https://github.com/dmitry-ai/harness/issues/418 -->  
+When Red Flags are present, verify their prominent placement at the very top of the final response and at the end of `.md` inside the `# Red Flags` section (`## Посредник` / `## Сайт не установлен`); mentioning them only inside KB modules is insufficient.  
 Save the exact requests and complete final response; when multiple requests share a single response, link them explicitly via `record-answer` / `answer-prepare`.  
 <!-- 2026-11-24 "Allow blocked-report journaling over hygiene gates with DOC-5 compatibility": https://github.com/dmitry-ai/harness/issues/225 -->  
 If an unresolvable external or Harness blocker prevents completing A.A review authorization before `finalize`, document the blocker in `ꘖ/data/continuation.md` and journal the blocker report via `answer-check --blocked-report` and `answer-prepare --blocked-report` (permitting mandatory `DOC-5` `/df-analysis` blocker reports while keeping client analysis claims blocked and `workflow.json` stages open).  

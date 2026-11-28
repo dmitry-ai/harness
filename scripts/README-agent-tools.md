@@ -104,7 +104,8 @@ The date is the initial request date in `Europe/Istanbul`; website ownership is 
 Each argument entry contains `argument`/`source`/`quote`; absence of contrary evidence is documented via `counterevidence` per the contract below.  
 
 <!-- 2026-11-21 "Initialize new Upwork projects in the V2 filesystem layout": https://github.com/dmitry-ai/harness/issues/110 -->  
-`init` creates a `𑀣` (`fs_version: 2`, `journal_version: 3`) project by default (while preserving existing `fs_version: 1` projects), creating `readme.md` (legacy `.md`), `🕮/Project.md` (legacy `KB/Project.md`), `Ⰿ/{≻,≺}`, `ꘖ/KB`, `ꙮ/{≻,≺}`, an immutable SHA-256 snapshot, hash-verified attachment copies, and the shared native manifest.  
+<!-- 2026-11-28 "Update /upwork-init rules and docs for .md and non-www URLs": https://github.com/dmitry-ai/harness/issues/418 -->  
+`init` creates a `v2_upwork` (`fs_version: 2`, `journal_version: 3`) project by default (while preserving existing `fs_version: 1` projects and keeping `readme.md` on standalone non-Upwork V2 repositories), creating `.md` (`# <title>\nhttps://upwork.com/jobs/<id>\n`), `🕮/Project.md` (legacy `KB/Project.md`), `Ⰿ/{≻,≺}`, `ꘖ/KB`, `ꙮ/{≻,≺}`, an immutable SHA-256 snapshot, hash-verified attachment copies, and the shared native manifest.  
 Re-running the internal operation preserves the sequence number, manual documents, and IDs; normal continuation never re-runs `init`.  
 An active daily project is registered under `Upwork / Proposals / YYYY / MM / DD`, verifying `project_id`, `folder_id`, and `folder_path`.  
 <!-- 2026-10-15 "Unify Antigravity and OpenAI Codex adapters with build-native projections, parent-driven model selection, and cross-system continuation": https://github.com/dmitry-ai/harness/issues/6 -->  
@@ -203,7 +204,8 @@ Amending criteria creates a new plan version via `--amendment-of`/`--amendment-r
 `red_flags` references `identity` claims; criteria and statuses are in [Red Flags](../skills/upwork-init/references/workflow.md#red-flags).  
 <!-- 2026-10-17 "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks": https://github.com/dmitry-ai/harness/issues/5 -->  
 <!-- 2026-11-21 "Initialize new Upwork projects in the V2 filesystem layout": https://github.com/dmitry-ai/harness/issues/110 -->  
-Rendering places active risks at the top of the report and synchronizes the managed level-1 section at the end of `readme.md` (legacy root `.md`) while preserving authored text and history.  
+<!-- 2026-11-28 "Update /upwork-init rules and docs for .md and non-www URLs": https://github.com/dmitry-ai/harness/issues/418 -->  
+Rendering places active risks at the top of the report and synchronizes the markerless level-1 `# Red Flags` section (`## Посредник` / `## Сайт не установлен`) at the end of `.md` (with fallback to historical V2 `readme.md`) while preserving authored text and history.  
 
 <!-- 2026-10-18 "Enforce pre-registered experiment plans, claim-to-test alignment, native reviewer provenance, and executor metadata verification": https://github.com/dmitry-ai/harness/issues/10 -->  
 # Substantive Audit and KB

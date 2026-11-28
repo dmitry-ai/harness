@@ -10,7 +10,8 @@ New projects use the `V2` layout (`fs_version: 2`, `journal_version: 3`) defined
 
 ## Project Directory Layout (`fs_version: 1` vs `fs_version: 2`)
 
-1. Root project overview card: `readme.md` in `V2`, `.md` in legacy `V1` `upwork` projects.  
+<!-- 2026-11-28 "Update /upwork-init rules and docs for .md and non-www URLs": https://github.com/dmitry-ai/harness/issues/418 -->  
+1. Root project overview card: `.md` in `V2` Upwork (`v2_upwork`, with read fallback to historical `V2` `readme.md`) and legacy `V1` `upwork` projects; `readme.md` in standalone `V2` repositories (`v2` / `v2_software`).  
 1. Manual user KB directory: `🕮/Project.md` in `V2`, `KB/Project.md` in legacy `V1`.  
 1. Proposal and letter deliverables: `Ⰿ/≻/♕/🖂/Letters/**` in `V2`, `result/**` in legacy `V1`.  
 1. External DeepThink context export: `Ⰿ/≻/♙/Context/output/Context.md` in `V2`, `ꙮ/0/Context.md` in legacy `V1`.  

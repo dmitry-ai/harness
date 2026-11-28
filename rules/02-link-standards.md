@@ -17,6 +17,7 @@ Introduce each piece of evidence once per document and reference its paragraph; 
 Use relative paths and stable heading IDs inside files, clickable paths in chat, and never insert `<a name=...>` into the agent KB.  
 ## LINK-5
 Write human-readable links without URL percent-encoding (`%20`, `%D0...`) in all authored Markdown, drafts, reports, and chat replies, wrapping destinations containing spaces or parentheses in `<...>`.  
+Omit leading `www.` in user-facing links (root `.md` and chat replies) whenever the non-`www.` host works (`ꘖ/KB` may retain `www.` when technically exact; keep `www.` in user output only if `ꘖ/KB/Evidence` proves the non-`www.` root fails or inside verbatim quotes/code).  
 Before finalizing authored Markdown documents, verify readable links with [validate_links.py](../scripts/validate_links.py) (`--readable`); preserve exact external URLs, verbatim quotes, raw captures, and journals without altering bytes.  
 ## LINK-6
 For files or code in GitHub-backed repositories, `file:///` and cross-repo relative links are prohibited: assign a pushed daily tag (`YYYY-MM-DD` / `YYYY-MM-DD--<N>`) via `harness.py repo-tag` and link `https://github.com/<owner>/<repo>/blob/<tag>/<path>[#L<n>]`.  
