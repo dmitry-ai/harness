@@ -87,6 +87,7 @@ def prioritized_worktree_candidates(repo_root: str | Path | None=None, cwd: Path
 def resolve_touched_repo_file(path: Path, is_tracked_fn) -> tuple[Path, str] | None:
 	return WorktreePathResolver(path, is_tracked_fn).resolve()
 # @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_worktree_begin()`
+# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_antigravity_ps_deleted_worktree_commit_rebase_and_land_green()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_blocked_when_parent_issue_closed_or_missing_evidence()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_inherits_verified_open_parent_from_turn_state_and_summary_db()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`
@@ -137,6 +138,7 @@ def worktree_begin(repo: Path | str, task_id: str, *, base_ref: str='main', work
 # @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_worktree_cleanup()`
 # @used-by :func:`_merge_and_finalize()`
 # @used-by :func:`worktree_land()`
+# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_antigravity_ps_deleted_worktree_commit_rebase_and_land_green()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_blocked_when_parent_issue_closed_or_missing_evidence()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_child_subagent_inherits_verified_open_parent_from_turn_state_and_summary_db()`
 # @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_parallel_deleted_worktrees_isolate_tdd_scopes_and_accept_main_full_green()`

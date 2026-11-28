@@ -13,6 +13,7 @@ from agent_tools.shell_audit import _split_shell_segments, normalize_host_path
 class Evaluator:
 	# @used-by :func:`agent_tools.tdd.evaluator.evaluate_tdd_events()`
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__load_pre_tool_tdd_state()`
+	# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_antigravity_ps_deleted_worktree_commit_rebase_and_land_green()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_enforcement_evaluator_events_and_worktree()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_evaluator_and_events_extractor_with_bg_tasks()`
@@ -28,6 +29,7 @@ class Evaluator:
 		self.__is_exempt_fn = is_exempt_fn if None is not is_exempt_fn else Exemption.is_write_event_exempt
 	# @used-by :func:`agent_tools.tdd.evaluator.evaluate_tdd_events()`
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__load_pre_tool_tdd_state()`
+	# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_antigravity_ps_deleted_worktree_commit_rebase_and_land_green()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_enforcement_evaluator_events_and_worktree()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_evaluator_and_events_extractor_with_bg_tasks()`

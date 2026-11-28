@@ -177,6 +177,7 @@ class EventsExtractor:
 	# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
 	# @used-by :func:`agent_tools.tdd.events.build_command_tdd_event()`
 	# @used-by :meth:`EventsExtractor.__append_command_tool_event()`
+	# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_antigravity_ps_deleted_worktree_commit_rebase_and_land_green()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
 	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_git_rebase_conflict_allows_resolution_and_enforces_full_green()`
 	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_variable_wt_commit_resets_scope_and_blocks_untested_second_commit()`
@@ -202,6 +203,7 @@ class EventsExtractor:
 	# @used-by :func:`agent_tools.tdd.events.build_file_write_tdd_event()`
 	# @used-by :meth:`EventsExtractor.__append_write_tool_event()`
 	# @used-by :meth:`EventsExtractor.record_tool_write_event()`
+	# @used-by :meth:`test_code_fanout_gates.CodeFanoutGatesTests.test_antigravity_ps_deleted_worktree_commit_rebase_and_land_green()`
 	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_git_rebase_conflict_allows_resolution_and_enforces_full_green()`
 	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_variable_wt_commit_resets_scope_and_blocks_untested_second_commit()`
 	# @used-by :meth:`test_tdd_worktree_cmd_scope.TddWorktreeCmdScopeTests.test_deleted_worktree_set_location_red_run_remains_verified()`

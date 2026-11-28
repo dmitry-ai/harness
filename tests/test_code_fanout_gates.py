@@ -16,6 +16,7 @@ from agent_tools.worktree_flow import worktree_begin, worktree_cleanup
 # @used-by :func:`_setup_fanout_project()`
 def _git(repo: Path, *args: str) -> None:
 	subprocess.run(['git', *args], cwd=str(repo), stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=True)
+# @used-by :meth:`CodeFanoutGatesTests.test_antigravity_ps_deleted_worktree_commit_rebase_and_land_green()`
 # @used-by :meth:`CodeFanoutGatesTests.test_child_subagent_blocked_when_parent_issue_closed_or_missing_evidence()`
 # @used-by :meth:`CodeFanoutGatesTests.test_child_subagent_inherits_verified_open_parent_from_turn_state_and_summary_db()`
 # @used-by :meth:`CodeFanoutGatesTests.test_missing_transcript_inheritance_and_plain_repo_commit_scope_reset()`
@@ -86,6 +87,47 @@ def _write_tx(path: Path, rows: list[dict]) -> Path:
 	return path
 # 2026-11-26 "Support parent-issue inheritance and worktree-scoped TDD keys for coding fan-out": https://github.com/dmitry-ai/harness/issues/351
 class CodeFanoutGatesTests(unittest.TestCase):
+	# 2026-11-28 "Add Antigravity PowerShell deleted-worktree TDD regression tests": https://github.com/dmitry-ai/harness/issues/442
+	# @used-by :mod:`unittest`
+	def test_antigravity_ps_deleted_worktree_commit_rebase_and_land_green(self) -> None:
+		from Df.Harness.Tdd.Evaluator import Evaluator
+		from Df.Harness.Tdd.EventsExtractor import EventsExtractor
+		harness_py = SCRIPTS / 'harness.py'
+		with tempfile.TemporaryDirectory() as td:
+			proj, code = _setup_fanout_project(Path(td).resolve())
+			wt_base = proj / '\ua616/data/worktrees'
+			wt_a, wt_b = (Path(worktree_begin(code, 'wt-ps-a', worktrees_dir=wt_base)['worktree']), Path(worktree_begin(code, 'wt-ps-b', worktrees_dir=wt_base)['worktree']))
+			worktree_cleanup(code, wt_a, force=True)
+			worktree_cleanup(code, wt_b, force=True)
+			ta, pa, pb, tb, pb_other = (wt_a / 'tests/test_a.py', wt_a / 'mod_a.py', wt_a / 'mod_b.py', wt_b / 'tests/test_b.py', wt_b / 'mod_b.py')
+			ev_ta = EventsExtractor.build_file_write_event(1, ta, cwd=proj)
+			ev_ra = EventsExtractor.build_command_event(2, f'$wt = "{wt_a}"; python -m unittest -f -b "$wt/tests/test_a.py"', 'Command exited with code 1.\nFAILED (failures=1)\n', cwd=proj)
+			ev_pa = EventsExtractor.build_file_write_event(3, pa, cwd=proj)
+			ev_ca = EventsExtractor.build_command_event(4, f'$wt = "{wt_a}"; git -C $wt commit -m https://github.com/acme/demo/issues/442', 'Command exited with code 0.\n[task/wt-ps-a 1111111] ok\n', cwd=proj)
+			ev_tb = EventsExtractor.build_file_write_event(5, tb, cwd=proj)
+			ev_rb = EventsExtractor.build_command_event(6, f'Set-Location "{wt_b}"; python -m unittest -f -b tests/test_b.py', 'Command exited with code 1.\nFAILED (failures=1)\n', cwd=proj)
+			ev_pb_other = EventsExtractor.build_file_write_event(7, pb_other, cwd=proj)
+			land_json = json.dumps({'main_repo': str(code), 'test_result': {'ok': True, 'total_tests': 2}, 'test_runs': 1, 'valid': True})
+			ev_land_a = EventsExtractor.build_command_event(8, f'python "{harness_py}" worktree-land "{wt_a}" --push', f'Command exited with code 0.\nCommand output:\n{land_json}\n', cwd=proj)
+			ev_land_b = EventsExtractor.build_command_event(9, f'python "{harness_py}" worktree-land "{wt_b}" --push', f'Command exited with code 0.\nCommand output:\n{land_json}\n', cwd=proj)
+			res_only_a = Evaluator([ev_ta, ev_ra, ev_pa, ev_ca, ev_tb, ev_rb, ev_pb_other, ev_land_a], require_final_full_green=True, project_root=proj).evaluate()
+			self.assertFalse(res_only_a['verified'], res_only_a)
+			self.assertTrue(any(('wt-ps-b' in v for v in res_only_a['violations'])), res_only_a['violations'])
+			res_isolated = Evaluator([ev_ta, ev_ra, ev_pa, ev_ca, ev_tb, ev_rb, ev_pb_other, ev_land_a, ev_land_b], require_final_full_green=True, project_root=proj).evaluate()
+			self.assertTrue(res_isolated['verified'], res_isolated)
+			self.assertEqual('IDLE', res_isolated['scopes'][f'{code}::wt:wt-ps-a']['state'])
+			self.assertEqual('GREEN_IMPLEMENTING', res_isolated['scopes'][f'{code}::wt:wt-ps-b']['state'])
+			res_gap_a2 = Evaluator([ev_ta, ev_ra, ev_pa, ev_ca, EventsExtractor.build_file_write_event(5, pb, cwd=proj), ev_land_a], require_final_full_green=True, project_root=proj).evaluate()
+			self.assertFalse(res_gap_a2['verified'], res_gap_a2)
+			self.assertTrue(any(('TDD-RED-GATE' in v for v in res_gap_a2['violations'])), res_gap_a2['violations'])
+			ev_reb = EventsExtractor.build_command_event(5, f'$wt = "{wt_a}"; git -C $wt rebase main', 'Command exited with code 1.\nCONFLICT (content): Merge conflict in mod_a.py\n', cwd=proj)
+			ev_fix = EventsExtractor.build_file_write_event(6, pa, cwd=proj)
+			ev_cont = EventsExtractor.build_command_event(7, f'$wt = "{wt_a}"; git -C $wt rebase --continue', 'Command exited with code 0.\nSuccessfully rebased and updated refs/heads/task/wt-ps-a.\n', cwd=proj)
+			res_reb_ok = Evaluator([ev_ta, ev_ra, ev_pa, ev_ca, ev_reb, ev_fix, ev_cont, ev_land_a], require_final_full_green=True, project_root=proj).evaluate()
+			self.assertTrue(res_reb_ok['verified'], res_reb_ok)
+			res_reb_no_green = Evaluator([ev_ta, ev_ra, ev_pa, ev_ca, ev_reb, ev_fix, ev_cont], require_final_full_green=True, project_root=proj).evaluate()
+			self.assertFalse(res_reb_no_green['verified'], res_reb_no_green)
+			self.assertTrue(any(('TDD-FULL-GATE' in v for v in res_reb_no_green['violations'])), res_reb_no_green['violations'])
 	# @used-by :mod:`unittest`
 	def test_child_subagent_blocked_when_parent_issue_closed_or_missing_evidence(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
