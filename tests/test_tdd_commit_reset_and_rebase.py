@@ -85,6 +85,7 @@ class TddCommitResetAndRebaseTests(unittest.TestCase):
 			err_after = enf.evaluate_pre_tool_use('edit_file', {'Path': str(prod_p), 'Target': 'VAL = 1', 'Replacement': 'VAL = 3'}, {'cwd': str(root), 'transcriptPath': str(tx)})
 			self.assertIsNotNone(err_after)
 			self.assertIn('TDD-RED-GATE', str(err_after))
+	# 2026-11-28 "Add Antigravity PowerShell deleted-worktree TDD regression tests": https://github.com/dmitry-ai/harness/issues/442
 	# @used-by :mod:`unittest`
 	def test_variable_wt_commit_resets_scope_and_blocks_untested_second_commit(self) -> None:
 		with tempfile.TemporaryDirectory() as td:
@@ -96,6 +97,9 @@ class TddCommitResetAndRebaseTests(unittest.TestCase):
 			commit_ev = EventsExtractor.build_command_event(4, f'$wt = "{wt_a}"; git -C $wt commit -m "c1"', 'Command exited with code 0.\n[task/wt-alpha 1111111] c1\n', cwd=root)
 			self.assertTrue(WorktreeScope.scope_matches_commit(f'{root}::wt:wt-alpha', commit_ev.get('commit_scope'), commit_ev))
 			self.assertFalse(WorktreeScope.scope_matches_commit(f'{root}::wt:wt-beta', commit_ev.get('commit_scope'), commit_ev))
+			self.assertEqual(str(wt_a), WorktreeScope.resolve_command_scope_key(None, {'cmd': f'$wt = "{wt_a}"; git -C $wt rebase main', 'cwd': str(root)}))
+			wt_repo = repo / '\ua616/data/worktrees/wt-alpha'
+			self.assertEqual(f'{repo}::wt:wt-alpha', WorktreeScope.resolve_command_scope_key(None, {'cmd': f'$wt = "{wt_repo}"; git -C $wt rebase main', 'cwd': str(root)}))
 			events_gap = [
 				EventsExtractor.build_file_write_event(1, test_a),
 				EventsExtractor.build_command_event(2, f'python -m unittest "{test_a}"', 'Command exited with code 1.\nFAIL\n', cwd=root),

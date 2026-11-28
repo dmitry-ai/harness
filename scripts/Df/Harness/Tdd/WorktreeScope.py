@@ -134,6 +134,7 @@ class WorktreeScope:
 		return r
 	# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__enter_rebase_conflict()`
+	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_variable_wt_commit_resets_scope_and_blocks_untested_second_commit()`
 	@staticmethod
 	def resolve_command_scope_key(raw_scope: str | Path | None, event: dict | None) -> str | None:
 		expanded = WorktreeScope.expand_ps_var_paths(str((event or {}).get('cmd') or ''))
