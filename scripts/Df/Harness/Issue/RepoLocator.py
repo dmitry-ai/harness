@@ -186,6 +186,7 @@ class RepoLocator:
 		cls.__global_cache['key'] = None
 		cls.__global_cache['slug_map'] = {}
 	# @used-by :func:`agent_tools.issues.repo_locator._extract_config_slugs()`
+	# @used-by :meth:`Df.Harness.Arch.RepoReceiptSpecification.RepoReceiptSpecification.repo_slug()`
 	# @used-by :meth:`RepoLocator.__register_repo_slugs()`
 	# @used-by :meth:`RepoLocator.origin_repo_slug()`
 	# @used-by :meth:`RepoLocator.repo_matches_slug()`

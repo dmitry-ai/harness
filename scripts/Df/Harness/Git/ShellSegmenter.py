@@ -56,6 +56,7 @@ class ShellSegmenter:
 	# @used-by :meth:`Df.Harness.Analysis.SavedQuoteVerifier.SavedQuoteVerifier.__contains()`
 	# @used-by :meth:`Df.Harness.Analysis.Validator.Validator.__check_legacy_argument()`
 	# @used-by :meth:`Df.Harness.Arch.Catalog.Catalog.__candidate_pattern_keys()`
+	# @used-by :meth:`Df.Harness.Arch.RepoReceiptSpecification.RepoReceiptSpecification.__merge_modules()`
 	# @used-by :meth:`Df.Harness.Cli.GitShim.GitShim.__normalize_arg_token()`
 	# @used-by :meth:`Df.Harness.Experiment.RunAuditor.RunAuditor.__check_serp()`
 	# @used-by :meth:`Df.Harness.Gate.PythonIntegrity.PythonIntegrity.__collect_defined_globals()`

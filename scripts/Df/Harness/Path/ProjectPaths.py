@@ -213,6 +213,7 @@ class ProjectPaths:
 	# @used-by :func:`Df.Harness.lib.shadow_command.dfh_persist_shadow_replay_receipt()`
 	# @used-by :func:`Df.Harness.lib.storage.dfh_data_dir_for()`
 	# @used-by :func:`Df.Harness.lib.text_workflow.dfh_text_folder()`
+	# @used-by :func:`Df.Harness.lib.trace_review._arch_target_repo_roots()`
 	# @used-by :func:`agent_tools.worktree_flow.worktree_land()`
 	# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.__load_base()`
 	# @used-by :meth:`Df.Harness.Analysis.Merger.Merger.save()`
@@ -529,6 +530,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_comment_exemption_and_denied_writes`
 	# @used-by :mod:`test_context_and_storage_determinism`
 	# @used-by :mod:`test_contract_invariants`
+	# @used-by :mod:`test_cross_repo_arch_audit`
 	# @used-by :mod:`test_cross_repo_issue_urls`
 	# @used-by :mod:`test_df_analysis_companion_tracks`
 	# @used-by :mod:`test_df_analysis_rules_contract`

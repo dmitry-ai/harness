@@ -208,6 +208,7 @@ def dfh_load_registry(registry_path: str | Path | None=None, *, primary: str | P
 # @used-by :func:`Df.Harness.lib.shadow_command._stage_ag_from_receipt()`
 # @used-by :func:`Df.Harness.lib.shadow_command.dfh_persist_shadow_replay_receipt()`
 # @used-by :func:`Df.Harness.lib.storage.dfh_data_dir_for()`
+# @used-by :func:`Df.Harness.lib.trace_review._arch_target_repo_roots()`
 # @used-by :func:`Df.Harness.lib.trace_review.dfh_persist_review_proof()`
 # @used-by :func:`_workspace_is_explicitly_tracked()`
 # @used-by :func:`agent_tools.path_registry.project_paths()`
@@ -363,6 +364,7 @@ def dfh_tool_value(name: str, *, project_root: str | Path | None=None, registry:
 # @used-by :func:`Df.Harness.lib.native_codex_plan.dfh_retire_owned_project_projections()`
 # @used-by :func:`Df.Harness.lib.runtime_snapshot_ops.dfh_runtime_store_dir()`
 # @used-by :func:`agent_tools.path_registry.var_value()`
+# @used-by :meth:`Df.Harness.Arch.RepoReceiptSpecification.RepoReceiptSpecification.harness_arch_root()`
 # @used-by :meth:`Df.Harness.Config.NativeBuilder.NativeBuilder.run()`
 # @used-by :meth:`Df.Harness.Runtime.SettingsLoader.SettingsLoader.__resolve_file()`
 def dfh_var_value(name: str, *, registry: Any=None) -> str:

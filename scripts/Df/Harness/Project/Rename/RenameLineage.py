@@ -44,10 +44,11 @@ class RenameLineage:
 	@staticmethod
 	def capture_file_sha(path: Path) -> str | None:
 		return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+	# 2026-11-28 "Recognize cross-repo approved arch-auditor receipts in Enforcement.verify_staged": https://github.com/dmitry-ai/harness/issues/467
 	# @used-by :func:`agent_tools.project_rename_state.find_sibling_project_path()`
 	# @used-by :meth:`test_df_harness_s11_wave2a_project_ext.DfHarnessS11Wave2aProjectExtTests.test_z_project_rename_full_coverage()`
 	@classmethod
-	def find_sibling_project_path(cls, raw_val: str, project_root: Path, daily_root: Path) -> Path | None:
+	def find_sibling_project_path(cls, raw_val: str, project_root: Path, daily_root: Path, *, extra_allowed_roots: tuple[Path, ...]=()) -> Path | None:
 		r: Path | None = None
 		try:
 			candidate = Path(raw_val).resolve()
@@ -55,7 +56,9 @@ class RenameLineage:
 			candidate = None
 		if None is not candidate and candidate.is_relative_to(daily_root):
 			allowed = (project_root, *cls.__rename_lineage_roots(project_root))
-			if not any((candidate.is_relative_to(root_p) or root_p.is_relative_to(candidate) for root_p in allowed)):
+			in_project = any((candidate.is_relative_to(root_p) or root_p.is_relative_to(candidate) for root_p in allowed))
+			in_extra = any((candidate.is_relative_to(extra_p) for extra_p in extra_allowed_roots))
+			if (not in_project) and (not in_extra):
 				r = candidate
 		return r
 	# @used-by :func:`agent_tools.project_rename_state._path_pairs()`

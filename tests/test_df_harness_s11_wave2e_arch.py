@@ -19,6 +19,8 @@ _ARCH_MODULES = (
 	'Enforcement',
 	'Evaluator',
 	'NativeRole',
+	# 2026-11-28 "Recognize cross-repo approved arch-auditor receipts in Enforcement.verify_staged": https://github.com/dmitry-ai/harness/issues/467
+	'RepoReceiptSpecification',
 	'ReviewCli',
 	'ReviewStore',
 	'ReviewValidator',

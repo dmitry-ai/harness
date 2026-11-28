@@ -20,10 +20,11 @@ def _rewrite_value(value, pairs: list[tuple[str, str]]):
 # @used-by :mod:`agent_tools.project_rename_state`
 def capture_file_sha(path: Path) -> str | None:
 	return RenameLineage.capture_file_sha(path)
+# 2026-11-28 "Recognize cross-repo approved arch-auditor receipts in Enforcement.verify_staged": https://github.com/dmitry-ai/harness/issues/467
 # @used-by :func:`Df.Harness.lib.trace_review._check_isolation_call()`
 # @used-by :mod:`agent_tools.project_rename_state`
-def find_sibling_project_path(raw_val: str, project_root: Path, daily_root: Path) -> Path | None:
-	return RenameLineage.find_sibling_project_path(raw_val, project_root, daily_root)
+def find_sibling_project_path(raw_val: str, project_root: Path, daily_root: Path, *, extra_allowed_roots: tuple[Path, ...]=()) -> Path | None:
+	return RenameLineage.find_sibling_project_path(raw_val, project_root, daily_root, extra_allowed_roots=extra_allowed_roots)
 # @used-by :mod:`agent_tools.project_rename_state`
 def migrate_journal_state(old_root: Path, new_root: Path, *, backups: list[tuple[Path, bytes | None]] | None=None, state_moves: list[tuple[Path, Path]] | None=None) -> tuple[Path, Path]:
 	return StateRewriter.migrate_journal_state(old_root, new_root, backups=backups, state_moves=state_moves)

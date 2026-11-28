@@ -94,6 +94,8 @@ class RAM:
 	# @used-by :func:`Df.Harness.lib.text_sources.dfh_source_attempt()`
 	# @used-by :func:`Df.Harness.lib.text_workflow.dfh_has_linked_ancestor()`
 	# @used-by :func:`Df.Harness.lib.text_workflow.dfh_target_bytes()`
+	# @used-by :func:`Df.Harness.lib.trace_review._arch_index_packages()`
+	# @used-by :func:`Df.Harness.lib.trace_review._validated_target_roots()`
 	# @used-by :func:`Df.Harness.lib.trace_review.dfh_verify_review_proof_core()`
 	# @used-by :func:`agent_tools.repo_wait._workspace_code_repos()`
 	# @used-by :func:`test_historical_admission._restore_tree_in_place()`

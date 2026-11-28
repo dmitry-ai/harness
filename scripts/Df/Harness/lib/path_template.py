@@ -188,6 +188,11 @@ def dfh_infer_harness_anchor(anchor_code: Path) -> tuple[Path, Path, int]:
 # @used-by :func:`Df.Harness.lib.path_resolve._stat_unlinked_registry()`
 # @used-by :func:`Df.Harness.lib.path_resolve.dfh_load_registry()`
 # @used-by :func:`Df.Harness.lib.path_schema._collect_overlay_files()`
+# @used-by :func:`Df.Harness.lib.trace_review._arch_index_packages()`
+# @used-by :func:`Df.Harness.lib.trace_review._arch_target_repo_roots()`
+# @used-by :func:`Df.Harness.lib.trace_review._read_verified_package_repo()`
+# @used-by :func:`Df.Harness.lib.trace_review._validated_target_roots()`
+# @used-by :meth:`Df.Harness.Arch.ReviewStore.ReviewStore.__normalize_repo()`
 # @used-by :meth:`Df.Harness.Runtime.AddonsProfileAdapter.AddonsProfileAdapter.__read_profiles_file()`
 def dfh_is_linked(path: Path, stop_at: Path | None=None) -> bool:
 	stop_norm = os.path.normcase(os.path.abspath(stop_at)) if None is not stop_at else None

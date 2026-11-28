@@ -6,9 +6,11 @@ from pathlib import Path
 from typing import Any
 import hashlib
 import json
+from Df.Harness.Arch.RepoReceiptSpecification import RepoReceiptSpecification
 from Df.Harness.Arch.ReviewValidator import ReviewValidator
 from Df.Harness.Arch.SpecValidator import SpecValidator
 from Df.Harness.Arch.TriggerClassifier import TriggerClassifier
+from Df.Harness.lib.path_template import dfh_is_linked
 from agent_tools.path_registry import project_paths
 from agent_tools.research import inside, json_data
 from agent_tools.storage import locked, replace_bytes, write_immutable_bytes
@@ -16,6 +18,7 @@ from agent_tools.storage import locked, replace_bytes, write_immutable_bytes
 class ReviewStore:
 	__VALID_KINDS = frozenset({'code_diff', 'design', 'response'})
 	# @used-by :func:`agent_tools.arch.review_store.record_arch_review()`
+	# @used-by :func:`test_cross_repo_arch_audit._record()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_record_review()`
 	# @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_enforcement_preserves_gates_and_395_participants()`
 	# @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_evaluator_checks_response_receipts_and_runner()`
@@ -31,13 +34,14 @@ class ReviewStore:
 	@staticmethod
 	def __arch_dir(root: Path) -> Path:
 		return project_paths(root, exact_root=True).data_dir / 'arch-reviews'
+	# 2026-11-28 "Recognize cross-repo approved arch-auditor receipts in Enforcement.verify_staged": https://github.com/dmitry-ai/harness/issues/467
 	# @used-by :meth:`ReviewStore.prepare_package()`
 	@staticmethod
-	def __build_package_payload(kind: str, parent_id: str, response_text: str | None, spec_text: str | None, modules: dict[str, dict[str, Any]], issue_url: str | None) -> dict[str, Any]:
-		subj_sha = ReviewStore.__subject_digest(kind, response_text, spec_text, modules, issue_url)
+	def __build_package_payload(kind: str, parent_id: str, response_text: str | None, spec_text: str | None, modules: dict[str, dict[str, Any]], issue_url: str | None, target_repo: str | None=None) -> dict[str, Any]:
+		subj_sha = ReviewStore.__subject_digest(kind, response_text, spec_text, modules, issue_url, target_repo=target_repo)
 		spec_src = spec_text if None is not spec_text else (response_text or '')
 		spec_res = SpecValidator().validate(spec_src, require_full_fields='response' != kind)
-		return {'schema_version': 1, 'review_mode': 'falsifier', 'subject_kind': kind, 'subject_sha256': subj_sha, 'parent_id': parent_id, 'issue_url': issue_url, 'response_text': response_text, 'response_sha256': hashlib.sha256(response_text.encode('utf-8')).hexdigest() if None is not response_text else None, 'spec_text': spec_text, 'declared_participants': list(spec_res['participants']), 'spec_validation': spec_res, 'modules': modules, 'module_hashes': {k: v['sha256'] for k, v in modules.items()}}
+		return {'schema_version': 1, 'review_mode': 'falsifier', 'subject_kind': kind, 'subject_sha256': subj_sha, 'parent_id': parent_id, 'issue_url': issue_url, 'target_repo': target_repo, 'response_text': response_text, 'response_sha256': hashlib.sha256(response_text.encode('utf-8')).hexdigest() if None is not response_text else None, 'spec_text': spec_text, 'declared_participants': list(spec_res['participants']), 'spec_validation': spec_res, 'modules': modules, 'module_hashes': {k: v['sha256'] for k, v in modules.items()}}
 	# @used-by :meth:`ReviewStore.prepare_package()`
 	@staticmethod
 	def __collect_modules(repo: Path | None, files: list[str] | None) -> dict[str, dict[str, Any]]:
@@ -61,13 +65,41 @@ class ReviewStore:
 	@staticmethod
 	def __index_path(root: Path) -> Path:
 		return ReviewStore.__arch_dir(root) / 'index.json'
+	# 2026-11-28 "Recognize cross-repo approved arch-auditor receipts in Enforcement.verify_staged": https://github.com/dmitry-ai/harness/issues/467
 	# @used-by :meth:`ReviewStore.prepare_package()`
 	@staticmethod
-	def __is_cached(index: dict[str, Any], subject_sha: str, modules: dict[str, dict[str, Any]]) -> bool:
+	def __is_cached(root: Path, index: dict[str, Any], subject_sha: str, modules: dict[str, dict[str, Any]], *, issue_url: str | None=None, target_repo: str | None=None) -> bool:
 		approved_mods = index.get('approved_modules') or {}
+		scope = ReviewStore.__module_scope(root, target_repo, issue_url)
 		by_subj = subject_sha in (index.get('approved_subjects') or {})
-		by_mods = bool(modules) and all(((approved_mods.get(rel) or {}).get('sha256') == meta['sha256'] for rel, meta in modules.items()))
+		by_mods = bool(modules) and all(((approved_mods.get(f'{scope}::{rel}' if scope else rel) or {}).get('sha256') == meta['sha256'] for rel, meta in modules.items()))
 		return by_subj or by_mods
+	# @used-by :meth:`ReviewStore.__is_cached()`
+	# @used-by :meth:`ReviewStore.__update_approved_state()`
+	@staticmethod
+	def __module_scope(root: Path, target_repo: str | None, issue_url: str | None) -> str | None:
+		r: str | None = None
+		if None is not target_repo:
+			try:
+				is_local = Path(target_repo).resolve().is_relative_to(Path(root).resolve())
+			except (OSError, ValueError):
+				is_local = False
+			if not is_local:
+				r = RepoReceiptSpecification.issue_slug(issue_url) or str(target_repo).casefold()
+		return r
+	# @used-by :meth:`ReviewStore.prepare_package()`
+	@staticmethod
+	def __normalize_repo(repo: Path | None) -> str | None:
+		r: str | None = None
+		if None is not repo:
+			raw_p = Path(repo)
+			if dfh_is_linked(raw_p):
+				raise ValueError(f'Linked target_repo refused: {repo}')
+			res = raw_p.resolve()
+			if not res.is_dir():
+				raise ValueError(f'Target repository directory does not exist: {repo}')
+			r = res.as_posix()
+		return r
 	# @used-by :meth:`ReviewStore.__persist_review_index()`
 	# @used-by :meth:`ReviewStore.__register_package_index()`
 	# @used-by :meth:`ReviewStore.inspect_status()`
@@ -101,7 +133,7 @@ class ReviewStore:
 			index = ReviewStore.__load_index(root)
 			index['reviews'].append(rev_entry)
 			if 'approved' == verdict['result']:
-				cached = ReviewStore.__update_approved_state(index, pkg, verdict, rev_entry['review_id'], rev_entry['recorded_at'])
+				cached = ReviewStore.__update_approved_state(root, index, pkg, verdict, rev_entry['review_id'], rev_entry['recorded_at'])
 			else:
 				cached = []
 				ReviewStore.__update_rejected_state(index, pkg, verdict, rev_entry['review_id'], rev_entry['recorded_at'])
@@ -115,25 +147,43 @@ class ReviewStore:
 		idx_path.parent.mkdir(parents=True, exist_ok=True)
 		with locked(idx_path.with_suffix('.lock')):
 			index = ReviewStore.__load_index(root)
-			index['packages'][pkg_sha] = {'package': pkg_rel, 'subject_kind': payload['subject_kind'], 'subject_sha256': payload['subject_sha256'], 'issue_url': payload.get('issue_url'), 'module_hashes': payload['module_hashes']}
+			index['packages'][pkg_sha] = {'package': pkg_rel, 'subject_kind': payload['subject_kind'], 'subject_sha256': payload['subject_sha256'], 'issue_url': payload.get('issue_url'), 'target_repo': payload.get('target_repo'), 'module_hashes': payload['module_hashes']}
 			replace_bytes(idx_path, json_data(index))
+	# @used-by :meth:`ReviewStore.__update_approved_state()`
+	@staticmethod
+	def __same_finding_scope(finding: dict[str, Any], pkg: dict[str, Any]) -> bool:
+		f_slug = RepoReceiptSpecification.issue_slug(finding.get('issue_url'))
+		p_slug = RepoReceiptSpecification.issue_slug(pkg.get('issue_url'))
+		if None is not f_slug or None is not p_slug:
+			r = f_slug == p_slug
+		elif None is not finding.get('target_repo') or None is not pkg.get('target_repo'):
+			r = str(finding.get('target_repo') or '').casefold() == str(pkg.get('target_repo') or '').casefold()
+		else:
+			r = True
+		return r
 	# @used-by :meth:`ReviewStore.__build_package_payload()`
 	@staticmethod
-	def __subject_digest(kind: str, response_text: str | None, spec_text: str | None, modules: dict[str, dict[str, Any]], issue_url: str | None) -> str:
-		basis = {'kind': kind, 'issue_url': issue_url, 'response_sha256': hashlib.sha256(response_text.encode('utf-8')).hexdigest() if None is not response_text else None, 'spec_sha256': hashlib.sha256(spec_text.encode('utf-8')).hexdigest() if None is not spec_text else None, 'module_hashes': {k: v['sha256'] for k, v in sorted(modules.items())}}
+	def __subject_digest(kind: str, response_text: str | None, spec_text: str | None, modules: dict[str, dict[str, Any]], issue_url: str | None, target_repo: str | None=None) -> str:
+		basis: dict[str, Any] = {'kind': kind, 'issue_url': issue_url, 'response_sha256': hashlib.sha256(response_text.encode('utf-8')).hexdigest() if None is not response_text else None, 'spec_sha256': hashlib.sha256(spec_text.encode('utf-8')).hexdigest() if None is not spec_text else None, 'module_hashes': {k: v['sha256'] for k, v in sorted(modules.items())}}
+		if None is not target_repo:
+			basis['target_repo'] = target_repo
 		return hashlib.sha256(json_data(basis)).hexdigest()
 	# @used-by :meth:`ReviewStore.__persist_review_index()`
 	@staticmethod
-	def __update_approved_state(index: dict[str, Any], pkg: dict[str, Any], verdict: dict[str, Any], rev_id: str, recorded_at: str) -> list[str]:
+	def __update_approved_state(root: Path, index: dict[str, Any], pkg: dict[str, Any], verdict: dict[str, Any], rev_id: str, recorded_at: str) -> list[str]:
 		patterns = [c['pattern'] for c in verdict.get('pattern_checks') or () if isinstance(c, dict) and c.get('pattern')]
 		subj_sha = pkg['subject_sha256']
-		index['approved_subjects'][subj_sha] = {'kind': pkg['subject_kind'], 'review_id': rev_id, 'package': verdict['package'], 'response_sha256': pkg.get('response_sha256'), 'issue_url': pkg.get('issue_url'), 'patterns': patterns, 'recorded_at': recorded_at}
+		target_repo = pkg.get('target_repo')
+		index['approved_subjects'][subj_sha] = {'kind': pkg['subject_kind'], 'review_id': rev_id, 'package': verdict['package'], 'response_sha256': pkg.get('response_sha256'), 'issue_url': pkg.get('issue_url'), 'target_repo': target_repo, 'patterns': patterns, 'recorded_at': recorded_at}
+		scope = ReviewStore.__module_scope(root, target_repo, pkg.get('issue_url'))
 		cached: list[str] = []
+		covered_rels: set[str] = set()
 		for rel, digest in (pkg.get('module_hashes') or {}).items():
-			index['approved_modules'][rel] = {'sha256': digest, 'review_id': rev_id, 'package': verdict['package'], 'patterns': patterns, 'recorded_at': recorded_at}
-			cached.append(rel)
-		covered = set(cached)
-		index['open_findings'] = [f for f in index.get('open_findings') or () if f.get('subject_sha256') != subj_sha and f.get('target') not in covered and (not (pkg.get('issue_url') and f.get('issue_url') == pkg.get('issue_url')))]
+			mod_key = f'{scope}::{rel}' if scope else rel
+			index['approved_modules'][mod_key] = {'sha256': digest, 'review_id': rev_id, 'package': verdict['package'], 'issue_url': pkg.get('issue_url'), 'target_repo': target_repo, 'patterns': patterns, 'recorded_at': recorded_at}
+			cached.append(mod_key)
+			covered_rels.add(rel)
+		index['open_findings'] = [f for f in index.get('open_findings') or () if f.get('subject_sha256') != subj_sha and (not (f.get('target') in covered_rels and ReviewStore.__same_finding_scope(f, pkg))) and (not (pkg.get('issue_url') and f.get('issue_url') == pkg.get('issue_url')))]
 		return sorted(cached)
 	# @used-by :meth:`ReviewStore.__persist_review_index()`
 	@staticmethod
@@ -142,7 +192,7 @@ class ReviewStore:
 		kept = [f for f in index.get('open_findings') or () if f.get('subject_sha256') != subj_sha]
 		for item in verdict.get('findings') or ():
 			if isinstance(item, dict) and 'open' == item.get('status'):
-				kept.append({**item, 'review_id': rev_id, 'subject_sha256': subj_sha, 'subject_kind': pkg['subject_kind'], 'issue_url': pkg.get('issue_url'), 'recorded_at': recorded_at})
+				kept.append({**item, 'review_id': rev_id, 'subject_sha256': subj_sha, 'subject_kind': pkg['subject_kind'], 'issue_url': pkg.get('issue_url'), 'target_repo': pkg.get('target_repo'), 'recorded_at': recorded_at})
 		index['open_findings'] = kept
 	# @used-by :func:`agent_tools.arch.review_store._authenticate_arch_report()`
 	# @used-by :meth:`ReviewStore.__init__()`
@@ -171,14 +221,19 @@ class ReviewStore:
 		return {'valid': not issues, 'approved_module_count': len(index.get('approved_modules') or {}), 'approved_subject_count': len(index.get('approved_subjects') or {}), 'blocking_findings': blocking, 'issues': issues, 'approved_modules': index.get('approved_modules') or {}, 'approved_subjects': index.get('approved_subjects') or {}}
 	# @used-by :func:`agent_tools.arch.review_store.prepare_arch_package()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_prepare()`
+	# @used-by :meth:`test_cross_repo_arch_audit.CrossRepoArchAuditTests.test_arch_role_allows_downward_target_repo_only_and_blocks_ancestors_and_aa()`
+	# @used-by :meth:`test_cross_repo_arch_audit.CrossRepoArchAuditTests.test_pre_tool_use_and_verify_staged_scope_receipts_and_findings_by_slug()`
+	# @used-by :meth:`test_cross_repo_arch_audit.CrossRepoArchAuditTests.test_pre_tool_use_isolates_foreign_cwd_and_null_issue_receipts()`
+	# @used-by :meth:`test_cross_repo_arch_audit.CrossRepoArchAuditTests.test_review_store_scopes_cross_repo_module_cache_and_finding_clearing()`
 	# @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_enforcement_preserves_gates_and_395_participants()`
 	# @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_evaluator_checks_response_receipts_and_runner()`
 	@staticmethod
 	def prepare_package(root: Path, parent_id: str, *, kind: str, response_text: str | None=None, spec_text: str | None=None, repo: Path | None=None, files: list[str] | None=None, issue_url: str | None=None) -> dict[str, Any]:
 		if kind not in ReviewStore.__VALID_KINDS:
 			raise ValueError(f'Unsupported architecture review subject kind: {kind}')
+		target_repo = ReviewStore.__normalize_repo(repo)
 		modules = ReviewStore.__collect_modules(repo, files)
-		payload = ReviewStore.__build_package_payload(kind, parent_id, response_text, spec_text, modules, issue_url)
+		payload = ReviewStore.__build_package_payload(kind, parent_id, response_text, spec_text, modules, issue_url, target_repo=target_repo)
 		raw = json_data(payload)
 		pkg_sha = hashlib.sha256(raw).hexdigest()
 		subj_sha = payload['subject_sha256']
@@ -186,7 +241,7 @@ class ReviewStore:
 		target = write_immutable_bytes(ReviewStore.__arch_dir(root) / 'packages' / f'{kind}-{subj_sha[:16]}-{pkg_sha[:16]}.json', raw, diff_error='Immutable architecture review package differs')
 		pkg_rel = target.relative_to(pp.root).as_posix() if target.is_relative_to(pp.root) else target.as_posix()
 		ReviewStore.__register_package_index(root, pkg_rel, pkg_sha, payload)
-		cached = ReviewStore.__is_cached(ReviewStore.__load_index(root), subj_sha, modules)
+		cached = ReviewStore.__is_cached(root, ReviewStore.__load_index(root), subj_sha, modules, issue_url=issue_url, target_repo=target_repo)
 		return {'valid': True, 'package': pkg_rel, 'package_sha256': pkg_sha, 'subject_kind': kind, 'subject_sha256': subj_sha, 'cached_approval': cached, 'module_hashes': payload['module_hashes']}
 	# @used-by :func:`agent_tools.arch.review_store.read_arch_review_input()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_review_input()`
@@ -200,6 +255,7 @@ class ReviewStore:
 		pkg = json.loads(raw.decode('utf-8'))
 		return {'arch_review_input': 1, 'verified': True, 'project_root': pp.root.as_posix(), 'package': target.relative_to(pp.root).as_posix(), 'package_sha256': hashlib.sha256(raw).hexdigest(), 'parent_id': parent_id or pkg.get('parent_id'), 'reviewer_id': reviewer_id, 'content': pkg}
 	# @used-by :func:`agent_tools.arch.review_store.record_arch_review()`
+	# @used-by :func:`test_cross_repo_arch_audit._record()`
 	# @used-by :meth:`Df.Harness.Arch.ReviewCli.ReviewCli.__exec_arch_record_review()`
 	# @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_enforcement_preserves_gates_and_395_participants()`
 	# @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_evaluator_checks_response_receipts_and_runner()`

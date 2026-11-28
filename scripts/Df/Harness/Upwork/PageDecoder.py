@@ -38,6 +38,7 @@ class PageDecoder:
 	# @used-by :func:`Df.Harness.lib.runtime_snapshot_ops.dfh_git_read()`
 	# @used-by :func:`Df.Harness.lib.storage.dfh_read_addressed_json()`
 	# @used-by :func:`Df.Harness.lib.trace_common.dfh_read_jsonl_objects()`
+	# @used-by :func:`Df.Harness.lib.trace_review._read_verified_package_repo()`
 	# @used-by :func:`agent_tools.repo_tags.commit_date_day()`
 	# @used-by :func:`agent_tools.repo_tags.list_repo_tags()`
 	# @used-by :func:`agent_tools.repo_tags.tags_at_commit()`

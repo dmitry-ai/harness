@@ -166,6 +166,7 @@ class Regex(O):
 	# @used-by :func:`Df.Harness.lib.uri.dfh_local_uri_to_path()`
 	# @used-by :func:`Df.Qa.lib.validation.check.df_is_email()`
 	# @used-by :meth:`Df.Harness.Analysis.Claim.QuantityMatcher.QuantityMatcher.__collect_unit_cands()`
+	# @used-by :meth:`Df.Harness.Arch.RepoReceiptSpecification.RepoReceiptSpecification.issue_slug()`
 	# @used-by :meth:`Df.Harness.Arch.SpecValidator.SpecValidator.__parse_field_line()`
 	# @used-by :meth:`Df.Harness.Experiment.CallChainParser.CallChainParser.__tokenize()`
 	# @used-by :meth:`Df.Harness.Gate.FailfastGate.FailfastGate.missing_timeout_guard()`

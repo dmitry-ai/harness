@@ -5,6 +5,7 @@ from typing import Any
 import hashlib
 import json
 import tempfile
+from Df.Harness.Arch.RepoReceiptSpecification import RepoReceiptSpecification
 from Df.Harness.Arch.TriggerClassifier import TriggerClassifier
 from agent_tools.shell_audit import normalize_host_path
 from agent_tools.tdd.classifier import classify_code_path
@@ -202,6 +203,8 @@ class Enforcement:
 				out.append(item)
 		return out
 	# @used-by :func:`agent_tools.arch.enforcement.evaluate_pre_tool_use_arch_audit()`
+	# @used-by :meth:`test_cross_repo_arch_audit.CrossRepoArchAuditTests.test_pre_tool_use_and_verify_staged_scope_receipts_and_findings_by_slug()`
+	# @used-by :meth:`test_cross_repo_arch_audit.CrossRepoArchAuditTests.test_pre_tool_use_isolates_foreign_cwd_and_null_issue_receipts()`
 	# @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_enforcement_preserves_gates_and_395_participants()`
 	@staticmethod
 	def evaluate_pre_tool_use(name: str, args: dict, payload: dict) -> str | None:
@@ -209,12 +212,13 @@ class Enforcement:
 		resolved = Enforcement.__resolve_pre_tool_target(args, payload) if name in ('write_file', 'edit_file') else None
 		if None is not resolved:
 			repo, target, rel, cwd = resolved
-			idx_paths = Enforcement.arch_index_paths(repo, cwd)
+			# 2026-11-28 "Recognize cross-repo approved arch-auditor receipts in Enforcement.verify_staged": https://github.com/dmitry-ai/harness/issues/467
+			idx_paths = Enforcement.arch_index_paths(repo, None) if None is not repo else Enforcement.arch_index_paths(None, cwd)
 			if Enforcement.is_arch_governed(repo, cwd, payload, idx_paths):
 				old_text, new_text, _, _ = _compute_edited_content(name, args, target)
 				if None is not new_text:
 					trig = TriggerClassifier().classify_code_change(rel, old_text, new_text)
-					index, _ = Enforcement.load_merged_index(idx_paths)
+					index, _ = RepoReceiptSpecification().load_scoped_index(repo, idx_paths)
 					r = Enforcement.__evaluate_write_against_index(rel, new_text, trig, index)
 		return r
 	# @used-by :meth:`Df.Harness.Arch.Evaluator.Evaluator.__response_receipt_violations()`
@@ -232,8 +236,6 @@ class Enforcement:
 				break
 		return bool(strict or payload.get('enforce_arch_audit') or has_idx or has_rule or (None is not base and (not Enforcement.__is_in_tempdir(base))))
 	# @used-by :meth:`Df.Harness.Arch.Evaluator.Evaluator.__response_receipt_violations()`
-	# @used-by :meth:`Enforcement.evaluate_pre_tool_use()`
-	# @used-by :meth:`Enforcement.verify_staged()`
 	@staticmethod
 	def load_merged_index(idx_paths: list[Path]) -> tuple[dict[str, Any], list[Path]]:
 		merged: dict[str, Any] = {'approved_modules': {}, 'approved_subjects': {}, 'open_findings': []}
@@ -253,13 +255,16 @@ class Enforcement:
 			merged['open_findings'].extend(data.get('open_findings') or ())
 		return (merged, roots)
 	# @used-by :func:`agent_tools.arch.enforcement.verify_staged_arch_audit()`
+	# @used-by :meth:`test_cross_repo_arch_audit.CrossRepoArchAuditTests.test_pre_tool_use_and_verify_staged_scope_receipts_and_findings_by_slug()`
+	# @used-by :meth:`test_cross_repo_arch_audit.CrossRepoArchAuditTests.test_pre_tool_use_isolates_foreign_cwd_and_null_issue_receipts()`
 	# @used-by :meth:`test_df_harness_s11_wave2e_arch.DfHarnessArchWave2eTests.test_enforcement_preserves_gates_and_395_participants()`
 	def verify_staged(self, repo_root: Path, staged_paths: list[str], *, use_index: bool=True, strict: bool=False) -> list[str]:
 		repo = Path(repo_root).resolve()
 		idx_paths = Enforcement.arch_index_paths(repo, None)
 		r: list[str] = []
 		if Enforcement.is_arch_governed(repo, None, {}, idx_paths, strict=strict):
-			index, roots = Enforcement.load_merged_index(idx_paths)
+			# 2026-11-28 "Recognize cross-repo approved arch-auditor receipts in Enforcement.verify_staged": https://github.com/dmitry-ai/harness/issues/467
+			index, roots = RepoReceiptSpecification().load_scoped_index(repo, idx_paths)
 			for f in Enforcement.blocking_findings(index):
 				fid, sev, desc = (f.get('id'), f.get('severity'), f.get('description'))
 				r.append(f'ARCH-AUDIT-GATE: Open arch-auditor finding {fid} ({sev}) blocks commit: {desc}')

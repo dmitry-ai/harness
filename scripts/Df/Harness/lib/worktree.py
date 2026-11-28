@@ -27,6 +27,7 @@ def dfh_fail_land(main_repo: Path, wt_path: Path, branch: str, stage: str, error
 	return dfh_attach_land_telemetry({'valid': False, 'landed': False, 'stage': stage, 'error': error, 'main_repo': main_repo.as_posix(), 'worktree': wt_path.as_posix(), 'branch': branch, 'test_runs': test_runs, 'test_result': test_result}, plan)
 # @used-by :func:`agent_tools.worktree_flow.git_config_file()`
 # @used-by :func:`dfh_has_origin_remote()`
+# @used-by :meth:`Df.Harness.Arch.RepoReceiptSpecification.RepoReceiptSpecification.repo_slug()`
 # @used-by :meth:`Df.Harness.Issue.RepoLocator.RepoLocator.__config_may_have_origin()`
 # @used-by :meth:`Df.Harness.Issue.RepoLocator.RepoLocator.extract_config_slugs()`
 # @used-by :meth:`test_df_harness_s11_wave2c_git.DfHarnessS11Wave2CGitTests.test_worktree_flow_guard_and_land()`

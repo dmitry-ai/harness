@@ -2,6 +2,7 @@
 from __future__ import annotations
 from pathlib import Path
 from Df.Harness.lib.path_resolve import dfh_project_paths
+from Df.Harness.lib.path_template import dfh_is_linked
 from Df.Harness.lib.proof_metadata import dfh_executor_metadata_equivalent, dfh_reuse_equivalent_proof
 from Df.Harness.lib.request_binding import dfh_native_project_fields
 from Df.Harness.lib.storage import dfh_write_immutable_bytes
@@ -11,6 +12,84 @@ import hashlib
 import json
 import re
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
+# 2026-11-28 "Recognize cross-repo approved arch-auditor receipts in Enforcement.verify_staged": https://github.com/dmitry-ai/harness/issues/467
+_ARCH_PKG_RE = re.compile(r'arch-reviews/packages/([A-Za-z0-9._-]+\.json)')
+# @used-by :func:`_arch_target_repo_roots()`
+def _arch_index_packages(arch_dir: Path) -> tuple[bool, set[str]]:
+	idx_raw = arch_dir / 'index.json'
+	if not idx_raw.exists():
+		r = (True, set())
+	elif dfh_is_linked(idx_raw):
+		r = (False, set())
+	else:
+		try:
+			data = json.loads(idx_raw.resolve().read_text(encoding='utf-8'))
+			r = (True, set(data.get('packages') or ())) if isinstance(data, dict) else (False, set())
+		except (OSError, ValueError):
+			r = (False, set())
+	return r
+# @used-by :func:`dfh_build_native_review_proof()`
+def _arch_target_repo_roots(root: Path, prompts) -> tuple[Path, ...]:
+	project_root = Path(root).resolve()
+	daily_root = next((p for p in project_root.parents if 'daily' == p.name), project_root.parent)
+	arch_dir = dfh_project_paths(root, exact_root=True).data_dir / 'arch-reviews'
+	pkgs_dir = arch_dir / 'packages'
+	idx_ok, idx_pkgs = _arch_index_packages(arch_dir)
+	out: list[Path] = []
+	if idx_ok and (not dfh_is_linked(pkgs_dir)) and pkgs_dir.is_dir():
+		pkgs_res = pkgs_dir.resolve()
+		names = {m.group(1) for p in (prompts or ()) if isinstance(p, str) for m in _ARCH_PKG_RE.finditer(p)}
+		for name in sorted(names):
+			raw_repo = _read_verified_package_repo(pkgs_dir / name, pkgs_res, idx_pkgs)
+			if None is not raw_repo:
+				out.extend(_validated_target_roots(raw_repo, project_root, daily_root))
+	return tuple(dict.fromkeys(out))
+# @used-by :func:`_validated_target_roots()`
+def _enclosing_target_root(raw_target: Path) -> Path | None:
+	parts = raw_target.parts
+	if 4 <= len(parts) and ('\u2c0f', '\u227b', '\u2655', '\u26ef') == parts[-4:]:
+		r: Path | None = raw_target.parents[3]
+	elif 5 <= len(raw_target.parents) and 'worktrees' == raw_target.parent.name and 'data' == raw_target.parents[1].name and '\ua616' == raw_target.parents[2].name and '_' == raw_target.parents[3].name:
+		r = raw_target.parents[4]
+	elif 4 <= len(raw_target.parents) and 'worktrees' == raw_target.parent.name and 'data' == raw_target.parents[1].name and '\ua616' == raw_target.parents[2].name:
+		r = raw_target.parents[3]
+	elif 'code' == raw_target.name and (raw_target.parent / '_').is_dir():
+		r = raw_target.parent
+	else:
+		r = None
+	return r
+# @used-by :func:`_arch_target_repo_roots()`
+def _read_verified_package_repo(cand: Path, pkgs_res: Path, idx_pkgs: set[str]) -> str | None:
+	r: str | None = None
+	if (not dfh_is_linked(cand)) and cand.is_file():
+		res = cand.resolve()
+		if res.is_relative_to(pkgs_res):
+			try:
+				raw = res.read_bytes()
+				sha = hashlib.sha256(raw).hexdigest()
+				if res.stem.endswith('-' + sha[:16]) and ((not idx_pkgs) or sha in idx_pkgs):
+					val = json.loads(raw.decode('utf-8')).get('target_repo')
+					r = val.strip() if isinstance(val, str) and val.strip() else None
+			except (OSError, ValueError):
+				r = None
+	return r
+# @used-by :func:`_arch_target_repo_roots()`
+def _validated_target_roots(raw_repo: str, project_root: Path, daily_root: Path) -> list[Path]:
+	raw_p = Path(raw_repo)
+	out: list[Path] = []
+	if not dfh_is_linked(raw_p):
+		try:
+			res = raw_p.resolve()
+		except OSError:
+			res = None
+		if None is not res and res.is_dir() and (res / '.git').exists() and res != daily_root and (not project_root.is_relative_to(res)):
+			out.append(res)
+			enc = _enclosing_target_root(raw_p)
+			if None is not enc and (not dfh_is_linked(enc)):
+				enc_res = enc.resolve()
+				if enc_res != daily_root and (not project_root.is_relative_to(enc_res)):
+					out.append(enc_res)
+	return out
 # @used-by :func:`_iter_normalized_tool_calls()`
 def _ag_calls_from_row(rows_list: list, pos: int, row: dict) -> list[tuple]:
 	calls = row.get('tool_calls') if isinstance(row.get('tool_calls'), list) else []
@@ -36,7 +115,7 @@ def _check_candidate_read_coverage(info: dict) -> str | None:
 			r = f'reviewer performed a partial/truncated read of candidate response {name} ({detail})'
 	return r
 # @used-by :func:`dfh_reviewer_isolation_issues()`
-def _check_isolation_call(project_root: Path, daily_root: Path, name: str, args: dict, raw_cmd: str) -> list[str]:
+def _check_isolation_call(project_root: Path, daily_root: Path, name: str, args: dict, raw_cmd: str, extra_allowed_roots: tuple[Path, ...]=()) -> list[str]:
 	r: list[str] = []
 	if name in ('write_file', 'edit_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content') or name.endswith(('write_file', 'edit_file', 'write_to_file', 'apply_patch')) or 'apply_patch' in name:
 		r.append(f'reviewer called mutating tool {name}')
@@ -48,7 +127,7 @@ def _check_isolation_call(project_root: Path, daily_root: Path, name: str, args:
 		val = args.get(key)
 		if isinstance(val, str) and val.strip():
 			from agent_tools.project_rename_state import find_sibling_project_path
-			sib = find_sibling_project_path(val, project_root, daily_root)
+			sib = find_sibling_project_path(val, project_root, daily_root, extra_allowed_roots=extra_allowed_roots)
 			if None is not sib:
 				r.append(f'reviewer accessed sibling project path {sib}')
 	return r
@@ -113,11 +192,13 @@ def _update_candidate_read_entry(entry: dict, rp: Path, args: dict, nxt_texts: l
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ReviewProver.ReviewProver.run()`
 # @used-by :meth:`Df.Harness.Platform.Codex.ReviewProver.ReviewProver.run()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_build_native_review_proof_forwards_arch_role_on_bare_workspace()`
+# @used-by :meth:`test_cross_repo_arch_audit.CrossRepoArchAuditTests.test_arch_role_allows_downward_target_repo_only_and_blocks_ancestors_and_aa()`
 def dfh_build_native_review_proof(root, surface: str, parent_id: str, reviewer_id: str, agent_name: str, log_path, parent_log, raw_log_bytes: bytes, final_step, final_text: str, matched_prompts, rows, *, diff_error: str='Existing reviewer proof changed; preserve both and recheck native progress', extra_fields_fn=None, write: bool=True, role: str='AA') -> dict:
 	bias_issues = dfh_collect_prompt_bias_issues(matched_prompts)
 	if bias_issues:
 		raise ValueError('Reviewer prompt biases verdict or omits negative schema outcomes: ' + '; '.join(bias_issues))
-	isolation_issues = dfh_reviewer_isolation_issues(root, rows)
+	extra_roots = _arch_target_repo_roots(root, matched_prompts) if 'ARCH' == role else ()
+	isolation_issues = dfh_reviewer_isolation_issues(root, rows, extra_allowed_roots=extra_roots)
 	if isolation_issues:
 		raise ValueError('Independent reviewer isolation violated: ' + '; '.join(isolation_issues))
 	extra = extra_fields_fn() if None is not extra_fields_fn else {}
@@ -213,12 +294,12 @@ def dfh_require_turn_binding(selected, active, r, error_msg: str):
 # @used-by :meth:`test_finalized_project_contract.FinalizedProjectContractTests.test_rename_project_preserves_all_seven_stages_config_journal_handoff_and_review_lineage()`
 # @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue47_partial_candidate_read_blocked()`
 # @used-by :meth:`test_project_rename.ProjectRenameTests.test_rename_preserves_launcher_handoff_reg_hash_and_review_lineage()`
-def dfh_reviewer_isolation_issues(root, rows) -> list[str]:
+def dfh_reviewer_isolation_issues(root, rows, *, extra_allowed_roots: tuple[Path, ...]=()) -> list[str]:
 	project_root = Path(root).resolve()
 	daily_root = next((p for p in project_root.parents if 'daily' == p.name), project_root.parent)
 	r: list[str] = []
 	for name, args, raw_cmd, _ in _iter_normalized_tool_calls(rows):
-		r.extend(_check_isolation_call(project_root, daily_root, name, args, raw_cmd))
+		r.extend(_check_isolation_call(project_root, daily_root, name, args, raw_cmd, extra_allowed_roots))
 	r.extend(dfh_partial_candidate_read_issues(project_root, rows))
 	return r
 # @used-by :meth:`Df.Harness.Platform.Antigravity.ProofVerifier.ProofVerifier.run()`
