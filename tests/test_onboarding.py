@@ -55,6 +55,9 @@ from agent_tools.upwork_extract import RPC, SafeRedirect, attachment_path, decod
 # @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_invalid_consumption_scope_fails_before_analysis_changes()`
 # @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_stdin_analysis_and_owned_scratch_inputs_leave_no_permanent_candidate()`
 # @used-by :meth:`test_registration_portability.RegistrationTests.setUp()`
+# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.__make_project()`
+# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.test_bare_url_website_sync_and_legacy_migration()`
+# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.test_sync_initial_hypothesis_writes_bare_url_and_no_markers()`
 # @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_new_v2_upwork_project_creates_dot_md_not_readme()`
 def source(job_id='~021234567890'):
 	return {'job_id': job_id, 'title': 'Client task', 'description': 'CURRENT_DESCRIPTION_NOT_A_SUMMARY\n```text\noriginal code\n```\n', 'buyer': {'location': {'country': 'Portugal'}}, 'candidate_domains': ['reference.example'], 'work_history': [], 'open_jobs': [], 'related_descriptions': {}, 'client_names': [], 'coverage': {'history_records': 0, 'history_complete': False}, 'observed_at': '2026-10-15T00:00:00+03:00'}
@@ -67,6 +70,8 @@ def source(job_id='~021234567890'):
 # @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_website_requires_valid_url_and_identity_basis()`
 # @used-by :meth:`test_readable_links.ReadableProjectTests.test_website_card_uses_readable_iri_and_keeps_original_website_selection()`
 # @used-by :meth:`test_red_flags.RedFlagTests.setUp()`
+# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.__make_project()`
+# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.test_sync_initial_hypothesis_writes_bare_url_and_no_markers()`
 # @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.__make_legacy_v2_upwork()`
 def claim(ident, addresses=(), method=False):
 	result = {'id': ident, 'essence': 'Client-specific proposed explanation', 'for': [{'argument': 'The description explicitly states this concern.', 'source': 'https://example.org/source#concern', 'quote': 'The concern'}], 'against': [{'argument': 'The source also gives an alternative.', 'source': 'https://example.org/source#alternative', 'quote': 'Alternative'}], 'assessment_basis': 'Expert estimate based on the stated evidence; not calibrated.', 'addresses': list(addresses)}
@@ -89,6 +94,7 @@ def claim(ident, addresses=(), method=False):
 # @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_referenced_primary_cannot_be_replaced_with_an_own_kb_quote()`
 # @used-by :meth:`test_evidence_contract.EvidenceContractTests.test_unverified_hypothesis_with_empty_against_caps_probability_at_75()`
 # @used-by :meth:`test_red_flags.RedFlagTests.setUp()`
+# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.__make_project()`
 # @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.__make_legacy_v2_upwork()`
 def analysis():
 	return {'identity': [], 'concerns': [claim('H-CONCERN-1')], 'misconceptions': [], 'causes': [claim('H-CAUSE-1', ['H-CONCERN-1'])], 'methods': [claim('M-1', ['H-CAUSE-1'], method=True)], 'notes': {'identity': 'Not established.', 'misconceptions': 'No misconception established.'}}

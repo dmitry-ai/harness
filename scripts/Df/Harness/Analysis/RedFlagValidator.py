@@ -1,6 +1,8 @@
 # 2026-11-26 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from Df.Harness.Project.Diagnostics import Diagnostics
+# 2026-11-28 "Switch root .md to bare URLs and structured Red Flags headings": https://github.com/dmitry-ai/harness/issues/417
+CARD_HEADINGS = {'RF-CLIENT-INTERMEDIARY': '\u041f\u043e\u0441\u0440\u0435\u0434\u043d\u0438\u043a', 'RF-WEBSITE-UNIDENTIFIED': '\u0421\u0430\u0439\u0442 \u043d\u0435 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d'}
 FLAGS = {'RF-CLIENT-INTERMEDIARY': ('Client is an intermediary', ('confirmed', 'suspected')), 'RF-WEBSITE-UNIDENTIFIED': ('Target website is unidentified', ('unresolved',))}
 # 2026-11-26 "Move analysis workflow classes into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/380
 class RedFlagValidator:

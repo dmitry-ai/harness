@@ -109,10 +109,13 @@ class UserUrlPolicy:
 			if apex and 'upwork.com' != apex:
 				hosts.add(apex)
 		return frozenset(hosts)
+	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__collect_selected()`
+	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync_initial()`
 	# @used-by :meth:`test_user_url_policy.UserUrlPolicyTests.test_policy_helpers_classification_and_immutability()`
 	@property
 	def failed_apex_hosts(self) -> frozenset[str]:
 		return self.__failed_apex_hosts
+	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__format_url()`
 	# @used-by :meth:`test_user_url_policy.UserUrlPolicyTests.test_policy_helpers_classification_and_immutability()`
 	@staticmethod
 	def format_card_url(url: str, *, failed_apex_hosts: frozenset[str]=frozenset()) -> str:
@@ -123,6 +126,8 @@ class UserUrlPolicy:
 		if '/' == parsed.path and (not parsed.query) and (not parsed.fragment) and text.endswith('/'):
 			text = text[:-1]
 		return text
+	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__collect_selected()`
+	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync_initial()`
 	# @used-by :meth:`test_user_url_policy.UserUrlPolicyTests.test_policy_helpers_classification_and_immutability()`
 	@classmethod
 	def from_evidence_dir(cls, evidence_dir: Path, *, client_site_hosts: Iterable[str]=()) -> UserUrlPolicy:

@@ -275,6 +275,7 @@ def dfh_observed_use(root, result):
 # @used-by :func:`Df.Harness.lib.text_sources.dfh_source_urls()`
 # @used-by :func:`agent_tools.links.readable_reference()`
 # @used-by :func:`dfh_markdown_link()`
+# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__format_url()`
 # @used-by :meth:`Df.Harness.Research.LinkAuditor.LinkAuditor.readable_link_issues()`
 # @used-by :meth:`Df.Harness.Text.IntakeSourceEvaluator.IntakeSourceEvaluator.__resolve_local_source()`
 # @used-by :meth:`Df.Harness.Text.IntakeSourceEvaluator.IntakeSourceEvaluator.evaluate()`

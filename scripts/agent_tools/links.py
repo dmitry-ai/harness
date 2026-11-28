@@ -50,8 +50,6 @@ def heading_anchors(content: str) -> set[str]:
 # @used-by :meth:`Df.Harness.Analysis.Renderer.Renderer.render()`
 # @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.render_evidence_md()`
 # @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.render_projects_md()`
-# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__render_selected()`
-# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync_initial()`
 # @used-by :meth:`Df.Harness.Upwork.DocxExtractor.DocxExtractor.__render_link()`
 # @used-by :meth:`Df.Harness.Upwork.KbProjectMdFormatter.KbProjectMdFormatter.__site_text()`
 # @used-by :meth:`Df.Harness.Upwork.PdfExtractor.PdfExtractor.__text_element_raw()`

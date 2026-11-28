@@ -46,7 +46,8 @@ class ProjectInitializer:
 		assets = AttachmentInventory(root).sync(data.get('saved_attachments') or [])
 		extra_sources = ExtraSourceBuilder(root, data, assets).build() if None is self.__extra_sources_fn else self.__extra_sources_fn(root, data, assets)
 		if not state['initialized']:
-			OnceFileWriter(pp.path('overview_md', root / '.md'), f"# {data['title']}\n\n{JobUrlParser.canonical_job_url(job_id)}\n").write()
+			# 2026-11-28 "Switch root .md to bare URLs and structured Red Flags headings": https://github.com/dmitry-ai/harness/issues/417
+			OnceFileWriter(pp.path('overview_md', root / '.md'), f"# {data['title']}\n{JobUrlParser.canonical_job_url(job_id)}\n").write()
 			OnceFileWriter(pp.manual_kb_dir / 'Project.md', KbProjectMdFormatter({**data, 'extra_sources': extra_sources, **({'site_hypothesis': self.__site_hypothesis} if self.__site_hypothesis else {})}).render()).write()
 		snapshot = KbPopulator(root, {**data, 'asset_evidence': [{'file': a['file'], 'sha256': a['sha256']} for a in assets], 'extra_sources': extra_sources}).populate()
 		if not state['initialized'] and 'conflict' == WebsiteCardSyncer.sync_initial(root, snapshot, self.__site_hypothesis)['status']:

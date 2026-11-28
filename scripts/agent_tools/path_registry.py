@@ -297,6 +297,9 @@ def paths_report(project: str | Path | None=None, *, expand: str | None=None, ch
 # @used-by :meth:`test_path_registry_perf.PathRegistryPerformanceTests.test_project_paths_fast_cache_hits_and_invalidates_on_fs_mutations()`
 # @used-by :meth:`test_path_registry_perf.PathRegistryPerformanceTests.test_project_paths_lru_retains_more_than_256_entries()`
 # @used-by :meth:`test_turn_completion.AnswerPreparationRunnerTests.test_automatic_journal_only_upgrade_and_cli_subcommand()`
+# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.__make_project()`
+# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.test_bare_url_website_sync_and_legacy_migration()`
+# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.test_sync_initial_hypothesis_writes_bare_url_and_no_markers()`
 # @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_custom_registry_without_v2_upwork_falls_back_to_v2()`
 # @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_legacy_v2_readme_fallback_works_across_card_consumers()`
 # @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_new_v2_upwork_project_creates_dot_md_not_readme()`

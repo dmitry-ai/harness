@@ -59,6 +59,9 @@ def sync_source_folder_attachments(project_root: Path, saved_attachments: list[d
 # @used-by :meth:`test_df_harness_s11_wave2a_review.DfHarnessS11Wave2aReviewTests.test_z_review_lifecycle_and_validators_extra()`
 # @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_explicit_website_is_published_and_reused_without_overwriting_card_or_metadata()`
 # @used-by :meth:`test_readable_links.ReadableProjectTests.test_website_card_uses_readable_iri_and_keeps_original_website_selection()`
+# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.test_bare_url_website_sync_and_legacy_migration()`
+# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.test_broken_apex_evidence_keeps_www_in_root_card()`
+# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.test_legacy_website_markers_migrate_and_reject_tampering()`
 # @used-by :mod:`agent_tools.knowledge`
 def sync_website_card(root, value, *, selections=None, check=False):
 	return WebsiteCardSyncer(root, value, selections=selections, check=check).sync()

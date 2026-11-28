@@ -49,9 +49,10 @@ class PublicationLifecycleTests(ProjectCase):
 		# "Initialize new Upwork projects in the V2 filesystem layout":
 		# https://github.com/dmitry-ai/harness/issues/110
 		# 2026-11-28 "Use .md root card via v2_upwork profile": https://github.com/dmitry-ai/harness/issues/415
+		# 2026-11-28 "Switch root .md to bare URLs and structured Red Flags headings": https://github.com/dmitry-ai/harness/issues/417
 		card = Path(result['project_dir']) / '.md'
-		self.assertIn('https://example.org/', card.read_text(encoding='utf-8'))
-		self.assertIn('<\U0001f56e/Project.md#13-website>', card.read_text(encoding='utf-8'))
+		self.assertIn('https://example.org', card.read_text(encoding='utf-8'))
+		self.assertNotIn('<!-- upwork-init:', card.read_text(encoding='utf-8'))
 		from agent_tools.links import validate_file
 		self.assertEqual(validate_file(card, local_anchors=True), [])
 		previous = card.read_bytes()
@@ -79,9 +80,10 @@ class PublicationLifecycleTests(ProjectCase):
 		result = publish_analysis(source)
 		self.assertNotEqual(result['status'], 'conflict', result)
 		current = card.read_bytes()
-		self.assertIn(b'https://example.org/', current)
+		# 2026-11-28 "Switch root .md to bare URLs and structured Red Flags headings": https://github.com/dmitry-ai/harness/issues/417
+		self.assertIn(b'https://example.org\n', current)
 		self.assertIn(original.splitlines()[-1], current)
-		self.assertIn('ꘖ/KB/Analysis.json#/identity/0', current.decode())
+		self.assertNotIn(b'<!-- upwork-init:', current)
 		for key, expected in old_state.items():
 			self.assertEqual(json.loads((self.project / 'ꘖ/project.json').read_text())[key], expected)
 		del value['websites']
@@ -153,9 +155,10 @@ class PublicationLifecycleTests(ProjectCase):
 		# 2026-10-17
 		# "Detect Upwork client intermediation and unidentified target websites with managed Red Flags blocks":
 		# https://github.com/dmitry-ai/harness/issues/5
-		self.assertLess(original.index(b'websites:start'), original.index(b'red-flags:start'))
-		self.assertLess(original.index(b'# Red Flags'), original.index(b'red-flags:start'))
-		self.assertTrue(original.rstrip().endswith(b'<!-- upwork-init:red-flags:end -->'))
+		# 2026-11-28 "Switch root .md to bare URLs and structured Red Flags headings": https://github.com/dmitry-ai/harness/issues/417
+		self.assertNotIn(b'<!-- upwork-init:', original)
+		self.assertIn(b'# Red Flags\n', original)
+		self.assertIn('## \u0421\u0430\u0439\u0442 \u043d\u0435 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\n'.encode('utf-8'), original)
 		card.write_bytes(original.replace(b'No established site.', b'USER ASSESSMENT'))
 		changed = card.read_bytes()
 		self.assertEqual(publish_analysis(path)['status'], 'conflict')

@@ -121,6 +121,8 @@ def harness_hook_runner_source(primary=PRIMARY_AGENTS_DIR, *, store_dir=None) ->
 # @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_creation_publishes_supplied_site_and_reinit_keeps_the_card()`
 # @used-by :meth:`test_registration_portability.RegistrationTests.setUp()`
 # @used-by :meth:`test_turn_completion.AntigravityAddonsIntegrationTests.test_registered_empty_launcher_project_tracks_pre_init_failures_and_hands_off_to_daily_project()`
+# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.__make_project()`
+# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.test_sync_initial_hypothesis_writes_bare_url_and_no_markers()`
 # @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_new_v2_upwork_project_creates_dot_md_not_readme()`
 # @used-by :mod:`agent_tools.harness_cli`
 # @used-by :mod:`agent_tools.upwork_project`

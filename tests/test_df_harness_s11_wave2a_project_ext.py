@@ -43,8 +43,9 @@ class DfHarnessS11Wave2aProjectExtTests(unittest.TestCase):
 			(root / '\ua616/project.json').write_text(json.dumps({'job_id': '~02k1', 'snapshot': snap.relative_to(root).as_posix()}), encoding='utf-8')
 			res = AttachmentKbSyncer(root, fetch_videos=False).sync()
 			self.assertEqual(1, len(res['source_files']))
+			# 2026-11-28 "Switch root .md to bare URLs and structured Red Flags headings": https://github.com/dmitry-ai/harness/issues/417
 			ws_res = WebsiteCardSyncer.sync_initial(root, snap)
-			self.assertIn(ws_res['status'], ('published', 'unchanged'))
+			self.assertEqual('unassessed', ws_res['status'])
 			self.assertTrue(WebsiteCardSyncer.website_issues({'websites': []}))
 			self.assertTrue(FactualNoteValidator(root / 'note.md', '## Hypotheses\nH-1 is root cause.\nArguments for: A.\nArguments against: B.\n').issues())
 			self.assertEqual([], FactualNoteValidator(root / 'clean.md', '# Facts\nObserved 200 OK.  \n').issues())

@@ -70,6 +70,7 @@ def iter_arguments(value):
 # @used-by :meth:`test_red_flags.RedFlagTests.test_resolved_risks_update_both_surfaces_and_keep_original_card_history()`
 # @used-by :meth:`test_red_flags.RedFlagTests.test_standalone_input_never_updates_project_card()`
 # @used-by :meth:`test_resume_exports.ResumeExportTests.test_public_example_passes_structure_evidence_and_project_checks()`
+# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.test_markerless_red_flags_dual_surface_and_legacy_migration()`
 # @used-by :mod:`agent_tools.analysis`
 def publish_analysis(source, target=None):
 	return Publisher(source, target).publish()
@@ -103,6 +104,7 @@ def publish_owned(target, content, *, source=None, history=True):
 # @used-by :meth:`test_red_flags.RedFlagTests.test_each_risk_can_be_shown_alone_without_combination_warning()`
 # @used-by :meth:`test_red_flags.RedFlagTests.test_no_flags_does_not_create_warning_or_change_original_card()`
 # @used-by :meth:`test_red_flags.RedFlagTests.test_suspected_intermediary_is_not_reported_as_confirmed()`
+# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.test_markerless_red_flags_dual_surface_and_legacy_migration()`
 # @used-by :mod:`agent_tools.analysis`
 # @used-by :mod:`agent_tools.knowledge`
 def render_analysis(value):

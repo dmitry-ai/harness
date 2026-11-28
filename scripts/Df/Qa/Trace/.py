@@ -44,7 +44,7 @@ class Trace:
 	# @used-by :func:`Df.Harness.lib.research.dfh_bare_urls()`
 	# @used-by :func:`Df.Harness.lib.text_sections.dfh_content_blocks()`
 	# @used-by :func:`agent_tools.git_ignore.merge_managed_git_ignore()`
-	# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__extract_body()`
+	# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__extract_legacy()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__scan_brace_end()`
 	# @used-by :meth:`Df.Harness.Gate.IssueCommentScanner.IssueCommentScanner.__trailing_comment_urls()`
 	# @used-by :meth:`Df.Harness.Git.GlobalIgnoreSyncer.GlobalIgnoreSyncer.__merge_block()`
@@ -54,6 +54,7 @@ class Trace:
 	# @used-by :meth:`Df.Harness.Issue.Linter.Linter.__has_backtick_enumeration()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__compute_payload()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__replace_existing()`
+	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__strip_legacy_block()`
 	# @used-by :meth:`Df.Harness.Research.MarkdownHeadingParser.MarkdownHeadingParser.__extract_frontmatter()`
 	# @used-by :meth:`Df.Harness.Text.CodeBlockLinter.CodeBlockLinter.__check_output()`
 	# @used-by :meth:`Df.Harness.Text.ProseLinter.ProseLinter.__check_sentence_limits()`

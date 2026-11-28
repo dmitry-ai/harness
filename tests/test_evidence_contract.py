@@ -57,6 +57,7 @@ def claim_metadata(ident, *, knowledge_type='observation', status='verified'):
 # @used-by :meth:`test_text_workflow.TextClaimRevisionTests.dependent_registry()`
 # @used-by :meth:`test_text_workflow.TextMapTests.test_limited_claim_rejects_lazy_conditional_qualification()`
 # @used-by :meth:`test_text_workflow.TextWorkspaceCase.registry()`
+# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.__make_project()`
 # @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.__make_legacy_v2_upwork()`
 def v3_analysis(project, legacy=None):
 	observation = collect(project, 'https://example.org/source', fetcher=lambda *args: Response(args[0], 200, 'text/plain', b'The concern\nAlternative\nOld price EUR53.95\nNew price EUR63.95\n'))

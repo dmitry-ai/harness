@@ -38,33 +38,38 @@ class RedFlagTests(TemporaryCase):
 		# https://github.com/dmitry-ai/harness/issues/10
 		self.value = v3_analysis(self.root, self.value)
 		self.source = self.put('ꘖ/KB/Analysis.json', json.dumps(self.value, ensure_ascii=False))
+	# 2026-11-28 "Switch root .md to bare URLs and structured Red Flags headings": https://github.com/dmitry-ai/harness/issues/417
 	# @used-by :mod:`unittest`
 	def test_both_risks_precede_technical_analysis_and_are_duplicated_in_card(self):
 		result = publish_analysis(self.source)
 		self.assertEqual(result['status'], 'published')
 		report = self.source.with_suffix('.md').read_text(encoding='utf-8')
 		card = self.card.read_text(encoding='utf-8-sig')
-		for text in (report, card):
-			self.assertLess(text.index('Red Flags'), text.index('H-IDENTITY-CLIENT'))
-			self.assertIn('Both Red Flags simultaneously', text)
-			self.assertIn('Client is an intermediary', text)
-			self.assertIn('Target website is unidentified', text)
+		self.assertLess(report.index('Red Flags'), report.index('H-IDENTITY-CLIENT'))
+		self.assertIn('Both Red Flags simultaneously', report)
+		self.assertIn('## Client is an intermediary', report)
+		self.assertIn('## Target website is unidentified', report)
+		self.assertLess(card.index('Red Flags'), card.index('H-IDENTITY-CLIENT'))
+		self.assertIn('\u041e\u0431\u0430 Red Flags \u043e\u0434\u043d\u043e\u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e', card)
+		self.assertIn('## \u041f\u043e\u0441\u0440\u0435\u0434\u043d\u0438\u043a', card)
+		self.assertIn('## \u0421\u0430\u0439\u0442 \u043d\u0435 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d', card)
 		self.assertLess(report.index('Red Flags'), report.index('# 1.'))
 		self.assertGreater(card.index('# Red Flags'), card.index('# Notes'))
-		self.assertLess(card.index('# Red Flags'), card.index(START.decode()))
+		self.assertNotIn(START.decode(), card)
 		self.assertNotIn('## Red Flags', card)
 		self.assertIn('ꘖ/KB/Analysis.json#/identity/1', card)
 		self.assertIn('#h-site-1', report)
 		updated = self.card.read_bytes()
 		self.assertTrue(updated.startswith(self.original))
-		self.assertTrue(updated.rstrip().endswith(END))
+		self.assertNotIn(END, updated)
 	# @used-by :mod:`unittest`
 	def test_each_risk_can_be_shown_alone_without_combination_warning(self):
 		for flag in self.value['red_flags']:
 			value = deepcopy(self.value)
 			value['red_flags'] = [flag]
 			report = render_analysis(value)
-			self.assertIn('Red Flags — 1', report)
+			self.assertIn('# Red Flags\n', report)
+			self.assertNotIn('Red Flags \u2014', report)
 			self.assertNotIn('Both Red Flags simultaneously', report)
 	# @used-by :mod:`unittest`
 	def test_suspected_intermediary_is_not_reported_as_confirmed(self):
@@ -79,15 +84,16 @@ class RedFlagTests(TemporaryCase):
 		self.assertNotIn('Red Flags', render_analysis(self.value))
 		self.assertEqual(sync_project_red_flags(self.root, self.value)['status'], 'unchanged')
 		self.assertEqual(self.card.read_bytes(), self.original)
+	# 2026-11-28 "Switch root .md to bare URLs and structured Red Flags headings": https://github.com/dmitry-ai/harness/issues/417
 	# @used-by :mod:`unittest`
 	def test_repeated_render_preserves_new_user_notes_and_does_not_duplicate_block(self):
 		publish_analysis(self.source)
 		self.card.write_bytes(self.card.read_bytes() + b'Another note.\r\n')
 		result = publish_analysis(self.source)
 		self.assertEqual(result['project_card']['status'], 'published')
-		self.assertEqual(self.card.read_bytes().count(START), 1)
+		self.assertEqual(self.card.read_bytes().count(b'# Red Flags'), 1)
 		self.assertTrue(self.card.read_bytes().startswith(self.original + b'Another note.\r\n'))
-		self.assertTrue(self.card.read_bytes().rstrip().endswith(END))
+		self.assertNotIn(END, self.card.read_bytes())
 		previous = self.card.read_bytes()
 		self.assertEqual(publish_analysis(self.source)['project_card']['status'], 'unchanged')
 		self.assertEqual(self.card.read_bytes(), previous)
@@ -103,9 +109,9 @@ class RedFlagTests(TemporaryCase):
 		self.assertEqual(sync_project_red_flags(self.root, self.value)['status'], 'published')
 		updated = self.card.read_bytes()
 		self.assertTrue(updated.startswith(self.original))
-		self.assertTrue(updated.rstrip().endswith(END))
+		self.assertNotIn(START, updated)
+		self.assertNotIn(END, updated)
 		self.assertEqual(updated.count('# Red Flags'.encode()), 1)
-		self.assertLess(updated.index('# Red Flags'.encode()), updated.index(START))
 		self.assertEqual(sync_project_red_flags(self.root, self.value)['status'], 'unchanged')
 	# @used-by :mod:`unittest`
 	def test_append_and_remove_preserve_newlines_bom_and_empty_cards(self):
@@ -115,7 +121,8 @@ class RedFlagTests(TemporaryCase):
 				sync_project_red_flags(self.root, self.value)
 				self.assertTrue(self.card.read_bytes().startswith(original))
 				newline = b'\r\n' if b'\r\n' in original else b'\n'
-				self.assertTrue(self.card.read_bytes().endswith(END + newline))
+				self.assertTrue(self.card.read_bytes().endswith(newline))
+				self.assertIn(b'# Red Flags' + newline, self.card.read_bytes())
 				sync_project_red_flags(self.root, {**self.value, 'red_flags': []})
 				self.assertEqual(self.card.read_bytes(), original)
 	# @used-by :mod:`unittest`
@@ -132,8 +139,9 @@ class RedFlagTests(TemporaryCase):
 		self.source.write_text(json.dumps(self.value), encoding='utf-8')
 		publish_analysis(self.source)
 		card = self.card.read_text(encoding='utf-8-sig')
-		self.assertNotIn('Both Red Flags simultaneously', card)
-		self.assertNotIn('Target website is unidentified', card)
+		# 2026-11-28 "Switch root .md to bare URLs and structured Red Flags headings": https://github.com/dmitry-ai/harness/issues/417
+		self.assertNotIn('\u041e\u0431\u0430 Red Flags \u043e\u0434\u043d\u043e\u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e', card)
+		self.assertNotIn('## \u0421\u0430\u0439\u0442 \u043d\u0435 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d', card)
 		self.value['red_flags'] = []
 		self.source.write_text(json.dumps(self.value), encoding='utf-8')
 		publish_analysis(self.source)
@@ -155,7 +163,8 @@ class RedFlagTests(TemporaryCase):
 		changed = self.card.read_bytes()
 		self.assertEqual(sync_project_red_flags(self.root, self.value)['status'], 'conflict')
 		self.assertEqual(self.card.read_bytes(), changed)
-		self.card.write_bytes(changed.replace(END, b''))
+		# 2026-11-28 "Switch root .md to bare URLs and structured Red Flags headings": https://github.com/dmitry-ai/harness/issues/417
+		self.card.write_bytes(self.original + b'\n' + START + b'\nBroken legacy\n')
 		malformed = self.card.read_bytes()
 		self.assertEqual(sync_project_red_flags(self.root, self.value)['status'], 'conflict')
 		self.assertEqual(self.card.read_bytes(), malformed)

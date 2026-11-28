@@ -53,7 +53,6 @@ class ShellSegmenter:
 	# @used-by :meth:`Df.Harness.Analysis.ObservationBundleLoader.ObservationBundleLoader.__inspect_resp_bin()`
 	# @used-by :meth:`Df.Harness.Analysis.ObservationContentLoader.ObservationContentLoader.load()`
 	# @used-by :meth:`Df.Harness.Analysis.ObservationProber.ObservationProber.probe()`
-	# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__build_block()`
 	# @used-by :meth:`Df.Harness.Analysis.SavedQuoteVerifier.SavedQuoteVerifier.__contains()`
 	# @used-by :meth:`Df.Harness.Analysis.Validator.Validator.__check_legacy_argument()`
 	# @used-by :meth:`Df.Harness.Arch.Catalog.Catalog.__candidate_pattern_keys()`

@@ -81,6 +81,7 @@ def journal_data_dir_for(eff: Path) -> Path:
 # @used-by :meth:`Df.Harness.Project.RegistrationStore.RegistrationStore.save()`
 # @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__sync_antigravity_native_files()`
 # @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.update_projects_index()`
+# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__sync_bare_urls()`
 # @used-by :meth:`Df.Harness.Research.Collector.Collector.__persist_fresh()`
 # @used-by :meth:`Df.Harness.Research.Collector.Collector.collect()`
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.record_exemption()`
@@ -150,6 +151,7 @@ def read_addressed_json(path: Path, *, suffix: str='', stem_match: bool=False, e
 # @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.__update_project_json()`
 # @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.rewrite()`
 # @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.rewrite_launcher_handoffs()`
+# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__write_render_files()`
 # @used-by :meth:`Df.Harness.Research.Collector.Collector.__persist_fresh()`
 # @used-by :meth:`Df.Harness.Research.Extractor.Extractor.__write_cached()`
 # @used-by :meth:`Df.Harness.Review.MerkleCacheUpdater.MerkleCacheUpdater.update()`

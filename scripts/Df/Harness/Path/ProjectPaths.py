@@ -232,6 +232,7 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.migrate_journal_state()`
 	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.refresh_workflow_file_hash()`
 	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.rewrite()`
+	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__sync_bare_urls()`
 	# @used-by :meth:`Df.Harness.Research.Collector.Collector.__persist_fresh()`
 	# @used-by :meth:`Df.Harness.Research.Collector.Collector.collect()`
 	# @used-by :meth:`Df.Harness.TestRunner.WorkerSemaphore.WorkerSemaphore.default_slots_dir()`
@@ -266,6 +267,8 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.validate()`
 	# @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.verify_snapshot()`
 	# @used-by :meth:`Df.Harness.Project.KbPopulator.KbPopulator.populate()`
+	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__collect_selected()`
+	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync_initial()`
 	# @used-by :meth:`Df.Harness.Research.Collector.Collector.__persist_fresh()`
 	# @used-by :meth:`Df.Harness.Research.EvidenceQuerier.EvidenceQuerier.__collect_obs_files()`
 	# @used-by :meth:`Df.Harness.Research.Extractor.Extractor.extract_file()`
@@ -480,6 +483,8 @@ class ProjectPaths:
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_project_overlay_dag_cascades_and_remains_isolated_per_project()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_transitive_escapes_literal_dollar_in_env_and_relative_slot_anchoring()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_v2_filesystem_auto_detection_journals_context_provenance_and_migration()`
+	# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.__make_project()`
+	# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.test_sync_initial_hypothesis_writes_bare_url_and_no_markers()`
 	# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_custom_registry_without_v2_upwork_falls_back_to_v2()`
 	# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_legacy_v2_readme_fallback_works_across_card_consumers()`
 	# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_profile_routing_separates_upwork_and_standalone_v2_repos()`
@@ -709,6 +714,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_turn_begin_status_and_auditors`
 	# @used-by :mod:`test_turn_completion`
 	# @used-by :mod:`test_turn_routing_and_handoff_m6`
+	# @used-by :mod:`test_upwork_card_and_red_flags`
 	# @used-by :mod:`test_upwork_data`
 	# @used-by :mod:`test_upwork_init_e2e`
 	# @used-by :mod:`test_upwork_v2_root_card`
@@ -798,8 +804,6 @@ class ProjectPaths:
 	# @used-by :meth:`Df.Harness.Project.Intake.ReceiptBuilder.ReceiptBuilder.build()`
 	# @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.validate()`
 	# @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.verify_snapshot()`
-	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__sync_selected()`
-	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync_initial()`
 	# @used-by :meth:`Df.Harness.Upwork.ProjectConfigurator.ProjectConfigurator.default_context_config()`
 	def rel_to_root(self, target: str | Path) -> str:
 		p = Path(target).resolve()
@@ -807,6 +811,7 @@ class ProjectPaths:
 	# @used-by :func:`Df.Harness.lib.cli_domain_ops.dfh_execute_collect()`
 	# @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.publish()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.sync()`
+	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__sync_bare_urls()`
 	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.sync()`
 	@property
 	def rendered_json(self) -> Path:

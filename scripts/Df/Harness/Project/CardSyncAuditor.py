@@ -11,6 +11,7 @@ class CardSyncAuditor:
 	# @used-by :func:`agent_tools.project_drift.analysis_card_sync_issues()`
 	# @used-by :meth:`Df.Harness.Workflow.AnalysisCardAuditor.AnalysisCardAuditor.issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_drift_red_flags_and_card_sync_classes()`
+	# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.test_bare_url_website_sync_and_legacy_migration()`
 	# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_legacy_v2_readme_fallback_works_across_card_consumers()`
 	def __init__(self, pp, value: dict, *, drift_fn=None) -> None:
 		self.__pp = pp
@@ -32,6 +33,7 @@ class CardSyncAuditor:
 	# @used-by :func:`agent_tools.project_drift.analysis_card_sync_issues()`
 	# @used-by :meth:`Df.Harness.Workflow.AnalysisCardAuditor.AnalysisCardAuditor.issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2a.DfHarnessS11Wave2aTests.test_drift_red_flags_and_card_sync_classes()`
+	# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.test_bare_url_website_sync_and_legacy_migration()`
 	# @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_legacy_v2_readme_fallback_works_across_card_consumers()`
 	def audit(self) -> list[dict]:
 		from Df.Harness.Project.WebsiteCardSyncer import WebsiteCardSyncer

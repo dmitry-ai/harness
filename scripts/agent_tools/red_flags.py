@@ -18,6 +18,7 @@ def render_red_flags(value, *, project_card=False, analysis_rel='\ua616/KB/Analy
 # @used-by :meth:`test_red_flags.RedFlagTests.test_manual_warning_edits_and_malformed_markers_are_preserved_as_conflicts()`
 # @used-by :meth:`test_red_flags.RedFlagTests.test_no_flags_does_not_create_warning_or_change_original_card()`
 # @used-by :meth:`test_red_flags.RedFlagTests.test_unknown_duplicate_and_unsupported_basis_cannot_be_published()`
+# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.test_markerless_red_flags_dual_surface_and_legacy_migration()`
 # @used-by :meth:`test_upwork_v2_root_card.UpworkV2RootCardTests.test_legacy_v2_readme_fallback_works_across_card_consumers()`
 # @used-by :mod:`agent_tools.red_flags`
 def sync_project_red_flags(root, value):

@@ -272,12 +272,13 @@ class Workspace:
 	# @used-by :func:`Df.Harness.lib.text_workflow.dfh_gate_paths()`
 	# @used-by :func:`agent_tools.git_ignore.merge_managed_git_ignore()`
 	# @used-by :func:`agent_tools.text_workflow._index()`
-	# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__extract_body()`
+	# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__extract_legacy()`
 	# @used-by :meth:`Df.Harness.Git.CommitArgsParser.CommitArgsParser.__parse_flag_bundle()`
 	# @used-by :meth:`Df.Harness.Git.GlobalIgnoreSyncer.GlobalIgnoreSyncer.__merge_block()`
 	# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.__finalize_ag_info()`
 	# @used-by :meth:`Df.Harness.Meta.TranscriptReader.TranscriptReader.extract_codex_info()`
 	# @used-by :meth:`Df.Harness.Project.CardSyncer.CardSyncer.__replace_existing()`
+	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__strip_legacy_block()`
 	# @used-by :meth:`Df.Harness.Text.CodeBlockLinter.CodeBlockLinter.__check_output()`
 	# @used-by :meth:`Df.Harness.Text.WorkspaceScopeChecker.WorkspaceScopeChecker.__permitted_sections()`
 	# @used-by :meth:`Df.Harness.Upwork.LoomVideoExtractor.LoomVideoExtractor.__parse_vtt_block()`
@@ -291,9 +292,7 @@ class Workspace:
 	# @used-by :meth:`test_arch_audit_gates.ArchAuditGatesTests.test_arch_audit_gate_priority_manifest_and_lazy_export()`
 	# @used-by :meth:`test_df_qa.TestDfQa.test_dump_and_dumper()`
 	# @used-by :meth:`test_gate_registry.GateRegistryTests.test_builtin_pre_tool_gates_discovered_in_strict_priority_order()`
-	# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_website_and_red_flags_have_stable_order_and_preserve_manual_edits()`
 	# @used-by :meth:`test_red_flags.RedFlagTests.test_both_risks_precede_technical_analysis_and_are_duplicated_in_card()`
-	# @used-by :meth:`test_red_flags.RedFlagTests.test_legacy_top_block_moves_to_final_first_level_section_without_losing_text()`
 	# @used-by :meth:`test_resume_exports.ResumeExportTests.test_multiple_exact_requests_share_one_answer_and_adoption_does_not_duplicate()`
 	# @used-by :meth:`test_text_browser.TextBrowserTests.test_read_only_cdp_expressions_live_headless_shell_contract()`
 	# @used-by :meth:`test_text_core.ArticleIntegrityTests.test_mixed_anchor_style_follows_keys_when_renumbering()`

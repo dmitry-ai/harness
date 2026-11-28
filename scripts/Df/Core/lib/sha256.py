@@ -21,7 +21,8 @@ import hashlib
 # @used-by :meth:`Df.Harness.Analysis.Merger.Merger.save()`
 # @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.__commit_locked()`
 # @used-by :meth:`Df.Harness.Analysis.OwnedPublisher.OwnedPublisher.__write_new()`
-# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__extract_body()`
+# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__extract_legacy()`
+# @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__slice_heading_match()`
 # @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__sync_locked()`
 # @used-by :meth:`Df.Harness.Analysis.RedFlagSyncer.RedFlagSyncer.__write_card()`
 # @used-by :meth:`Df.Harness.Analysis.SavedSourceLoader.SavedSourceLoader.__load_local()`
@@ -48,7 +49,9 @@ import hashlib
 # @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.__verify_permanent_assets()`
 # @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.validate()`
 # @used-by :meth:`Df.Harness.Project.Intake.ReceiptValidator.ReceiptValidator.verify_snapshot()`
-# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__render_selected()`
+# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__collect_selected()`
+# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__commit_result()`
+# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__strip_legacy_block()`
 # @used-by :meth:`Df.Harness.Review.ApprovalChecker.ApprovalChecker.__verify_package()`
 # @used-by :meth:`Df.Harness.Review.ClaimMerkleHasher.ClaimMerkleHasher.compute_hash()`
 # @used-by :meth:`Df.Harness.Review.Classifier.Classifier.__resolve_claim()`

@@ -105,6 +105,7 @@ class PageDecoder:
 	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__sync_antigravity_native_files()`
 	# @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.update_projects_index()`
 	# @used-by :meth:`Df.Harness.Project.Rename.StateRewriter.StateRewriter.__update_project_json()`
+	# @used-by :meth:`Df.Harness.Project.WebsiteCardSyncer.WebsiteCardSyncer.__read_render_state()`
 	# @used-by :meth:`Df.Harness.Research.NetworkLinkChecker.NetworkLinkChecker.fetch_page()`
 	# @used-by :meth:`Df.Harness.Review.PackageReader.PackageReader.__validate_current()`
 	# @used-by :meth:`Df.Harness.Review.VerdictPreparer.VerdictPreparer.__load_and_check()`
@@ -134,7 +135,6 @@ class PageDecoder:
 	# @used-by :meth:`test_java_xref.JavaXrefTests.test_java_see_override_edges_unused_and_lf_sync()`
 	# @used-by :meth:`test_metadata_rules_contract.MetadataRulesAndDocsContractTests.test_rules_skill_and_docs_codify_json_metadata_headers_and_pass_lint()`
 	# @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
-	# @used-by :meth:`test_publication_lifecycle.PublicationLifecycleTests.test_explicit_website_is_published_and_reused_without_overwriting_card_or_metadata()`
 	# @used-by :meth:`test_red_flags.RedFlagTests.test_both_risks_precede_technical_analysis_and_are_duplicated_in_card()`
 	# @used-by :meth:`test_review_contract.ReviewContractTests.test_merkle_cached_single_reviewer_quorum_recognizes_approved_digests_and_storage_receipts()`
 	# @used-by :meth:`test_scatter_banner_gate.ScatterBannerGateTests.test_rules_and_skill_codify_file6_banner_and_pass_lint()`
@@ -144,6 +144,7 @@ class PageDecoder:
 	# @used-by :meth:`test_source_admission.SourceAdmissionTests.test_source_check_cli_preserves_success_and_failed_receipts_with_exit_codes()`
 	# @used-by :meth:`test_tdd_pre_tool_use.TddPreToolUseGateTests.test_cli_subprocess_smoke()`
 	# @used-by :meth:`test_tdd_rules_contract.TddRulesAndDocumentationContractTests.test_rules_and_docs_codify_tdd_contract_and_pass_lint_checks()`
+	# @used-by :meth:`test_upwork_card_and_red_flags.UpworkCardAndRedFlagsTests.test_markerless_red_flags_dual_surface_and_legacy_migration()`
 	def decode(self) -> dict:
 		if not isinstance(self.__page, dict):
 			raise ValueError('Browser page state is unavailable')
