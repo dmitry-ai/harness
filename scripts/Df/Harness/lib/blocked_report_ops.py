@@ -72,6 +72,7 @@ def _has_substantive_hm(kb_scan: dict, turn_obj: dict, value_obj: dict, response
 # 2026-11-28 "Implement hierarchical mixed-turn DOC-5 parser and problem-issue specification": https://github.com/dmitry-ai/harness/issues/428
 # @used-by :func:`dfh_blocked_report_issues()`
 # @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_blocked_report_and_workflow_sync_ops()`
+# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_cli_description_exclusion_blocker_detection_and_lazy_answer_gate()`
 def _is_doc5_blocker_analysis(response: str) -> bool:
 	from Df.Harness.Grounding.HeadingTreeParser import HeadingTreeParser
 	from Df.Harness.Grounding.MixedTurnProblemSchema import MixedTurnProblemSchema

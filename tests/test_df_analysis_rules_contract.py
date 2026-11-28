@@ -39,6 +39,9 @@ class DfAnalysisRulesAndSkillContractTests(unittest.TestCase):
 		self.assertEqual([], check_markdown_slop.markdown_slop_issues(skill_text))
 		for token in ('no single unambiguous solution', 'problem-metadata', 'analysis-check', '# 0', '# 1', '# 2', '# 3', '# 4', 'Issue', 'verbatim', 'Harness'):
 			self.assertIn(token, skill_text, f'Missing token {token!r} in skills/df-analysis/SKILL.md')
+		# 2026-11-28 "Build ProblemReportFixtureBuilder and full positive/negative regression matrix": https://github.com/dmitry-ai/harness/issues/431
+		for token in ('Новые проблемы', '### 1.1', '### 1.6', '## 0', 'unparented', 'open'):
+			self.assertIn(token, skill_text, f'Missing hierarchical governance token {token!r} in skills/df-analysis/SKILL.md')
 	# @used-by :mod:`unittest`
 	def test_rules_adapters_and_docs_codify_df_analysis_and_pass_lint(self) -> None:
 		stmt_rule = WT_ROOT / 'rules/04-statement-structure.md'
@@ -57,6 +60,9 @@ class DfAnalysisRulesAndSkillContractTests(unittest.TestCase):
 		stmt_text = stmt_bytes.decode('utf-8')
 		for token in ('no single unambiguous solution', '## DOC-5', 'df-analysis', 'problem-metadata', 'Issue', 'Markdown tables'):
 			self.assertIn(token, stmt_text, f'Missing term {token!r} in rules/04-statement-structure.md')
+		# 2026-11-28 "Build ProblemReportFixtureBuilder and full positive/negative regression matrix": https://github.com/dmitry-ai/harness/issues/431
+		for token in ('Новые проблемы', '## 0', 'open'):
+			self.assertIn(token, stmt_text, f'Missing hierarchical governance term {token!r} in rules/04-statement-structure.md')
 		link_text = link_rule.read_text(encoding='utf-8')
 		self.assertIn('anchor_exception', link_text)
 		self.assertIn('omitting an `#anchor`', link_text)

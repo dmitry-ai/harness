@@ -20,6 +20,7 @@ _SLOT_PATTERNS = (
 # @used-by :meth:`Df.Harness.Grounding.Doc5ContextDetector.Doc5ContextDetector.detect()`
 class MixedTurnProblemSchema:
 	# @used-by :meth:`Df.Harness.Grounding.DfAnalysisValidator.DfAnalysisValidator.__dispatch_mode()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_schema_edge_cases_and_tempdir_isolation()`
 	def __init__(self, roots: list[HeadingNode]) -> None:
 		self.__roots = roots
 	# @used-by :meth:`MixedTurnProblemSchema.__extract_problem()`
@@ -78,6 +79,7 @@ class MixedTurnProblemSchema:
 	def has_mixed_sections(roots: list[HeadingNode]) -> bool:
 		return any((1 == n.level and bool(_PART2_RE.match(n.title)) for n in roots))
 	# @used-by :meth:`Df.Harness.Grounding.DfAnalysisValidator.DfAnalysisValidator.__dispatch_mode()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_schema_edge_cases_and_tempdir_isolation()`
 	def extract(self) -> dict:
 		errs: list[str] = []
 		blocks: list[dict] = []

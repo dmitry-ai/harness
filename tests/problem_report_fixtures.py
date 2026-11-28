@@ -7,6 +7,8 @@ import json
 # @used-by :mod:`test_problem_report_governance`
 class ProblemReportFixtureBuilder:
 	# @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_and_cli_reject_unverified_closed_child_and_foreign_issues()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_cli_description_exclusion_blocker_detection_and_lazy_answer_gate()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_schema_edge_cases_and_tempdir_isolation()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_turn_hierarchical_schema_accepts_valid_and_rejects_flat_or_missing_sections()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_issue_specification_rejects_duplicate_closed_child_unverified_null_and_foreign_issues()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_report_evaluator_answer_gates_preparer_and_stop_gate_pipeline()`
@@ -36,6 +38,8 @@ class ProblemReportFixtureBuilder:
 		code_dir = self.__proj / '\u2c0f/\u227b/\u2655/\u26ef'
 		clone_template_git_repo(code_dir, remote_url=f'https://github.com/{self.__repo}.git')
 	# @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_and_cli_reject_unverified_closed_child_and_foreign_issues()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_cli_description_exclusion_blocker_detection_and_lazy_answer_gate()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_schema_edge_cases_and_tempdir_isolation()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_turn_hierarchical_schema_accepts_valid_and_rejects_flat_or_missing_sections()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_issue_specification_rejects_duplicate_closed_child_unverified_null_and_foreign_issues()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_report_evaluator_answer_gates_preparer_and_stop_gate_pipeline()`
@@ -51,6 +55,8 @@ class ProblemReportFixtureBuilder:
 			self.__issue_actions.append({'action': action, 'repo': self.__repo, 'number': num, 'url': url, 'state': state, 'parent_number': parent_number, 'step': step})
 		return self
 	# @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_and_cli_reject_unverified_closed_child_and_foreign_issues()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_cli_description_exclusion_blocker_detection_and_lazy_answer_gate()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_schema_edge_cases_and_tempdir_isolation()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_turn_hierarchical_schema_accepts_valid_and_rejects_flat_or_missing_sections()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_issue_specification_rejects_duplicate_closed_child_unverified_null_and_foreign_issues()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_report_evaluator_answer_gates_preparer_and_stop_gate_pipeline()`
@@ -73,6 +79,8 @@ class ProblemReportFixtureBuilder:
 		assert state_file.is_file(), f'Turn state missing: {state_file}'
 		turn = {'turn_id': f'ag-{self.__cid}-0', 'start_step': 0, 'requests': reqs, 'owned': True, 'completed': False, 'aborted': False, 'touched_files': list(touched_files or ()), 'issue_actions': list(self.__issue_actions), 'exec5_violations': [], 'http_fetch_violations': [], 'issue_first_events': [], 'tdd_events': [], 'compaction': {}, 'delegation': {}, **({'hook_crashes': list(hook_crashes)} if None is not hook_crashes else {})}
 		return {'root': self.__proj, 'repo': self.__repo, 'cid': self.__cid, 'turn_key': self.__turn_key, 'turn': turn, 'turn_state': turn_state, 'requests': reqs}
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_cli_description_exclusion_blocker_detection_and_lazy_answer_gate()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_schema_edge_cases_and_tempdir_isolation()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_turn_hierarchical_schema_accepts_valid_and_rejects_flat_or_missing_sections()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_issue_specification_rejects_duplicate_closed_child_unverified_null_and_foreign_issues()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_report_evaluator_answer_gates_preparer_and_stop_gate_pipeline()`
@@ -105,6 +113,8 @@ class ProblemReportFixtureBuilder:
 				f'### {idx}.6. Рекомендуемый план устранения', '', f'Реализовать `M-{idx}-1` отдельной задачей по открытому родительскому issue и подтвердить тестами.  ', '',
 			])
 		return '\n'.join(lines)
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_cli_description_exclusion_blocker_detection_and_lazy_answer_gate()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_schema_edge_cases_and_tempdir_isolation()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_standalone_four_track_accepts_nested_and_rejects_flat_h1_and_allows_user_requested_open_issue()`
 	def standalone_four_track_markdown(self, issue_urls: tuple[str | None, str | None, str | None, str | None], *, src_link: str='https://example.com/log#line1', flat_h1: bool=False) -> str:
 		sec_prefix = '#' if flat_h1 else '##'
@@ -131,6 +141,8 @@ class ProblemReportFixtureBuilder:
 			)
 		return '\n---\n\n'.join(parts)
 	# @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_and_cli_reject_unverified_closed_child_and_foreign_issues()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_cli_description_exclusion_blocker_detection_and_lazy_answer_gate()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_schema_edge_cases_and_tempdir_isolation()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_turn_hierarchical_schema_accepts_valid_and_rejects_flat_or_missing_sections()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_issue_specification_rejects_duplicate_closed_child_unverified_null_and_foreign_issues()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_report_evaluator_answer_gates_preparer_and_stop_gate_pipeline()`

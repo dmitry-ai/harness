@@ -8,6 +8,9 @@ SCRIPTS = WT_ROOT / 'scripts'
 if str(SCRIPTS) not in sys.path:
 	sys.path.insert(0, str(SCRIPTS))
 # 2026-11-26 "Add blocking architecture audit gates with module-hash caching": https://github.com/dmitry-ai/harness/issues/363
+# 2026-11-28
+# "Build ProblemReportFixtureBuilder and hierarchical DOC-5 regression test matrix":
+# https://github.com/dmitry-ai/harness/issues/431
 # @used-by :meth:`ArchSpecAndTriggersTests.test_answer_gates_enforce_architecture_pattern_specs()`
 def _base_answer_ctx() -> dict:
 	return {
@@ -16,6 +19,7 @@ def _base_answer_ctx() -> dict:
 		'doc4_errs': [],
 		'link_errs': [],
 		'prob_errs': [],
+		'problem_report_chk': {'verified': True, 'violations': []},
 		'source_errs': [],
 		'lang_errs': [],
 		'exec5_chk': {'verified': True, 'violations': []},

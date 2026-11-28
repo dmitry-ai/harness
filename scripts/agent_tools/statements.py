@@ -42,6 +42,7 @@ def markdown_table_issues(text: str) -> list[str]:
 # @used-by :meth:`test_df_analysis_companion_tracks.DfAnalysisCompanionTracksTests.test_general_mode_and_non_problem_responses_unaffected()`
 # @used-by :meth:`test_df_analysis_companion_tracks.DfAnalysisCompanionTracksTests.test_scatter_banner_enforced_in_earlier_problem_blocks()`
 # @used-by :meth:`test_df_analysis_companion_tracks.DfAnalysisCompanionTracksTests.test_single_problem_block_rejected_when_companion_tracks_missing()`
+# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_schema_edge_cases_and_tempdir_isolation()`
 # @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_turn_hierarchical_schema_accepts_valid_and_rejects_flat_or_missing_sections()`
 # @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_issue_specification_rejects_duplicate_closed_child_unverified_null_and_foreign_issues()`
 # @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_standalone_four_track_accepts_nested_and_rejects_flat_h1_and_allows_user_requested_open_issue()`

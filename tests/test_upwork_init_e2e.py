@@ -167,42 +167,39 @@ def _complete_pre_review_stages(env: dict[str, str], proj: Path) -> None:
 	_run_cli(env, 'save-analysis', str(proj), '--candidate', str(cand), '--consume-input', cwd=proj)
 	_run_cli(env, 'render-analysis', str(proj / '\ua616/KB/Analysis.json'), '--output', str(proj / '\ua616/KB/Analysis.md'), cwd=proj)
 	_run_cli(env, 'stage', str(proj), 'analysis', '--input', '\ua616/project.json', '--output', '\ua616/KB/Analysis.json', '--output', '\ua616/KB/Analysis.md', cwd=proj)
+# 2026-11-28
+# "Build ProblemReportFixtureBuilder and hierarchical DOC-5 regression test matrix":
+# https://github.com/dmitry-ai/harness/issues/431
 # @used-by :meth:`UpworkInitFullE2ETests.test_e2e_blocked_report_doc5_and_shadowing_stop_gate_cli()`
 def _doc5_blocked_report(src_link: str) -> str:
 	return (
-		'# 0. Metadata\n\n'
-		'```json\n'
-		'{\n'
-		'\t"Time": "2026-11-25 18:00:00 UTC+3",\n'
-		'\t"Issue": "https://github.com/dmitry-ai/harness/issues/229",\n'
-		'\t"Project": {"Name": "Harness", "Path": "C:/work/research/provision/code/AI/harness"}\n'
-		'}\n'
-		'```\n\n'
-		'# 1. Problem\n\n'
+		'# Analysis 1: Upstream service outage\n\n## 0. Metadata\n\n'
+		'```json\n{"Time": "2026-11-25 18:00:00 UTC+3", "Issue": null, "Project": {"Name": "Harness", "Path": "C:/work/research/provision/code/AI/harness"}}\n```\n\n'
+		'## 1. Problem\n\n'
 		'Verbatim diagnostic error:  \n'
 		'```text\n'
 		'HTTP 503 Service Unavailable from upstream admin endpoint\n'
 		'```\n\n'
-		'# 2. Root Cause\n\n'
-		'## H-1: Upstream service outage\n'
+		'## 2. Root Cause\n\n'
+		'### H-1: Upstream service outage\n'
 		f'- Essence: The remote endpoint returned 503 ([continuation.md](<{src_link}>)).  \n'
 		'- Arguments for: Direct 503 diagnostic above.  \n'
 		'- Arguments against: Local network check not yet repeated.  \n'
 		'- Plausibility: 70% based on direct HTTP 503 status.  \n\n'
-		'## H-2: Local proxy misconfiguration\n'
+		'### H-2: Local proxy misconfiguration\n'
 		f'- Essence: A local proxy intercepted the request ([continuation.md](<{src_link}>)).  \n'
 		'- Arguments for: Proxy environment variables exist on host.  \n'
 		'- Arguments against: Other hosts respond with 200.  \n'
 		'- Plausibility: 25% based on host proxy configuration.  \n\n'
-		'# 3. Source Project\n\n'
+		'## 3. Source Project\n\n'
 		'Harness owns the retry and blocked-report lifecycle.  \n\n'
-		'# 4. Solutions\n\n'
-		'## M-1: Retry with bounded backoff\n'
+		'## 4. Solutions\n\n'
+		'### M-1: Retry with bounded backoff\n'
 		'- Essence: Retry the request once the upstream recovers.  \n'
 		'- Arguments for: Preserves exact automation flow.  \n'
 		'- Arguments against: Cannot succeed while outage persists.  \n'
 		'- Score: 85% for reliability.  \n\n'
-		'## M-2: Pause with blocked-report handoff\n'
+		'### M-2: Pause with blocked-report handoff\n'
 		'- Essence: Record continuation state and exit cleanly.  \n'
 		'- Arguments for: Avoids stalled turns and preserves audit trail.  \n'
 		'- Arguments against: Requires follow-up turn.  \n'
@@ -214,14 +211,14 @@ def _doc5_blocked_report(src_link: str) -> str:
 # @used-by :func:`_doc5_companion_blocks()`
 def _doc5_companion_block(header: str, tag: str, desc: str, src_link: str) -> str:
 	return (
-		f'\n---\n\n# {header}\n\n# 0. Metadata ({tag})\n\n'
+		f'\n---\n\n# {header}\n\n## 0. Metadata ({tag})\n\n'
 		'```json\n{"Time": "2026-11-25 18:01:00 UTC+3", "Issue": null, "Project": {"Name": "Harness", "Path": "C:/work/research/provision/code/AI/harness"}}\n```\n\n'
-		f'# 1. Problem ({tag})\n\n{desc}  \n\n# 2. Root Cause ({tag})\n\n'
-		f'## H-{tag}-1: Direct gap\n- Essence: Confirmed in [continuation.md](<{src_link}>).  \n- Arguments for: Observed directly.  \n- Arguments against: Minor noise.  \n- Plausibility: 85%.  \n\n'
-		f'## H-{tag}-2: Secondary factor\n- Essence: External timing in [continuation.md](<{src_link}>).  \n- Arguments for: Possible factor.  \n- Arguments against: Not primary.  \n- Plausibility: 20%.  \n\n'
-		f'# 3. Source Project ({tag})\n\nHarness owns this verification layer.  \n\n# 4. Solutions ({tag})\n\n'
-		f'## M-{tag}-1: Systemic check\n- Essence: Add automated check.  \n- Arguments for: Prevents recurrence.  \n- Arguments against: Small cost.  \n- Score: 90%.  \n\n'
-		f'## M-{tag}-2: Manual check\n- Essence: Verify manually.  \n- Arguments for: Fast setup.  \n- Arguments against: Unreliable.  \n- Score: 20%.  \n'
+		f'## 1. Problem ({tag})\n\n{desc}  \n\n## 2. Root Cause ({tag})\n\n'
+		f'### H-{tag}-1: Direct gap\n- Essence: Confirmed in [continuation.md](<{src_link}>).  \n- Arguments for: Observed directly.  \n- Arguments against: Minor noise.  \n- Plausibility: 85%.  \n\n'
+		f'### H-{tag}-2: Secondary factor\n- Essence: External timing in [continuation.md](<{src_link}>).  \n- Arguments for: Possible factor.  \n- Arguments against: Not primary.  \n- Plausibility: 20%.  \n\n'
+		f'## 3. Source Project ({tag})\n\nHarness owns this verification layer.  \n\n## 4. Solutions ({tag})\n\n'
+		f'### M-{tag}-1: Systemic check\n- Essence: Add automated check.  \n- Arguments for: Prevents recurrence.  \n- Arguments against: Small cost.  \n- Score: 90%.  \n\n'
+		f'### M-{tag}-2: Manual check\n- Essence: Verify manually.  \n- Arguments for: Fast setup.  \n- Arguments against: Unreliable.  \n- Score: 20%.  \n'
 	)
 # 2026-11-25
 # "Require separate companion /df-analysis tracks for every complex problem analysis":

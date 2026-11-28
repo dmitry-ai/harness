@@ -186,6 +186,7 @@ class ProblemIssueSpecification:
 	# @used-by :func:`Df.Harness.lib.hook_crash_ops.dfh_has_recorded_hook_issue()`
 	# @used-by :meth:`ProblemIssueSpecification.__check_evidence()`
 	# @used-by :meth:`ProblemIssueSpecification.is_valid_open_parent_issue()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_schema_edge_cases_and_tempdir_isolation()`
 	@classmethod
 	def find_evidence_files(cls, root: Path | str | None, repo_slug: str, issue_num: int) -> list[Path]:
 		ev_files: list[Path] = []

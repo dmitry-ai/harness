@@ -133,5 +133,56 @@ class ProblemReportGovernanceTests(unittest.TestCase):
 			plain_done = 'Implemented `M-1` fixing `C-1` in `app.py` and closed task issue https://github.com/dmitry-ai/harness/issues/502.  \n'
 			aud_plain = TurnAuditor(ctx['root'], closed_only_turn, closed_only_state, response=plain_done).audit()
 			self.assertFalse(any(('Diagnostic audit of dmitry-ai/harness' in v for v in aud_plain['violations'])), aud_plain['violations'])
+	# 2026-11-28 "Build ProblemReportFixtureBuilder and full positive/negative regression matrix": https://github.com/dmitry-ai/harness/issues/431
+	# @used-by :mod:`unittest`
+	def test_mixed_schema_edge_cases_and_tempdir_isolation(self) -> None:
+		from Df.Harness.Grounding.MixedTurnProblemSchema import MixedTurnProblemSchema
+		with tempfile.TemporaryDirectory() as td:
+			b: ProblemReportFixtureBuilder = ProblemReportFixtureBuilder(Path(td)).with_git_repo().add_issue(501)
+			ctx = b.build_workspace()
+			turn_ctx = {'root': ctx['root'], 'turn': ctx['turn'], 'turn_state': ctx['turn_state']}
+			self.assertEqual([], ProblemIssueSpecification.find_evidence_files(ctx['root'], 'dmitry-ai/harness', 406))
+			empty_p2 = '# \U0001d678. Что сделано\n\nГотово.  \n\n# \U0001d678\U0001d678. Новые проблемы\n\n### 1. Неверный уровень\n\n# \U0001d678\U0001d678. Новые проблемы\n'
+			errs_empty = statements.validate_df_analysis(empty_p2, requests=ctx['requests'], mode='auto', turn_context=turn_ctx)
+			self.assertTrue(any(('only one' in e for e in errs_empty)), errs_empty)
+			self.assertTrue(any(('level-2' in e for e in errs_empty)), errs_empty)
+			bad_sub_lvl = b.mixed_problem_markdown([{'issue': 'https://github.com/dmitry-ai/harness/issues/501'}]).replace('### 1.1. Метаданные', '#### 1.1. Метаданные')
+			errs_sub = statements.validate_df_analysis(bad_sub_lvl, requests=ctx['requests'], mode='auto', turn_context=turn_ctx)
+			self.assertTrue(any(('level-3' in e for e in errs_sub)), errs_sub)
+			short_slots = b.mixed_problem_markdown([{'issue': 'https://github.com/dmitry-ai/harness/issues/501'}]).replace('Дефект внесён в базовом модуле Harness (`dmitry-ai/harness`); действующие тесты и шлюз `answer-check` пропустили его, обхода Журнала `ꙮ` не зафиксировано.', 'Коротко.').replace('Реализовать `M-1-1` отдельной задачей по открытому родительскому issue и подтвердить тестами.', 'План.')
+			errs_short = statements.validate_df_analysis(short_slots, requests=ctx['requests'], mode='auto', turn_context=turn_ctx)
+			self.assertTrue(any(('1.4' in e for e in errs_short)), errs_short)
+			self.assertTrue(any(('1.6' in e for e in errs_short)), errs_short)
+			scatter_md = b.mixed_problem_markdown([{'issue': 'https://github.com/dmitry-ai/harness/issues/501', 'm1_extra': '- Вынести кэш в `%LOCALAPPDATA%/harness/tmp`.  \n'}])
+			self.assertTrue(any(('FILE-6' in e for e in statements.validate_df_analysis(scatter_md, requests=ctx['requests'], mode='auto', turn_context=turn_ctx))))
+			all_null = b.standalone_four_track_markdown((None, None, None, None), flat_h1=False)
+			self.assertTrue(any(('NULL_PROBLEM_ISSUE' in e for e in statements.validate_df_analysis(all_null, requests=ctx['requests'], mode='auto', turn_context=turn_ctx))))
+			bad_url = b.mixed_problem_markdown([{'issue': 'not-a-url'}])
+			self.assertTrue(any(('valid GitHub issue URL' in e for e in statements.validate_df_analysis(bad_url, requests=ctx['requests'], mode='auto', turn_context=turn_ctx))))
+			self.assertIsNotNone(MixedTurnProblemSchema([]).extract())
+	# @used-by :mod:`unittest`
+	def test_cli_description_exclusion_blocker_detection_and_lazy_answer_gate(self) -> None:
+		from Df.Harness.Gate.AnswerChecksGate import AnswerChecksGate
+		from Df.Harness.Grounding.CliCommandAuditor import CliCommandAuditor
+		from Df.Harness.Grounding.Doc5ReplayAuditor import Doc5ReplayAuditor
+		from Df.Harness.lib import blocked_report_ops as bro
+		with tempfile.TemporaryDirectory() as td:
+			b: ProblemReportFixtureBuilder = ProblemReportFixtureBuilder(Path(td)).with_git_repo().add_issue(501)
+			ctx = b.build_workspace()
+			desc_cmd = b.mixed_problem_markdown([{'issue': 'https://github.com/dmitry-ai/harness/issues/501', 'desc': 'Запуск `python harness.py rename-project --domain example.com` упал с ошибкой «exit status 1».'}])
+			self.assertEqual([], CliCommandAuditor(desc_cmd, turn=ctx['turn'], native=None).audit())
+			plan_cmd = desc_cmd + '\nВыполните `python harness.py rename-project --domain example.com` сейчас.  \n'
+			self.assertTrue(CliCommandAuditor(plan_cmd, turn=ctx['turn'], native=None).audit())
+			self.assertTrue(bro._is_doc5_blocker_analysis(desc_cmd))
+			self.assertTrue(bro._is_doc5_blocker_analysis(b.standalone_four_track_markdown((None, None, None, None), flat_h1=False)))
+			self.assertFalse(bro._is_doc5_blocker_analysis('Plain prose without metadata.'))
+			rf_mixed = ctx['root'] / 'mixed.md'
+			rf_mixed.write_text(desc_cmd, encoding='utf-8')
+			self.assertTrue(Doc5ReplayAuditor._Doc5ReplayAuditor__is_problem_response({'prepared': {'response_file': str(rf_mixed)}}))
+			bad_url = b.mixed_problem_markdown([{'issue': 'not-a-url'}])
+			lazy_ctx = {'role': 'primary', 'root': ctx['root'], 'turn': ctx['turn'], 'value': ctx['turn_state'], 'response': bad_url, 'doc4_errs': [], 'link_errs': [], 'prob_errs': [], 'source_errs': [], 'lang_errs': [], 'exec5_chk': {'verified': True}, 'http_chk': {'verified': True}, 'comp_chk': {'verified': True}, 'evicted_cited': [], 'del_chk': {'verified': True}, 'issue_first_chk': {'verified': True}, 'lifecycle_chk': {'verified': True}, 'tdd_chk': {'verified': True}, 'wf_errs': []}
+			gate_issues, gate_checks = AnswerChecksGate().run(lazy_ctx)
+			self.assertFalse(gate_checks['problem_report'])
+			self.assertTrue(any(('problem_report' == it['gate_id'] for it in gate_issues)), gate_issues)
 if '__main__' == __name__:
 	unittest.main()

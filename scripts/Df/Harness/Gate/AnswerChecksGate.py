@@ -149,6 +149,7 @@ class AnswerChecksGate:
 	)
 	# @used-by :func:`agent_tools.gates.answer_checks.run_answer_gates()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_pretool_classes_cover_all_guards()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_cli_description_exclusion_blocker_detection_and_lazy_answer_gate()`
 	# @uses :meth:`Df.Harness.Gate.AnswerChecksGate.AnswerChecksGate.__addon_observability_messages()`
 	# @uses :meth:`Df.Harness.Gate.AnswerChecksGate.AnswerChecksGate.__architecture_messages()`
 	# @uses :meth:`Df.Harness.Gate.AnswerChecksGate.AnswerChecksGate.__compaction_messages()`

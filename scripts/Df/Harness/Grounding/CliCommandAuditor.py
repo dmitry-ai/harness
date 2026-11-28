@@ -9,17 +9,20 @@ import re
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 _CLI_CMD_RE = re.compile(r'''(?:harness|upwork_project|df_github_issue)\.py["']?\s+([a-z][a-z0-9-]+)([^\r\n`\u00bb]*)''', re.IGNORECASE)
 _CONCRETE_TARGET_RE = re.compile(r'(?:[A-Za-z]:[/\\]|--domain\s+[A-Za-z0-9.-]+\.[A-Za-z]{2,}|--issue\s+\d+)')
-_DESC_SUB_RE = re.compile(r'(?i)^(?:\d+\.2\.?(?:\s|$)|1\.?(?:\s|$))')
+_DESC_TITLE_RE = re.compile(r'(?i)(?:\u043e\u043f\u0438\u0441\u0430\u043d|description|\u0441\u0438\u043c\u043f\u0442\u043e\u043c|symptom|problem|\u043f\u0440\u043e\u0431\u043b\u0435\u043c)')
 _DIAGNOSTIC_LINE_RE = re.compile(r'(?i)(?:exit=[1-9]|exited\s+with\s+code\s+[1-9]|traceback|valueerror|\bfailed\b|\u0443\u043f\u0430\u043b|\u043e\u0442\u043a\u0430\u0437\u0430\u043b)')
 _DISCLAIMER_RE = re.compile(r'(?i)(?:\u043d\u0435\s+\u043f\u0440\u043e\u0432\u0435\u0440\u0435\u043d\u043e|\u043d\u0435\s+\u0442\u0435\u0441\u0442\u0438\u0440\u043e\u0432\u0430\u043b|\u0431\u0435\u0437\s+\u043f\u0440\u043e\u0433\u043e\u043d\u0430|\u043d\u0435\s+\u0437\u0430\u043f\u0443\u0441\u043a\u0430\u043b|\u043d\u0435\s+\u043f\u0440\u043e\u0432\u0435\u0440\u044f\u043b|\bnot\s+tested\b|\buntested\b|\bnot\s+verified\s+on\s+a\s+live\b|\bwithout\s+running\b)')
 _DOMAIN_ARG_RE = re.compile(r'--domain\s+["\']?([A-Za-z0-9.-]+\.[A-Za-z]{2,})', re.IGNORECASE)
 _GUILLEMET_RE = re.compile(r'\u00ab[^\u00bb]*\u00bb')
+_MIXED_DESC_RE = re.compile(r'^\d+\.2\.?(?:\s|$)')
 _MUTATING_SUBCMDS = frozenset({'build-native', 'close', 'configure', 'create', 'edit', 'init', 'install-global', 'journal-sync', 'reconcile-unprepared-delivery', 'register', 'rename-project', 'render-analysis', 'repo-tag', 'repo-tag-retro', 'save-analysis', 'worktree-cleanup', 'worktree-land'})
 _PLACEHOLDER_RE = re.compile(r'<[^>\r\n]{1,40}>|\{[a-z_][a-z0-9_-]*\}', re.IGNORECASE)
+_SEC1_HEAD_RE = re.compile(r'^1\.?(?:\s|$)')
 class CliCommandAuditor:
 	# @used-by :func:`agent_tools.cli_command_grounding.unverified_cli_command_issues()`
 	# @used-by :meth:`CliCommandAuditor.response_turn_gate_issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_cli_command_and_doc5_requirement_auditors()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_cli_description_exclusion_blocker_detection_and_lazy_answer_gate()`
 	def __init__(self, response: str, *, turn: dict[str, Any] | None=None, native: dict[str, Any] | None=None) -> None:
 		self.__response = response
 		self.__turn = turn
@@ -52,13 +55,15 @@ class CliCommandAuditor:
 				r = True
 				break
 		return r
-	# 2026-11-28 "Implement hierarchical mixed-turn DOC-5 parser and problem-issue specification": https://github.com/dmitry-ai/harness/issues/428
+	# 2026-11-28 "Build ProblemReportFixtureBuilder and full positive/negative regression matrix": https://github.com/dmitry-ai/harness/issues/431
 	# @used-by :meth:`CliCommandAuditor.__extract_recommended()`
 	@classmethod
 	def __desc_line_set(cls, response: str) -> set[int]:
 		skip: set[int] = set()
 		for node in HeadingTreeParser.iter_all(HeadingTreeParser(response).parse()):
-			if 3 >= node.level and _DESC_SUB_RE.match(node.title):
+			is_mixed_desc = 3 == node.level and bool(_MIXED_DESC_RE.match(node.title))
+			is_sec1 = node.level in (1, 2) and (not node.children) and bool(_SEC1_HEAD_RE.match(node.title)) and (1 == node.level or bool(_DESC_TITLE_RE.search(node.title)) or '1' == node.title.strip().rstrip('.'))
+			if is_mixed_desc or is_sec1:
 				skip.update(range(node.line_no, node.line_no + cls.__subtree_span(node)))
 		return skip
 	# @used-by :meth:`CliCommandAuditor.audit()`
@@ -103,6 +108,7 @@ class CliCommandAuditor:
 		return 1 + len(node.body_lines) + sum((cls.__subtree_span(ch) for ch in node.children))
 	# @used-by :func:`agent_tools.cli_command_grounding.unverified_cli_command_issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_cli_command_and_doc5_requirement_auditors()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_cli_description_exclusion_blocker_detection_and_lazy_answer_gate()`
 	def audit(self) -> list[str]:
 		errs: list[str] = []
 		if None is not self.__turn and 'standalone' != self.__turn.get('turn_id') and (not _DISCLAIMER_RE.search(self.__response or '')):
