@@ -210,6 +210,7 @@ class Regex(O):
 	# @used-by :meth:`Df.Harness.Research.JsonCollectionSummarizer.JsonCollectionSummarizer.__collect_item_fields()`
 	# @used-by :meth:`Df.Harness.Research.LinkAuditor.LinkAuditor.__resolve_local_path_text()`
 	# @used-by :meth:`Df.Harness.Research.MarkdownHeadingParser.MarkdownHeadingParser.__extract_frontmatter()`
+	# @used-by :meth:`Df.Harness.Runtime.AddonsProfileAdapter.AddonsProfileAdapter.__validate_core_fields()`
 	# @used-by :meth:`Df.Harness.Tdd.CLikeCommentLexer.CLikeCommentLexer.scan_word_or_char()`
 	# @used-by :meth:`Df.Harness.Tdd.CodeClassifier.CodeClassifier.is_test_file()`
 	# @used-by :meth:`Df.Harness.Tdd.CommandInspector.CommandInspector.unwrap_watchdog_prefix()`

@@ -5,12 +5,14 @@ from contextvars import ContextVar
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
+from Df.Harness.Runtime.AddonsProfileAdapter import AddonsProfileAdapter
 from Df.Harness.lib.path_resolve import dfh_load_registry
 import json
 import os
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
+# 2026-11-28 "Implement AddonsProfileAdapter with stat-keyed runtime cache invalidation": https://github.com/dmitry-ai/harness/issues/465
 _DERIVED_CACHE: dict[tuple, Any] = {}
-_SETTINGS_CACHE: dict[tuple, tuple[dict, Path | None, tuple | None]] = {}
+_SETTINGS_CACHE: dict[tuple, tuple[dict, tuple[tuple[Path, tuple | None], ...]]] = {}
 _SKIP_SHELL_VIOLATIONS: ContextVar[bool] = ContextVar('harness_skip_shell_violations', default=False)
 # @used-by :func:`_compute_browser_perimeter()`
 def _collect_one_session(sess: dict, ports: set[int], profile_dirs: set[str], active_port_files: set[str]) -> None:
@@ -93,17 +95,19 @@ def _load_default_readonly(runtime_mod) -> tuple[tuple | None, dict]:
 		rt_file = runtime_mod.default_runtime_file(runtime_mod.PRIMARY, runtime_mod._CODE_ANCHOR, runtime_mod.DEFAULT_REGISTRY_FILE)
 		r = dfh_load_cached_settings_readonly(rt_file, runtime_mod._validate_runtime)
 	return r
+# 2026-11-28 "Implement AddonsProfileAdapter with stat-keyed runtime cache invalidation": https://github.com/dmitry-ai/harness/issues/465
 # @used-by :func:`dfh_load_cached_settings_readonly()`
-def _load_uncached_settings(runtime_file: Path, validate_fn) -> tuple[dict, Path | None, tuple | None]:
+def _load_uncached_settings(runtime_file: Path, validate_fn) -> tuple[dict, tuple[tuple[Path, tuple | None], ...]]:
 	raw = json.loads(runtime_file.read_text(encoding='utf-8-sig'))
 	reg_rel = raw.get('paths_registry') if isinstance(raw, dict) else None
 	has_custom = isinstance(reg_rel, str) and bool(reg_rel.strip())
 	reg_cand = runtime_file.parent / reg_rel if has_custom else runtime_file.parent / 'paths.json'
 	reg = dfh_load_registry(reg_cand if reg_cand.is_file() else None, primary=runtime_file.parent if (runtime_file.parent / 'rules').is_dir() else None)
+	extra_paths: list[Path] = [reg_cand] if has_custom else []
+	extra_paths.extend(AddonsProfileAdapter(reg).apply(raw))
 	value = reg.expand_data(raw)
 	validate_fn(value)
-	custom_path = reg_cand if has_custom else None
-	return (value, custom_path, _file_stat_key(custom_path))
+	return (value, tuple(((p, _file_stat_key(p)) for p in dict.fromkeys(extra_paths))))
 # @used-by :func:`dfh_cached_addon_roots()`
 # @used-by :func:`dfh_cached_browser_perimeter()`
 def _put_derived(dkey: tuple, value: Any) -> Any:
@@ -169,25 +173,27 @@ def dfh_clear_runtime_cache() -> None:
 def dfh_load_cached_settings(runtime_file: Path, validate_fn) -> dict:
 	_, value = dfh_load_cached_settings_readonly(runtime_file, validate_fn)
 	return _copy_json(value)
+# 2026-11-28 "Implement AddonsProfileAdapter with stat-keyed runtime cache invalidation": https://github.com/dmitry-ai/harness/issues/465
 # @used-by :func:`_load_default_readonly()`
 # @used-by :func:`dfh_load_cached_settings()`
+# @used-by :meth:`test_addons_profile_adapter.AddonsProfileAdapterTests.test_cache_invalidates_for_profiles_and_paths_registry_coherently()`
 # @used-by :mod:`agent_tools.runtime_cache`
 def dfh_load_cached_settings_readonly(runtime_file: Path, validate_fn) -> tuple[tuple | None, dict]:
 	rt_stat = _file_stat_key(runtime_file)
 	if None is rt_stat:
-		value, _, _ = _load_uncached_settings(runtime_file, validate_fn)
+		value, _ = _load_uncached_settings(runtime_file, validate_fn)
 		r = (None, value)
 	else:
 		key = (rt_stat, _file_stat_key(runtime_file.parent / 'paths.json'), _env_digest())
 		hit = _SETTINGS_CACHE.get(key)
-		if None is not hit and (None is hit[1] or _file_stat_key(hit[1]) == hit[2]):
-			r = (key, hit[0])
+		if None is not hit and all((_file_stat_key(p) == st for p, st in hit[1])):
+			r = ((*key, hit[1]), hit[0])
 		else:
-			value, custom_path, custom_stat = _load_uncached_settings(runtime_file, validate_fn)
+			value, extra_stats = _load_uncached_settings(runtime_file, validate_fn)
 			if 32 < len(_SETTINGS_CACHE):
 				_SETTINGS_CACHE.clear()
-			_SETTINGS_CACHE[key] = (value, custom_path, custom_stat)
-			r = (key, value)
+			_SETTINGS_CACHE[key] = (value, extra_stats)
+			r = ((*key, extra_stats), value)
 	return r
 # @used-by :func:`Df.Harness.lib.trace_effects._record_shell_effects()`
 # @used-by :meth:`test_df_harness_s11_wave2d_shadow_runtime_cov.DfHarnessS11Wave2dShadowRuntimeCovTests.test_runtime_cache_context_and_resolve()`

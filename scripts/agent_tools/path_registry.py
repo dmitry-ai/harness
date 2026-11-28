@@ -54,6 +54,8 @@ def canonicalize_root_dir(value: str | Path, *, registry: PathRegistry | None=No
 # @used-by :func:`test_historical_admission._restore_tree_in_place()`
 # @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__apply_mutations()`
 # @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__rollback()`
+# @used-by :meth:`test_addons_profile_adapter.AddonsProfileAdapterTests.test_escapes_template_literals_and_rejects_traversal_and_symlinks()`
+# @used-by :meth:`test_addons_profile_adapter.AddonsProfileAdapterTests.test_projects_addons_profiles_with_overrides_and_env_expansion()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.tearDown()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_cross_root_relocation_workflow_completion_review_and_antigravity_registration()`
 # @used-by :meth:`test_path_registry.PathRegistryTests.test_custom_overlay_end_to_end_context_workflow_text_diagnostics_and_completion_canonicalization()`

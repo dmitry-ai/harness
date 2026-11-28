@@ -118,6 +118,8 @@ def dfh_env_fingerprint(env: dict[str, str] | None) -> tuple:
 # @used-by :meth:`Df.Harness.Path.ProjectPaths.ProjectPaths.__init_raw_paths_and_vars()`
 # @used-by :meth:`Df.Harness.Path.Registry.Registry.__anchor_overrides()`
 # @used-by :meth:`Df.Harness.Path.SlotResolver.SlotResolver.__resolve_one()`
+# @used-by :meth:`Df.Harness.Runtime.AddonsProfileAdapter.AddonsProfileAdapter.__attach_optional_fields()`
+# @used-by :meth:`Df.Harness.Runtime.AddonsProfileAdapter.AddonsProfileAdapter.__build_instance()`
 def dfh_escape_template_literal(value: str) -> str:
 	return str(value).replace('%', '%%').replace('${', '$${')
 # @used-by :func:`agent_tools.path_registry.expand_structure()`
@@ -186,6 +188,7 @@ def dfh_infer_harness_anchor(anchor_code: Path) -> tuple[Path, Path, int]:
 # @used-by :func:`Df.Harness.lib.path_resolve._stat_unlinked_registry()`
 # @used-by :func:`Df.Harness.lib.path_resolve.dfh_load_registry()`
 # @used-by :func:`Df.Harness.lib.path_schema._collect_overlay_files()`
+# @used-by :meth:`Df.Harness.Runtime.AddonsProfileAdapter.AddonsProfileAdapter.__read_profiles_file()`
 def dfh_is_linked(path: Path, stop_at: Path | None=None) -> bool:
 	stop_norm = os.path.normcase(os.path.abspath(stop_at)) if None is not stop_at else None
 	cur = Path(os.path.abspath(path))

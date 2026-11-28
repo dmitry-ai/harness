@@ -291,6 +291,10 @@ def sanctioned_addon_code_roots(config=None):
 # @used-by :meth:`Df.Harness.Upwork.ProjectDirResolver.ProjectDirResolver.resolve_or_create()`
 # @used-by :meth:`Df.Harness.Upwork.ProjectInitializer.ProjectInitializer.initialize()`
 # @used-by :meth:`Df.Harness.Workflow.RegistrationStatusChecker.RegistrationStatusChecker.status()`
+# @used-by :meth:`test_addons_profile_adapter.AddonsProfileAdapterTests.test_copied_materialized_config_stays_isolated_from_live_profiles()`
+# @used-by :meth:`test_addons_profile_adapter.AddonsProfileAdapterTests.test_escapes_template_literals_and_rejects_traversal_and_symlinks()`
+# @used-by :meth:`test_addons_profile_adapter.AddonsProfileAdapterTests.test_projects_addons_profiles_with_overrides_and_env_expansion()`
+# @used-by :meth:`test_addons_profile_adapter.AddonsProfileAdapterTests.test_rejects_conflicts_malformed_schema_and_unknown_overrides()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_native_profiles_generates_arch_auditor_for_antigravity_and_codex()`
 # @used-by :meth:`test_cleanup.CleanupTests.setUp()`
 # @used-by :meth:`test_cleanup_audit.CleanupAuditTests.setUp()`

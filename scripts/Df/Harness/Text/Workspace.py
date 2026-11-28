@@ -175,7 +175,6 @@ class Workspace:
 			create_bytes(target, payload)
 		if target.read_bytes() != payload:
 			raise OSError('Applied text read-back differs')
-	# @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_repo_tag_retro()`
 	# @used-by :func:`agent_tools.text_workflow.apply()`
 	# @used-by :meth:`Df.Harness.Text.CliRunner.CliRunner.__workspace_handlers()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_text_flow.DfHarnessS11Wave2CTextFlowTests.test_workspace_integrity_and_review_classes()`

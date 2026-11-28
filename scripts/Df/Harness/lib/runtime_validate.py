@@ -75,6 +75,7 @@ def dfh_resolve_glob_paths(raw_glob: Any, base_dir: Path | None=None) -> list[Pa
 			r = sorted((Path(match) for match in glob.glob(text, recursive=True)))
 	return r
 # @used-by :meth:`Df.Harness.Runtime.SettingsLoader.SettingsLoader.run()`
+# @used-by :meth:`test_addons_profile_adapter.AddonsProfileAdapterTests.test_cache_invalidates_for_profiles_and_paths_registry_coherently()`
 def dfh_validate_runtime(value: Any) -> None:
 	if 2 != value.get('version') or not value.get('workspace_root') or (not isinstance(value.get('platforms'), dict)) or (not value['platforms']):
 		raise ValueError('runtime.json needs version 2, workspace_root and platforms')
