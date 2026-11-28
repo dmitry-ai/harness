@@ -205,6 +205,7 @@ class CodeClassifier:
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__resolve_event_target_scopes()`
 	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.build_file_write_event()`
 	# @used-by :meth:`Df.Harness.Tdd.WorktreeScope.WorktreeScope.canonical_scope_path()`
+	# @used-by :meth:`Df.Harness.Tdd.WorktreeScope.WorktreeScope.resolve_command_scope_key()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov1.DfHarnessS11Wave2bTddCov1Tests.test_diff_contract_executability_and_coverage_end_to_end()`
 	@staticmethod
 	def resolve_code_scope(path: str | Path) -> Path:

@@ -35,6 +35,8 @@ class OutcomeParser:
 	__COL0_BRACE_RE = re.compile(r'(?m)^\{')
 	__FAIL_LOG_RE = re.compile(r'(?m:^FAILED(?:\s*\(|\s+\S)|^FAIL\b)|(?i:\btest result:\s*FAILED\b|\bFAILURES!\b|\bERRORS!\b|\bFailed!\s*-\s*Failed:\s*[1-9]|=+\s+[^=\n]*\b[1-9]\d*\s+(?:failed|errors?)\b[^=\n]*=+)')
 	__NODE_FAIL_LOG_RE = re.compile(r'[\u2139i]\s+fail\s+[1-9]\d*\b')
+	# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
+	__REBASE_CONFLICT_RE = re.compile(r'(?im)^(?:CONFLICT\s*\(|error:\s*could not apply\b|Merge conflict in\b)|(?i:Resolve all conflicts manually|fix conflicts and then run "git rebase --continue")')
 	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
 	__TRUNC_LAND_FAIL_RE = re.compile(r'(?i)(?:"valid"\s*:\s*false\b[\s\S]*"(?:landed|stage)"|"(?:landed|stage)"[\s\S]*"valid"\s*:\s*false\b)')
 	# @used-by :func:`agent_tools.tdd.outcomes.parse_command_outcome()`
@@ -72,7 +74,7 @@ class OutcomeParser:
 		is_fail = (None is not exit_code) and (0 != exit_code) and (not is_inv_err) and (not ran_zero)
 		is_pass = (0 == exit_code) and (not ran_zero) and (not is_inv_err)
 		wl_green, wl_repo, wl_fail = OutcomeParser.__classify_worktree_land_json(full_text, exit_code, ran_zero, log_cands)
-		return {'background_log_path': bg_log_path, 'background_task_id': bg_task_id, 'exit_code': exit_code, 'has_fail_log': has_fail_log, 'is_failure': is_fail, 'is_invocation_error': is_inv_err, 'is_pass': is_pass, 'ran_zero_tests': ran_zero, 'worktree_land_failed': wl_fail, 'worktree_land_full_green': wl_green, 'worktree_land_main_repo': wl_repo}
+		return {'background_log_path': bg_log_path, 'background_task_id': bg_task_id, 'exit_code': exit_code, 'has_fail_log': has_fail_log, 'has_rebase_conflict': OutcomeParser.__has_rebase_conflict(full_text, exit_code), 'is_failure': is_fail, 'is_invocation_error': is_inv_err, 'is_pass': is_pass, 'ran_zero_tests': ran_zero, 'worktree_land_failed': wl_fail, 'worktree_land_full_green': wl_green, 'worktree_land_main_repo': wl_repo}
 	# 2026-11-27 "Recognize passing worktree-land full test runs in TDD-FULL-GATE": https://github.com/dmitry-ai/harness/issues/398
 	# @used-by :meth:`OutcomeParser.parse()`
 	@staticmethod
@@ -156,6 +158,11 @@ class OutcomeParser:
 		m_log = OutcomeParser.BG_TASK_LOG_RE.search(combined)
 		lp = OutcomeParser.uri_to_local_path(m_log.group(1)) if m_log else None
 		return (bg_tid, str(lp) if None is not lp else None)
+	# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
+	# @used-by :meth:`OutcomeParser.parse()`
+	@staticmethod
+	def __has_rebase_conflict(full_text: str, exit_code: int | None) -> bool:
+		return None is not exit_code and 0 != exit_code and bool(OutcomeParser.__REBASE_CONFLICT_RE.search(full_text))
 	# @used-by :meth:`OutcomeParser.parse()`
 	@staticmethod
 	def __header_exit_code(parts: list[str]) -> int | None:

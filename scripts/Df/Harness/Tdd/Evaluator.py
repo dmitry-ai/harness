@@ -16,6 +16,9 @@ class Evaluator:
 	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_enforcement_evaluator_events_and_worktree()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_evaluator_and_events_extractor_with_bg_tasks()`
+	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_git_rebase_conflict_allows_resolution_and_enforces_full_green()`
+	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_git_rebase_conflict_before_any_write_and_with_ps_var_in_pretool_enforcement()`
+	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_variable_wt_commit_resets_scope_and_blocks_untested_second_commit()`
 	# @used-by :meth:`test_tdd_worktree_cmd_scope.TddWorktreeCmdScopeTests.test_deleted_worktree_set_location_red_run_remains_verified()`
 	# @used-by :meth:`test_tdd_worktree_land_green.TddWorktreeLandGreenTests.test_evaluator_worktree_land_green_and_compound_soundness()`
 	def __init__(self, events: list[dict], *, require_final_full_green: bool=True, project_root: Path | None=None, is_exempt_fn: Callable | None=None) -> None:
@@ -28,6 +31,9 @@ class Evaluator:
 	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_enforcement_evaluator_events_and_worktree()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_evaluator_and_events_extractor_with_bg_tasks()`
+	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_git_rebase_conflict_allows_resolution_and_enforces_full_green()`
+	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_git_rebase_conflict_before_any_write_and_with_ps_var_in_pretool_enforcement()`
+	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_variable_wt_commit_resets_scope_and_blocks_untested_second_commit()`
 	# @used-by :meth:`test_tdd_worktree_cmd_scope.TddWorktreeCmdScopeTests.test_deleted_worktree_set_location_red_run_remains_verified()`
 	# @used-by :meth:`test_tdd_worktree_land_green.TddWorktreeLandGreenTests.test_evaluator_worktree_land_green_and_compound_soundness()`
 	def evaluate(self) -> dict:
@@ -58,10 +64,11 @@ class Evaluator:
 			self.__apply_test_file_event(fpath, scope_str, step, order, scopes, orders, exempt_cache)
 		elif 'production' == cls and scope_str:
 			self.__apply_prod_file_event(fpath, scope_str, step, order, scopes, orders, violations, exempt_cache)
+	# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
 	# @used-by :meth:`Evaluator.__apply_file_write_event()`
 	def __apply_prod_file_event(self, fpath: str, scope_str: str, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], violations: list[str], exempt_cache: dict[tuple[str, str], bool]) -> None:
 		existing = scopes.get(scope_str)
-		if None is not existing and existing['state'] in ('RED_VERIFIED', 'GREEN_IMPLEMENTING'):
+		if None is not existing and existing['state'] in ('RED_VERIFIED', 'GREEN_IMPLEMENTING', 'REBASE_CONFLICT'):
 			st, st_ord = (existing, orders[scope_str])
 			st_ord['unverified_prod_writes'].append((fpath, order))
 			Evaluator.__apply_prod_write(st, st_ord, fpath, step, order, violations)
@@ -111,12 +118,15 @@ class Evaluator:
 		else:
 			r = self.__has_non_exempt_prod(sk, st_ord, exempt_cache, min_order=full_green_ord)
 		return r
+	# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
 	# @used-by :meth:`Evaluator.evaluate()`
 	@staticmethod
 	def __apply_command_event(ev: dict, step: int, order: tuple[int, int, int], scopes: dict[str, dict], orders: dict[str, dict], failfast_warnings: list[str]) -> None:
 		outcome = ev.get('outcome') or {}
 		if ev.get('is_git_commit') and outcome.get('exit_code') in (0, None):
 			Evaluator.__apply_commit_reset(ev.get('commit_scope'), scopes, orders, ev=ev)
+		if ev.get('git_rebase_action'):
+			Evaluator.__apply_rebase_event(ev, outcome, scopes, orders)
 		t_info = ev.get('test_info') or {}
 		if t_info.get('is_test_cmd') and (not t_info.get('rigged_failure')):
 			if t_info.get('is_full_suite'):
@@ -136,6 +146,7 @@ class Evaluator:
 				st['cycle_had_prod_edit'] = False
 				st['cycle_green_step'] = None
 				orders[sk]['written_test'] = None
+	# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
 	# @used-by :meth:`Evaluator.__apply_prod_file_event()`
 	@staticmethod
 	def __apply_prod_write(st: dict, st_ord: dict, fpath: str, step: int, order: tuple[int, int, int], violations: list[str]) -> None:
@@ -144,14 +155,22 @@ class Evaluator:
 			st['touched_prod_files'].append(fpath)
 		if st['state'] in ('RED_VERIFIED', 'GREEN_IMPLEMENTING'):
 			st['state'] = 'GREEN_IMPLEMENTING'
-		elif 'TEST_WRITTEN' == st['state']:
-			violations.append(f'EXEC-2 TDD-RED-GATE: Production code "{fpath}" edited at step {step} after writing test(s), but no failing (RED) test run was observed after the test edit. Run the new test and observe it fail before writing production code.')
-		else:
-			violations.append(f'EXEC-2 TDD-RED-GATE: Production code "{fpath}" edited at step {step} without first writing a test and observing it fail (RED).')
+		elif 'REBASE_CONFLICT' != st['state']:
+			msg = f'EXEC-2 TDD-RED-GATE: Production code "{fpath}" edited at step {step} after writing test(s), but no failing (RED) test run was observed after the test edit. Run the new test and observe it fail before writing production code.' if 'TEST_WRITTEN' == st['state'] else f'EXEC-2 TDD-RED-GATE: Production code "{fpath}" edited at step {step} without first writing a test and observing it fail (RED).'
+			violations.append(msg)
 		st['cycle_had_prod_edit'] = True
 		st['last_prod_edit_step'] = step
 		st['last_code_edit_step'] = step
 		st_ord['last_code_edit'] = order
+	# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
+	# @used-by :meth:`Evaluator.__apply_command_event()`
+	@staticmethod
+	def __apply_rebase_event(ev: dict, outcome: dict, scopes: dict[str, dict], orders: dict[str, dict]) -> None:
+		act, r_scope, has_conf = (ev.get('git_rebase_action'), ev.get('rebase_scope'), bool(outcome.get('has_rebase_conflict')))
+		if has_conf and act in ('start', 'continue', 'skip'):
+			Evaluator.__enter_rebase_conflict(ev, r_scope, scopes, orders)
+		elif (not has_conf) and act in ('continue', 'abort', 'skip') and outcome.get('exit_code') in (0, None):
+			Evaluator.__exit_rebase_conflict(ev, r_scope, scopes)
 	# @used-by :meth:`Evaluator.__apply_test_file_event()`
 	@staticmethod
 	def __apply_test_write(st: dict, st_ord: dict, fpath: str, step: int, order: tuple[int, int, int]) -> None:
@@ -185,6 +204,7 @@ class Evaluator:
 		return r
 	# @used-by :meth:`Evaluator.__apply_prod_file_event()`
 	# @used-by :meth:`Evaluator.__apply_test_file_event()`
+	# @used-by :meth:`Evaluator.__enter_rebase_conflict()`
 	# @used-by :meth:`Evaluator.__record_exempt_edit()`
 	@staticmethod
 	def __ensure_scope(scopes: dict[str, dict], orders: dict[str, dict], scope_str: str) -> tuple[dict, dict]:
@@ -195,6 +215,24 @@ class Evaluator:
 		})
 		st_ord = orders.setdefault(scope_str, {'last_code_edit': None, 'last_full_green': None, 'last_non_exempt_prod': None, 'last_test_edit': None, 'unverified_prod_writes': [], 'written_test': None})
 		return (st, st_ord)
+	# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
+	# @used-by :meth:`Evaluator.__apply_rebase_event()`
+	@staticmethod
+	def __enter_rebase_conflict(ev: dict, r_scope: str | None, scopes: dict[str, dict], orders: dict[str, dict]) -> None:
+		matched = [st for sk, st in scopes.items() if WorktreeScope.scope_matches_commit(sk, r_scope, ev)]
+		if not matched:
+			sk = WorktreeScope.resolve_command_scope_key(r_scope, ev)
+			if sk:
+				matched = [Evaluator.__ensure_scope(scopes, orders, sk)[0]]
+		for st in matched:
+			st['state'] = 'REBASE_CONFLICT'
+	# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
+	# @used-by :meth:`Evaluator.__apply_rebase_event()`
+	@staticmethod
+	def __exit_rebase_conflict(ev: dict, r_scope: str | None, scopes: dict[str, dict]) -> None:
+		for sk, st in scopes.items():
+			if 'REBASE_CONFLICT' == st['state'] and WorktreeScope.scope_matches_commit(sk, r_scope, ev):
+				st['state'] = 'IDLE'
 	# @used-by :meth:`Evaluator.evaluate()`
 	@staticmethod
 	def __order_tdd_events(events: list[dict] | tuple[dict, ...] | None) -> list[tuple[tuple[int, int, int], int, dict]]:

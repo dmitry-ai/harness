@@ -191,6 +191,7 @@ class RAM:
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__resolve_repo_binding()`
 	# @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.find_matching_recipes()`
 	# @used-by :meth:`Df.Harness.Tdd.WorktreeScope.WorktreeScope.canonical_scope_path()`
+	# @used-by :meth:`Df.Harness.Tdd.WorktreeScope.WorktreeScope.resolve_command_scope_key()`
 	# @used-by :meth:`Df.Harness.Text.ApprovalIntegrityChecker.ApprovalIntegrityChecker.__check_native_proof()`
 	# @used-by :meth:`Df.Harness.Text.ClaimRegistryStore.ClaimRegistryStore.__persist()`
 	# @used-by :meth:`Df.Harness.Text.ClaimRegistryStore.ClaimRegistryStore.save()`

@@ -2,6 +2,7 @@
 from __future__ import annotations
 from pathlib import Path
 from Df.Harness.Tdd.CodeClassifier import CodeClassifier
+from agent_tools.shell_audit import normalize_host_path
 import re
 # 2026-11-26 "Move verification gate subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/381
 # @used-by :mod:`agent_tools.tdd.worktree_scope`
@@ -9,8 +10,11 @@ class WorktreeScope:
 	# 2026-11-27 "Extract worktree scope IDs from shell command paths in WorktreeScope": https://github.com/dmitry-ai/harness/issues/397
 	__CMD_TOKEN_RE = re.compile(r'"([^"]+)"|\'([^\']+)\'|([^\s;|&]+)')
 	__GIT_C_WT_RE = re.compile(r'(?:-C|--work-tree)(?:=|\s+)(?:"([^"]+)"|\'([^\']+)\'|(\S+))')
+	# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
+	__PS_VAR_ASSIGN_RE = re.compile(r'(\$[A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?:"([^"]+)"|\'([^\']+)\')')
 	__RUNNER_SCRIPT_NAMES = frozenset({'df_github_issue.py', 'harness.py', 'safe_commit.py', 'upwork_project.py'})
 	__WT_KEY_SEP = '::wt:'
+	# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
 	# @used-by :meth:`WorktreeScope.scope_matches_commit()`
 	@staticmethod
 	def __commit_worktree_id(commit_scope: str | None, event: dict | None) -> str | None:
@@ -18,13 +22,37 @@ class WorktreeScope:
 		if None is r and isinstance(event, dict):
 			r = WorktreeScope.extract_worktree_scope_id(event.get('cwd'))
 			if None is r:
-				for match in WorktreeScope.__GIT_C_WT_RE.finditer(str(event.get('cmd') or '')):
-					raw = next((g for g in match.groups() if g), '')
-					r = WorktreeScope.extract_worktree_scope_id(raw)
-					if None is not r:
-						break
+				raw_cmd = str(event.get('cmd') or '')
+				r = WorktreeScope.__first_git_flag_wt(WorktreeScope.expand_ps_var_paths(raw_cmd))
+				if None is r:
+					wts = WorktreeScope.__extract_cmd_worktree_ids(raw_cmd)
+					r = next(iter(wts)) if 1 == len(wts) else None
+		return r
+	# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
+	# @used-by :meth:`WorktreeScope.resolve_command_scope_key()`
+	@staticmethod
+	def __first_git_flag_path(expanded_cmd: str) -> str | None:
+		r: str | None = None
+		for match in WorktreeScope.__GIT_C_WT_RE.finditer(expanded_cmd):
+			raw = next((g for g in match.groups() if g), '')
+			if raw:
+				r = raw
+				break
+		return r
+	# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
+	# @used-by :meth:`WorktreeScope.__commit_worktree_id()`
+	@staticmethod
+	def __first_git_flag_wt(expanded_cmd: str) -> str | None:
+		r: str | None = None
+		for match in WorktreeScope.__GIT_C_WT_RE.finditer(expanded_cmd):
+			raw = next((g for g in match.groups() if g), '')
+			wt = WorktreeScope.extract_worktree_scope_id(raw)
+			if None is not wt:
+				r = wt
+				break
 		return r
 	# 2026-11-27 "Extract worktree scope IDs from shell command paths in WorktreeScope": https://github.com/dmitry-ai/harness/issues/397
+	# @used-by :meth:`WorktreeScope.__commit_worktree_id()`
 	# @used-by :meth:`WorktreeScope.extract_command_worktree_ids()`
 	@staticmethod
 	def __extract_cmd_worktree_ids(cmd: str) -> set[str]:
@@ -53,6 +81,19 @@ class WorktreeScope:
 	def canonical_scope_path(scope_key: str) -> Path:
 		base, wt_id = WorktreeScope.split_key(scope_key)
 		return CodeClassifier.resolve_code_scope(base / '_wt_scope_probe') if (not base.exists()) and None is not wt_id else base
+	# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
+	# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.is_git_rebase_command()`
+	# @used-by :meth:`WorktreeScope.__commit_worktree_id()`
+	# @used-by :meth:`WorktreeScope.resolve_command_scope_key()`
+	@staticmethod
+	def expand_ps_var_paths(cmd: str) -> str:
+		r = str(cmd or '')
+		if '$' in r:
+			pairs = {m.group(1).lower(): (m.group(2) or m.group(3) or '') for m in WorktreeScope.__PS_VAR_ASSIGN_RE.finditer(r)}
+			for name, val in sorted(pairs.items(), key=lambda it: -len(it[0])):
+				if val:
+					r = re.sub(rf'(?<![A-Za-z0-9_]){re.escape(name)}(?![A-Za-z0-9_])(?!\s*=)', lambda _, v=val: f'"{v}"', r, flags=re.IGNORECASE)
+		return r
 	# 2026-11-27 "Extract worktree scope IDs from shell command paths in WorktreeScope": https://github.com/dmitry-ai/harness/issues/397
 	# @used-by :func:`agent_tools.tdd.worktree_scope.extract_command_worktree_ids()`
 	# @used-by :meth:`WorktreeScope.worktree_command_matches()`
@@ -76,7 +117,9 @@ class WorktreeScope:
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__resolve_event_target_scopes()`
 	# @used-by :meth:`WorktreeScope.__commit_worktree_id()`
 	# @used-by :meth:`WorktreeScope.__extract_cmd_worktree_ids()`
+	# @used-by :meth:`WorktreeScope.__first_git_flag_wt()`
 	# @used-by :meth:`WorktreeScope.extract_command_worktree_ids()`
+	# @used-by :meth:`WorktreeScope.resolve_command_scope_key()`
 	# @used-by :meth:`WorktreeScope.resolve_key()`
 	# @used-by :meth:`WorktreeScope.split_key()`
 	@staticmethod
@@ -89,10 +132,28 @@ class WorktreeScope:
 					r = parts[idx + 3].strip()
 					break
 		return r
+	# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
+	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__enter_rebase_conflict()`
+	@staticmethod
+	def resolve_command_scope_key(raw_scope: str | Path | None, event: dict | None) -> str | None:
+		expanded = WorktreeScope.expand_ps_var_paths(str((event or {}).get('cmd') or ''))
+		raw_p = raw_scope or WorktreeScope.__first_git_flag_path(expanded) or (event or {}).get('cwd')
+		r: str | None = None
+		if raw_p:
+			try:
+				cwd_raw = (event or {}).get('cwd')
+				cand = normalize_host_path(raw_p)
+				full = cand.resolve() if cand.is_absolute() else ((Path(cwd_raw).resolve() / cand).resolve() if cwd_raw else cand.resolve())
+				probe = full / '_wt_scope_probe' if (not full.exists()) and None is not WorktreeScope.extract_worktree_scope_id(full) else full
+				r = WorktreeScope.resolve_key(full, CodeClassifier.resolve_code_scope(probe))
+			except OSError:
+				r = None
+		return r
 	# @used-by :func:`agent_tools.tdd.worktree_scope.resolve_tdd_scope_key()`
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__eval_pre_code_write()`
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__eval_shell_prod_writes()`
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__apply_file_write_event()`
+	# @used-by :meth:`WorktreeScope.resolve_command_scope_key()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
 	@staticmethod
 	def resolve_key(path: str | Path, scope: str | Path) -> str:
@@ -106,8 +167,11 @@ class WorktreeScope:
 		return r
 	# @used-by :func:`agent_tools.tdd.worktree_scope.scope_matches_commit()`
 	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__apply_commit_reset()`
+	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__enter_rebase_conflict()`
+	# @used-by :meth:`Df.Harness.Tdd.Evaluator.Evaluator.__exit_rebase_conflict()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_enforcement_evaluator_events_and_worktree()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_outcome_service_substantive_and_worktree_scope()`
+	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_variable_wt_commit_resets_scope_and_blocks_untested_second_commit()`
 	@staticmethod
 	def scope_matches_commit(scope_key: str, commit_scope: str | None, event: dict | None=None) -> bool:
 		base, sk_wt = WorktreeScope.split_key(scope_key)

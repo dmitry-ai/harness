@@ -4,6 +4,7 @@ from pathlib import Path
 from Df.Harness.Tdd.CodeClassifier import CodeClassifier
 from Df.Harness.Tdd.CommandInspector import CommandInspector
 from Df.Harness.Tdd.OutcomeParser import OutcomeParser
+from Df.Harness.Tdd.WorktreeScope import WorktreeScope
 from agent_tools.shell_audit import classify_git_argv, normalize_host_path
 import json
 import re
@@ -20,12 +21,14 @@ class EventsExtractor:
 	# @used-by :func:`agent_tools.tdd.events.extract_antigravity_tdd_events()`
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__load_pre_tool_tdd_state()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_evaluator_and_events_extractor_with_bg_tasks()`
+	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_git_rebase_conflict_before_any_write_and_with_ps_var_in_pretool_enforcement()`
 	def __init__(self, transcript_path: Path, *, cwd: Path | None=None) -> None:
 		self.__transcript_path = transcript_path
 		self.__cwd = cwd
 	# @used-by :func:`agent_tools.tdd.events.extract_antigravity_tdd_events()`
 	# @used-by :meth:`Df.Harness.Tdd.Enforcement.Enforcement.__load_pre_tool_tdd_state()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_evaluator_and_events_extractor_with_bg_tasks()`
+	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_git_rebase_conflict_before_any_write_and_with_ps_var_in_pretool_enforcement()`
 	def extract(self) -> list[dict]:
 		rows = EventsExtractor.__load_transcript_rows(self.__transcript_path, cwd=self.__cwd)
 		segment = EventsExtractor.__select_active_segment(rows) if rows else []
@@ -171,9 +174,12 @@ class EventsExtractor:
 		has_final_text = isinstance(last, dict) and 'PLANNER_RESPONSE' == last.get('type') and (not last.get('tool_calls')) and bool(str(last.get('content') or '').strip())
 		last_text = str(last.get('content') or '') if isinstance(last, dict) else ''
 		return (not prepared) and (bool(active_bg) or completed_subs < spawned_subs or (not has_final_text) or is_waiting_status_stub(last_text))
+	# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
 	# @used-by :func:`agent_tools.tdd.events.build_command_tdd_event()`
 	# @used-by :meth:`EventsExtractor.__append_command_tool_event()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
+	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_git_rebase_conflict_allows_resolution_and_enforces_full_green()`
+	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_variable_wt_commit_resets_scope_and_blocks_untested_second_commit()`
 	# @used-by :meth:`test_tdd_worktree_cmd_scope.TddWorktreeCmdScopeTests.test_deleted_worktree_set_location_red_run_remains_verified()`
 	# @used-by :meth:`test_tdd_worktree_cmd_scope.TddWorktreeCmdScopeTests.test_runner_script_worktree_ignored_while_var_assignment_and_cd_extracted()`
 	# @used-by :meth:`test_tdd_worktree_land_green.TddWorktreeLandGreenTests.test_evaluator_worktree_land_green_and_compound_soundness()`
@@ -181,9 +187,13 @@ class EventsExtractor:
 	def build_command_event(step: int, cmd: str, outputs: list[str] | tuple[str, ...] | str, *, cwd: Path | None=None, scope_hint: Path | None=None, sub_step: int | None=None, subagent_id: str | None=None) -> dict:
 		eff_cwd = Path(cwd).resolve() if None is not cwd else None
 		is_commit, commit_repo = EventsExtractor.is_git_commit_command(cmd, cwd=eff_cwd)
+		rebase_act, rebase_repo = EventsExtractor.is_git_rebase_command(cmd, cwd=eff_cwd)
 		test_info = CommandInspector(cmd, scope_root=scope_hint).classify_test_command()
 		outcome = OutcomeParser(outputs).parse()
 		ev = {'cmd': str(cmd or ''), 'commit_scope': str(commit_repo) if None is not commit_repo else None, 'cwd': str(eff_cwd) if None is not eff_cwd else '', 'is_git_commit': is_commit, 'kind': 'command', 'outcome': outcome, 'step': int(step), 'test_info': test_info}
+		if None is not rebase_act:
+			ev['git_rebase_action'] = rebase_act
+			ev['rebase_scope'] = str(rebase_repo) if None is not rebase_repo else None
 		if None is not sub_step:
 			ev['sub_step'] = int(sub_step)
 		if subagent_id:
@@ -192,6 +202,8 @@ class EventsExtractor:
 	# @used-by :func:`agent_tools.tdd.events.build_file_write_tdd_event()`
 	# @used-by :meth:`EventsExtractor.__append_write_tool_event()`
 	# @used-by :meth:`EventsExtractor.record_tool_write_event()`
+	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_git_rebase_conflict_allows_resolution_and_enforces_full_green()`
+	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_variable_wt_commit_resets_scope_and_blocks_untested_second_commit()`
 	# @used-by :meth:`test_tdd_worktree_cmd_scope.TddWorktreeCmdScopeTests.test_deleted_worktree_set_location_red_run_remains_verified()`
 	# @used-by :meth:`test_tdd_worktree_land_green.TddWorktreeLandGreenTests.test_evaluator_worktree_land_green_and_compound_soundness()`
 	@staticmethod
@@ -232,6 +244,22 @@ class EventsExtractor:
 				raw_r = (m_repo.group(1) or m_repo.group(2) or m_repo.group(3)) if m_repo else None
 				repo = normalize_host_path(raw_r).resolve() if raw_r else (Path(cwd).resolve() if cwd else None)
 				r = (True, repo)
+		return r
+	# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
+	# @used-by :meth:`EventsExtractor.build_command_event()`
+	@staticmethod
+	def is_git_rebase_command(cmd: str, *, cwd: Path | None=None) -> tuple[str | None, Path | None]:
+		r: tuple[str | None, Path | None] = (None, None)
+		if isinstance(cmd, str) and 'git' in cmd.lower() and 'rebase' in cmd.lower():
+			from agent_tools.git_gate import resolve_git_repo_from_argv
+			from agent_tools.shell_audit import _iter_shell_git_segments
+			expanded = WorktreeScope.expand_ps_var_paths(cmd)
+			for _, tokens in _iter_shell_git_segments(expanded):
+				sub, _ = classify_git_argv(tokens)
+				if 'rebase' == sub:
+					act = 'abort' if '--abort' in tokens else ('continue' if '--continue' in tokens else ('skip' if '--skip' in tokens else 'start'))
+					r = (act, resolve_git_repo_from_argv(tokens, cwd=cwd))
+					break
 		return r
 	# @used-by :func:`agent_tools.tdd.events._normalize_args_dict()`
 	# @used-by :meth:`EventsExtractor.__extract_row_call_events()`

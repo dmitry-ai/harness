@@ -83,6 +83,7 @@ def remove_isolated_worktree(root: Path, wt_dir: Path) -> None:
 # @used-by :func:`run_git_hook()`
 # @used-by :func:`verify_git_write_invocation()`
 # @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.is_git_commit_command()`
+# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.is_git_rebase_command()`
 def resolve_git_repo_from_argv(argv: list[str] | tuple[str, ...], cwd: Path | None=None) -> Path | None:
 	return RepoResolver(argv, cwd=cwd).resolve()
 # @used-by :meth:`Df.Harness.Cli.GitShim.GitShim.__run_main()`

@@ -696,6 +696,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_storage_fsync_guard`
 	# @used-by :mod:`test_subprocess_hygiene_and_tree_kill`
 	# @used-by :mod:`test_tdd_comment_exemption`
+	# @used-by :mod:`test_tdd_commit_reset_and_rebase`
 	# @used-by :mod:`test_tdd_completion`
 	# @used-by :mod:`test_tdd_decomposition`
 	# @used-by :mod:`test_tdd_fast_path`

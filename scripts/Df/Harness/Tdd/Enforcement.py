@@ -24,6 +24,7 @@ class Enforcement:
 	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_enforcement_evaluator_events_and_worktree()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_enforcement_pretool_and_staged_diff()`
+	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_git_rebase_conflict_before_any_write_and_with_ps_var_in_pretool_enforcement()`
 	def __init__(self, *, event_extractor: Callable | None=None, diff_non_exec_fn: Callable | None=None) -> None:
 		self.__event_extractor = event_extractor
 		self.__diff_non_exec_fn = diff_non_exec_fn
@@ -32,6 +33,7 @@ class Enforcement:
 	# @used-by :meth:`test_df_harness_s11_wave2b_tail_cov.DfHarnessS11Wave2bTailCovTests.test_tdd_enforcement_evaluator_events_and_worktree()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd.DfHarnessS11Wave2bTddTests.test_tdd_enforcement_evaluator_events_and_guards()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_tdd_cov2.DfHarnessS11Wave2bTddCov2Tests.test_enforcement_pretool_and_staged_diff()`
+	# @used-by :meth:`test_tdd_commit_reset_and_rebase.TddCommitResetAndRebaseTests.test_git_rebase_conflict_before_any_write_and_with_ps_var_in_pretool_enforcement()`
 	def evaluate_pre_tool_use(self, name: str, args: dict, payload: dict) -> str | None:
 		r = None
 		if not ServiceExempt().is_exempt(name, args, payload):
@@ -102,10 +104,11 @@ class Enforcement:
 					added_lines.append(new_lines[idx])
 					added_nums.add(idx + 1)
 		return (added_lines, added_nums)
+	# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
 	# @used-by :meth:`Enforcement.__eval_pre_code_write()`
 	@staticmethod
 	def __eval_pre_prod_write(target_path: Path, sc_state: dict | None) -> str | None:
-		if None is not sc_state and sc_state.get('state') in ('RED_VERIFIED', 'GREEN_IMPLEMENTING'):
+		if None is not sc_state and sc_state.get('state') in ('RED_VERIFIED', 'GREEN_IMPLEMENTING', 'REBASE_CONFLICT'):
 			r = None
 		elif None is not sc_state and 'TEST_WRITTEN' == sc_state.get('state'):
 			r = f'EXEC-2 TDD-RED-GATE: Cannot write/edit production code "{target_path.name}" yet \u2014 test file(s) were edited, but no failing (RED) test run has been observed after the test edit. Run the test first and observe it fail before writing production code.'
@@ -137,7 +140,8 @@ class Enforcement:
 		for target_p in prod_targets:
 			scope = CodeClassifier.resolve_code_scope(target_p)
 			sc_state = tdd_state['scopes'].get(WorktreeScope.resolve_key(target_p, scope))
-			if (None is sc_state or sc_state.get('state') not in ('RED_VERIFIED', 'GREEN_IMPLEMENTING')) and (not MechanicalExemption.find_matching_recipes(scope, project_root=cwd or scope)):
+			# 2026-11-28 "Reset TDD cycle on variable worktree commits and support rebase conflict state": https://github.com/dmitry-ai/harness/issues/441
+			if (None is sc_state or sc_state.get('state') not in ('RED_VERIFIED', 'GREEN_IMPLEMENTING', 'REBASE_CONFLICT')) and (not MechanicalExemption.find_matching_recipes(scope, project_root=cwd or scope)):
 				r = f'EXEC-2 TDD-RED-GATE: Shell command writes production code file "{target_p.name}" before a failing (RED) test was written and observed. Write a failing test first.'
 				break
 		return r

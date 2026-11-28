@@ -16,6 +16,7 @@ _GITHUB_ISSUE_URL_RE = re.compile('https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0
 _VALUE_GLOBAL_OPTS = ('-C', '--git-dir', '--work-tree', '-c', '--exec-path', '--namespace', '--super-prefix', '--config-env')
 _INSPECTOR = ShellCommandInspector()
 # @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.is_git_commit_command()`
+# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.is_git_rebase_command()`
 def _iter_shell_git_segments(candidate: str) -> list[tuple[str, list[str]]]:
 	return GitSegmentExtractor(candidate).extract()
 # @used-by unused
@@ -42,6 +43,7 @@ def _unquote(token: str) -> str:
 # @used-by :func:`agent_tools.git_gate.verify_git_write_invocation()`
 # @used-by :meth:`Df.Harness.Cli.GitShim.GitShim.__prepare()`
 # @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.is_git_commit_command()`
+# @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.is_git_rebase_command()`
 def classify_git_argv(argv: list[str] | tuple[str, ...]) -> tuple[str | None, bool]:
 	return _INSPECTOR.classify_git_argv(argv)
 # @used-by unused
@@ -93,6 +95,7 @@ def normalize_commit_message(message: str | None) -> str:
 # @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.build_file_write_event()`
 # @used-by :meth:`Df.Harness.Tdd.EventsExtractor.EventsExtractor.is_git_commit_command()`
 # @used-by :meth:`Df.Harness.Tdd.MechanicalExemption.MechanicalExemption.__resolve_repo_binding()`
+# @used-by :meth:`Df.Harness.Tdd.WorktreeScope.WorktreeScope.resolve_command_scope_key()`
 # @used-by :meth:`test_turn_completion.AntigravityCompletionTests.test_git_blob_size_gates_cygwin_paths_and_stale_credential_locks()`
 def normalize_host_path(value: str | Path) -> Path:
 	return HostPathNormalizer(value).normalize()
