@@ -139,6 +139,12 @@ class DfHarnessArchWave2eTests(unittest.TestCase):
 			_git(repo2, 'add', 'scripts/a.py', 'scripts/other.py')
 			self.assertEqual([], Enforcement().verify_staged(repo2, ['scripts/a.py'], use_index=True))
 			self.assertTrue(any(('scripts/a.py' in v for v in Enforcement().verify_staged(repo2, ['scripts/other.py'], use_index=True))))
+			# 2026-11-28 "Match any approved design in Enforcement.__check_uncached_staged": https://github.com/dmitry-ai/harness/issues/449
+			for extra_spec in ('- **Pattern:** Strategy\n- **Category:** Behavioral\n- **Intent:** Empty.\n- **Participants:** none\n- **Collaboration:** None.\n- **Consequences:** None.\n', '- **Pattern:** Strategy\n- **Category:** Behavioral\n- **Intent:** Concurrent.\n- **Participants:** `BetaEngine`\n- **Collaboration:** Beta.\n- **Consequences:** Concurrent.\n'):
+				ep = ReviewStore.prepare_package(repo2, _PARENT_ID, kind='design', spec_text=extra_spec)
+				ReviewStore(repo2, auth_fn=lambda *a, **kw: {'final_response_sha256': hashlib.sha256(er).hexdigest(), 'proof': 'ok'}).record_review(er := json.dumps(_sample_verdict(ep['package'], ep['package_sha256'])).encode('utf-8'), parent_id=_PARENT_ID, reviewer_id=_REVIEWER_ID)
+			self.assertEqual([], Enforcement().verify_staged(repo2, ['scripts/a.py'], use_index=True))
+			self.assertTrue(any(('BetaEngine' in v for v in Enforcement().verify_staged(repo2, ['scripts/other.py'], use_index=True))))
 			self.assertFalse(Enforcement.is_arch_governed(base / 'ungoverned', None, {}, []))
 	# @used-by :mod:`unittest`
 	def test_evaluator_checks_response_receipts_and_runner(self) -> None:

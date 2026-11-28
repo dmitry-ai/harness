@@ -14,13 +14,14 @@ class Enforcement:
 	__AGG_PROD_FILES = 2
 	__AGG_SLOC_DELTA = 30
 	__SKIP_PARTS = frozenset({'.agents', '.git', '.venv', '__pycache__', 'build', 'dist', 'node_modules', 'out', 'target', 'venv', '\ua616', '\ua66e'})
+	# 2026-11-28 "Match any approved design in Enforcement.__check_uncached_staged": https://github.com/dmitry-ai/harness/issues/449
 	# @used-by :meth:`Enforcement.verify_staged()`
 	@staticmethod
 	def __check_uncached_staged(uncached: list[dict[str, Any]], index: dict[str, Any], roots: list[Path], all_symbols: set[str]) -> list[str]:
 		r: list[str] = []
 		designs = [v for v in (index.get('approved_subjects') or {}).values() if isinstance(v, dict) and 'design' == v.get('kind')]
 		if designs:
-			missing = Enforcement.__missing_design_participants(designs[-1], roots, all_symbols, [e['rel'] for e in uncached])
+			missing = Enforcement.__first_missing_participants(designs, roots, all_symbols, [e['rel'] for e in uncached])
 			if missing:
 				joined = ', '.join(missing[:8])
 				r.append(f'ARCH-AUDIT-GATE: Pattern-washing detected at pre-commit — declared Participants missing from staged code: {joined}.')
@@ -58,6 +59,25 @@ class Enforcement:
 				r = anc
 				break
 		return r
+	# 2026-11-28 "Match any approved design in Enforcement.__check_uncached_staged": https://github.com/dmitry-ai/harness/issues/449
+	# @used-by :meth:`Enforcement.__check_uncached_staged()`
+	@staticmethod
+	def __first_missing_participants(designs: list[dict[str, Any]], roots: list[Path], all_symbols: set[str], staged_rels: list[str]) -> list[str]:
+		fallback: list[str] = []
+		r: list[str] = []
+		matched = False
+		for entry in reversed(designs):
+			if not Enforcement.__load_declared_participants(entry, roots):
+				continue
+			miss = Enforcement.__missing_design_participants(entry, roots, all_symbols, staged_rels)
+			if not miss:
+				matched = True
+				break
+			if not fallback:
+				fallback = miss
+		if not matched:
+			r = fallback
+		return r
 	# @used-by :meth:`Enforcement.is_arch_governed()`
 	@staticmethod
 	def __is_in_tempdir(path: Path) -> bool:
@@ -70,6 +90,7 @@ class Enforcement:
 	@staticmethod
 	def __is_path_participant(token: str) -> bool:
 		return '/' in token or token.endswith(('.py', '.js', '.ts', '.java', '.php', '.go', '.rs', '.json'))
+	# @used-by :meth:`Enforcement.__first_missing_participants()`
 	# @used-by :meth:`Enforcement.__missing_design_participants()`
 	@staticmethod
 	def __load_declared_participants(design_entry: dict[str, Any], roots: list[Path]) -> list[str]:
@@ -85,7 +106,7 @@ class Enforcement:
 					r = []
 				break
 		return r
-	# @used-by :meth:`Enforcement.__check_uncached_staged()`
+	# @used-by :meth:`Enforcement.__first_missing_participants()`
 	@staticmethod
 	def __missing_design_participants(design_entry: dict[str, Any], roots: list[Path], staged_symbols: set[str], staged_rels: list[str] | tuple[str, ...]=()) -> list[str]:
 		declared = Enforcement.__load_declared_participants(design_entry, roots)
