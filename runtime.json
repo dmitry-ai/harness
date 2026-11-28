@@ -34,22 +34,10 @@
         "conversation_db_relative": "conversations/<conversation_id>.db",
         "notes": "Each instance has isolated home, user_data_dir, config_dir, projects_dir, backend_dir, brain_dir, and logs_dir derived via paths.json platform_layouts.antigravity; all instances share folders_json."
       },
-      "instances": {
+      "instances_source": "addons_profiles_json",
+      "instance_overrides": {
         "A0": {
-          "enabled": true,
-          "primary": true,
-          "label": "Antigravity A0 (Default)",
-          "home": "${USER_HOME}",
-          "user_data_dir": "${APPDATA}/Antigravity"
-        },
-        "A6": {
-          "enabled": true,
-          "primary": false,
-          "label": "Antigravity A6",
-          "account_email": "admin6@mage2.pro",
-          "chrome_shortcut": "6",
-          "home": "${APPDATA}/Antigravity-A6/home",
-          "user_data_dir": "${APPDATA}/Antigravity-A6"
+          "label": "Antigravity A0 (Default)"
         }
       },
       "subagents": {

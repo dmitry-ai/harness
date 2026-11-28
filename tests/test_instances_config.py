@@ -97,11 +97,12 @@ class RuntimeInstancesTests(TemporaryCase):
 		with closing(sqlite3.connect(path)) as conn:
 			conn.execute(statement, params)
 			conn.commit()
+	# 2026-11-28 "Switch runtime.json Antigravity instances to addons_profiles_json source": https://github.com/dmitry-ai/harness/issues/466
 	# @used-by :mod:`unittest`
 	def test_live_runtime_declares_environments_instances_enabled_states_and_system_paths(self):
-		live = runtime.settings()
+		live = runtime.settings(Path(__file__).resolve().parents[1] / 'runtime.json')
 		self.assertEqual(set(live['platforms']), {'antigravity', 'codex'})
-		self.assertEqual(list(runtime.platform_instances('antigravity', config=live, include_disabled=False)), ['A0', 'A6'])
+		self.assertEqual(list(runtime.platform_instances('antigravity', config=live, include_disabled=False)), [p['id'] for p in json.loads(Path(live['platforms']['antigravity']['addons_profiles_json']).read_text(encoding='utf-8-sig'))['profiles'] if p.get('enabled', True)])
 		self.assertEqual(list(runtime.platform_instances('codex', config=live, include_disabled=False)), [])
 		self.assertEqual(list(runtime.platform_instances('codex', config=live, include_disabled=True)), ['C1', 'C2'])
 		self.assertTrue(runtime.platform_active('antigravity', config=live))

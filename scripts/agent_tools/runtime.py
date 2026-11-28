@@ -105,6 +105,7 @@ def platform_homes(platform, *, config=None, include_disabled=False):
 # @used-by :func:`resolve_codex_paths()`
 # @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.antigravity_project_dirs()`
 # @used-by :meth:`Df.Harness.Project.Rename.ProjectRenamer.ProjectRenamer.__antigravity_dirs_map()`
+# @used-by :meth:`test_addons_profile_adapter.AddonsProfileAdapterTests.test_live_runtime_uses_addons_profiles_json_source_and_paths_registers_profile_manager_tests()`
 # @used-by :meth:`test_cleanup_audit.CleanupAuditTests._make_old_project()`
 # @used-by :meth:`test_cleanup_integration.CleanupIntegrationTests._init_and_register()`
 # @used-by :meth:`test_cleanup_lifecycle.CleanupLifecycleTests._make_project()`
@@ -293,6 +294,7 @@ def sanctioned_addon_code_roots(config=None):
 # @used-by :meth:`Df.Harness.Workflow.RegistrationStatusChecker.RegistrationStatusChecker.status()`
 # @used-by :meth:`test_addons_profile_adapter.AddonsProfileAdapterTests.test_copied_materialized_config_stays_isolated_from_live_profiles()`
 # @used-by :meth:`test_addons_profile_adapter.AddonsProfileAdapterTests.test_escapes_template_literals_and_rejects_traversal_and_symlinks()`
+# @used-by :meth:`test_addons_profile_adapter.AddonsProfileAdapterTests.test_live_runtime_uses_addons_profiles_json_source_and_paths_registers_profile_manager_tests()`
 # @used-by :meth:`test_addons_profile_adapter.AddonsProfileAdapterTests.test_projects_addons_profiles_with_overrides_and_env_expansion()`
 # @used-by :meth:`test_addons_profile_adapter.AddonsProfileAdapterTests.test_rejects_conflicts_malformed_schema_and_unknown_overrides()`
 # @used-by :meth:`test_arch_review_cli.ArchReviewCliTests.test_native_profiles_generates_arch_auditor_for_antigravity_and_codex()`

@@ -454,6 +454,7 @@
         "../Folders/architecture.test.js",
         "../Folders/folder-picker.test.js",
         "../Multi-Account/launcher.test.js",
+        "../Multi-Account/profile-manager.test.js",
         "../Multi-Account/skills-manifest.test.js",
         "../Titlebar-Badges/badges.test.js"
       ],

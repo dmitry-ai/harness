@@ -170,5 +170,19 @@ class AddonsProfileAdapterTests(TemporaryCase):
 			rt_bad, _, _, _ = self._write_fixture(bad_payload)
 			with self.assertRaises(ValueError):
 				runtime.settings(rt_bad)
+	# 2026-11-28 "Switch runtime.json Antigravity instances to addons_profiles_json source": https://github.com/dmitry-ai/harness/issues/466
+	# @used-by :mod:`unittest`
+	def test_live_runtime_uses_addons_profiles_json_source_and_paths_registers_profile_manager_tests(self):
+		wt_root = Path(__file__).resolve().parents[1]
+		raw_ag = json.loads((wt_root / 'runtime.json').read_text(encoding='utf-8-sig'))['platforms']['antigravity']
+		self.assertEqual('addons_profiles_json', raw_ag.get('instances_source'))
+		self.assertNotIn('instances', raw_ag)
+		live = runtime.settings(wt_root / 'runtime.json')
+		expected = [p['id'] for p in json.loads(Path(live['platforms']['antigravity']['addons_profiles_json']).read_text(encoding='utf-8-sig'))['profiles'] if p.get('enabled', True)]
+		self.assertIn('A0', expected)
+		self.assertIn('A6', expected)
+		self.assertEqual(expected, list(runtime.platform_instances('antigravity', config=live, include_disabled=False)))
+		paths_raw = json.loads((wt_root / 'paths.json').read_text(encoding='utf-8-sig'))
+		self.assertIn('../Multi-Account/profile-manager.test.js', paths_raw['repo_verification']['dmitry-ai/antigravity-addons']['test_command'])
 if '__main__' == __name__:
 	unittest.main()
