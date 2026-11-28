@@ -104,11 +104,12 @@ def dfh_detect_hook_crashes(native: dict[str, Any] | None, turn: dict[str, Any] 
 				step_idx = row.get('step_index') if isinstance(row.get('step_index'), int) else pos
 				r.append({'error': hit[1], 'hook': hit[0], 'step': step_idx})
 	return r
+# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
 # @used-by :meth:`Df.Harness.Hook.CrashAuditor.CrashAuditor.run()`
 # @used-by :mod:`agent_tools.hook_crash_audit`
 def dfh_has_recorded_hook_issue(root: Path, turn: dict[str, Any], value: dict[str, Any] | None, crashes: list[dict[str, Any]]) -> bool:
-	from agent_tools.issue_lifecycle import evidence_issue_files
-	return any((_issue_evidence_mentions_crash(evidence_issue_files(root, slug, f'issue-{num}.json'), crashes) for slug, num in _collect_issue_refs(turn, value)))
+	from Df.Harness.Grounding.ProblemIssueSpecification import ProblemIssueSpecification
+	return any((ProblemIssueSpecification.is_valid_open_parent_issue(root, slug, num) and _issue_evidence_mentions_crash(ProblemIssueSpecification.find_evidence_files(root, slug, num), crashes) for slug, num in _collect_issue_refs(turn, value)))
 # @used-by :func:`Df.Harness.lib.hook_addon_ops.dfh_detect_suppressed_worktree_errors()`
 # @used-by :func:`Df.Harness.lib.hook_verif_ops.dfh_detect_shadow_replay_runs()`
 # @used-by :func:`dfh_detect_hook_crashes()`
@@ -140,8 +141,13 @@ def dfh_load_violation_receipt(root: Path, turn_key: str) -> dict[str, Any]:
 			except (OSError, ValueError):
 				r = {}
 	return r
-# @used-by :func:`_issue_evidence_mentions_crash()`
+# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
 # @used-by :meth:`Df.Harness.Hook.CrashAuditor.CrashAuditor.run()`
+def dfh_response_documents_hook_crash_structured(response: str | None, crashes: list[dict[str, Any]]) -> bool:
+	from Df.Harness.Grounding.ProblemReportEvaluator import ProblemReportEvaluator
+	return dfh_text_documents_hook_crash(response, crashes) and ProblemReportEvaluator.has_problem_sections(response or '')
+# @used-by :func:`_issue_evidence_mentions_crash()`
+# @used-by :func:`dfh_response_documents_hook_crash_structured()`
 # @used-by :mod:`agent_tools.hook_crash_audit`
 def dfh_text_documents_hook_crash(text: str | None, crashes: list[dict[str, Any]]) -> bool:
 	raw = str(text or '')

@@ -81,7 +81,11 @@ class SnapshotCanaryAndHookCrashAuditTests(unittest.TestCase):
 				silent = completion.check_answer(root, 'Status is clean.\n', conversation=cid, platform='antigravity')
 				self.assertFalse(silent['valid'], silent)
 				self.assertFalse(silent['checks']['hook_crash'])
-				disclosed = completion.check_answer(root, 'PreToolUse hook rules-and-server-gate failed with exit status 1 on step 2.\n', conversation=cid, platform='antigravity')
+				# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
+				casual = completion.check_answer(root, 'PreToolUse hook rules-and-server-gate failed with exit status 1 on step 2.\n', conversation=cid, platform='antigravity')
+				self.assertFalse(casual['checks']['hook_crash'], casual)
+				structured = '# \U0001d678. Что сделано\n\nПроверка выполнена.  \n\n# \U0001d678\U0001d678. Новые проблемы\n\n## 1. Падение хука\n\n### 1.2. Описание\n\nPreToolUse hook rules-and-server-gate failed with exit status 1 on step 2.  \n'
+				disclosed = completion.check_answer(root, structured, conversation=cid, platform='antigravity')
 				self.assertTrue(disclosed['checks']['hook_crash'], disclosed)
 	# @used-by :mod:`unittest`
 	def test_hook_crash_audit_blocks_silent_omission_and_accepts_disclosed_issue_or_recovery(self) -> None:
@@ -106,7 +110,16 @@ class SnapshotCanaryAndHookCrashAuditTests(unittest.TestCase):
 			turn_err = {'start_step': 0, 'requests': [{'id': 'c-0', 'text': 'Implement feature'}], 'issue_actions': []}
 			self.assertEqual(5, detect_hook_crashes(native_err, turn_err)[0]['step'])
 			self.assertFalse(evaluate_hook_crash_check(root, native_err, turn_err, {'key': 'tk1'}, 'Implemented feature cleanly.')['verified'])
-			self.assertTrue(evaluate_hook_crash_check(root, native_err, turn_err, {'key': 'tk1'}, 'PreToolUse hook rules-and-server-gate failed with exit status 1 on step 5.')['verified'])
+			# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
+			self.assertFalse(evaluate_hook_crash_check(root, native_err, turn_err, {'key': 'tk1'}, 'PreToolUse hook rules-and-server-gate failed with exit status 1 on step 5.')['verified'])
+			structured_resp = '# \U0001d678. Что сделано\n\nDone.  \n\n# \U0001d678\U0001d678. Новые проблемы\n\n## 1. Падение хука\n\nPreToolUse hook rules-and-server-gate failed with exit status 1 on step 5.  \n'
+			self.assertTrue(evaluate_hook_crash_check(root, native_err, turn_err, {'key': 'tk1'}, structured_resp)['verified'])
+			closed_ev = root / '\ua616/KB/Evidence/GitHub/dmitry-ai__harness/issue-244.json'
+			closed_ev.write_text(json.dumps({'repo': 'dmitry-ai/harness', 'number': 244, 'title': 'PreToolUse JSON hook rules-and-server-gate failed on timeout', 'body': 'JSON hook failure details', 'state': 'closed'}), encoding='utf-8')
+			self.assertFalse(evaluate_hook_crash_check(root, native_err, {**turn_err, 'issue_actions': [{'repo': 'dmitry-ai/harness', 'number': 244, 'action': 'fetch', 'url': 'https://github.com/dmitry-ai/harness/issues/244'}]}, {'key': 'tk1'}, 'Completed task.')['verified'])
+			child_ev = root / '\ua616/KB/Evidence/GitHub/dmitry-ai__harness/issue-243.json'
+			child_ev.write_text(json.dumps({'repo': 'dmitry-ai/harness', 'number': 243, 'parent_number': 240, 'title': 'PreToolUse JSON hook rules-and-server-gate failed on timeout', 'body': 'JSON hook failure details', 'state': 'open'}), encoding='utf-8')
+			self.assertFalse(evaluate_hook_crash_check(root, native_err, {**turn_err, 'issue_actions': [{'repo': 'dmitry-ai/harness', 'number': 243, 'action': 'create', 'url': 'https://github.com/dmitry-ai/harness/issues/243'}]}, {'key': 'tk1'}, 'Completed task.')['verified'])
 			ev_file = root / '\ua616/KB/Evidence/GitHub/dmitry-ai__harness/issue-245.json'
 			ev_file.write_text(json.dumps({'repo': 'dmitry-ai/harness', 'number': 245, 'title': 'PreToolUse JSON hook rules-and-server-gate failed on timeout', 'body': 'JSON hook failure details', 'state': 'open'}), encoding='utf-8')
 			self.assertTrue(evaluate_hook_crash_check(root, native_err, {**turn_err, 'issue_actions': [{'repo': 'dmitry-ai/harness', 'number': 245, 'action': 'create', 'url': 'https://github.com/dmitry-ai/harness/issues/245'}]}, {'key': 'tk1'}, 'Completed task.')['verified'])

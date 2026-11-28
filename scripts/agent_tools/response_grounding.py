@@ -17,9 +17,10 @@ def _norm_url(url: str) -> str:
 # @used-by unused
 def _titles_compatible(claimed: str, observed: str) -> bool:
 	return ResponseAuditor.titles_compatible(claimed, observed)
+# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
 # @used-by :func:`Df.Harness.lib.completion_commands._collect_check_payload()`
 # @used-by :meth:`Df.Harness.Completion.AnswerPreparer.AnswerPreparer.__check_source_grounding()`
 # @used-by :meth:`test_analysis_workflow.MetricsTests.test_collect_http_positional_batch_extract_profile_and_14_url_evidence_query()`
 # @used-by :meth:`test_issue45_to_48.Issue45To48Tests.test_issue45_provenance_tiers_and_tier2_rejection()`
-def response_source_and_kb_issues(root: Path, response: str, requests: list[dict], *, touched_files=None, turn=None, native=None) -> list[str]:
-	return ResponseAuditor(root, response, requests, touched_files=touched_files, turn=turn, native=native).validate()
+def response_source_and_kb_issues(root: Path, response: str, requests: list[dict], *, touched_files=None, turn=None, native=None, turn_state=None, skip_df_analysis: bool=False) -> list[str]:
+	return ResponseAuditor(root, response, requests, touched_files=touched_files, turn=turn, native=native, turn_state=turn_state, skip_df_analysis=skip_df_analysis).validate()

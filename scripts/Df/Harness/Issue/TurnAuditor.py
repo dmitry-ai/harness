@@ -4,6 +4,8 @@ from pathlib import Path
 from Df.Harness.Git.RepoGate import RepoGate
 from Df.Harness.Git.WorktreePathResolver import WorktreePathResolver
 from Df.Harness.Grounding.LocalSourceAuditor import LocalSourceAuditor
+from Df.Harness.Grounding.ProblemIssueSpecification import ProblemIssueSpecification
+from Df.Harness.Grounding.ProblemReportEvaluator import ProblemReportEvaluator
 from Df.Harness.Issue.CompetingTurnChecker import CompetingTurnChecker
 from Df.Harness.Issue.EvidenceWorkspace import EvidenceWorkspace
 from Df.Harness.Issue.Linter import Linter
@@ -25,6 +27,7 @@ class TurnAuditor:
 	# @used-by :meth:`test_df_harness_s11_wave2c_cov_tail.DfHarnessS11Wave2CCovTailTests.test_issue_build_write_event_parent_linked_urls_and_dense_range()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_cross_wave.DfHarnessS11Wave2CCrossWaveTests.test_turn_auditor_preserves_auditor_module_close_verify_patch_hook()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_issues.DfHarnessS11Wave2CIssuesTests.test_parity_and_scope_completeness()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_turn_auditor_enforces_mixed_turn_problem_filing_without_false_positive_on_plain_code_turn()`
 	def __init__(self, root: Path, turn: dict, turn_state: dict | None=None, response=None, *, workspace: EvidenceWorkspace | None=None, linter: Linter | None=None) -> None:
 		self.root, self.turn, self.turn_state, self.response = (Path(root).resolve(), turn, turn_state, response)
 		self.workspace = workspace if None is not workspace else EvidenceWorkspace()
@@ -77,16 +80,15 @@ class TurnAuditor:
 						self.violations.append(f'GitHub comment {issue_url}#issuecomment-{cid} lint error ({code}): {msg}')
 					for g_err in LocalSourceAuditor(self.root, c_body, doc_path=cp).run():
 						self.violations.append(f'GitHub comment {issue_url}#issuecomment-{cid} grounding error: {g_err}')
+	# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
 	# @used-by :meth:`TurnAuditor.audit()`
 	def __check_diagnostic_audit_filing(self) -> None:
 		resp = self.response
-		if isinstance(resp, str) and resp.strip() and self.workspace_code_repos and (not self.repo_touched):
-			has_diag = bool(re.search('(?m)(?:^|\\s|`|\\*\\*)(?:C|H)-[1-9]\\d*\\b', resp)) and bool(re.search('(?m)(?:^|\\s|`|\\*\\*)M-[1-9]\\d*\\b', resp)) and bool(re.search('\\b[A-Za-z0-9_/-]+\\.py\\b', resp))
-			if has_diag:
-				for ws_repo in sorted(self.workspace_code_repos, key=str):
-					ws_slug = self.workspace.origin_repo_slug(ws_repo)
-					if ws_slug and (not self.__has_workspace_parent_issue(ws_slug, resp)):
-						self.violations.append(f'EXEC-5 / SCOPE-2: Diagnostic audit of {ws_slug} identifies repository defects (C-/H-) and remediation methods (M-) without recording a corresponding parent problem GitHub Issue via df_github_issue.py')
+		if isinstance(resp, str) and resp.strip() and self.workspace_code_repos and self.__is_diag_audit(resp):
+			for ws_repo in sorted(self.workspace_code_repos, key=str):
+				ws_slug = self.workspace.origin_repo_slug(ws_repo)
+				if ws_slug and (not self.__has_workspace_parent_issue(ws_slug, resp)):
+					self.violations.append(f'EXEC-5 / SCOPE-2: Diagnostic audit of {ws_slug} identifies repository defects (C-/H-) and remediation methods (M-) without recording a corresponding parent problem GitHub Issue via df_github_issue.py')
 	# @used-by :meth:`TurnAuditor.__check_turn_issue_evidence()`
 	def __check_issue_file_evidence(self, issue_url: str, slug: str, num: int, info: dict, mutated: bool) -> str | None:
 		iss_files = self.workspace.evidence_issue_files(self.root, slug, f'issue-{num}.json', self.candidate_repos)
@@ -184,16 +186,11 @@ class TurnAuditor:
 			if 'create' in set(c_info.get('actions') or ()) and c_info.get('repo', '').lower() == slug.lower():
 				if None is self.resolve_parent_number(c_info['repo'], int(c_info['number'])):
 					self.violations.append(f'EXEC-5 violation: multi-commit subtask issue {c_url} created in {slug} lacks a --parent link to a parent problem issue')
+	# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
 	# @used-by :meth:`TurnAuditor.__check_diagnostic_audit_filing()`
 	def __has_workspace_parent_issue(self, ws_slug: str, resp: str) -> bool:
-		r = any((info['repo'].lower() == ws_slug.lower() and (None is self.resolve_parent_number(info['repo'], int(info['number']), require_parent_evidence=False)) for info in self.turn_issues.values()))
-		if not r:
-			for resp_url in dfh_extract_issue_urls(resp):
-				parsed = dfh_parse_issue_url(resp_url)
-				if None is not parsed and parsed[0].lower() == ws_slug.lower() and self.workspace.evidence_issue_files(self.root, parsed[0], f'issue-{parsed[1]}.json', self.candidate_repos) and (None is self.resolve_parent_number(parsed[0], parsed[1], require_parent_evidence=False)):
-					r = True
-					break
-		return r
+		t_ok = any((info['repo'].lower() == ws_slug.lower() and ProblemIssueSpecification.is_valid_open_parent_issue(self.root, info['repo'], int(info['number'])) for info in self.turn_issues.values()))
+		return t_ok or any(((parsed := dfh_parse_issue_url(u)) and parsed[0].lower() == ws_slug.lower() and ProblemIssueSpecification.is_valid_open_parent_issue(self.root, parsed[0], parsed[1]) for u in dfh_extract_issue_urls(resp)))
 	# @used-by :meth:`TurnAuditor.__check_repo_commits_and_files()`
 	def __inspect_latest_commits(self, code_repo: Path, existing_rels: list[str], required_issues: set[str], committed_urls: set[str]) -> None:
 		commit_urls = self.git_cache.latest_commit_urls_for_files(code_repo, existing_rels, dfh_extract_issue_urls)
@@ -202,6 +199,11 @@ class TurnAuditor:
 			self.violations.append(f'Latest commit for {joined_r} in {code_repo} does not reference a GitHub Issue URL')
 		required_issues.update(commit_urls)
 		committed_urls.update(commit_urls)
+	# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
+	# @used-by :meth:`TurnAuditor.__check_diagnostic_audit_filing()`
+	def __is_diag_audit(self, resp: str) -> bool:
+		has_struct = ProblemReportEvaluator.has_problem_sections(resp)
+		return has_struct if self.repo_touched else (has_struct or (bool(re.search('(?m)(?:^|\\s|`|\\*\\*)(?:C|H)-[1-9]\\d*\\b', resp)) and bool(re.search('(?m)(?:^|\\s|`|\\*\\*)M-[1-9]\\d*\\b', resp)) and bool(re.search('\\b[A-Za-z0-9_/-]+\\.py\\b', resp))))
 	# @used-by :meth:`TurnAuditor.__check_issue_file_evidence()`
 	def __lint_saved_issue_obj(self, issue_url: str, slug: str, num: int, info: dict, iss_obj: dict, t_txt: str, b_txt: str, p: Path, mutated: bool) -> None:
 		pnum = self.__extract_saved_parent(info, iss_obj, b_txt, slug)
@@ -245,6 +247,7 @@ class TurnAuditor:
 					self.violations.append(f'GitHub issue {issue_url} remains {eff_state}; close it via df_github_issue.py close after git push before answer-prepare')
 	# @used-by :func:`agent_tools.issue_lifecycle.code_and_issue_lifecycle_status()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_cov_issues_b.DfHarnessS11Wave2CCovIssuesBTests.test_turn_auditor_scope_completeness_and_turn_scope_resolver()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_turn_auditor_enforces_mixed_turn_problem_filing_without_false_positive_on_plain_code_turn()`
 	def audit(self) -> dict:
 		required_by_repo, repo_by_url = self.__collect_repos_and_issues()
 		committed_by_repo: dict[Path, set[str]] = {}
@@ -320,7 +323,6 @@ class TurnAuditor:
 	# @used-by :meth:`TurnAuditor.__committed_parent_numbers()`
 	# @used-by :meth:`TurnAuditor.__flag_unparented_multi_commits()`
 	# @used-by :meth:`TurnAuditor.__getattr__()`
-	# @used-by :meth:`TurnAuditor.__has_workspace_parent_issue()`
 	# @used-by :meth:`TurnAuditor.__parent_linked_committed_urls()`
 	def resolve_parent_number(self, slug: str, num: int, *, require_parent_evidence: bool=True) -> int | None:
 		pnum = self.turn_issues.get(f'https://github.com/{slug}/issues/{int(num)}', {}).get('parent_number')

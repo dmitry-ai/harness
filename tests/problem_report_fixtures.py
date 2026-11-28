@@ -9,7 +9,9 @@ class ProblemReportFixtureBuilder:
 	# @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_and_cli_reject_unverified_closed_child_and_foreign_issues()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_turn_hierarchical_schema_accepts_valid_and_rejects_flat_or_missing_sections()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_issue_specification_rejects_duplicate_closed_child_unverified_null_and_foreign_issues()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_report_evaluator_answer_gates_preparer_and_stop_gate_pipeline()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_standalone_four_track_accepts_nested_and_rejects_flat_h1_and_allows_user_requested_open_issue()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_turn_auditor_enforces_mixed_turn_problem_filing_without_false_positive_on_plain_code_turn()`
 	def __init__(self, base: Path, *, repo: str='dmitry-ai/harness', cid: str='11111111-2222-4333-8444-555555555555', turn_key: str='tk-active-01') -> None:
 		self.__base = Path(base).resolve()
 		self.__repo = repo
@@ -36,7 +38,9 @@ class ProblemReportFixtureBuilder:
 	# @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_and_cli_reject_unverified_closed_child_and_foreign_issues()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_turn_hierarchical_schema_accepts_valid_and_rejects_flat_or_missing_sections()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_issue_specification_rejects_duplicate_closed_child_unverified_null_and_foreign_issues()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_report_evaluator_answer_gates_preparer_and_stop_gate_pipeline()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_standalone_four_track_accepts_nested_and_rejects_flat_h1_and_allows_user_requested_open_issue()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_turn_auditor_enforces_mixed_turn_problem_filing_without_false_positive_on_plain_code_turn()`
 	def add_issue(self, num: int, *, state: str='open', parent_number: int | None=None, owner_cid: str | None=None, owner_turn_key: str | None=None, title: str | None=None, body: str='Observed defect details.', action: str | None='create', step: int=4, with_meta: bool=True) -> ProblemReportFixtureBuilder:
 		url = f'https://github.com/{self.__repo}/issues/{num}'
 		rec = {'url': url, 'html_url': url, 'repo': self.__repo, 'kind': 'issue', 'number': num, 'issue_number': num, 'id': 900000 + num, 'title': title or f'Defect {num}', 'state': state, 'state_reason': 'completed' if 'closed' == state else None, 'body': self.__format_issue_body(num, body, owner_cid=owner_cid, owner_turn_key=owner_turn_key, parent_number=parent_number, with_meta=with_meta)}
@@ -49,7 +53,9 @@ class ProblemReportFixtureBuilder:
 	# @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_and_cli_reject_unverified_closed_child_and_foreign_issues()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_turn_hierarchical_schema_accepts_valid_and_rejects_flat_or_missing_sections()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_issue_specification_rejects_duplicate_closed_child_unverified_null_and_foreign_issues()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_report_evaluator_answer_gates_preparer_and_stop_gate_pipeline()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_standalone_four_track_accepts_nested_and_rejects_flat_h1_and_allows_user_requested_open_issue()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_turn_auditor_enforces_mixed_turn_problem_filing_without_false_positive_on_plain_code_turn()`
 	def build_workspace(self, *, requests: list[dict] | None=None, touched_files: list[str] | None=None, hook_crashes: list[dict] | None=None) -> dict:
 		self.__ev_dir.mkdir(parents=True, exist_ok=True)
 		self.__turns_dir.mkdir(parents=True, exist_ok=True)
@@ -69,7 +75,9 @@ class ProblemReportFixtureBuilder:
 		return {'root': self.__proj, 'repo': self.__repo, 'cid': self.__cid, 'turn_key': self.__turn_key, 'turn': turn, 'turn_state': turn_state, 'requests': reqs}
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_turn_hierarchical_schema_accepts_valid_and_rejects_flat_or_missing_sections()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_issue_specification_rejects_duplicate_closed_child_unverified_null_and_foreign_issues()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_report_evaluator_answer_gates_preparer_and_stop_gate_pipeline()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_standalone_four_track_accepts_nested_and_rejects_flat_h1_and_allows_user_requested_open_issue()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_turn_auditor_enforces_mixed_turn_problem_filing_without_false_positive_on_plain_code_turn()`
 	def mixed_problem_markdown(self, problem_specs: list[dict], *, src_link: str='https://example.com/log#line1', part1_title: str='# \U0001d678. Что сделано', part2_title: str='# \U0001d678\U0001d678. Новые проблемы', extra_h1: str='') -> str:
 		lines = [part1_title, '', '## 1. Реализация основной задачи', '', 'Основная задача выполнена и подтверждена тестами.  ', '']
 		if extra_h1:
@@ -125,7 +133,9 @@ class ProblemReportFixtureBuilder:
 	# @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_and_cli_reject_unverified_closed_child_and_foreign_issues()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_turn_hierarchical_schema_accepts_valid_and_rejects_flat_or_missing_sections()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_issue_specification_rejects_duplicate_closed_child_unverified_null_and_foreign_issues()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_report_evaluator_answer_gates_preparer_and_stop_gate_pipeline()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_standalone_four_track_accepts_nested_and_rejects_flat_h1_and_allows_user_requested_open_issue()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_turn_auditor_enforces_mixed_turn_problem_filing_without_false_positive_on_plain_code_turn()`
 	def with_git_repo(self) -> ProblemReportFixtureBuilder:
 		self.__with_git = True
 		return self

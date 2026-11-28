@@ -33,6 +33,8 @@ class Doc5ReplayAuditor:
 		'scripts/Df/Harness/Grounding/MixedTurnProblemSchema.py',
 		'scripts/Df/Harness/Grounding/ProbabilityClaimChecker.py',
 		'scripts/Df/Harness/Grounding/ProblemIssueSpecification.py',
+		# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
+		'scripts/Df/Harness/Grounding/ProblemReportEvaluator.py',
 		'scripts/Df/Harness/Grounding/ProblemTrackAuditor.py',
 		'scripts/Df/Harness/Grounding/ResponseAuditor.py',
 		'scripts/Df/Harness/Grounding/ScatterBannerAuditor.py',

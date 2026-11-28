@@ -31,7 +31,9 @@ class AnswerChecksGate:
 			'doc4': not ctx['doc4_errs'], 'exec5': bool(ctx['exec5_chk'].get('verified', True)),
 			'hook_crash': bool((ctx.get('hook_crash_chk') or {}).get('verified', True)), 'http_fetch': bool(ctx['http_chk'].get('verified', True)),
 			'issue_first': bool(ctx['issue_first_chk'].get('verified', True)), 'language_and_stub': not ctx['lang_errs'],
-			'links': not ctx['link_errs'], 'scope_deferral': bool((ctx.get('scope_deferral_chk') or {}).get('verified', True)),
+			# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
+			'links': not ctx['link_errs'], 'problem_report': bool((ctx.get('problem_report_chk') or {}).get('verified', True)),
+			'scope_deferral': bool((ctx.get('scope_deferral_chk') or {}).get('verified', True)),
 			'source_grounding': not ctx['source_errs'], 'tdd': bool(ctx['tdd_chk'].get('verified', True)),
 			'verification_observability': bool((ctx.get('verification_observability_chk') or {}).get('verified', True)), 'workflow': not ctx['wf_errs'],
 		}
@@ -92,6 +94,18 @@ class AnswerChecksGate:
 	def __partial_read_messages(ctx: dict) -> list[str]:
 		p_viols = ctx['del_chk'].get('aa_partial_read_violations') or []
 		return ['REVIEW-3 / REVIEW-4: Independent A.A reviewer subagent performed a partial/truncated read of the candidate response: ' + '; '.join(p_viols)] if p_viols else []
+	# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
+	# @used-by :meth:`AnswerChecksGate.run()`
+	@staticmethod
+	def __problem_report_messages(ctx: dict) -> list[str]:
+		chk = ctx.get('problem_report_chk')
+		if None is chk and None is not ctx.get('response'):
+			from Df.Harness.Grounding.ProblemReportEvaluator import ProblemReportEvaluator
+			turn = ctx.get('turn')
+			reqs = list(turn.get('requests') or ()) if isinstance(turn, dict) and 'primary' == ctx.get('role') else []
+			chk = ProblemReportEvaluator(ctx.get('root'), turn, ctx.get('value'), ctx.get('response'), requests=reqs, native=ctx.get('native')).evaluate()
+			ctx['problem_report_chk'] = chk
+		return [] if (chk or {}).get('verified', True) else list((chk or {}).get('violations') or [])
 	# @used-by :meth:`AnswerChecksGate.run()`
 	@staticmethod
 	def __scope_deferral_messages(ctx: dict) -> list[str]:
@@ -115,6 +129,7 @@ class AnswerChecksGate:
 		('links', 'response.links', lambda c: list(c['link_errs'])),
 		('causal_probability', 'response.doc2', lambda c: list(c['prob_errs'])),
 		('source_grounding', 'response.grounding', lambda c: list(c['source_errs'])),
+		('problem_report', 'response.problem_report', __problem_report_messages),
 		('language_and_stub', 'response.language', lambda c: list(c['lang_errs'])),
 		('exec5', 'turn.exec5', __exec5_messages),
 		('hook_crash', 'turn.hook_crash', __hook_crash_messages),
@@ -144,6 +159,7 @@ class AnswerChecksGate:
 	# @uses :meth:`Df.Harness.Gate.AnswerChecksGate.AnswerChecksGate.__http_messages()`
 	# @uses :meth:`Df.Harness.Gate.AnswerChecksGate.AnswerChecksGate.__lifecycle_messages()`
 	# @uses :meth:`Df.Harness.Gate.AnswerChecksGate.AnswerChecksGate.__partial_read_messages()`
+	# @uses :meth:`Df.Harness.Gate.AnswerChecksGate.AnswerChecksGate.__problem_report_messages()`
 	# @uses :meth:`Df.Harness.Gate.AnswerChecksGate.AnswerChecksGate.__scope_deferral_messages()`
 	# @uses :meth:`Df.Harness.Gate.AnswerChecksGate.AnswerChecksGate.__verification_obs_messages()`
 	def run(self, ctx: dict) -> tuple[list[dict], dict[str, bool]]:

@@ -228,6 +228,7 @@ def begin(root, conversation=None, *, platform=None, backend=None, watch=False, 
 # @used-by :meth:`test_doc5_golden_feature_turn.Doc5GoldenFeatureTurnTests.test_golden_feature_turn_snapshot_does_not_enable_problem_mode()`
 # @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_antigravity_issue_first_gate_blocks_retroactive_and_passes_parent_then_tdd()`
 # @used-by :meth:`test_issue_first_completion.IssueFirstTurnCompletionAndGitTests.test_codex_apply_patch_and_exec_command_issue_first_gate()`
+# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_report_evaluator_answer_gates_preparer_and_stop_gate_pipeline()`
 # @used-by :meth:`test_repo_link_gate.RepoLinkGateTests.test_grounding_accepts_verified_local_repo_tagged_url_and_blocks_fabrications()`
 # @used-by :meth:`test_scatter_banner_gate.ScatterBannerGateTests.test_analysis_check_and_answer_check_enforce_file6_banner()`
 # @used-by :meth:`test_snapshot_canary_and_hook_crash_audit.SnapshotCanaryAndHookCrashAuditTests.test_answer_check_enforces_hook_crash_gate()`

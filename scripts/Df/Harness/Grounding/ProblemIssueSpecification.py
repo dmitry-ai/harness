@@ -183,6 +183,7 @@ class ProblemIssueSpecification:
 				if url:
 					out.add(url.rstrip('/').lower())
 		return out
+	# @used-by :func:`Df.Harness.lib.hook_crash_ops.dfh_has_recorded_hook_issue()`
 	# @used-by :meth:`ProblemIssueSpecification.__check_evidence()`
 	# @used-by :meth:`ProblemIssueSpecification.is_valid_open_parent_issue()`
 	@classmethod
@@ -211,6 +212,8 @@ class ProblemIssueSpecification:
 			except (OSError, ValueError):
 				r = False
 		return r
+	# @used-by :func:`Df.Harness.lib.hook_crash_ops.dfh_has_recorded_hook_issue()`
+	# @used-by :meth:`Df.Harness.Issue.TurnAuditor.TurnAuditor.__has_workspace_parent_issue()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_issue_specification_rejects_duplicate_closed_child_unverified_null_and_foreign_issues()`
 	@classmethod
 	def is_valid_open_parent_issue(cls, root: Path | str | None, repo_slug: str, issue_num: int) -> bool:

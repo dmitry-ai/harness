@@ -45,7 +45,6 @@ def _collect_turn_issues(turn: dict, turn_state: dict | None) -> dict[str, dict]
 # @used-by :mod:`agent_tools.issue_lifecycle`
 def code_and_issue_lifecycle_status(root, turn, turn_state=None, response=None) -> dict:
 	return TurnAuditor(Path(root), turn, turn_state, response).audit()
-# @used-by :func:`Df.Harness.lib.hook_crash_ops.dfh_has_recorded_hook_issue()`
 # @used-by :meth:`Df.Harness.Tdd.RatchetGuard.RatchetGuard.__find_issue_approval()`
 # @used-by :mod:`agent_tools.issue_lifecycle`
 def evidence_issue_files(root: Path, repo_slug: str, fname: str, candidate_repos=()) -> list[Path]:

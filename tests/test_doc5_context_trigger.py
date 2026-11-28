@@ -58,10 +58,13 @@ class Doc5ContextTriggerTests(unittest.TestCase):
 			with patch.object(completion, '_native', return_value=native):
 				chk_bad = completion.check_answer(proj, dodged_reply, conversation=cid, platform='antigravity')
 				self.assertFalse(chk_bad['valid'], chk_bad)
-				self.assertFalse(chk_bad['checks']['source_grounding'])
+				# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
+				self.assertFalse(chk_bad['checks']['problem_report'], chk_bad)
+				self.assertTrue(chk_bad['checks']['source_grounding'], chk_bad['issues'])
 				self.assertTrue(any(('DOC-5' in str(i.get('message') or '') for i in chk_bad['issues'])), chk_bad['issues'])
 				full_reply = _four_track_en(f'file:///{src_doc.as_posix()}')
 				chk_good = completion.check_answer(proj, full_reply, conversation=cid, platform='antigravity')
+				self.assertTrue(chk_good['checks']['problem_report'], chk_good['issues'])
 				self.assertTrue(chk_good['checks']['source_grounding'], chk_good['issues'])
 	# @used-by :mod:`unittest`
 	def test_planned_child_issue_turn_with_tdd_red_failure_does_not_force_doc5(self) -> None:
@@ -119,10 +122,11 @@ class Doc5ContextTriggerTests(unittest.TestCase):
 			reply = 'Completed planned Phase 1 port and filed upstream defect issue.  \n'
 			with patch.object(completion, '_native', return_value=native):
 				chk_ok = completion.check_answer(proj, reply, conversation=cid, platform='antigravity')
+				self.assertTrue(chk_ok['checks']['problem_report'], chk_ok['issues'])
 				self.assertTrue(chk_ok['checks']['source_grounding'], chk_ok['issues'])
 				native['turns'][0]['issue_actions'].append({'action': 'create', 'repo': 'dmitry-ai/harness', 'number': 339, 'parent_number': None, 'step': 12})
 				chk_bug = completion.check_answer(proj, reply, conversation=cid, platform='antigravity')
-				self.assertFalse(chk_bug['checks']['source_grounding'], chk_bug)
+				self.assertFalse(chk_bug['checks']['problem_report'], chk_bug)
 				self.assertTrue(any(('DOC-5' in str(i.get('message') or '') for i in chk_bug['issues'])), chk_bug['issues'])
 if '__main__' == __name__:
 	unittest.main()

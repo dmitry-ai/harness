@@ -1,6 +1,8 @@
 # 2026-11-28 Dmitrii Fediuk https://github.com/dmitrii-fediuk
 from __future__ import annotations
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 import json
 import sys
 import tempfile
@@ -76,5 +78,60 @@ class ProblemReportGovernanceTests(unittest.TestCase):
 			proc = run_harness_inprocess(['analysis-check', str(ctx['root']), '--response-file', str(rf), '--mode', 'auto'])
 			self.assertEqual(2, proc.returncode, proc.stdout or proc.stderr)
 			self.assertIn('UNVERIFIED_PROBLEM_ISSUE', json.dumps(json.loads(proc.stdout)))
+	# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
+	# @used-by :mod:`unittest`
+	def test_problem_report_evaluator_answer_gates_preparer_and_stop_gate_pipeline(self) -> None:
+		from Df.Harness.Gate.StopChecksGate import StopChecksGate
+		from Df.Harness.Grounding.ProblemReportEvaluator import ProblemReportEvaluator
+		from agent_tools import completion
+		with tempfile.TemporaryDirectory() as td:
+			b: ProblemReportFixtureBuilder = ProblemReportFixtureBuilder(Path(td)).with_git_repo().add_issue(501).add_issue(502, state='closed')
+			ctx = b.build_workspace()
+			ev_file = ctx['root'] / 'log.txt'
+			ev_file.write_text('exit status 1, timeout reached\n', encoding='utf-8')
+			src_link = f'file:///{ev_file.as_posix()}'
+			good_md = b.mixed_problem_markdown([{'issue': 'https://github.com/dmitry-ai/harness/issues/501'}], src_link=src_link)
+			bad_md = b.mixed_problem_markdown([{'issue': 'https://github.com/dmitry-ai/harness/issues/502'}], src_link=src_link)
+			self.assertTrue(ProblemReportEvaluator(ctx['root'], ctx['turn'], ctx['turn_state'], good_md, requests=ctx['requests']).evaluate()['verified'])
+			bad_eval = ProblemReportEvaluator(ctx['root'], ctx['turn'], ctx['turn_state'], bad_md, requests=ctx['requests']).evaluate()
+			self.assertFalse(bad_eval['verified'])
+			self.assertTrue(any(('CLOSED_PROBLEM_ISSUE' in v for v in bad_eval['violations'])), bad_eval)
+			fails: list[tuple[str, str]] = []
+			runner = SimpleNamespace(root=ctx['root'], turn=ctx['turn'], value=dict(ctx['turn_state']), response=bad_md, native=None, _fail_gate=lambda g, m: fails.append((g, m)))
+			ProblemReportEvaluator.check_runner(runner)
+			self.assertFalse(runner.value['problem_report_check']['verified'])
+			self.assertEqual('problem_report', fails[0][0])
+			native = {'platform': 'antigravity', 'conversation_id': ctx['cid'], 'native_backend': td, 'source_file': '', 'primary': True, 'turns': [ctx['turn']], 'active_turn_id': ctx['turn']['turn_id']}
+			with patch.object(completion, '_native', return_value=native):
+				chk_bad = completion.check_answer(ctx['root'], bad_md, conversation=ctx['cid'], platform='antigravity')
+				self.assertFalse(chk_bad['valid'], chk_bad)
+				self.assertFalse(chk_bad['checks']['problem_report'], chk_bad)
+				self.assertTrue(chk_bad['checks']['source_grounding'], chk_bad['issues'])
+				self.assertTrue(any(('problem_report' == i.get('gate_id') for i in chk_bad['issues'])), chk_bad['issues'])
+				chk_ok = completion.check_answer(ctx['root'], good_md, conversation=ctx['cid'], platform='antigravity')
+				self.assertTrue(chk_ok['checks']['problem_report'], chk_ok['issues'])
+			stop_hit = StopChecksGate().run({'status': 'prepared', 'prepared': {}, 'readiness_check': {'verified': True}, 'problem_report_check': {'verified': False, 'violations': ['CLOSED_PROBLEM_ISSUE']}})
+			self.assertIsNotNone(stop_hit)
+			self.assertIn('CLOSED_PROBLEM_ISSUE', stop_hit['reason'])
+			self.assertIsNone(StopChecksGate().run({'status': 'prepared', 'prepared': {}, 'readiness_check': {'verified': True}, 'problem_report_check': {'verified': True, 'violations': []}}))
+	# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
+	# @used-by :mod:`unittest`
+	def test_turn_auditor_enforces_mixed_turn_problem_filing_without_false_positive_on_plain_code_turn(self) -> None:
+		from Df.Harness.Issue.TurnAuditor import TurnAuditor
+		with tempfile.TemporaryDirectory() as td:
+			b: ProblemReportFixtureBuilder = ProblemReportFixtureBuilder(Path(td)).with_git_repo().add_issue(501).add_issue(502, state='closed')
+			code_file = Path(td).resolve() / 'proj/\u2c0f/\u227b/\u2655/\u26ef/app.py'
+			ctx = b.build_workspace(touched_files=[str(code_file)])
+			closed_only_turn = {**ctx['turn'], 'issue_actions': [a for a in ctx['turn']['issue_actions'] if 502 == a['number']]}
+			closed_only_state = {**ctx['turn_state'], 'github_issues': {k: v for k, v in ctx['turn_state']['github_issues'].items() if 502 == v['number']}}
+			mixed_closed = b.mixed_problem_markdown([{'issue': 'https://github.com/dmitry-ai/harness/issues/502'}])
+			aud_bad = TurnAuditor(ctx['root'], closed_only_turn, closed_only_state, response=mixed_closed).audit()
+			self.assertTrue(any(('Diagnostic audit of dmitry-ai/harness' in v for v in aud_bad['violations'])), aud_bad['violations'])
+			mixed_open = b.mixed_problem_markdown([{'issue': 'https://github.com/dmitry-ai/harness/issues/501'}])
+			aud_ok = TurnAuditor(ctx['root'], ctx['turn'], ctx['turn_state'], response=mixed_open).audit()
+			self.assertFalse(any(('Diagnostic audit of dmitry-ai/harness' in v for v in aud_ok['violations'])), aud_ok['violations'])
+			plain_done = 'Implemented `M-1` fixing `C-1` in `app.py` and closed task issue https://github.com/dmitry-ai/harness/issues/502.  \n'
+			aud_plain = TurnAuditor(ctx['root'], closed_only_turn, closed_only_state, response=plain_done).audit()
+			self.assertFalse(any(('Diagnostic audit of dmitry-ai/harness' in v for v in aud_plain['violations'])), aud_plain['violations'])
 if '__main__' == __name__:
 	unittest.main()

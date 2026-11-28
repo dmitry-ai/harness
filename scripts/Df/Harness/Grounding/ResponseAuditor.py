@@ -18,6 +18,7 @@ import json
 import re
 # 2026-11-26 "Move repository and grounding subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/382
 class ResponseAuditor:
+	# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
 	# @used-by :func:`agent_tools.response_grounding.response_source_and_kb_issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_cov_grounding.DfHarnessS11Wave2CCovGroundingTests.test_evidence_bundle_ingestor_and_response_auditor()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_cov_tail.DfHarnessS11Wave2CCovTailTests.test_grounding_ingestor_kb_membership_and_locale_fallback()`
@@ -25,8 +26,8 @@ class ResponseAuditor:
 	# @used-by :meth:`test_user_url_policy.UserUrlPolicyTests.test_broken_apex_keeps_www_and_blocks_false_alias()`
 	# @used-by :meth:`test_user_url_policy.UserUrlPolicyTests.test_response_auditor_aliases_www_subpages_and_blocks_authored_www()`
 	# @used-by :meth:`test_user_url_policy.UserUrlPolicyTests.test_uncaptured_client_intake_www_url_has_no_deadlock()`
-	def __init__(self, root: Path, response: str, requests: list[dict], *, touched_files=None, turn=None, native=None) -> None:
-		self.root, self.response, self.requests, self.touched_files, self.turn, self.native = (Path(root).resolve(), response, requests, touched_files, turn, native)
+	def __init__(self, root: Path, response: str, requests: list[dict], *, touched_files=None, turn=None, native=None, turn_state=None, skip_df_analysis: bool=False) -> None:
+		self.root, self.response, self.requests, self.touched_files, self.turn, self.native, self.turn_state, self.skip_df_analysis = (Path(root).resolve(), response, requests, touched_files, turn, native, turn_state, bool(skip_df_analysis))
 		self.errors = list(LinkAuditor.chat_reply_link_issues(response, root=self.root))
 		self.local_repo_urls: set[str] = set()
 		self.authored_links: list[tuple[str, str]] = []
@@ -329,5 +330,6 @@ class ResponseAuditor:
 			self.__check_kb_membership(pp)
 			self.__check_external_refs(pp)
 		self.__check_local_grounding()
-		self.errors.extend(CliCommandAuditor.response_turn_gate_issues(self.root, self.response, requests=self.requests, turn=self.turn, native=self.native))
+		# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
+		self.errors.extend(CliCommandAuditor.response_turn_gate_issues(self.root, self.response, requests=self.requests, turn=self.turn, native=self.native, turn_state=self.turn_state, skip_df_analysis=self.skip_df_analysis))
 		return self.errors

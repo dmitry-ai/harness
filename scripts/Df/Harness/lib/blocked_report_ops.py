@@ -98,12 +98,15 @@ def _needs_upwork_adoption(pp: Any, wf_cov: set, requests_list: list, is_fin: bo
 def _pending_workflow_ids(wf_state: dict, conversation_id: str | None, wf_identifiers: set) -> set:
 	reqs = wf_state.get('requests') or []
 	return {req['id'] for req in reqs if not req.get('response_prepared') and (req.get('native_conversation_id') in (None, conversation_id) or req['id'] in wf_identifiers)}
+# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
 # @used-by :func:`dfh_evaluate_runner_code_hygiene()`
 def _run_runner_audits(runner: Any) -> None:
+	from Df.Harness.Grounding.ProblemReportEvaluator import ProblemReportEvaluator
 	from agent_tools.arch.evaluator import check_runner_architecture
 	dfh_check_runner_hook_crashes(runner)
 	dfh_check_runner_addon_observability(runner)
 	dfh_check_runner_verification_observability(runner)
+	ProblemReportEvaluator.check_runner(runner)
 	check_runner_architecture(runner)
 # @used-by :func:`dfh_evaluate_check_workflow_errors()`
 def _standard_workflow_errors(root_p: Path, pp: Any, response: str, requests_list: list, turn_obj: dict, value_obj: dict, del_chk: dict, *, factual_kb_fn, is_deliv_fn) -> list[str]:

@@ -123,11 +123,13 @@ class CliCommandAuditor:
 		from agent_tools.tdd_gate import parse_command_outcome
 		out = parse_command_outcome(text)
 		return (0 == out.get('exit_code') or ('pass' == out.get('status') and None is out.get('exit_code'))) and (not top_level_json_has_failure(text))
+	# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
 	# @used-by :func:`agent_tools.cli_command_grounding.response_turn_gate_issues()`
 	# @used-by :meth:`Df.Harness.Grounding.ResponseAuditor.ResponseAuditor.validate()`
 	@classmethod
-	def response_turn_gate_issues(cls, root: Path, response: str, *, requests: list | tuple=(), turn: dict[str, Any] | None=None, native: dict[str, Any] | None=None) -> list[str]:
+	def response_turn_gate_issues(cls, root: Path, response: str, *, requests: list | tuple=(), turn: dict[str, Any] | None=None, native: dict[str, Any] | None=None, turn_state: dict[str, Any] | None=None, skip_df_analysis: bool=False) -> list[str]:
 		from Df.Harness.Grounding.DfAnalysisValidator import DfAnalysisValidator
 		from Df.Harness.lib.grounding_md import dfh_markdown_table_issues
-		turn_ctx = {'root': root, 'turn': turn, 'native': native}
-		return [*dfh_markdown_table_issues(response), *DfAnalysisValidator(response, requests=requests, mode='auto', turn_context=turn_ctx).validate(), *cls(response, turn=turn, native=native).audit()]
+		turn_ctx = {'root': root, 'turn': turn, 'turn_state': turn_state, 'native': native}
+		df_errs = [] if skip_df_analysis else DfAnalysisValidator(response, requests=requests, mode='auto', turn_context=turn_ctx).validate()
+		return [*dfh_markdown_table_issues(response), *df_errs, *cls(response, turn=turn, native=native).audit()]

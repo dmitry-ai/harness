@@ -187,6 +187,11 @@ class DfHarnessS11Wave2bGateTests(unittest.TestCase):
 		self.assertIn('arch_audit', PreToolRegistry.BUILTIN_TOOLS_MANIFEST)
 		self.assertTrue(any(('architecture' == g[0] for g in AnswerChecksGate.ANSWER_GATES)))
 		self.assertTrue(any(((35, 'arch_audit') == (g[0], g[1]) for g in StopChecksGate.STOP_GATES)))
+		# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
+		self.assertTrue(any(('problem_report' == g[0] for g in AnswerChecksGate.ANSWER_GATES)))
+		self.assertTrue(any(((37, 'problem_report') == (g[0], g[1]) for g in StopChecksGate.STOP_GATES)))
+		stop_prob = StopChecksGate().run({'status': 'prepared', 'prepared': {}, 'readiness_check': {'verified': True}, 'problem_report_check': {'verified': False}})
+		self.assertIsNotNone(stop_prob)
 		stop_arch = StopChecksGate().run({'status': 'prepared', 'prepared': {}, 'readiness_check': {'verified': True}, 'arch_audit_check': {'verified': False}})
 		self.assertIsNotNone(stop_arch)
 if '__main__' == __name__:

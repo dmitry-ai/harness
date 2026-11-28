@@ -23,6 +23,7 @@ _VERBATIM_RE = re.compile(r'```|^\s*>\s*\S|\u00ab[^\u00bb]{4,}\u00bb|"[^"\n]{4,}
 class DfAnalysisValidator:
 	# @used-by :func:`agent_tools.statements.validate_df_analysis()`
 	# @used-by :meth:`Df.Harness.Grounding.CliCommandAuditor.CliCommandAuditor.response_turn_gate_issues()`
+	# @used-by :meth:`Df.Harness.Grounding.ProblemReportEvaluator.ProblemReportEvaluator.evaluate()`
 	# @used-by :meth:`DfAnalysisValidator.analysis_gate_issues()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_df_analysis_problem_tracks_scatter_banner_and_statements()`
 	def __init__(self, response: str, *, requests: list | tuple=(), mode: str='auto', turn_context: dict | None=None) -> None:
@@ -177,6 +178,7 @@ class DfAnalysisValidator:
 		return [*dfh_markdown_table_issues(response), *cls(response, requests=requests, mode='auto', turn_context=turn_context).validate()]
 	# @used-by :func:`agent_tools.statements.validate_df_analysis()`
 	# @used-by :meth:`Df.Harness.Grounding.CliCommandAuditor.CliCommandAuditor.response_turn_gate_issues()`
+	# @used-by :meth:`Df.Harness.Grounding.ProblemReportEvaluator.ProblemReportEvaluator.evaluate()`
 	# @used-by :meth:`test_df_harness_s11_wave2c_grounding.DfHarnessS11Wave2CGroundingTests.test_df_analysis_problem_tracks_scatter_banner_and_statements()`
 	def validate(self) -> list[str]:
 		from agent_tools.metadata import strip_leading_metadata_header

@@ -73,6 +73,7 @@ class MixedTurnProblemSchema:
 	# @used-by :func:`Df.Harness.lib.blocked_report_ops._is_doc5_blocker_analysis()`
 	# @used-by :meth:`Df.Harness.Grounding.Doc5ContextDetector.Doc5ContextDetector.detect()`
 	# @used-by :meth:`Df.Harness.Grounding.Doc5ReplayAuditor.Doc5ReplayAuditor.__is_problem_response()`
+	# @used-by :meth:`Df.Harness.Grounding.ProblemReportEvaluator.ProblemReportEvaluator.has_problem_sections()`
 	@staticmethod
 	def has_mixed_sections(roots: list[HeadingNode]) -> bool:
 		return any((1 == n.level and bool(_PART2_RE.match(n.title)) for n in roots))

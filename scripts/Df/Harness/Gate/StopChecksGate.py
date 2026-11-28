@@ -42,6 +42,17 @@ class StopChecksGate:
 			detail = (state.get('readiness_check') or {}).get('detail') or 'answer-prepare has not succeeded for the current turn'
 			r = {'decision': 'continue', 'reason': f'FILE-3 / EXEC-5 Stop Gate: Turn is not prepared ({detail}). Run harness.py answer-prepare and output the exact prepared response.'}
 		return r
+	# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
+	# @used-by :meth:`StopChecksGate.run()`
+	@staticmethod
+	def __check_problem_report(state: dict) -> dict | None:
+		prc = state.get('problem_report_check') if isinstance(state.get('problem_report_check'), dict) else {}
+		if False is not prc.get('verified'):
+			r = None
+		else:
+			detail = '; '.join((str(v) for v in (prc.get('violations') or ()))) or 'DOC-5 problem report hierarchy or GitHub issue validity check failed'
+			r = {'decision': 'continue', 'reason': f'PROBLEM-REPORT Stop Gate: {detail}. Resolve DOC-5 structure or open parent GitHub issue errors and re-run harness.py answer-prepare.'}
+		return r
 	# @used-by :meth:`StopChecksGate.run()`
 	@staticmethod
 	def __check_tdd(state: dict) -> dict | None:
@@ -57,15 +68,18 @@ class StopChecksGate:
 		(20, 'issue_first', __check_issue_first),
 		(30, 'code_lifecycle', __check_code_lifecycle),
 		(35, 'arch_audit', __check_arch_audit),
+		(37, 'problem_report', __check_problem_report),
 		(40, 'tdd', __check_tdd),
 	)
 	# @used-by :func:`agent_tools.gates.stop_checks.run_stop_gates()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_pretool_classes_cover_all_guards()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_gate.DfHarnessS11Wave2bGateTests.test_gate_v4_arch_audit_and_pipeline_parity()`
+	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_report_evaluator_answer_gates_preparer_and_stop_gate_pipeline()`
 	# @uses :meth:`Df.Harness.Gate.StopChecksGate.StopChecksGate.__check_arch_audit()`
 	# @uses :meth:`Df.Harness.Gate.StopChecksGate.StopChecksGate.__check_code_lifecycle()`
 	# @uses :meth:`Df.Harness.Gate.StopChecksGate.StopChecksGate.__check_issue_first()`
 	# @uses :meth:`Df.Harness.Gate.StopChecksGate.StopChecksGate.__check_prepared()`
+	# @uses :meth:`Df.Harness.Gate.StopChecksGate.StopChecksGate.__check_problem_report()`
 	# @uses :meth:`Df.Harness.Gate.StopChecksGate.StopChecksGate.__check_tdd()`
 	def run(self, state: dict) -> dict | None:
 		r = None

@@ -2,7 +2,7 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Any
-from Df.Harness.lib.hook_crash_ops import dfh_detect_hook_crashes, dfh_has_recorded_hook_issue, dfh_load_violation_receipt, dfh_text_documents_hook_crash
+from Df.Harness.lib.hook_crash_ops import dfh_detect_hook_crashes, dfh_has_recorded_hook_issue, dfh_load_violation_receipt, dfh_response_documents_hook_crash_structured
 # 2026-11-26 "Move turn lifecycle subsystems into Df/Harness single-class modules": https://github.com/dmitry-ai/harness/issues/383
 class CrashAuditor:
 	# @used-by :func:`Df.Harness.lib.completion_checks.dfh_hook_crash_status()`
@@ -30,7 +30,8 @@ class CrashAuditor:
 				r = {'crashes': crashes, 'recovered_via_receipt': True, 'resolution': 'recovered_via_receipt', 'verified': True}
 			elif dfh_has_recorded_hook_issue(Path(self.__root), self.__turn or {}, self.__value, crashes):
 				r = {'crashes': crashes, 'resolution': 'github_issue_recorded', 'verified': True}
-			elif dfh_text_documents_hook_crash(self.__response, crashes):
+			# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
+			elif dfh_response_documents_hook_crash_structured(self.__response, crashes):
 				r = {'crashes': crashes, 'resolution': 'disclosed_in_response', 'verified': True}
 			else:
 				parts = [f"{c['hook']}@step {c['step']}" for c in crashes[:4]]

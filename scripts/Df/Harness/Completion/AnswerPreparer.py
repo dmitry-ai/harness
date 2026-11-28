@@ -75,10 +75,11 @@ class AnswerPreparer:
 		aa_part_errs = self.value['delegation_check'].get('aa_partial_read_violations') or []
 		if aa_part_errs:
 			self._fail_gate('aa_partial_read', 'REVIEW-3 / REVIEW-4: Independent A.A reviewer subagent performed a partial/truncated read of the candidate response: ' + '; '.join(aa_part_errs))
+	# 2026-11-28 "Wire ProblemReportEvaluator into answer-check, answer-prepare, Stop Gate, TurnAuditor, and CrashAuditor": https://github.com/dmitry-ai/harness/issues/430
 	# @used-by :meth:`AnswerPreparer.run()`
 	def __check_source_grounding(self) -> None:
 		from agent_tools.response_grounding import response_source_and_kb_issues
-		source_issues = response_source_and_kb_issues(self.root, self.response, self.turn['requests'], touched_files=self.turn.get('touched_files'), turn=self.turn, native=self.native)
+		source_issues = response_source_and_kb_issues(self.root, self.response, self.turn['requests'], touched_files=self.turn.get('touched_files'), turn=self.turn, native=self.native, turn_state=self.value, skip_df_analysis=True)
 		self.value['source_kb_check'] = {'verified': not source_issues, 'issues': source_issues}
 		if source_issues:
 			self._fail_gate('source_grounding', '; '.join(source_issues))
@@ -165,6 +166,7 @@ class AnswerPreparer:
 	# @used-by :meth:`AnswerPreparer._record_journal_entry()`
 	# @used-by :meth:`AnswerPreparer.run()`
 	# @used-by :meth:`Df.Harness.Arch.Evaluator.Evaluator.check_runner()`
+	# @used-by :meth:`Df.Harness.Grounding.ProblemReportEvaluator.ProblemReportEvaluator.check_runner()`
 	# @used-by :meth:`Df.Harness.Grounding.ScopeDeferralEvaluator.ScopeDeferralEvaluator.check_runner()`
 	def _fail_gate(self, gate_id: str, detail: str, *, admission_failed: bool=False, status: str | None=None, extra: dict | None=None, cause: BaseException | None=None) -> None:
 		now_fn = self.__ops.get('now') or dfh_now

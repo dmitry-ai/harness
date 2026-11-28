@@ -71,6 +71,7 @@ class StandaloneProblemSchema:
 				self.__process_h1(node, blocks, errs, method_bodies, state)
 		return {'blocks': blocks, 'errors': errs, 'method_bodies': method_bodies}
 	# @used-by :meth:`Df.Harness.Grounding.Doc5ReplayAuditor.Doc5ReplayAuditor.__is_problem_response()`
+	# @used-by :meth:`Df.Harness.Grounding.ProblemReportEvaluator.ProblemReportEvaluator.has_problem_sections()`
 	@classmethod
 	def has_any_problem_block(cls, roots: list[HeadingNode]) -> bool:
 		return any((0 in blk['sections'] for blk in cls(roots).extract()['blocks']))

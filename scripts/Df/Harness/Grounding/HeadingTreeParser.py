@@ -16,6 +16,7 @@ class HeadingTreeParser:
 	# @used-by :meth:`Df.Harness.Grounding.CliCommandAuditor.CliCommandAuditor.__desc_line_set()`
 	# @used-by :meth:`Df.Harness.Grounding.DfAnalysisValidator.DfAnalysisValidator.validate()`
 	# @used-by :meth:`Df.Harness.Grounding.Doc5ReplayAuditor.Doc5ReplayAuditor.__is_problem_response()`
+	# @used-by :meth:`Df.Harness.Grounding.ProblemReportEvaluator.ProblemReportEvaluator.has_problem_sections()`
 	# @used-by :meth:`Df.Harness.Grounding.ProblemTrackAuditor.ProblemTrackAuditor.extract_blocks()`
 	# @used-by :meth:`Df.Harness.Grounding.ScatterBannerAuditor.ScatterBannerAuditor.__parse_standalone()`
 	# @used-by :meth:`Df.Harness.Grounding.ScatterBannerAuditor.ScatterBannerAuditor.__resolve_method_bodies()`
@@ -34,6 +35,7 @@ class HeadingTreeParser:
 	# @used-by :meth:`Df.Harness.Grounding.CliCommandAuditor.CliCommandAuditor.__desc_line_set()`
 	# @used-by :meth:`Df.Harness.Grounding.DfAnalysisValidator.DfAnalysisValidator.validate()`
 	# @used-by :meth:`Df.Harness.Grounding.Doc5ReplayAuditor.Doc5ReplayAuditor.__is_problem_response()`
+	# @used-by :meth:`Df.Harness.Grounding.ProblemReportEvaluator.ProblemReportEvaluator.has_problem_sections()`
 	# @used-by :meth:`Df.Harness.Grounding.ProblemTrackAuditor.ProblemTrackAuditor.extract_blocks()`
 	# @used-by :meth:`Df.Harness.Grounding.ScatterBannerAuditor.ScatterBannerAuditor.__parse_standalone()`
 	# @used-by :meth:`Df.Harness.Grounding.ScatterBannerAuditor.ScatterBannerAuditor.__resolve_method_bodies()`
