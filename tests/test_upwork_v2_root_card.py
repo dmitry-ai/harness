@@ -5,7 +5,11 @@ from pathlib import Path
 from unittest.mock import patch
 import json
 import os
+import sys
 import unittest
+_SCRIPTS = Path(__file__).resolve().parents[1] / 'scripts'
+if str(_SCRIPTS) not in sys.path:
+	sys.path.insert(0, str(_SCRIPTS))
 from agent_tools import path_registry as pr
 from agent_tools import upwork_project as up
 from agent_tools import workflow

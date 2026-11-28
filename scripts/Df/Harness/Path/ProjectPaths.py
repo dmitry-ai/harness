@@ -704,6 +704,7 @@ class ProjectPaths:
 	# @used-by :mod:`test_turn_routing_and_handoff_m6`
 	# @used-by :mod:`test_upwork_data`
 	# @used-by :mod:`test_upwork_init_e2e`
+	# @used-by :mod:`test_upwork_v2_root_card`
 	# @used-by :mod:`test_verification_observability`
 	# @used-by :mod:`test_watchdog_and_timeout_gate`
 	# @used-by :mod:`test_worker_semaphore_and_xdist`
