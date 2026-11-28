@@ -34,11 +34,13 @@ def build_journal_metadata(root: str | Path, native: dict[str, Any], turn: dict[
 # 2026-11-24
 # "Add structured problem metadata builder and CLI command":
 # https://github.com/dmitry-ai/harness/issues/180
+# 2026-11-28 "Reject invalid or foreign GitHub issues in problem-metadata builder and CLI": https://github.com/dmitry-ai/harness/issues/429
 # @used-by :func:`Df.Harness.lib.cli_registry_handlers.dfh_exec_problem_metadata()`
 # @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_allow_no_issue_keeps_mandatory_issue_key()`
+# @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_and_cli_reject_unverified_closed_child_and_foreign_issues()`
 # @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_rejects_missing_or_invalid_issue_url()`
 # @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_with_issue_url_and_distinct_source_project()`
 # @used-by :mod:`agent_tools.meta`
 # @used-by :mod:`agent_tools.metadata`
-def build_problem_metadata(*, issue_url: str | None=None, project_root: str | Path | None=None, source_project_root: str | Path | None=None, allow_no_issue: bool=False, env: dict[str, str] | None=None, now: datetime | str | None=None, tz=None) -> dict[str, Any]:
-	return Builders.build_problem(issue_url=issue_url, project_root=project_root, source_project_root=source_project_root, allow_no_issue=allow_no_issue, env=env, now=now, tz=tz)
+def build_problem_metadata(*, issue_url: str | None=None, project_root: str | Path | None=None, source_project_root: str | Path | None=None, allow_no_issue: bool=False, env: dict[str, str] | None=None, now: datetime | str | None=None, tz=None, issue_spec: Any=None) -> dict[str, Any]:
+	return Builders.build_problem(issue_url=issue_url, project_root=project_root, source_project_root=source_project_root, allow_no_issue=allow_no_issue, env=env, now=now, tz=tz, issue_spec=issue_spec)

@@ -39,6 +39,10 @@ class DfHarnessS11Wave2bMetaCovTests(unittest.TestCase):
 			self.assertEqual([2], TranscriptReader.extract_turn_steps_from_state(found[1]))
 			rollout = base / 'rollout.jsonl'
 			rollout.write_text(json.dumps({'timestamp': '2026-11-26T10:00:00Z', 'type': 'turn_context', 'payload': {'turn_id': 't1', 'model': 'gpt-5', 'effort': 'high'}}) + '\n', encoding='utf-8')
+			# 2026-11-28 "Reject invalid or foreign GitHub issues in problem-metadata builder and CLI": https://github.com/dmitry-ai/harness/issues/429
+			ev_dir = root / '\ua616/KB/Evidence/GitHub/dmitry-ai__harness'
+			ev_dir.mkdir(parents=True, exist_ok=True)
+			(ev_dir / 'issue-381.json').write_text(json.dumps({'url': 'https://github.com/dmitry-ai/harness/issues/381', 'repo': 'dmitry-ai/harness', 'number': 381, 'state': 'open', 'title': 'Wave2b issue', 'body': 'Details.'}), encoding='utf-8')
 			with patch('agent_tools.runtime._codex_home_conversation_trace', return_value=str(rollout)):
 				prob = Builders.build_problem(issue_url='https://github.com/dmitry-ai/harness/issues/381', project_root=root, source_project_root=src_root, env={'CODEX_THREAD_ID': cid})
 			self.assertEqual('https://github.com/dmitry-ai/harness/issues/381', prob['Issue'])

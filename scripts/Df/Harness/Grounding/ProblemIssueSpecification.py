@@ -13,6 +13,7 @@ _REQ_URL_RE = re.compile(r'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/i
 # @used-by :meth:`Df.Harness.Grounding.DfAnalysisValidator.DfAnalysisValidator.__check_issue_entries()`
 class ProblemIssueSpecification:
 	# @used-by :meth:`Df.Harness.Grounding.DfAnalysisValidator.DfAnalysisValidator.__check_issue_entries()`
+	# @used-by :meth:`Df.Harness.Meta.Builders.Builders.__validate_problem_issue()`
 	def __init__(self, entries: list[dict[str, Any]], *, root: Path | str | None=None, turn: dict[str, Any] | None=None, turn_state: dict[str, Any] | None=None, requests: list | tuple=(), schema_mode: str='problem', strict_evidence: bool=False, conversation_id: str | None=None) -> None:
 		self.__entries = entries
 		self.__root = Path(root).resolve() if None is not root and str(root).strip() else None
@@ -226,6 +227,7 @@ class ProblemIssueSpecification:
 				r = (m.group(1), int(m.group(2)), clean)
 		return r
 	# @used-by :meth:`Df.Harness.Grounding.DfAnalysisValidator.DfAnalysisValidator.__check_issue_entries()`
+	# @used-by :meth:`Df.Harness.Meta.Builders.Builders.__validate_problem_issue()`
 	def validate(self) -> list[str]:
 		errs: list[str] = []
 		self.__check_null_policy(self.__entries, self.__root, self.__schema_mode, errs)

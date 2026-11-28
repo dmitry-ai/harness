@@ -6,6 +6,7 @@ import json
 # 2026-11-28 "Implement hierarchical mixed-turn DOC-5 parser and problem-issue specification": https://github.com/dmitry-ai/harness/issues/428
 # @used-by :mod:`test_problem_report_governance`
 class ProblemReportFixtureBuilder:
+	# @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_and_cli_reject_unverified_closed_child_and_foreign_issues()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_turn_hierarchical_schema_accepts_valid_and_rejects_flat_or_missing_sections()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_issue_specification_rejects_duplicate_closed_child_unverified_null_and_foreign_issues()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_standalone_four_track_accepts_nested_and_rejects_flat_h1_and_allows_user_requested_open_issue()`
@@ -32,6 +33,7 @@ class ProblemReportFixtureBuilder:
 	def __seed_git_repo(self) -> None:
 		code_dir = self.__proj / '\u2c0f/\u227b/\u2655/\u26ef'
 		clone_template_git_repo(code_dir, remote_url=f'https://github.com/{self.__repo}.git')
+	# @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_and_cli_reject_unverified_closed_child_and_foreign_issues()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_turn_hierarchical_schema_accepts_valid_and_rejects_flat_or_missing_sections()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_issue_specification_rejects_duplicate_closed_child_unverified_null_and_foreign_issues()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_standalone_four_track_accepts_nested_and_rejects_flat_h1_and_allows_user_requested_open_issue()`
@@ -44,6 +46,7 @@ class ProblemReportFixtureBuilder:
 		if None is not action:
 			self.__issue_actions.append({'action': action, 'repo': self.__repo, 'number': num, 'url': url, 'state': state, 'parent_number': parent_number, 'step': step})
 		return self
+	# @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_and_cli_reject_unverified_closed_child_and_foreign_issues()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_turn_hierarchical_schema_accepts_valid_and_rejects_flat_or_missing_sections()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_issue_specification_rejects_duplicate_closed_child_unverified_null_and_foreign_issues()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_standalone_four_track_accepts_nested_and_rejects_flat_h1_and_allows_user_requested_open_issue()`
@@ -119,6 +122,7 @@ class ProblemReportFixtureBuilder:
 				f'{item_prefix} M-{tag}-2. Ручной обход\n- Суть: Проверять вручную.  \n- Доводы за: Нет правок кода.  \n- Доводы против: Ненадёжно.  \n- Оценка: 15% по системной надёжности.  \n'
 			)
 		return '\n---\n\n'.join(parts)
+	# @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_and_cli_reject_unverified_closed_child_and_foreign_issues()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_mixed_turn_hierarchical_schema_accepts_valid_and_rejects_flat_or_missing_sections()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_problem_issue_specification_rejects_duplicate_closed_child_unverified_null_and_foreign_issues()`
 	# @used-by :meth:`test_problem_report_governance.ProblemReportGovernanceTests.test_standalone_four_track_accepts_nested_and_rejects_flat_h1_and_allows_user_requested_open_issue()`

@@ -34,9 +34,10 @@ def _refresh_known_overlay_links(reg: PathRegistry) -> dict[str, Path]:
 # @used-by :func:`Df.Harness.lib.text_workflow.dfh_text_roots()`
 # @used-by :meth:`Df.Harness.Git.RepoGate.RepoGate.is_issue_tracked()`
 # @used-by :meth:`Df.Harness.Issue.ParityAuditor.ParityAuditor.audit()`
+# @used-by :meth:`Df.Harness.Meta.Builders.Builders.__insert_source_project()`
+# @used-by :meth:`Df.Harness.Meta.Builders.Builders.__validate_problem_issue()`
 # @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_github_issue()`
 # @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_journal()`
-# @used-by :meth:`Df.Harness.Meta.Builders.Builders.build_problem()`
 # @used-by :meth:`Df.Harness.Meta.ProjectIdentity.ProjectIdentity.resolve()`
 # @used-by :meth:`Df.Harness.Project.Context.ContextAssembler.ContextAssembler.assemble()`
 # @used-by :meth:`Df.Harness.Project.Context.ContextGenerator.ContextGenerator.generate()`

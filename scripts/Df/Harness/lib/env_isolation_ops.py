@@ -247,6 +247,7 @@ def dfh_isolated_host_env(**overrides: str) -> dict[str, str]:
 	return r
 # @used-by :meth:`test_df_harness_s11_wave2d_completion_cov.DfHarnessS11Wave2dCompletionCovTests.test_env_isolation_auditor_and_recovery_ops()`
 # @used-by :meth:`test_env_isolation_and_worktree_gate_contracts.EnvIsolationAndWorktreeGateContractsTests.test_harness_metadata_tests_pass_host_env_isolation_contract_and_negative_detection()`
+# @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_build_problem_metadata_and_cli_reject_unverified_closed_child_and_foreign_issues()`
 # @used-by :meth:`test_problem_metadata.ProblemMetadataTests.test_cli_problem_metadata_outputs_json_and_markdown_and_enforces_issue_key()`
 def dfh_isolated_subprocess_env(base: dict[str, str] | None=None, **overrides: str) -> dict[str, str]:
 	r = dict(os.environ if None is base else base)

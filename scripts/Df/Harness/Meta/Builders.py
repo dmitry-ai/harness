@@ -129,6 +129,7 @@ class Builders:
 		if None is state['req_ts'] or None is state['model'] or None is state['effort'] or None is state['turn_index']:
 			c_info = Builders.__fn('_extract_codex_transcript_info')(source_file, turn_id=turn_id, start_step=state['start_step'], final_step=state['final_step'])
 			Builders.__merge_transcript_fields(state, c_info, include_model=True)
+	# @used-by :meth:`Builders.__validate_problem_issue()`
 	# @used-by :meth:`Builders.build_github_issue()`
 	@staticmethod
 	def __find_issue_state_pair(canon_root: Path | None, primary_cid: str | None) -> tuple[Path | None, dict[str, Any] | None]:
@@ -145,11 +146,11 @@ class Builders:
 	# @used-by :meth:`Builders.__collect_codex_issue_ctx()`
 	# @used-by :meth:`Builders.__enrich_journal_ag()`
 	# @used-by :meth:`Builders.__enrich_journal_codex()`
+	# @used-by :meth:`Builders.__insert_source_project()`
 	# @used-by :meth:`Builders.__refine_issue_ctx_from_state()`
 	# @used-by :meth:`Builders.__resolve_journal_platform()`
 	# @used-by :meth:`Builders.build_github_issue()`
 	# @used-by :meth:`Builders.build_journal()`
-	# @used-by :meth:`Builders.build_problem()`
 	# @used-by :meth:`Builders.collect_ag_issue_ctx()`
 	@staticmethod
 	def __fn(name: str) -> Any:
@@ -164,6 +165,26 @@ class Builders:
 			r = sub_fn
 		else:
 			r = default
+		return r
+	# 2026-11-28 "Reject invalid or foreign GitHub issues in problem-metadata builder and CLI": https://github.com/dmitry-ai/harness/issues/429
+	# @used-by :meth:`Builders.build_problem()`
+	@staticmethod
+	def __insert_source_project(meta: dict[str, Any], project_root: str | Path | None, source_project_root: str | Path | None) -> dict[str, Any]:
+		from agent_tools.path_registry import canonicalize_root_dir
+		r = meta
+		if None is not source_project_root and str(source_project_root).strip():
+			src_canon = canonicalize_root_dir(source_project_root)
+			proj_canon = canonicalize_root_dir(project_root) if None is not project_root and str(project_root).strip() else None
+			if src_canon != proj_canon:
+				src_info = Builders.__fn('resolve_project_identity')(src_canon)
+				ordered: dict[str, Any] = {}
+				for key, val in meta.items():
+					ordered[key] = val
+					if 'Project' == key:
+						ordered['Source Project'] = src_info
+				if 'Source Project' not in ordered:
+					ordered['Source Project'] = src_info
+				r = ordered
 		return r
 	# @used-by :meth:`Builders.__enrich_journal_ag()`
 	# @used-by :meth:`Builders.__enrich_journal_codex()`
@@ -234,6 +255,24 @@ class Builders:
 					r = idx
 					break
 		return r
+	# 2026-11-28 "Reject invalid or foreign GitHub issues in problem-metadata builder and CLI": https://github.com/dmitry-ai/harness/issues/429
+	# @used-by :meth:`Builders.build_problem()`
+	@staticmethod
+	def __validate_problem_issue(clean_url: str | None, *, project_root: str | Path | None, env: dict[str, str] | None, issue_spec: Any) -> None:
+		if None is not clean_url:
+			from Df.Harness.Grounding.ProblemIssueSpecification import ProblemIssueSpecification
+			from agent_tools.path_registry import canonicalize_root_dir
+			canon_root = canonicalize_root_dir(project_root) if None is not project_root and str(project_root).strip() else None
+			if None is not issue_spec:
+				errs = issue_spec.validate() if hasattr(issue_spec, 'validate') else list(issue_spec(clean_url, canon_root))
+			else:
+				environ = dict(os.environ) if None is env else dict(env)
+				_, active_cid, _ = Builders.detect_env_platform(environ)
+				_, state_obj = Builders.__find_issue_state_pair(canon_root, active_cid)
+				reqs = list(state_obj.get('requests') or ()) if isinstance(state_obj, dict) else []
+				errs = ProblemIssueSpecification([{'issue': clean_url}], root=canon_root, turn_state=state_obj, requests=reqs, schema_mode='problem', strict_evidence=True, conversation_id=active_cid).validate()
+			if errs:
+				raise ValueError('; '.join(errs))
 	# @used-by :func:`agent_tools.meta.builders.build_journal_metadata()`
 	@staticmethod
 	def build_journal(root: str | Path, native: dict[str, Any], turn: dict[str, Any], *, journal_dir: str | Path, steps: list[int], turn_key: str, turn_state_path: str | Path | None=None, group_file: str | Path | None=None, conversation_steps: list[int] | None=None, request_at: datetime | str | None=None, response_at: datetime | str | None=None, tz=None) -> dict[str, Any]:
@@ -254,28 +293,16 @@ class Builders:
 		trace_block = Blocks.build_trace(cid=cid, turn_trace=turn_trace, journal_trace=journal_trace, transcript_path=native.get('source_file'))
 		extras = (('Journal', Blocks.build_journal(steps, conv_label)), ('Agent', Blocks.build_agent(platform, instance_id, state['model'], state['effort'])), ('Clarifications', Blocks.build_clarifications(turn, state_p, tz)), ('Trace', trace_block))
 		return Builders.__assemble_optional_blocks({'Time': time_block, 'Project': project_info}, extras)
+	# 2026-11-28 "Reject invalid or foreign GitHub issues in problem-metadata builder and CLI": https://github.com/dmitry-ai/harness/issues/429
 	# @used-by :func:`agent_tools.meta.builders.build_problem_metadata()`
 	# @used-by :meth:`test_df_harness_s11_wave2b_meta_cov.DfHarnessS11Wave2bMetaCovTests.test_blocks_clarifications_builders_problem_codex_and_turn_state()`
 	@staticmethod
-	def build_problem(*, issue_url: str | None=None, project_root: str | Path | None=None, source_project_root: str | Path | None=None, allow_no_issue: bool=False, env: dict[str, str] | None=None, now: datetime | str | None=None, tz=None) -> dict[str, Any]:
-		from agent_tools.path_registry import canonicalize_root_dir
+	def build_problem(*, issue_url: str | None=None, project_root: str | Path | None=None, source_project_root: str | Path | None=None, allow_no_issue: bool=False, env: dict[str, str] | None=None, now: datetime | str | None=None, tz=None, issue_spec: Any=None) -> dict[str, Any]:
 		clean_url = Builders.__normalize_problem_issue_url(issue_url, allow_no_issue=allow_no_issue)
+		Builders.__validate_problem_issue(clean_url, project_root=project_root, env=env, issue_spec=issue_spec)
 		meta = Builders(project_root, env=env, now=now, tz=tz).build_github_issue(issue_url=clean_url or '')
 		meta['Issue'] = clean_url
-		if None is not source_project_root and str(source_project_root).strip():
-			src_canon = canonicalize_root_dir(source_project_root)
-			proj_canon = canonicalize_root_dir(project_root) if None is not project_root and str(project_root).strip() else None
-			if src_canon != proj_canon:
-				src_info = Builders.__fn('resolve_project_identity')(src_canon)
-				ordered: dict[str, Any] = {}
-				for key, val in meta.items():
-					ordered[key] = val
-					if 'Project' == key:
-						ordered['Source Project'] = src_info
-				if 'Source Project' not in ordered:
-					ordered['Source Project'] = src_info
-				meta = ordered
-		return meta
+		return Builders.__insert_source_project(meta, project_root, source_project_root)
 	# @used-by :func:`agent_tools.meta.builders._collect_ag_issue_ctx()`
 	# @used-by :meth:`Builders.__collect_issue_env_ctx()`
 	@staticmethod
@@ -296,6 +323,7 @@ class Builders:
 		inst_id = (ag_paths.get('instance') if isinstance(ag_paths, dict) else None) or ag_inst_env
 		return {'ag_paths': ag_paths, 'effort': effort, 'instance_id': inst_id, 'model': model, 'primary_cid': primary_cid, 'subagent_cid': subagent_cid, 'summary_row': summary_row, 'transcript_path': t_path, 'turn_index': None}
 	# @used-by :func:`agent_tools.meta.builders._detect_env_platform()`
+	# @used-by :meth:`Builders.__validate_problem_issue()`
 	# @used-by :meth:`Builders.build_github_issue()`
 	@staticmethod
 	def detect_env_platform(environ: dict[str, str]) -> tuple[str | None, str | None, int | None]:
